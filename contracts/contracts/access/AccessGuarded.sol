@@ -23,6 +23,16 @@ abstract contract AccessGuarded {
     }
 
     function _checkRole(bytes32 role) internal view {
-        if (!registry.hasRole(role, msg.sender)) revert MissingRole(msg.sender, role);
+        if (!_hasRole(role)) revert MissingRole(msg.sender, role);
+    }
+
+    function _hasRole(bytes32 role) internal view returns (bool) {
+        return registry.hasRole(role, msg.sender);
+    }
+
+    /// @dev The caller's participant id. Only meaningful after a role check:
+    /// holding a platform role means the caller is a verified participant.
+    function _callerId() internal view returns (bytes32) {
+        return registry.participantOf(msg.sender);
     }
 }
