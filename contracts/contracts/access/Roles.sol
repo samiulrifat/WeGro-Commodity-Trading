@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 /// @title Roles
-/// @notice The eleven platform roles, shared by every contract.
+/// @notice The eleven platform roles.
 library Roles {
     bytes32 internal constant INVESTOR = keccak256("INVESTOR_ROLE");
     bytes32 internal constant FARMER = keccak256("FARMER_ROLE");

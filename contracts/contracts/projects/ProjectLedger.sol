@@ -6,22 +6,11 @@ import {AccessRegistry} from "../access/AccessRegistry.sol";
 import {Roles} from "../access/Roles.sol";
 
 /// @title ProjectLedger
-/// @notice Farming projects, their stages, slot reservations and slot holdings.
-///
-/// Investors act with their own key; the ledger works out which investor is
-/// calling from the AccessRegistry, so nobody can reserve in someone else's
-/// name.
-///
-/// Money never moves here. Investors pay WeGro outside the platform; Accounts
-/// then confirms the payment against a reservation, and only then are slots
-/// issued.
-///
-/// Amounts are whole numbers of poisha (Tk 1.25 = 125), so they match WeGro's
-/// decimal taka exactly; the backend converts. Payment details (payment
-/// references, and amounts paid to a particular person) only ever appear as
-/// hashes.
-/// Stages: Draft -> OpenForFunding -> Funded -> Active -> ReadyForSale ->
-/// PaidOut -> Closed. A project can be Cancelled before it is Active.
+/// @notice Projects, stages, slot reservations and holdings.
+/// Slots are issued only after Accounts confirms an off-platform payment.
+/// Amounts are in poisha (Tk 1.25 = 125); payment details appear only as hashes.
+/// Stages: Draft -> OpenForFunding -> Funded -> Active -> ReadyForSale -> PaidOut
+/// -> Closed; Cancelled is possible before Active.
 contract ProjectLedger is AccessGuarded {
     enum Stage {
         None,
@@ -35,9 +24,8 @@ contract ProjectLedger is AccessGuarded {
         Cancelled
     }
 
-    /// @dev The category decides the path after harvest: storable crops and
-    /// spices go to a warehouse, perishables go straight to sale, livestock
-    /// is tracked per animal.
+    /// @dev Post-harvest path: crops/spices -> warehouse, perishable -> direct sale,
+    /// livestock -> animal records.
     enum ProduceCategory {
         StorableCrop,
         Spice,
@@ -59,20 +47,20 @@ contract ProjectLedger is AccessGuarded {
     }
 
     struct ProjectTerms {
-        bytes32 farmerId; // participant id in the AccessRegistry
-        bytes32 produceCode; // catalog code, e.g. "MAIZE"
+        bytes32 farmerId; // participant id
+        bytes32 produceCode; // e.g. "MAIZE"
         ProduceCategory category;
-        bytes32 regionCode; // district code, used to find insured projects
+        bytes32 regionCode; // district code
         DurationType durationType;
         uint8 durationMonths;
-        uint8 payoutIntervalMonths; // 0 = one payout at the end
+        uint8 payoutIntervalMonths; // 0 = single final payout
         uint256 fundingTarget; // poisha
         uint256 slotPrice; // poisha
         uint16 farmerBps;
         uint16 investorBps;
         uint16 wegroBps;
         bool insured;
-        bytes32 termsHash; // fingerprint of the full terms kept off-chain
+        bytes32 termsHash; // hash of full off-chain terms
     }
 
     struct Project {
@@ -80,7 +68,7 @@ contract ProjectLedger is AccessGuarded {
         Stage stage;
         uint32 totalSlots;
         uint32 issuedSlots;
-        uint32 reservedSlots; // pending reservations, not yet paid
+        uint32 reservedSlots; // pending, unpaid
         uint64 createdAt;
     }
 
@@ -95,14 +83,13 @@ contract ProjectLedger is AccessGuarded {
 
     uint16 public constant BPS_DENOMINATOR = 10_000;
     uint8 public constant SHORT_TERM_MAX_MONTHS = 6;
-    /// @dev Keeps holder lists small enough to read in one call.
+    /// @dev Bounds holder lists.
     uint32 public constant MAX_SLOTS = 10_000;
 
     uint64 public reservationTtl;
     uint256 public nextReservationId = 1;
 
-    /// @notice Contracts allowed to move projects along automatically, e.g.
-    /// VoucherRegistry (to Active) or TradeLedger (to ReadyForSale).
+    /// @notice Contracts allowed to advance stages (e.g. VoucherRegistry, TradeLedger).
     mapping(address => bool) public isLinkedContract;
 
     mapping(bytes32 projectId => Project) private _projects;
@@ -138,7 +125,7 @@ contract ProjectLedger is AccessGuarded {
     );
     event ReservationExpired(uint256 indexed reservationId, bytes32 indexed projectId);
     event ReservationCancelled(uint256 indexed reservationId, bytes32 indexed projectId, address indexed cancelledBy);
-    /// @notice The refund instruction for Accounts when a project is cancelled.
+    /// @notice Refund instruction for Accounts on cancellation.
     event RefundsRequired(bytes32 indexed projectId, uint32 issuedSlots, uint256 totalRefund);
     event RefundRecorded(bytes32 indexed projectId, bytes32 indexed investorId, bytes32 paymentRefHash);
     event LinkedContractSet(address indexed account, bool allowed);
@@ -168,9 +155,7 @@ contract ProjectLedger is AccessGuarded {
         reservationTtl = reservationTtl_;
     }
 
-    // ---------------------------------------------------------------------
-    // Settings
-    // ---------------------------------------------------------------------
+    // --- Settings ---
 
     function setLinkedContract(address account, bool allowed) external onlyRole(registry.DEFAULT_ADMIN_ROLE()) {
         if (account == address(0)) revert ZeroValue();
@@ -184,9 +169,7 @@ contract ProjectLedger is AccessGuarded {
         reservationTtl = newTtl;
     }
 
-    // ---------------------------------------------------------------------
-    // Project setup (FR-5, FR-6)
-    // ---------------------------------------------------------------------
+    // --- Project setup (FR-5, FR-6) ---
 
     function createProject(bytes32 projectId, ProjectTerms calldata terms) external onlyRole(Roles.ADMIN) {
         if (projectId == bytes32(0) || terms.produceCode == bytes32(0) || terms.termsHash == bytes32(0)) {
@@ -220,19 +203,19 @@ contract ProjectLedger is AccessGuarded {
         _advance(projectId, Stage.Draft, Stage.OpenForFunding);
     }
 
-    /// @notice Called when the first input voucher is issued.
+    /// @notice Funded -> Active (first voucher issued).
     function activate(bytes32 projectId) external {
         _requireAdminOrLinked();
         _advance(projectId, Stage.Funded, Stage.Active);
     }
 
-    /// @notice Called once delivery of the produce is confirmed.
+    /// @notice Active -> ReadyForSale (delivery confirmed).
     function markReadyForSale(bytes32 projectId) external {
         _requireAdminOrLinked();
         _advance(projectId, Stage.Active, Stage.ReadyForSale);
     }
 
-    /// @notice Called once the final payout is marked paid.
+    /// @notice ReadyForSale -> PaidOut (final payout paid).
     function markPaidOut(bytes32 projectId) external {
         if (!_hasRole(Roles.ACCOUNTS) && !isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
         _advance(projectId, Stage.ReadyForSale, Stage.PaidOut);
@@ -242,9 +225,7 @@ contract ProjectLedger is AccessGuarded {
         _advance(projectId, Stage.PaidOut, Stage.Closed);
     }
 
-    /// @notice Cancel a project before it is Active. Investors who already
-    /// hold slots are owed a refund, which Accounts pays outside the platform
-    /// and records with `recordRefund`.
+    /// @notice Cancel before Active. Slot holders are owed refunds, recorded via `recordRefund`.
     function cancelProject(bytes32 projectId) external onlyRole(Roles.ADMIN) {
         Project storage p = _existing(projectId);
         Stage current = p.stage;
@@ -271,12 +252,9 @@ contract ProjectLedger is AccessGuarded {
         emit RefundRecorded(projectId, investorId, paymentRefHash);
     }
 
-    // ---------------------------------------------------------------------
-    // Slots (FR-7)
-    // ---------------------------------------------------------------------
+    // --- Slots (FR-7) ---
 
-    /// @notice Hold whole slots for an investor until they pay. Expires after
-    /// `reservationTtl` if Accounts has not confirmed the payment.
+    /// @notice Reserve slots for the calling investor; expires after `reservationTtl` if unpaid.
     function reserveSlots(bytes32 projectId, uint32 slots)
         external
         onlyRole(Roles.INVESTOR)
@@ -305,8 +283,7 @@ contract ProjectLedger is AccessGuarded {
         emit SlotsReserved(reservationId, projectId, investorId, slots, expiresAt);
     }
 
-    /// @notice Accounts saw the payment arrive: issue the reserved slots.
-    /// The project becomes Funded once every slot is issued.
+    /// @notice Issue reserved slots after payment. Funded once all slots are issued.
     function confirmPayment(uint256 reservationId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
         Reservation storage r = _pending(reservationId);
         if (block.timestamp >= r.expiresAt) revert ReservationHasExpired(reservationId);
@@ -329,8 +306,7 @@ contract ProjectLedger is AccessGuarded {
         }
     }
 
-    /// @notice Release the slots of an unpaid reservation past its expiry.
-    /// Anyone can call this; the backend runs it on a schedule.
+    /// @notice Release an expired reservation. Callable by anyone.
     function expireReservation(uint256 reservationId) external {
         Reservation storage r = _pending(reservationId);
         if (block.timestamp < r.expiresAt) revert ReservationNotYetExpired(reservationId, r.expiresAt);
@@ -339,8 +315,7 @@ contract ProjectLedger is AccessGuarded {
         emit ReservationExpired(reservationId, r.projectId);
     }
 
-    /// @notice The investor withdraws their own reservation before paying,
-    /// or the admin withdraws any.
+    /// @notice Investor cancels their own pending reservation; admin can cancel any.
     function cancelReservation(uint256 reservationId) external {
         Reservation storage r = _pending(reservationId);
         bool ownReservation = _hasRole(Roles.INVESTOR) && r.investorId == _callerId();
@@ -350,9 +325,7 @@ contract ProjectLedger is AccessGuarded {
         emit ReservationCancelled(reservationId, r.projectId, msg.sender);
     }
 
-    // ---------------------------------------------------------------------
-    // Views
-    // ---------------------------------------------------------------------
+    // --- Views ---
 
     function getProject(bytes32 projectId) external view returns (Project memory) {
         return _projects[projectId];
@@ -366,13 +339,12 @@ contract ProjectLedger is AccessGuarded {
         return _holdings[projectId][investorId];
     }
 
-    /// @notice Every investor holding slots, in order of first purchase.
+    /// @notice Slot holders in order of first purchase.
     function getHolders(bytes32 projectId) external view returns (bytes32[] memory) {
         return _holders[projectId];
     }
 
-    /// @dev Slots of expired but not yet released reservations still count as
-    /// taken until `expireReservation` is called.
+    /// @dev Expired reservations count as taken until `expireReservation` is called.
     function availableSlots(bytes32 projectId) external view returns (uint32) {
         Project storage p = _projects[projectId];
         return p.totalSlots - p.issuedSlots - p.reservedSlots;
@@ -384,14 +356,11 @@ contract ProjectLedger is AccessGuarded {
         return uint256(_holdings[projectId][investorId]) * p.terms.slotPrice;
     }
 
-    // ---------------------------------------------------------------------
-    // Internals
-    // ---------------------------------------------------------------------
+    // --- Internals ---
 
     function _checkDuration(ProjectTerms calldata t) private pure {
         if (t.durationMonths == 0) revert InvalidDuration();
         if (t.durationType == DurationType.ShortTerm) {
-            // Short projects pay out once, at the end.
             if (t.durationMonths > SHORT_TERM_MAX_MONTHS || t.payoutIntervalMonths != 0) revert InvalidDuration();
         } else {
             if (t.durationMonths <= SHORT_TERM_MAX_MONTHS || t.payoutIntervalMonths > t.durationMonths) {

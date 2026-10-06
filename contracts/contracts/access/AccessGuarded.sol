@@ -4,8 +4,7 @@ pragma solidity ^0.8.28;
 import {AccessRegistry} from "./AccessRegistry.sol";
 
 /// @title AccessGuarded
-/// @notice Base for the other platform contracts: role checks go through the
-/// shared AccessRegistry instead of each contract keeping its own roles.
+/// @notice Base for platform contracts: role checks via the shared AccessRegistry.
 abstract contract AccessGuarded {
     AccessRegistry public immutable registry;
 
@@ -30,8 +29,7 @@ abstract contract AccessGuarded {
         return registry.hasRole(role, msg.sender);
     }
 
-    /// @dev The caller's participant id. Only meaningful after a role check:
-    /// holding a platform role means the caller is a verified participant.
+    /// @dev Caller's participant id. Use only after a role check.
     function _callerId() internal view returns (bytes32) {
         return registry.participantOf(msg.sender);
     }

@@ -5,23 +5,11 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Roles} from "./Roles.sol";
 
 /// @title AccessRegistry
-/// @notice Who is allowed to do what on the platform. Every other contract asks
-/// this registry whether the caller holds a role, and who the caller is.
-///
-/// Every person has their own key (address). The backend holds the keys and
-/// signs on each person's behalf, so the ledger records who did what.
-///
-/// A person is a participant: a code number (the stable id other contracts
-/// store), one platform role, their current key, and a fingerprint (hash) of
-/// their details. Names and other personal details stay in the backend
-/// database. The key can be replaced if it is lost; the code number cannot.
-///
-/// Platform roles are never granted by hand. Verifying a participant gives
-/// their key the role; rejecting them takes it away. So holding a role always
-/// means "verified person".
-///
-/// Staff roles (admin, accounts, field officer, auditor) are managed only by
-/// the super admin, so an admin cannot create or verify another admin.
+/// @notice Roles and identities for every contract. Each person (participant) has
+/// a stable code number, one role, their own key, and a hash of their details;
+/// personal data stays off-chain.
+/// Roles are granted only by verifying a participant and revoked by rejecting
+/// them. Staff roles are managed only by the super admin.
 contract AccessRegistry is AccessControl {
     bytes32 public constant INVESTOR_ROLE = Roles.INVESTOR;
     bytes32 public constant FARMER_ROLE = Roles.FARMER;
@@ -35,7 +23,7 @@ contract AccessRegistry is AccessControl {
     bytes32 public constant INSURER_ROLE = Roles.INSURER;
     bytes32 public constant AUDITOR_ROLE = Roles.AUDITOR;
 
-    /// @dev `None` means the participant id has never been registered.
+    /// @dev None = never registered.
     enum Status {
         None,
         Pending,
@@ -54,11 +42,10 @@ contract AccessRegistry is AccessControl {
 
     mapping(bytes32 participantId => Participant) private _participants;
 
-    /// @notice The participant whose current key is `account`, or zero.
+    /// @notice Participant id for a current key, or zero.
     mapping(address account => bytes32 participantId) public participantOf;
 
-    /// @notice True once a key has belonged to any participant. A key is never
-    /// reused, even after it is replaced, since it may have been leaked.
+    /// @notice Keys are single-use: once assigned, never reassigned (even after replacement).
     mapping(address account => bool) public accountUsed;
 
     event ParticipantRegistered(
@@ -97,19 +84,14 @@ contract AccessRegistry is AccessControl {
     error AccountAlreadyUsed(address account);
     error StatusUnchanged(bytes32 participantId, Status status);
 
-    /// @param superAdmin The platform operator key. It manages staff and can
-    /// appoint further super admins. It is not a platform role and cannot
-    /// also be a participant.
+    /// @param superAdmin Platform operator key; manages staff, cannot be a participant.
     constructor(address superAdmin) {
         if (superAdmin == address(0)) revert ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, superAdmin);
     }
 
-    // ---------------------------------------------------------------------
-    // Roles
-    // ---------------------------------------------------------------------
+    // --- Roles ---
 
-    /// @notice True for the eleven platform roles.
     function isPlatformRole(bytes32 role) public pure returns (bool) {
         return
             isStaffRole(role) ||
@@ -122,13 +104,12 @@ contract AccessRegistry is AccessControl {
             role == INSURER_ROLE;
     }
 
-    /// @notice WeGro staff roles, managed only by the super admin.
+    /// @notice Staff roles, managed only by the super admin.
     function isStaffRole(bytes32 role) public pure returns (bool) {
         return role == ADMIN_ROLE || role == ACCOUNTS_ROLE || role == FIELD_OFFICER_ROLE || role == AUDITOR_ROLE;
     }
 
-    /// @dev Platform roles follow participant status, so they cannot be
-    /// granted, revoked or renounced directly. Only DEFAULT_ADMIN_ROLE can.
+    /// @dev Platform roles follow participant status; only DEFAULT_ADMIN_ROLE is set directly.
     function grantRole(bytes32 role, address account) public override {
         if (isPlatformRole(role)) revert RoleManagedByRegistry(role);
         if (accountUsed[account]) revert AccountAlreadyUsed(account);
@@ -145,21 +126,17 @@ contract AccessRegistry is AccessControl {
         super.renounceRole(role, callerConfirmation);
     }
 
-    /// @dev Rejects unknown roles, so a typo fails loudly instead of creating
-    /// a role nobody checks.
+    /// @dev Rejects unknown roles so typos fail loudly.
     function _grantRole(bytes32 role, address account) internal override returns (bool) {
         if (role != DEFAULT_ADMIN_ROLE && !isPlatformRole(role)) revert UnknownRole(role);
         if (account == address(0)) revert ZeroAddress();
         return super._grantRole(role, account);
     }
 
-    // ---------------------------------------------------------------------
-    // Participants (practice ID check, FR-2)
-    // ---------------------------------------------------------------------
+    // --- Participants (practice ID check, FR-2) ---
 
-    /// @notice Register a person and their key. Starts as Pending, with no
-    /// role until verified. Staff are registered by the super admin; everyone
-    /// else by a field officer or admin.
+    /// @notice Register a person as Pending (no role yet). Staff: super admin only;
+    /// others: field officer or admin.
     function registerParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
         external
     {
@@ -189,25 +166,21 @@ contract AccessRegistry is AccessControl {
         emit ParticipantRegistered(participantId, role, account, detailsHash, msg.sender);
     }
 
-    /// @notice Mark a participant as having passed the ID check and give their
-    /// key the role. Also re-verifies someone who was rejected earlier.
+    /// @notice Verify (or re-verify) and grant the role to their key.
     function verifyParticipant(bytes32 participantId) external {
         Participant storage p = _managed(participantId);
         _setStatus(participantId, p, Status.Verified);
         _grantRole(p.role, p.account);
     }
 
-    /// @notice Mark a participant as having failed the ID check, or withdraw
-    /// an earlier verification. Their key loses the role immediately.
+    /// @notice Reject (or withdraw verification) and revoke the role.
     function rejectParticipant(bytes32 participantId) external {
         Participant storage p = _managed(participantId);
         _setStatus(participantId, p, Status.Rejected);
         _revokeRole(p.role, p.account);
     }
 
-    /// @notice Replace the details fingerprint after a correction to the
-    /// person's details in the database. Status is unchanged; the old hash
-    /// stays in the event log.
+    /// @notice Replace the details hash after a correction. Status is unchanged.
     function updateDetailsHash(bytes32 participantId, bytes32 newHash) external {
         if (newHash == bytes32(0)) revert ZeroValue();
         Participant storage p = _managed(participantId);
@@ -217,9 +190,7 @@ contract AccessRegistry is AccessControl {
         emit ParticipantDetailsUpdated(participantId, previous, newHash, msg.sender);
     }
 
-    /// @notice Replace a lost or leaked key. The role moves to the new key;
-    /// the old key is retired for good. Holdings and history are tied to the
-    /// participant id, so nothing else changes.
+    /// @notice Replace a lost or leaked key; the role moves and the old key is retired.
     function changeAccount(bytes32 participantId, address newAccount) external {
         Participant storage p = _managed(participantId);
         _claimAccount(newAccount);
@@ -245,19 +216,15 @@ contract AccessRegistry is AccessControl {
         return _participants[participantId].status == Status.Verified;
     }
 
-    /// @notice True if the participant is verified and registered under `role`.
-    /// Other contracts use this, for example to check a project's farmer.
+    /// @notice True if verified and registered under `role`.
     function isVerifiedAs(bytes32 participantId, bytes32 role) external view returns (bool) {
         Participant storage p = _participants[participantId];
         return p.status == Status.Verified && p.role == role;
     }
 
-    // ---------------------------------------------------------------------
-    // Internals
-    // ---------------------------------------------------------------------
+    // --- Internals ---
 
-    /// @dev Loads a participant and checks the caller may manage them: the
-    /// super admin for staff, the admin for everyone else.
+    /// @dev Loads a participant; caller must be super admin (staff) or admin (others).
     function _managed(bytes32 participantId) private view returns (Participant storage p) {
         p = _participants[participantId];
         if (p.status == Status.None) revert ParticipantNotFound(participantId);
@@ -276,7 +243,7 @@ contract AccessRegistry is AccessControl {
         emit ParticipantStatusChanged(participantId, previous, newStatus, msg.sender);
     }
 
-    /// @dev A key belongs to one participant, ever, and never to a super admin.
+    /// @dev One participant per key, ever; never a super admin's key.
     function _claimAccount(address account) private {
         if (account == address(0)) revert ZeroAddress();
         if (accountUsed[account] || hasRole(DEFAULT_ADMIN_ROLE, account)) revert AccountAlreadyUsed(account);
