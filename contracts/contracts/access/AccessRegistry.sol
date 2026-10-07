@@ -22,6 +22,7 @@ contract AccessRegistry is AccessControl {
     bytes32 public constant BUYER_ROLE = Roles.BUYER;
     bytes32 public constant INSURER_ROLE = Roles.INSURER;
     bytes32 public constant AUDITOR_ROLE = Roles.AUDITOR;
+    bytes32 public constant OPERATIONS_ROLE = Roles.OPERATIONS;
 
     /// @dev None = never registered.
     enum Status {
@@ -48,6 +49,9 @@ contract AccessRegistry is AccessControl {
     /// @notice Keys are single-use: once assigned, never reassigned (even after replacement).
     mapping(address account => bool) public accountUsed;
 
+    /// @notice A farmer's field officer: who onboarded them, or whom the admin assigned.
+    mapping(bytes32 farmerId => bytes32 officerId) public fieldOfficerOf;
+
     event ParticipantRegistered(
         bytes32 indexed participantId,
         bytes32 indexed role,
@@ -67,6 +71,7 @@ contract AccessRegistry is AccessControl {
         bytes32 newHash,
         address indexed updatedBy
     );
+    event FieldOfficerAssigned(bytes32 indexed farmerId, bytes32 indexed officerId, address indexed assignedBy);
     event ParticipantAccountChanged(
         bytes32 indexed participantId,
         address indexed previousAccount,
@@ -83,6 +88,8 @@ contract AccessRegistry is AccessControl {
     error ParticipantNotFound(bytes32 participantId);
     error AccountAlreadyUsed(address account);
     error StatusUnchanged(bytes32 participantId, Status status);
+    error NotAFarmer(bytes32 participantId);
+    error NotAFieldOfficer(bytes32 participantId);
 
     /// @param superAdmin Platform operator key; manages staff, cannot be a participant.
     constructor(address superAdmin) {
@@ -106,7 +113,8 @@ contract AccessRegistry is AccessControl {
 
     /// @notice Staff roles, managed only by the super admin.
     function isStaffRole(bytes32 role) public pure returns (bool) {
-        return role == ADMIN_ROLE || role == ACCOUNTS_ROLE || role == FIELD_OFFICER_ROLE || role == AUDITOR_ROLE;
+        return role == ADMIN_ROLE || role == ACCOUNTS_ROLE || role == FIELD_OFFICER_ROLE || role == AUDITOR_ROLE
+            || role == OPERATIONS_ROLE;
     }
 
     /// @dev Platform roles follow participant status; only DEFAULT_ADMIN_ROLE is set directly.
@@ -136,7 +144,8 @@ contract AccessRegistry is AccessControl {
     // --- Participants (practice ID check, FR-2) ---
 
     /// @notice Register a person as Pending (no role yet). Staff: super admin only;
-    /// others: field officer or admin.
+    /// others: field officer or admin. A farmer registered by a field officer is
+    /// assigned to that officer.
     function registerParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
         external
     {
@@ -164,6 +173,24 @@ contract AccessRegistry is AccessControl {
         participantOf[account] = participantId;
 
         emit ParticipantRegistered(participantId, role, account, detailsHash, msg.sender);
+
+        if (role == FARMER_ROLE && hasRole(FIELD_OFFICER_ROLE, msg.sender)) {
+            bytes32 officerId = participantOf[msg.sender];
+            fieldOfficerOf[participantId] = officerId;
+            emit FieldOfficerAssigned(participantId, officerId, msg.sender);
+        }
+    }
+
+    /// @notice Admin assigns or reassigns a farmer's field officer.
+    function assignFieldOfficer(bytes32 farmerId, bytes32 officerId) external onlyRole(ADMIN_ROLE) {
+        Participant storage farmer = _participants[farmerId];
+        if (farmer.status == Status.None) revert ParticipantNotFound(farmerId);
+        if (farmer.role != FARMER_ROLE) revert NotAFarmer(farmerId);
+        Participant storage officer = _participants[officerId];
+        if (officer.status != Status.Verified || officer.role != FIELD_OFFICER_ROLE) revert NotAFieldOfficer(officerId);
+
+        fieldOfficerOf[farmerId] = officerId;
+        emit FieldOfficerAssigned(farmerId, officerId, msg.sender);
     }
 
     /// @notice Verify (or re-verify) and grant the role to their key.

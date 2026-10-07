@@ -24,13 +24,11 @@ contract ProjectLedger is AccessGuarded {
         Cancelled
     }
 
-    /// @dev Post-harvest path: crops/spices -> warehouse, perishable -> direct sale,
-    /// livestock -> animal records.
+    /// @dev Post-harvest path: crops/spices -> warehouse, perishable -> direct sale.
     enum ProduceCategory {
         StorableCrop,
         Spice,
-        Perishable,
-        Livestock
+        Perishable
     }
 
     enum DurationType {
@@ -89,7 +87,8 @@ contract ProjectLedger is AccessGuarded {
     uint64 public reservationTtl;
     uint256 public nextReservationId = 1;
 
-    /// @notice Contracts allowed to advance stages (e.g. VoucherRegistry, TradeLedger).
+    /// @notice Contracts allowed to advance stages: VoucherRegistry (to Active) and
+    /// SettlementLedger (to PaidOut).
     mapping(address => bool) public isLinkedContract;
 
     mapping(bytes32 projectId => Project) private _projects;
@@ -203,21 +202,22 @@ contract ProjectLedger is AccessGuarded {
         _advance(projectId, Stage.Draft, Stage.OpenForFunding);
     }
 
-    /// @notice Funded -> Active (first voucher issued).
+    /// @notice Funded -> Active (first voucher approved, or admin).
     function activate(bytes32 projectId) external {
         _requireAdminOrLinked();
         _advance(projectId, Stage.Funded, Stage.Active);
     }
 
-    /// @notice Active -> ReadyForSale (delivery confirmed).
+    /// @notice Active -> ReadyForSale: the admin decides all produce is sold.
     function markReadyForSale(bytes32 projectId) external {
         _requireAdminOrLinked();
         _advance(projectId, Stage.Active, Stage.ReadyForSale);
     }
 
-    /// @notice ReadyForSale -> PaidOut (final payout paid).
+    /// @notice ReadyForSale -> PaidOut: only SettlementLedger, once the approved final
+    /// payout is fully paid.
     function markPaidOut(bytes32 projectId) external {
-        if (!_hasRole(Roles.ACCOUNTS) && !isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
+        if (!isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
         _advance(projectId, Stage.ReadyForSale, Stage.PaidOut);
     }
 

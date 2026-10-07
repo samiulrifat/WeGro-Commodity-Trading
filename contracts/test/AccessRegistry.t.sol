@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {AccessRegistry} from "../contracts/access/AccessRegistry.sol";
 import {AccessGuarded} from "../contracts/access/AccessGuarded.sol";
 
@@ -80,8 +81,8 @@ contract AccessRegistryTest is Test {
         assertEq(registry.participantOf(tania), TANIA);
     }
 
-    function test_ElevenDistinctPlatformRoles() public view {
-        bytes32[11] memory roles = [
+    function test_TwelveDistinctPlatformRoles() public view {
+        bytes32[12] memory roles = [
             registry.INVESTOR_ROLE(),
             registry.FARMER_ROLE(),
             registry.FIELD_OFFICER_ROLE(),
@@ -92,7 +93,8 @@ contract AccessRegistryTest is Test {
             registry.SUPPLIER_ROLE(),
             registry.BUYER_ROLE(),
             registry.INSURER_ROLE(),
-            registry.AUDITOR_ROLE()
+            registry.AUDITOR_ROLE(),
+            registry.OPERATIONS_ROLE()
         ];
         uint256 staff;
         for (uint256 i = 0; i < roles.length; i++) {
@@ -102,7 +104,7 @@ contract AccessRegistryTest is Test {
                 assertTrue(roles[i] != roles[j]);
             }
         }
-        assertEq(staff, 4);
+        assertEq(staff, 5);
         assertFalse(registry.isPlatformRole(SUPER));
         assertFalse(registry.isPlatformRole(keccak256("ADMN_ROLE")));
     }
@@ -207,6 +209,11 @@ contract AccessRegistryTest is Test {
         vm.prank(imran);
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, imran));
         registry.registerParticipant(id, auditor, stranger, keccak256("x"));
+
+        bytes32 operations = registry.OPERATIONS_ROLE();
+        vm.prank(tania);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, tania));
+        registry.registerParticipant(id, operations, stranger, keccak256("x"));
     }
 
     function test_RegisterTwiceReverts() public {
@@ -413,6 +420,66 @@ contract AccessRegistryTest is Test {
         registry.changeAccount(TANIA, newKey);
         assertTrue(registry.hasRole(ADMIN, newKey));
         assertFalse(registry.hasRole(ADMIN, tania));
+    }
+
+    // --- field officer mapping -----------------------------------------------
+
+    function test_OnboardingOfficerIsAssigned() public {
+        vm.expectEmit(address(registry));
+        emit AccessRegistry.FieldOfficerAssigned(RAHIM, IMRAN, imran);
+        _registerRahim();
+        assertEq(registry.fieldOfficerOf(RAHIM), IMRAN);
+    }
+
+    function test_AdminRegisteredFarmerHasNoOfficer() public {
+        vm.prank(tania);
+        registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
+        assertEq(registry.fieldOfficerOf(RAHIM), bytes32(0));
+    }
+
+    function test_OfficerRegisteringNonFarmerIsNotMapped() public {
+        bytes32 investor = keccak256("INVESTOR-0001");
+        bytes32 investorRole = registry.INVESTOR_ROLE();
+        vm.prank(imran);
+        registry.registerParticipant(investor, investorRole, stranger, keccak256("x"));
+        assertEq(registry.fieldOfficerOf(investor), bytes32(0));
+    }
+
+    function test_AdminAssignsFieldOfficer() public {
+        vm.prank(tania);
+        registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
+
+        vm.expectEmit(address(registry));
+        emit AccessRegistry.FieldOfficerAssigned(RAHIM, IMRAN, tania);
+        vm.prank(tania);
+        registry.assignFieldOfficer(RAHIM, IMRAN);
+        assertEq(registry.fieldOfficerOf(RAHIM), IMRAN);
+    }
+
+    function test_AssignFieldOfficerGuards() public {
+        vm.prank(tania);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.ParticipantNotFound.selector, RAHIM));
+        registry.assignFieldOfficer(RAHIM, IMRAN);
+
+        _registerRahim();
+        vm.startPrank(tania);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAFarmer.selector, FARHANA));
+        registry.assignFieldOfficer(FARHANA, IMRAN);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAFieldOfficer.selector, FARHANA));
+        registry.assignFieldOfficer(RAHIM, FARHANA);
+        vm.stopPrank();
+
+        vm.prank(superAdmin);
+        registry.rejectParticipant(IMRAN);
+        vm.prank(tania);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAFieldOfficer.selector, IMRAN));
+        registry.assignFieldOfficer(RAHIM, IMRAN);
+
+        vm.prank(imran);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, imran, ADMIN)
+        );
+        registry.assignFieldOfficer(RAHIM, IMRAN);
     }
 
     // --- AccessGuarded ------------------------------------------------------

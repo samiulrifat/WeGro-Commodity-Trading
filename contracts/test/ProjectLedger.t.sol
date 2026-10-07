@@ -546,11 +546,11 @@ contract ProjectLedgerTest is Test {
         ledger.activate(PROJECT);
         assertEq(uint8(_stage()), uint8(ProjectLedger.Stage.Active));
 
-        vm.prank(linked); // TradeLedger, on delivery
+        vm.prank(admin); // all produce sold
         ledger.markReadyForSale(PROJECT);
         assertEq(uint8(_stage()), uint8(ProjectLedger.Stage.ReadyForSale));
 
-        vm.prank(accounts);
+        vm.prank(linked); // SettlementLedger, once the final payout is paid
         ledger.markPaidOut(PROJECT);
         assertEq(uint8(_stage()), uint8(ProjectLedger.Stage.PaidOut));
 
@@ -606,11 +606,15 @@ contract ProjectLedgerTest is Test {
 
         vm.prank(admin);
         ledger.markReadyForSale(PROJECT);
+        // Only SettlementLedger marks a project paid out: not admin, not Accounts.
         vm.prank(admin);
         vm.expectRevert(abi.encodeWithSelector(ProjectLedger.NotAuthorized.selector, admin));
         ledger.markPaidOut(PROJECT);
-
         vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.NotAuthorized.selector, accounts));
+        ledger.markPaidOut(PROJECT);
+
+        vm.prank(linked);
         ledger.markPaidOut(PROJECT);
         vm.prank(linked);
         vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, linked, ADMIN));
