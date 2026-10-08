@@ -64,7 +64,7 @@ contract FieldRecordLog is AccessGuarded {
         projectLedger = projectLedger_;
     }
 
-    // --- Farm updates (FR-13) ---
+    // --- Farm updates ---
 
     function addEntry(EntryInput calldata e) external onlyRole(Roles.FIELD_OFFICER) {
         if (e.entryId == bytes32(0) || e.entryType == bytes32(0) || e.dataHash == bytes32(0)) revert ZeroValue();
@@ -102,7 +102,7 @@ contract FieldRecordLog is AccessGuarded {
         return _entries[entryId];
     }
 
-    /// @notice FR-28 Verify: true if re-computed hashes match the stored entry.
+    /// @notice Verify: true if re-computed hashes match the stored entry.
     function verifyEntry(bytes32 entryId, bytes32 dataHash, bytes32 photoHash) external view returns (bool) {
         Entry storage e = _entries[entryId];
         return e.recordedAt != 0 && e.dataHash == dataHash && e.photoHash == photoHash;

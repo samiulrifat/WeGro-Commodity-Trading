@@ -475,8 +475,6 @@ contract SettlementLedgerTest is Test {
         assertEq(r.payeeCount, 2); // farmer + Karim
     }
 
-    // --- four eyes (FR-10) ---------------------------------------------------------------------
-
     function test_PreparerCannotApprove() public {
         _docScenario();
         uint256 id = _prepare(true);
@@ -574,8 +572,7 @@ contract SettlementLedgerTest is Test {
         settlement.addCost(MAIZE, "LATE", 1, keccak256("x"));
     }
 
-    // --- staged payouts (FR-21) ---------------------------------------------------------------
-
+ 
     function test_StagedRoundsThenFinal() public {
         _inputs(); // Tk 150,000 costs
         _sell(10_000, 30 * TK); // Tk 300,000

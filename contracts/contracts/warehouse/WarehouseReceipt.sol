@@ -125,7 +125,7 @@ contract WarehouseReceipt is AccessGuarded {
         emit OperatorAssigned(operatorId, siteId);
     }
 
-    // --- Issuing (FR-15) ---
+    // --- Issuing ---
 
     /// @notice Record intake and issue a receipt to the project's farmer.
     function issueReceipt(
@@ -182,7 +182,7 @@ contract WarehouseReceipt is AccessGuarded {
         emit ExpiryExtended(receiptId, newExpiresAt, recheckHash, operatorId);
     }
 
-    // --- Handover (FR-16) ---
+    // --- Handover ---
 
     /// @notice Buy-back: the farmer's field officer offers the farmer's receipt to
     /// WeGro. The owner is unchanged until an admin accepts. Buyers get receipts

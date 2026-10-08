@@ -160,9 +160,6 @@ contract TradeLedger is AccessGuarded {
         receipts = receipts_;
         WEGRO = receipts_.WEGRO();
     }
-
-    // --- Listings (FR-17) ---
-
     /// @notice List a warehouse receipt. Caller must act for its owner: an admin
     /// for WeGro, the farmer's field officer for a farmer. Locks the receipt.
     function listReceipt(bytes32 receiptId, uint256 askingUnitPrice) external returns (uint256 listingId) {
@@ -279,8 +276,6 @@ contract TradeLedger is AccessGuarded {
         emit DealCancelled(offerId, msg.sender);
     }
 
-    // --- Payment and delivery (FR-18) ---
-
     /// @notice Accounts saw the buyer pay for a deal. For a receipt, the sold
     /// quantity splits off into a receipt owned by the buyer.
     function confirmBuyerPayment(uint256 offerId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
@@ -338,7 +333,6 @@ contract TradeLedger is AccessGuarded {
         }
     }
 
-    // --- Buyer requests (FR-19) ---
 
     function postRequest(bytes32 produceCode, uint256 quantity, bytes32 grade, uint256 maxUnitPrice, uint64 validUntil)
         external

@@ -7,7 +7,7 @@ import {Roles} from "../access/Roles.sol";
 import {ProjectLedger} from "../projects/ProjectLedger.sol";
 
 /// @title InsuranceRegistry
-/// @notice Pretend crop insurance (FR-25). An insurer sets cover on an insured
+/// @notice Pretend crop insurance. An insurer sets cover on an insured
 /// project; a recorded weather event opens a claim on insured projects in that
 /// district (Triggered -> UnderReview -> Approved or Rejected). Cover and claims are
 /// set while the crop is in the field (Funded or Active); the final payout waits until

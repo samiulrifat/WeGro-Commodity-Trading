@@ -141,7 +141,7 @@ contract AccessRegistry is AccessControl {
         return super._grantRole(role, account);
     }
 
-    // --- Participants (practice ID check, FR-2) ---
+    // --- Participants (practice ID check) ---
 
     /// @notice Register a person as Pending (no role yet). Staff: super admin only;
     /// others: field officer or admin. A farmer registered by a field officer is

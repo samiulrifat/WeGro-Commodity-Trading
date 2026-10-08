@@ -324,7 +324,6 @@ contract FieldRecordLogTest is Test {
         records.addEntry(fix);
     }
 
-    // --- verify (FR-28) ----------------------------------------------------------------------
 
     function test_VerifyEntry() public {
         FieldRecordLog.EntryInput memory e = _entry("E1");

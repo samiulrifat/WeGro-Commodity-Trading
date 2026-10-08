@@ -168,7 +168,7 @@ contract ProjectLedger is AccessGuarded {
         reservationTtl = newTtl;
     }
 
-    // --- Project setup (FR-5, FR-6) ---
+    // --- Project setup ---
 
     function createProject(bytes32 projectId, ProjectTerms calldata terms) external onlyRole(Roles.ADMIN) {
         if (projectId == bytes32(0) || terms.produceCode == bytes32(0) || terms.termsHash == bytes32(0)) {
@@ -252,7 +252,7 @@ contract ProjectLedger is AccessGuarded {
         emit RefundRecorded(projectId, investorId, paymentRefHash);
     }
 
-    // --- Slots (FR-7) ---
+    // --- Slots ---
 
     /// @notice Reserve slots for the calling investor; expires after `reservationTtl` if unpaid.
     function reserveSlots(bytes32 projectId, uint32 slots)

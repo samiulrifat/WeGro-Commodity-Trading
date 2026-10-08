@@ -155,7 +155,7 @@ contract VoucherRegistry is AccessGuarded {
         saleTtl = newTtl;
     }
 
-    // --- Vouchers (FR-12) ---
+    // --- Vouchers ---
 
     /// @notice Operations proposes a voucher for the project's farmer at today's
     /// market unit price, usable only at the listed suppliers.
@@ -236,7 +236,7 @@ contract VoucherRegistry is AccessGuarded {
         emit VoucherCancelled(voucherId, voided, msg.sender);
     }
 
-    // --- Input batches (FR-24) ---
+    // --- Input batches ---
 
     /// @notice Supplier registers a batch; `batchId` is what its QR code encodes.
     function registerBatch(

@@ -7,7 +7,7 @@ import {Roles} from "../access/Roles.sol";
 import {ProjectLedger} from "../projects/ProjectLedger.sol";
 
 /// @title ConsentRegistry
-/// @notice Farmer track records and bank permissions (FR-26). The farmer's field
+/// @notice Farmer track records and bank permissions. The farmer's field
 /// officer publishes a track record built from the farmer's finished projects (only
 /// its hash goes on-chain) and grants or withdraws a bank's permission on the
 /// farmer's behalf. Permission covers a whole bank; any officer assigned to that

@@ -11,7 +11,7 @@ import {InsuranceRegistry} from "../insurance/InsuranceRegistry.sol";
 import {WarehouseReceipt} from "../warehouse/WarehouseReceipt.sol";
 
 /// @title SettlementLedger
-/// @notice Staged and final payouts (FR-20..22). The ledger works out the figures
+/// @notice Staged and final payouts. The ledger works out the figures
 /// itself: income = delivered sales + approved insurance; costs = confirmed voucher
 /// spending + costs Accounts enters; profit = income - costs. Each round splits the
 /// profit not yet distributed by the project's percentages, and the investors' part
@@ -141,7 +141,7 @@ contract SettlementLedger is AccessGuarded {
         receipts = receipts_;
     }
 
-    // --- Costs (FR-9) ---
+    // --- Costs ---
 
     /// @notice Accounts enters a non-input cost (inputs come from voucher spending).
     function addCost(bytes32 projectId, bytes32 category, uint256 amount, bytes32 detailsHash)
@@ -175,7 +175,7 @@ contract SettlementLedger is AccessGuarded {
         emit CostVoided(costId, msg.sender);
     }
 
-    // --- Rounds (FR-20, FR-21) ---
+    // --- Rounds ---
 
     /// @notice Accounts prepares a payout round. Staged: an Active long project, at
     /// least one payout interval after the last round, with new profit to split.
@@ -222,7 +222,7 @@ contract SettlementLedger is AccessGuarded {
         );
     }
 
-    /// @notice A second Accounts person approves (FR-10). Nothing can be marked
+    /// @notice A second Accounts person approves. Nothing can be marked
     /// paid before this.
     function approveRound(uint256 roundId) external onlyRole(Roles.ACCOUNTS) {
         Round storage r = _roundIn(roundId, RoundStatus.Prepared);

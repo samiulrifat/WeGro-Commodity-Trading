@@ -652,8 +652,6 @@ contract TradeLedgerTest is Test {
         assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Delivered));
     }
 
-    // --- buyer requests (FR-19) -------------------------------------------------------------
-
     function test_BuyerRequests() public {
         uint64 until = uint64(block.timestamp + 30 days);
         vm.expectEmit(address(trade));

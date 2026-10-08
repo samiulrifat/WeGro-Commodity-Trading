@@ -530,7 +530,6 @@ contract ProjectLedgerTest is Test {
     }
 
     function test_SlotsHaveNoTransferFunction() public {
-        // FR-7: slots cannot be handed to someone else. Nothing in the ABI moves holdings.
         (bool ok,) = address(ledger).call(
             abi.encodeWithSignature("transferSlots(bytes32,bytes32,bytes32,uint32)", PROJECT, NASRIN, KARIM, 1)
         );
