@@ -16,7 +16,8 @@ Requires Node 22+ and PostgreSQL (installed directly, no Docker).
 sudo -u postgres psql -c "CREATE USER commodity_user WITH PASSWORD 'choose_a_password';"
 sudo -u postgres psql -c "CREATE DATABASE commodity_db OWNER commodity_user;"
 
-cp backend/.env.example backend/.env   # then edit the values
+# Create backend/.env: every variable and its default is listed in
+# backend/src/config/env.validation.ts. DATABASE_URL and JWT_SECRET are required.
 (cd backend && npm install)
 (cd contracts && npm install)
 (cd frontend && npm install)
