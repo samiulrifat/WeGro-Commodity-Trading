@@ -6,6 +6,7 @@ import {
   type EnvironmentVariables,
   validateEnv,
 } from './config/env.validation';
+import { BlockchainModule } from './blockchain/blockchain.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './modules/health/health.module';
 
@@ -28,6 +29,7 @@ import { HealthModule } from './modules/health/health.module';
       }),
     }),
     DatabaseModule,
+    BlockchainModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

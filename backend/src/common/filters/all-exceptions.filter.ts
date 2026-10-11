@@ -13,6 +13,9 @@ export interface ErrorBody {
   statusCode: number;
   error: string;
   message: string | string[];
+  /** Machine-readable reason, e.g. a contract error name like "ProjectNotFound". */
+  code?: string;
+  details?: Record<string, unknown>;
   path: string;
   requestId?: string;
   timestamp: string;
@@ -35,6 +38,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let error = 'Internal Server Error';
     let message: string | string[] = 'Something went wrong. Please try again.';
+    let code: string | undefined;
+    let details: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -43,9 +48,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = body;
         error = exception.name;
       } else {
-        const b = body as { message?: string | string[]; error?: string };
+        const b = body as {
+          message?: string | string[];
+          error?: string;
+          code?: string;
+          details?: Record<string, unknown>;
+        };
         message = b.message ?? exception.message;
         error = b.error ?? exception.name;
+        code = b.code;
+        details = b.details;
       }
     }
 
@@ -60,6 +72,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       error,
       message,
+      ...(code !== undefined && { code }),
+      ...(details !== undefined && { details }),
       path: req.originalUrl ?? req.url,
       requestId: req.id,
       timestamp: new Date().toISOString(),

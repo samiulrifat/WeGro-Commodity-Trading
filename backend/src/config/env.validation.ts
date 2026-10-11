@@ -7,11 +7,14 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   Max,
   Min,
   MinLength,
+  ValidateBy,
   validateSync,
 } from 'class-validator';
+import { Mnemonic } from 'ethers';
 
 export enum NodeEnv {
   Development = 'development',
@@ -35,6 +38,18 @@ const toBoolean = ({
   const raw = key in obj ? obj[key] : value;
   return raw === true || raw === 'true' || raw === '1';
 };
+
+/** A valid BIP-39 phrase (word list and checksum). */
+const IsMnemonic = () =>
+  ValidateBy({
+    name: 'isMnemonic',
+    validator: {
+      validate: (value: unknown) =>
+        typeof value === 'string' && Mnemonic.isValidMnemonic(value.trim()),
+      defaultMessage: () =>
+        'KEY_MASTER_MNEMONIC must be a valid BIP-39 phrase (12 or 24 words)',
+    },
+  });
 
 /**
  * Every environment variable the backend reads, with its default. The app
@@ -85,10 +100,63 @@ export class EnvironmentVariables {
   @IsInt()
   CHAIN_ID: number = 31337;
 
-  /** Seed every person's key is derived from. Required from Phase 1 on. */
-  @IsOptional()
+  /**
+   * Seed every key is derived from: index 0 is the operator / super admin,
+   * users get 1, 2, 3... Locally, Hardhat's default test mnemonic.
+   */
+  @IsMnemonic()
+  KEY_MASTER_MNEMONIC: string;
+
+  /** Test currency (wei) sent to a new key so it can pay fees; 0 disables (Besu with free gas). */
+  @Matches(/^\d+$/, {
+    message: 'KEY_FUNDING_WEI must be a whole number of wei',
+  })
+  KEY_FUNDING_WEI: string = '1000000000000000000';
+
+  /** Secret for the keyed hash of payment references put on the ledger. */
   @IsString()
-  KEY_MASTER_MNEMONIC?: string;
+  @MinLength(32)
+  PAYMENT_REF_SECRET: string;
+
+  /** Blocks to wait after a transaction is mined before treating it as final. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  TX_CONFIRMATIONS: number = 1;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  TX_TIMEOUT_MS: number = 30000;
+
+  @Transform(toBoolean)
+  @IsBoolean()
+  INDEXER_ENABLED: boolean = true;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(100)
+  INDEXER_POLL_MS: number = 1000;
+
+  /** Largest block range fetched in one getLogs call. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  INDEXER_BATCH_BLOCKS: number = 2000;
+
+  /** Blocks the indexer stays behind the head; 0 on instant-finality chains. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  INDEXER_CONFIRMATIONS: number = 0;
+
+  /** Block to start indexing from. Unset: found automatically from the deployment. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  CHAIN_START_BLOCK?: number;
 
   /** Hardhat Ignition deployment folder holding the contract addresses. */
   @IsString()

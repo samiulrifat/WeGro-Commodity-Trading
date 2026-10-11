@@ -17,6 +17,8 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { configureApp } from '../src/app.setup';
+import { ContractsRegistry } from '../src/blockchain/contracts.registry';
+import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
 import { RawResponse } from '../src/common/decorators/raw-response.decorator';
 import {
   Paginated,
@@ -72,6 +74,23 @@ const dbQuery = jest.fn();
 })
 class FakeDatabaseModule {}
 
+const getBlockNumber = jest.fn();
+const indexerStatus = jest.fn();
+
+/** Stands in for BlockchainModule: a node and indexer the tests control. */
+@Global()
+@Module({
+  providers: [
+    {
+      provide: ContractsRegistry,
+      useValue: { chainId: 31337, provider: { getBlockNumber } },
+    },
+    { provide: EventIndexerService, useValue: { status: indexerStatus } },
+  ],
+  exports: [ContractsRegistry, EventIndexerService],
+})
+class FakeBlockchainModule {}
+
 /**
  * AppModule without a real database (the DataSource is a stub). Built inside a
  * function because ConfigModule validates the environment when the module is
@@ -81,6 +100,9 @@ function buildTestModule(env: Record<string, string>) {
   Object.assign(process.env, {
     DATABASE_URL: 'postgres://test:test@localhost:5432/test',
     JWT_SECRET: 'e2e-secret-e2e-secret-e2e-secret-e2e',
+    KEY_MASTER_MNEMONIC:
+      'test test test test test test test test test test test junk',
+    PAYMENT_REF_SECRET: 'e2e-payment-ref-secret-e2e-payment-ref',
     NODE_ENV: 'test',
     ...env,
   });
@@ -104,6 +126,7 @@ function buildTestModule(env: Record<string, string>) {
         }),
       }),
       FakeDatabaseModule,
+      FakeBlockchainModule,
       HealthModule,
     ],
     controllers: [ProbeController],
@@ -134,18 +157,46 @@ describe('HTTP pipeline (e2e)', () => {
     app = await startApp({ THROTTLE_LIMIT: '1000' });
   });
 
+  beforeEach(() => {
+    getBlockNumber.mockResolvedValue(120);
+    indexerStatus.mockResolvedValue({ lastBlock: 118 });
+  });
+
   afterAll(async () => {
     await app.close();
   });
 
   describe('health', () => {
-    it('reports ok when the database answers', async () => {
+    it('reports ok when the database and the node answer', async () => {
       dbQuery.mockResolvedValueOnce([{ '?column?': 1 }]);
       const res = await request(app.getHttpServer())
         .get('/api/health')
         .expect(200);
-      expect(res.body.data).toMatchObject({ status: 'ok', database: 'up' });
+      expect(res.body.data).toMatchObject({
+        status: 'ok',
+        database: 'up',
+        chain: {
+          status: 'up',
+          chainId: 31337,
+          blockNumber: 120,
+          indexedBlock: 118,
+          indexerLag: 2,
+        },
+      });
       expect(typeof res.body.data.uptimeSeconds).toBe('number');
+    });
+
+    it('reports degraded, still 200, when the node is down', async () => {
+      dbQuery.mockResolvedValueOnce([]);
+      getBlockNumber.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+      const res = await request(app.getHttpServer())
+        .get('/api/health')
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        status: 'degraded',
+        database: 'up',
+        chain: { status: 'down', blockNumber: null, indexerLag: null },
+      });
     });
 
     it('returns 503 when the database is down', async () => {
@@ -288,6 +339,8 @@ describe('rate limiting (e2e)', () => {
 
   it('never limits the health check', async () => {
     dbQuery.mockResolvedValue([]);
+    getBlockNumber.mockResolvedValue(1);
+    indexerStatus.mockResolvedValue({ lastBlock: 1 });
     for (let i = 0; i < 5; i++)
       await request(app.getHttpServer()).get('/api/health').expect(200);
   });

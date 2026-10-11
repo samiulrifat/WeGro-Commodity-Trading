@@ -32,6 +32,12 @@ export default defineConfig({
       type: "edr-simulated",
       chainType: "l1",
     },
+    // A node started with `npx hardhat node` (chain id 31337), used by the backend.
+    localhost: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:8545",
+    },
     sepolia: {
       type: "http",
       chainType: "l1",

@@ -29,7 +29,25 @@
 
 ```bash
 $ npm install
+$ npm run migration:run
 ```
+
+### Local chain
+
+The API connects to the platform contracts on a local Hardhat node:
+
+```bash
+# terminal 1, in ../contracts: start the node (in-memory; restarting it wipes the chain)
+$ npx hardhat node
+
+# terminal 2, in ../contracts: deploy the platform (add --reset after a node restart)
+$ npx hardhat ignition deploy ignition/modules/Platform.ts --network localhost
+
+# after any contract change: rebuild and copy the typed bindings into src/blockchain/generated
+$ npm run contracts:sync
+```
+
+After a node restart and redeploy, the event indexer notices its checkpoint block no longer exists and rebuilds the index from the new chain by itself.
 
 ## Compile and run the project
 
@@ -52,6 +70,9 @@ $ npm run test
 
 # e2e tests
 $ npm run test:e2e
+
+# blockchain integration tests (need the local chain running and deployed, and the database)
+$ npm run test:chain
 
 # test coverage
 $ npm run test:cov

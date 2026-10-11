@@ -3,6 +3,9 @@ import { NodeEnv, validateEnv } from './env.validation';
 const base = {
   DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
   JWT_SECRET: 'x'.repeat(32),
+  KEY_MASTER_MNEMONIC:
+    'test test test test test test test test test test test junk',
+  PAYMENT_REF_SECRET: 'p'.repeat(32),
 };
 
 describe('validateEnv', () => {
@@ -12,7 +15,9 @@ describe('validateEnv', () => {
     expect(env.PORT).toBe(3000);
     expect(env.CHAIN_ID).toBe(31337);
     expect(env.SWAGGER_ENABLED).toBe(true);
-    expect(env.KEY_MASTER_MNEMONIC).toBeUndefined();
+    expect(env.KEY_FUNDING_WEI).toBe('1000000000000000000');
+    expect(env.INDEXER_ENABLED).toBe(true);
+    expect(env.CHAIN_START_BLOCK).toBeUndefined();
   });
 
   it('turns env strings into numbers and booleans', () => {
@@ -33,6 +38,26 @@ describe('validateEnv', () => {
     );
     expect(() => validateEnv({ ...base, JWT_SECRET: 'short' })).toThrow(
       /JWT_SECRET/,
+    );
+  });
+
+  it('requires a valid seed phrase and payment-ref secret', () => {
+    expect(() =>
+      validateEnv({ ...base, KEY_MASTER_MNEMONIC: 'not a real phrase' }),
+    ).toThrow(/KEY_MASTER_MNEMONIC/);
+    // Right words, wrong checksum.
+    expect(() =>
+      validateEnv({
+        ...base,
+        KEY_MASTER_MNEMONIC:
+          'test test test test test test test test test test test test',
+      }),
+    ).toThrow(/KEY_MASTER_MNEMONIC/);
+    expect(() => validateEnv({ ...base, PAYMENT_REF_SECRET: 'short' })).toThrow(
+      /PAYMENT_REF_SECRET/,
+    );
+    expect(() => validateEnv({ ...base, KEY_FUNDING_WEI: '1.5' })).toThrow(
+      /KEY_FUNDING_WEI/,
     );
   });
 

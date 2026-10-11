@@ -6,8 +6,8 @@ import { NodeEnv, type EnvironmentVariables } from '../config/env.validation';
 import { SnakeNamingStrategy } from './snake-naming.strategy';
 
 /**
- * PostgreSQL through TypeORM. Schema changes go through migrations only; the
- * schema is never synchronised automatically.
+ * PostgreSQL through TypeORM. Schema changes through migrations.
+ * No auto schema synchronisation.
  */
 @Module({
   imports: [

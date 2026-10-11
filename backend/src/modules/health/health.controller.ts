@@ -17,7 +17,8 @@ export class HealthController {
   @Get()
   @ApiOkResponse({
     type: HealthResponseDto,
-    description: 'The API and its database are up.',
+    description:
+      'The API and its database are up. `status` is `degraded` when the blockchain node cannot be reached.',
   })
   @ApiServiceUnavailableResponse({
     description: 'The database cannot be reached.',

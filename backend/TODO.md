@@ -36,11 +36,11 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 1: Blockchain connection
 
-- [ ] 6. Contracts: load ABIs and deployed addresses from the `contracts` workspace
-- [ ] 7. Keys: derive each person's key from one master seed (an index per user), sign as that user, fund new keys with test currency on Hardhat
-- [ ] 8. Transactions: send as a user, queue per key (nonces), wait for the receipt, decode custom errors
-- [ ] 9. Shared helpers: fingerprints (canonical JSON hash), payment-reference hashing, bytes32 ids, taka to poisha conversion
-- [ ] 10. Event indexer: copy every contract event into the database, with a block checkpoint and a full replay for reset
+- [x] 6. Contracts: load ABIs and deployed addresses from the `contracts` workspace
+- [x] 7. Keys: derive each person's key from one master seed (an index per user), sign as that user, fund new keys with test currency on Hardhat
+- [x] 8. Transactions: send as a user, queue per key (nonces), wait for the receipt, decode custom errors
+- [x] 9. Shared helpers: fingerprints (canonical JSON hash), payment-reference hashing, bytes32 ids, taka to poisha conversion
+- [x] 10. Event indexer: copy every contract event into the database, with a block checkpoint and a full replay for reset
 
 ## Phase 2: Identity
 
