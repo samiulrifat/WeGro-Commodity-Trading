@@ -13,4 +13,5 @@ export default new DataSource({
   entities: [join(__dirname, '..', '**', '*.entity.{ts,js}')],
   migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
   namingStrategy: new SnakeNamingStrategy(),
+  uuidExtension: 'pgcrypto',
 });

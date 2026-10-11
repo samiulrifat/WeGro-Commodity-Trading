@@ -103,6 +103,7 @@ function buildTestModule(env: Record<string, string>) {
     KEY_MASTER_MNEMONIC:
       'test test test test test test test test test test test junk',
     PAYMENT_REF_SECRET: 'e2e-payment-ref-secret-e2e-payment-ref',
+    IDENTITY_MASTER_KEY: 'ab'.repeat(32),
     NODE_ENV: 'test',
     ...env,
   });

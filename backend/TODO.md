@@ -44,8 +44,8 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 2: Identity
 
-- [ ] 11. Auth: users table (personal details stay here), bcrypt passwords, JWT login, roles guard, demo mode with one account per role
-- [ ] 12. Participants (AccessRegistry): practice ID check (register, verify, reject), field officer assignment, key replacement
+- [x] 11. Auth: users table (personal details stay here, encrypted), Argon2id passwords, JWT login with rotating refresh tokens, roles guard, demo mode with one account per role
+- [x] 12. Participants (AccessRegistry): practice ID check (register, verify, reject), field officer assignment, key replacement
 
 ## Phase 3: Business modules
 

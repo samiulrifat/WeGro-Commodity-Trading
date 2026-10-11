@@ -6,6 +6,7 @@ const base = {
   KEY_MASTER_MNEMONIC:
     'test test test test test test test test test test test junk',
   PAYMENT_REF_SECRET: 'p'.repeat(32),
+  IDENTITY_MASTER_KEY: 'ab'.repeat(32),
 };
 
 describe('validateEnv', () => {
@@ -69,5 +70,22 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, NODE_ENV: 'staging' })).toThrow(
       /NODE_ENV/,
     );
+  });
+
+  it('requires a 32-byte identity key and a short access token lifetime format', () => {
+    expect(() =>
+      validateEnv({ ...base, IDENTITY_MASTER_KEY: 'ab'.repeat(31) }),
+    ).toThrow(/IDENTITY_MASTER_KEY/);
+    expect(() =>
+      validateEnv({ ...base, JWT_EXPIRES_IN: '15 minutes' }),
+    ).toThrow(/JWT_EXPIRES_IN/);
+    expect(validateEnv(base).JWT_EXPIRES_IN).toBe('15m');
+  });
+
+  it('refuses demo mode in production', () => {
+    expect(validateEnv({ ...base, DEMO_MODE: 'true' }).DEMO_MODE).toBe(true);
+    expect(() =>
+      validateEnv({ ...base, DEMO_MODE: 'true', NODE_ENV: 'production' }),
+    ).toThrow(/DEMO_MODE/);
   });
 });

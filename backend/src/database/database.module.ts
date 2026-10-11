@@ -21,6 +21,8 @@ import { SnakeNamingStrategy } from './snake-naming.strategy';
         migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
         migrationsRun: false,
         namingStrategy: new SnakeNamingStrategy(),
+        // uuid defaults via gen_random_uuid(), built into PostgreSQL 13+: no extension to install.
+        uuidExtension: 'pgcrypto' as const,
         logging:
           config.get('NODE_ENV', { infer: true }) === NodeEnv.Development
             ? ['error' as const, 'warn' as const, 'migration' as const]

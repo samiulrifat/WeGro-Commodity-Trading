@@ -32,10 +32,8 @@ export class KeyService {
   ) {
     // The seed derivation (PBKDF2, 2048 rounds) runs once; each user key is
     // then a single non-hardened child derivation from this node.
-    this.root = HDNodeWallet.fromPhrase(
-      config.get('KEY_MASTER_MNEMONIC', { infer: true }).trim(),
-      undefined,
-      ACCOUNT_PATH,
+    this.root = deriveAccountRoot(
+      config.get('KEY_MASTER_MNEMONIC', { infer: true }),
     );
   }
 
@@ -76,6 +74,11 @@ export class KeyService {
     assertIndex(index);
     return index;
   }
+}
+
+/** The BIP-44 account node every key index is a child of. */
+export function deriveAccountRoot(mnemonic: string): HDNodeWallet {
+  return HDNodeWallet.fromPhrase(mnemonic.trim(), undefined, ACCOUNT_PATH);
 }
 
 function assertIndex(index: number): void {

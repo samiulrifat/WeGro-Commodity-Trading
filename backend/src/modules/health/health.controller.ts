@@ -5,10 +5,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../auth/decorators';
 import { HealthResponseDto } from './dto/health-response.dto';
 import { HealthService } from './health.service';
 
 @ApiTags('Health')
+@Public()
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

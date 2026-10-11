@@ -72,8 +72,38 @@ export class EnvironmentVariables {
   @MinLength(32)
   JWT_SECRET: string;
 
-  @IsString()
-  JWT_EXPIRES_IN: string = '1h';
+  /** Access token lifetime: a number with s, m or h. Kept short; sessions renew through the refresh token. */
+  @Matches(/^[1-9]\d*[smh]$/, {
+    message: 'JWT_EXPIRES_IN must look like 15m, 900s or 1h',
+  })
+  JWT_EXPIRES_IN: string = '15m';
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  REFRESH_TOKEN_TTL_DAYS: number = 7;
+
+  /** Login attempts allowed per client per minute, on top of the per-account lockout. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  AUTH_THROTTLE_LIMIT: number = 10;
+
+  /**
+   * 32 random bytes as 64 hex characters. Encrypts personal details and keys
+   * their lookup indexes and the password pepper (each a separate derived key).
+   * Losing it makes stored personal details unreadable.
+   */
+  @Matches(/^[0-9a-fA-F]{64}$/, {
+    message: 'IDENTITY_MASTER_KEY must be 64 hex characters (32 bytes)',
+  })
+  IDENTITY_MASTER_KEY: string;
+
+  /** Ready-made accounts, one per role, with password-free login. Never in production. */
+  @Transform(toBoolean)
+  @IsBoolean()
+  DEMO_MODE: boolean = false;
 
   /** Comma-separated origins allowed to call the API (the frontend). */
   @IsString()
@@ -183,6 +213,11 @@ export function validateEnv(
       )
       .join('; ');
     throw new Error(`Invalid environment configuration: ${problems}`);
+  }
+  if (env.DEMO_MODE && env.NODE_ENV === NodeEnv.Production) {
+    throw new Error(
+      'Invalid environment configuration: DEMO_MODE cannot be on in production',
+    );
   }
   return env;
 }

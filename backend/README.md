@@ -49,6 +49,16 @@ $ npm run contracts:sync
 
 After a node restart and redeploy, the event indexer notices its checkpoint block no longer exists and rebuilds the index from the new chain by itself.
 
+### First sign-in
+
+Create the super admin (the platform operator, who registers staff). The password is asked for twice and never shown:
+
+```bash
+$ npm run user:super-admin -- --name "Tania Rahman" --phone 01711000000
+```
+
+Or set `DEMO_MODE=true` (refused in production) for ready-made, verified accounts for every role, signed in through `POST /api/auth/demo/login` with `{ "role": "farmer" }`.
+
 ## Compile and run the project
 
 ```bash
@@ -71,7 +81,8 @@ $ npm run test
 # e2e tests
 $ npm run test:e2e
 
-# blockchain integration tests (need the local chain running and deployed, and the database)
+# blockchain integration tests (need the local chain running and deployed, and the database;
+# each run uses a throwaway schema, but what it registers stays on the local chain)
 $ npm run test:chain
 
 # test coverage

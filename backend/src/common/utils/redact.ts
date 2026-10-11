@@ -13,6 +13,9 @@ const SENSITIVE_KEYS = [
   'nid',
   'phone',
   'email',
+  'fullname',
+  'dateofbirth',
+  'address',
 ];
 
 const MAX_DEPTH = 6;
