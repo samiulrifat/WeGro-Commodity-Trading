@@ -19,6 +19,7 @@ import { ParticipantsModule } from './modules/participants/participants.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { UsersModule } from './modules/users/users.module';
 import { VouchersModule } from './modules/vouchers/vouchers.module';
+import { WarehouseModule } from './modules/warehouse/warehouse.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { VouchersModule } from './modules/vouchers/vouchers.module';
     ProjectsModule,
     VouchersModule,
     FieldRecordsModule,
+    WarehouseModule,
     HealthModule,
   ],
   // In this order: rate limit, then authenticate, then check the role.

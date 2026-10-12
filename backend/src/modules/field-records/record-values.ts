@@ -141,3 +141,31 @@ export function roundCoordinate(value: string): string {
   const text = `${hundredths / 100n}.${String(hundredths % 100n).padStart(2, '0')}`;
   return negative && hundredths !== 0n ? `-${text}` : text;
 }
+
+/**
+ * One decimal value in canonical form with exactly `places` decimals, within
+ * [min, max]. Returns the string, or a problem message naming `label`.
+ */
+export function normaliseDecimal(
+  value: unknown,
+  places: number,
+  min: number,
+  max: number,
+  label: string,
+): string | { problem: string } {
+  const out = normaliseMeasurements({ v: value }, [
+    {
+      key: 'v',
+      label,
+      labelBn: label,
+      unit: null,
+      min,
+      max,
+      decimals: places,
+      required: true,
+    },
+  ]);
+  return out.problems.length > 0
+    ? { problem: out.problems[0].replace(/^v:/, `${label}:`) }
+    : out.values.v;
+}

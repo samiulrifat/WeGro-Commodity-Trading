@@ -46,7 +46,7 @@ import {
   VoucherSaleDto,
   VoucherSummaryDto,
 } from './dto/voucher-response.dto';
-import { qrSvg } from './qr';
+import { qrSvg } from '../../common/qr';
 import { VouchersService } from './vouchers.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
