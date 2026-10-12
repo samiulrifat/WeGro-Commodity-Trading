@@ -1,4 +1,7 @@
-import { DISTRICT_BY_GEO, DISTRICT_CODES } from './bd-districts';
+import {
+  DISTRICT_BY_GEO,
+  DISTRICT_CODES,
+} from '../../../common/reference/bd-districts';
 import {
   type IdCheckInput,
   nidIdentity,

@@ -1,10 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ChainClock } from './chain-clock';
 import { ContractsRegistry } from './contracts.registry';
 import { ChainEvent } from './indexer/chain-event.entity';
 import { EventHandlerRegistry } from './indexer/event-handler.registry';
 import { EventIndexerService } from './indexer/event-indexer.service';
 import { IndexerState } from './indexer/indexer-state.entity';
+import { ReceiptApplier } from './indexer/receipt-applier';
 import { KeyService } from './keys/key.service';
 import { TransactionService } from './tx/transaction.service';
 
@@ -22,6 +24,8 @@ import { TransactionService } from './tx/transaction.service';
     TransactionService,
     EventHandlerRegistry,
     EventIndexerService,
+    ReceiptApplier,
+    ChainClock,
   ],
   exports: [
     ContractsRegistry,
@@ -29,6 +33,8 @@ import { TransactionService } from './tx/transaction.service';
     TransactionService,
     EventHandlerRegistry,
     EventIndexerService,
+    ReceiptApplier,
+    ChainClock,
   ],
 })
 export class BlockchainModule {}

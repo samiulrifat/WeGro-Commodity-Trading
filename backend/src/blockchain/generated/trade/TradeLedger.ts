@@ -11,9 +11,9 @@ export declare namespace TradeLedger {
     export type DeliveryStructOutput = [buyerQuantity: bigint, buyerQualityHash: string, handlerQuantity: bigint, handlerQualityHash: string, handlerId: string] & {buyerQuantity: bigint, buyerQualityHash: string, handlerQuantity: bigint, handlerQualityHash: string, handlerId: string }
   
 
-    export type ListingStruct = {projectId: BytesLike, farmerId: BytesLike, receiptId: BytesLike, seller: BytesLike, produceCode: BytesLike, grade: BytesLike, quantity: BigNumberish, available: BigNumberish, askingUnitPrice: BigNumberish, unpaidDeals: BigNumberish, status: BigNumberish, createdAt: BigNumberish}
+    export type ListingStruct = {projectId: BytesLike, farmerId: BytesLike, receiptId: BytesLike, seller: BytesLike, produceCode: BytesLike, quantity: BigNumberish, available: BigNumberish, askingUnitPrice: BigNumberish, unpaidDeals: BigNumberish, status: BigNumberish, createdAt: BigNumberish}
 
-    export type ListingStructOutput = [projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, grade: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint] & {projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, grade: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint }
+    export type ListingStructOutput = [projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint] & {projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint }
   
 
     export type OfferStruct = {listingId: BigNumberish, buyerId: BytesLike, quantity: BigNumberish, unitPrice: BigNumberish, status: BigNumberish, madeAt: BigNumberish, paymentRefHash: BytesLike, receiptPartId: BytesLike}
@@ -21,9 +21,9 @@ export declare namespace TradeLedger {
     export type OfferStructOutput = [listingId: bigint, buyerId: string, quantity: bigint, unitPrice: bigint, status: bigint, madeAt: bigint, paymentRefHash: string, receiptPartId: string] & {listingId: bigint, buyerId: string, quantity: bigint, unitPrice: bigint, status: bigint, madeAt: bigint, paymentRefHash: string, receiptPartId: string }
   
 
-    export type BuyerRequestStruct = {buyerId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, maxUnitPrice: BigNumberish, validUntil: BigNumberish, cancelled: boolean}
+    export type BuyerRequestStruct = {buyerId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, maxUnitPrice: BigNumberish, validUntil: BigNumberish, cancelled: boolean}
 
-    export type BuyerRequestStructOutput = [buyerId: string, produceCode: string, quantity: bigint, grade: string, maxUnitPrice: bigint, validUntil: bigint, cancelled: boolean] & {buyerId: string, produceCode: string, quantity: bigint, grade: string, maxUnitPrice: bigint, validUntil: bigint, cancelled: boolean }
+    export type BuyerRequestStructOutput = [buyerId: string, produceCode: string, quantity: bigint, maxUnitPrice: bigint, validUntil: bigint, cancelled: boolean] & {buyerId: string, produceCode: string, quantity: bigint, maxUnitPrice: bigint, validUntil: bigint, cancelled: boolean }
   
     }
 
@@ -44,7 +44,7 @@ encodeFunctionData(functionFragment: 'getListing', values: [BigNumberish]): stri
 encodeFunctionData(functionFragment: 'getOffer', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRequest', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isRequestOpen', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'listProduce', values: [BytesLike, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'listProduce', values: [BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'listReceipt', values: [BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'makeOffer', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nextListingId', values?: undefined): string;
@@ -52,7 +52,7 @@ encodeFunctionData(functionFragment: 'nextOfferId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nextRequestId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'openTrades', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'paymentRefUsed', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'postRequest', values: [BytesLike, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'postRequest', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'projectLedger', values?: undefined): string;
 encodeFunctionData(functionFragment: 'receipts', values?: undefined): string;
 encodeFunctionData(functionFragment: 'registry', values?: undefined): string;
@@ -151,9 +151,9 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
   
 
     export namespace ListingCreatedEvent {
-      export type InputTuple = [listingId: BigNumberish, projectId: BytesLike, receiptId: BytesLike, seller: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, askingUnitPrice: BigNumberish, listedBy: AddressLike];
-      export type OutputTuple = [listingId: bigint, projectId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, grade: string, askingUnitPrice: bigint, listedBy: string];
-      export interface OutputObject {listingId: bigint, projectId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, grade: string, askingUnitPrice: bigint, listedBy: string };
+      export type InputTuple = [listingId: BigNumberish, projectId: BytesLike, receiptId: BytesLike, seller: BytesLike, produceCode: BytesLike, quantity: BigNumberish, askingUnitPrice: BigNumberish, listedBy: AddressLike];
+      export type OutputTuple = [listingId: bigint, projectId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, askingUnitPrice: bigint, listedBy: string];
+      export interface OutputObject {listingId: bigint, projectId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, askingUnitPrice: bigint, listedBy: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -235,9 +235,9 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
   
 
     export namespace RequestPostedEvent {
-      export type InputTuple = [requestId: BigNumberish, buyerId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, maxUnitPrice: BigNumberish, validUntil: BigNumberish];
-      export type OutputTuple = [requestId: bigint, buyerId: string, produceCode: string, quantity: bigint, grade: string, maxUnitPrice: bigint, validUntil: bigint];
-      export interface OutputObject {requestId: bigint, buyerId: string, produceCode: string, quantity: bigint, grade: string, maxUnitPrice: bigint, validUntil: bigint };
+      export type InputTuple = [requestId: BigNumberish, buyerId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, maxUnitPrice: BigNumberish, validUntil: BigNumberish];
+      export type OutputTuple = [requestId: bigint, buyerId: string, produceCode: string, quantity: bigint, maxUnitPrice: bigint, validUntil: bigint];
+      export interface OutputObject {requestId: bigint, buyerId: string, produceCode: string, quantity: bigint, maxUnitPrice: bigint, validUntil: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -377,7 +377,7 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
     
     listProduce: TypedContractMethod<
-      [projectId: BytesLike, quantity: BigNumberish, grade: BytesLike, askingUnitPrice: BigNumberish, ],
+      [projectId: BytesLike, quantity: BigNumberish, askingUnitPrice: BigNumberish, ],
       [bigint],
       'nonpayable'
     >
@@ -441,7 +441,7 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
     
     postRequest: TypedContractMethod<
-      [produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, maxUnitPrice: BigNumberish, validUntil: BigNumberish, ],
+      [produceCode: BytesLike, quantity: BigNumberish, maxUnitPrice: BigNumberish, validUntil: BigNumberish, ],
       [bigint],
       'nonpayable'
     >
@@ -559,7 +559,7 @@ getFunction(nameOrSignature: 'isRequestOpen'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'listProduce'): TypedContractMethod<
-      [projectId: BytesLike, quantity: BigNumberish, grade: BytesLike, askingUnitPrice: BigNumberish, ],
+      [projectId: BytesLike, quantity: BigNumberish, askingUnitPrice: BigNumberish, ],
       [bigint],
       'nonpayable'
     >;
@@ -599,7 +599,7 @@ getFunction(nameOrSignature: 'paymentRefUsed'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'postRequest'): TypedContractMethod<
-      [produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, maxUnitPrice: BigNumberish, validUntil: BigNumberish, ],
+      [produceCode: BytesLike, quantity: BigNumberish, maxUnitPrice: BigNumberish, validUntil: BigNumberish, ],
       [bigint],
       'nonpayable'
     >;
@@ -670,7 +670,7 @@ getEvent(key: 'RequestPosted'): TypedContractEvent<RequestPostedEvent.InputTuple
       ListingCancelled: TypedContractEvent<ListingCancelledEvent.InputTuple, ListingCancelledEvent.OutputTuple, ListingCancelledEvent.OutputObject>;
     
 
-      'ListingCreated(uint256,bytes32,bytes32,bytes32,bytes32,uint256,bytes32,uint256,address)': TypedContractEvent<ListingCreatedEvent.InputTuple, ListingCreatedEvent.OutputTuple, ListingCreatedEvent.OutputObject>;
+      'ListingCreated(uint256,bytes32,bytes32,bytes32,bytes32,uint256,uint256,address)': TypedContractEvent<ListingCreatedEvent.InputTuple, ListingCreatedEvent.OutputTuple, ListingCreatedEvent.OutputObject>;
       ListingCreated: TypedContractEvent<ListingCreatedEvent.InputTuple, ListingCreatedEvent.OutputTuple, ListingCreatedEvent.OutputObject>;
     
 
@@ -698,7 +698,7 @@ getEvent(key: 'RequestPosted'): TypedContractEvent<RequestPostedEvent.InputTuple
       RequestCancelled: TypedContractEvent<RequestCancelledEvent.InputTuple, RequestCancelledEvent.OutputTuple, RequestCancelledEvent.OutputObject>;
     
 
-      'RequestPosted(uint256,bytes32,bytes32,uint256,bytes32,uint256,uint64)': TypedContractEvent<RequestPostedEvent.InputTuple, RequestPostedEvent.OutputTuple, RequestPostedEvent.OutputObject>;
+      'RequestPosted(uint256,bytes32,bytes32,uint256,uint256,uint64)': TypedContractEvent<RequestPostedEvent.InputTuple, RequestPostedEvent.OutputTuple, RequestPostedEvent.OutputObject>;
       RequestPosted: TypedContractEvent<RequestPostedEvent.InputTuple, RequestPostedEvent.OutputTuple, RequestPostedEvent.OutputObject>;
     
     };

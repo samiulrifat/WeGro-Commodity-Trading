@@ -412,12 +412,6 @@ import type { NonPayableOverrides } from "../../common.js"
       },
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "grade",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
         "internalType": "uint256",
         "name": "askingUnitPrice",
         "type": "uint256"
@@ -578,12 +572,6 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "quantity",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "grade",
-        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -791,11 +779,6 @@ import type { NonPayableOverrides } from "../../common.js"
             "type": "bytes32"
           },
           {
-            "internalType": "bytes32",
-            "name": "grade",
-            "type": "bytes32"
-          },
-          {
             "internalType": "uint256",
             "name": "quantity",
             "type": "uint256"
@@ -923,11 +906,6 @@ import type { NonPayableOverrides } from "../../common.js"
             "type": "uint256"
           },
           {
-            "internalType": "bytes32",
-            "name": "grade",
-            "type": "bytes32"
-          },
-          {
             "internalType": "uint256",
             "name": "maxUnitPrice",
             "type": "uint256"
@@ -981,11 +959,6 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "quantity",
         "type": "uint256"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "grade",
-        "type": "bytes32"
       },
       {
         "internalType": "uint256",
@@ -1145,11 +1118,6 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "quantity",
         "type": "uint256"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "grade",
-        "type": "bytes32"
       },
       {
         "internalType": "uint256",

@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 export declare namespace WarehouseReceipt {
       
-    export type ReceiptStruct = {projectId: BytesLike, siteId: BytesLike, owner: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, detailsHash: BytesLike, issuedAt: BigNumberish, expiresAt: BigNumberish, status: BigNumberish, pendingTo: BytesLike, parentId: BytesLike}
+    export type ReceiptStruct = {projectId: BytesLike, siteId: BytesLike, owner: BytesLike, produceCode: BytesLike, quantity: BigNumberish, detailsHash: BytesLike, issuedAt: BigNumberish, expiresAt: BigNumberish, status: BigNumberish, pendingTo: BytesLike, parentId: BytesLike}
 
-    export type ReceiptStructOutput = [projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, grade: string, detailsHash: string, issuedAt: bigint, expiresAt: bigint, status: bigint, pendingTo: string, parentId: string] & {projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, grade: string, detailsHash: string, issuedAt: bigint, expiresAt: bigint, status: bigint, pendingTo: string, parentId: string }
+    export type ReceiptStructOutput = [projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, detailsHash: string, issuedAt: bigint, expiresAt: bigint, status: bigint, pendingTo: string, parentId: string] & {projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, detailsHash: string, issuedAt: bigint, expiresAt: bigint, status: bigint, pendingTo: string, parentId: string }
   
     }
 
@@ -26,7 +26,7 @@ encodeFunctionData(functionFragment: 'extendExpiry', values: [BytesLike, BigNumb
 encodeFunctionData(functionFragment: 'getReceipt', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'isLinkedContract', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isOwnerSide', values: [BytesLike, AddressLike]): string;
-encodeFunctionData(functionFragment: 'issueReceipt', values: [BytesLike, BytesLike, BytesLike, BigNumberish, BytesLike, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'issueReceipt', values: [BytesLike, BytesLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'markCollected', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'offerHandover', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'openReceipts', values: [BytesLike]): string;
@@ -140,9 +140,9 @@ decodeFunctionResult(functionFragment: 'splitCount', data: BytesLike): Result;
   
 
     export namespace ReceiptIssuedEvent {
-      export type InputTuple = [receiptId: BytesLike, projectId: BytesLike, siteId: BytesLike, owner: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, expiresAt: BigNumberish, detailsHash: BytesLike, issuedBy: BytesLike];
-      export type OutputTuple = [receiptId: string, projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, grade: string, expiresAt: bigint, detailsHash: string, issuedBy: string];
-      export interface OutputObject {receiptId: string, projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, grade: string, expiresAt: bigint, detailsHash: string, issuedBy: string };
+      export type InputTuple = [receiptId: BytesLike, projectId: BytesLike, siteId: BytesLike, owner: BytesLike, produceCode: BytesLike, quantity: BigNumberish, expiresAt: BigNumberish, detailsHash: BytesLike, issuedBy: BytesLike];
+      export type OutputTuple = [receiptId: string, projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, expiresAt: bigint, detailsHash: string, issuedBy: string];
+      export interface OutputObject {receiptId: string, projectId: string, siteId: string, owner: string, produceCode: string, quantity: bigint, expiresAt: bigint, detailsHash: string, issuedBy: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -306,7 +306,7 @@ decodeFunctionResult(functionFragment: 'splitCount', data: BytesLike): Result;
 
     
     issueReceipt: TypedContractMethod<
-      [receiptId: BytesLike, projectId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, expiresAt: BigNumberish, detailsHash: BytesLike, ],
+      [receiptId: BytesLike, projectId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, expiresAt: BigNumberish, detailsHash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -465,7 +465,7 @@ getFunction(nameOrSignature: 'isOwnerSide'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'issueReceipt'): TypedContractMethod<
-      [receiptId: BytesLike, projectId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, grade: BytesLike, expiresAt: BigNumberish, detailsHash: BytesLike, ],
+      [receiptId: BytesLike, projectId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, expiresAt: BigNumberish, detailsHash: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -573,7 +573,7 @@ getEvent(key: 'SiteRegistered'): TypedContractEvent<SiteRegisteredEvent.InputTup
       ReceiptCollected: TypedContractEvent<ReceiptCollectedEvent.InputTuple, ReceiptCollectedEvent.OutputTuple, ReceiptCollectedEvent.OutputObject>;
     
 
-      'ReceiptIssued(bytes32,bytes32,bytes32,bytes32,bytes32,uint256,bytes32,uint64,bytes32,bytes32)': TypedContractEvent<ReceiptIssuedEvent.InputTuple, ReceiptIssuedEvent.OutputTuple, ReceiptIssuedEvent.OutputObject>;
+      'ReceiptIssued(bytes32,bytes32,bytes32,bytes32,bytes32,uint256,uint64,bytes32,bytes32)': TypedContractEvent<ReceiptIssuedEvent.InputTuple, ReceiptIssuedEvent.OutputTuple, ReceiptIssuedEvent.OutputObject>;
       ReceiptIssued: TypedContractEvent<ReceiptIssuedEvent.InputTuple, ReceiptIssuedEvent.OutputTuple, ReceiptIssuedEvent.OutputObject>;
     
 

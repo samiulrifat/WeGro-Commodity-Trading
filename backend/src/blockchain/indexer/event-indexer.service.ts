@@ -13,6 +13,7 @@ import {
 } from 'typeorm';
 import type { EnvironmentVariables } from '../../config/env.validation';
 import { ContractsRegistry } from '../contracts.registry';
+import { eventArgs } from '../utils/event-args';
 import { ChainEvent } from './chain-event.entity';
 import { EventHandlerRegistry } from './event-handler.registry';
 import { IndexerState } from './indexer-state.entity';
@@ -236,10 +237,7 @@ export class EventIndexerService
     event.contract = info.name;
     event.address = info.address;
     event.eventName = parsed.name;
-    event.args = toJsonSafe(parsed.args.toObject(true)) as Record<
-      string,
-      unknown
-    >;
+    event.args = toJsonSafe(eventArgs(parsed)) as Record<string, unknown>;
     return event;
   }
 

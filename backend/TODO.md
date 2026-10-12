@@ -49,10 +49,10 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 3: Business modules
 
-- [ ] 13. Catalog: produce types and categories, units, input types, field-record types (the officer's dropdown); database only
-- [ ] 14. Projects (ProjectLedger): create, open, list and filter, reservations, payment confirmation, expiry, cancel and refunds, estimated return range, project timeline
-- [ ] 15. Vouchers (VoucherRegistry): propose, approve, reject, cancel; supplier batches with QR codes; sales, confirmation, expiry; 4-week inactivity reminder
-- [ ] 16. Field records (FieldRecordLog): offline sync that is safe to resend, photo upload to a local folder, fingerprints, verify
+- [x] 13. Catalog: produce types and categories, units, input types, field-record types (the officer's dropdown); database only
+- [x] 14. Projects (ProjectLedger): create, open, list and filter, reservations, payment confirmation, expiry, cancel and refunds, estimated return range, project timeline
+- [x] 15. Vouchers (VoucherRegistry): propose, approve, reject, cancel; supplier batches with QR codes; sales, confirmation, expiry; per-voucher inactivity limit set by the super admin
+- [x] 16. Field records (FieldRecordLog): offline sync that is safe to resend, photo upload to a local folder, fingerprints, verify
 - [ ] 17. Warehouse (WarehouseReceipt): sites and operators, issue receipts, buy-back handover, extend expiry, collect
 - [ ] 18. Marketplace (TradeLedger): listings, offers, approve or reject, cancel deals, buyer payment, delivery, buyer requests
 - [ ] 19. Insurance (InsuranceRegistry): cover, weather events (open claims on every insured project in the district), claim review

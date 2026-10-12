@@ -15,6 +15,7 @@ import { getAddress } from 'ethers';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
+import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
 import { KeyService } from '../../blockchain/keys/key.service';
 import {
   type TxResult,
@@ -58,7 +59,6 @@ import {
   normalisePhone,
   runIdCheck,
 } from './id-check/id-check';
-import { ParticipantLedgerSync } from './participant-ledger.sync';
 
 /** Which unique index a duplicate hit, and what to tell the caller. */
 const DUPLICATES: Record<string, { code: string; message: string }> = {
@@ -88,7 +88,7 @@ export class ParticipantsService {
     private readonly keys: KeyService,
     private readonly tx: TransactionService,
     private readonly contracts: ContractsRegistry,
-    private readonly sync: ParticipantLedgerSync,
+    private readonly receipts: ReceiptApplier,
     private readonly tokens: TokenService,
   ) {}
 
@@ -280,7 +280,7 @@ export class ParticipantsService {
       c.rejectParticipant.populateTransaction(uuidToBytes32(id)),
     );
     await this.dataSource.transaction(async (m) => {
-      await this.sync.applyReceipt(result, m);
+      await this.receipts.apply(result, m);
       await m.update(User, { id }, { statusReason: reason });
       await m.increment(User, { id }, 'tokenVersion', 1);
       await this.tokens.revokeAllForUser(id, m);
@@ -560,7 +560,7 @@ export class ParticipantsService {
   }
 
   private async applyReceipt(result: TxResult): Promise<void> {
-    await this.dataSource.transaction((m) => this.sync.applyReceipt(result, m));
+    await this.receipts.apply(result);
   }
 
   private async readLedger(id: string): Promise<LedgerParticipantDto> {

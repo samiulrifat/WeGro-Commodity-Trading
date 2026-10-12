@@ -14,6 +14,7 @@ import {
 } from '../contracts.registry';
 import { ContractErrorDecoder } from '../errors/contract-errors';
 import { KeyService } from '../keys/key.service';
+import { eventArgs } from '../utils/event-args';
 
 export interface DecodedEvent {
   contract: ContractName;
@@ -25,6 +26,8 @@ export interface DecodedEvent {
 export interface TxResult {
   hash: string;
   blockNumber: number;
+  /** The block's timestamp: the time the ledger itself records for these events. */
+  blockTime: Date;
   gasUsed: bigint;
   /** Platform contract events emitted by this transaction, in log order. */
   events: DecodedEvent[];
@@ -162,9 +165,11 @@ export class TransactionService {
     if (!receipt || receipt.status !== 1) {
       throw new Error(`Transaction ${response.hash} failed on chain`);
     }
+    const block = await this.registry.provider.getBlock(receipt.blockHash);
     return {
       hash: receipt.hash,
       blockNumber: receipt.blockNumber,
+      blockTime: new Date((block?.timestamp ?? Date.now() / 1000) * 1000),
       gasUsed: receipt.gasUsed,
       events: this.decodeLogs(receipt),
     };
@@ -181,7 +186,7 @@ export class TransactionService {
       events.push({
         contract: info.name,
         name: parsed.name,
-        args: parsed.args.toObject(true),
+        args: eventArgs(parsed),
         logIndex: log.index,
       });
     }

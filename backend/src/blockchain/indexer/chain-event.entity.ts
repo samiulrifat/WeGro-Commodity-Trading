@@ -21,6 +21,8 @@ export const blockNumberTransformer = {
 @Entity()
 @Unique('uq_chain_event_position', ['blockNumber', 'logIndex'])
 @Index('ix_chain_event_contract_event', ['contract', 'eventName'])
+/** Expression index on args->>'projectId' (migration Projects): per-project history. */
+@Index('ix_chain_event_project_id', { synchronize: false })
 export class ChainEvent {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id: string;

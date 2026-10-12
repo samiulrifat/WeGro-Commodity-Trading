@@ -17,7 +17,7 @@ import {
   type ParticipantRole,
   ParticipantStatus,
 } from '../../users/roles';
-import { DISTRICT_CODES } from '../id-check/bd-districts';
+import { DISTRICT_CODES } from '../../../common/reference/bd-districts';
 
 /**
  * Raw input for the practice ID check. Types and lengths are bounded here;

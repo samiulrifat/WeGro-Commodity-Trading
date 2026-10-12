@@ -151,7 +151,7 @@ contract SettlementLedgerTest is Test {
     function _sell(uint256 kg, uint256 unitPrice) internal {
         bytes32 id = bytes32(++receiptCount);
         vm.prank(habib);
-        receipts.issueReceipt(id, MAIZE, "MAIZE", kg, "A", uint64(block.timestamp + 365 days), keccak256("i"));
+        receipts.issueReceipt(id, MAIZE, "MAIZE", kg, uint64(block.timestamp + 365 days), keccak256("i"));
         bytes32 wegro = receipts.WEGRO();
         vm.prank(imran);
         receipts.offerHandover(id, wegro);
@@ -304,7 +304,7 @@ contract SettlementLedgerTest is Test {
     function test_FinalWaitsForStoredCrop() public {
         _inputs();
         vm.prank(habib); // maize still in the warehouse, unsold
-        receipts.issueReceipt("UNSOLD", MAIZE, "MAIZE", 1_000, "A", uint64(block.timestamp + 365 days), keccak256("i"));
+        receipts.issueReceipt("UNSOLD", MAIZE, "MAIZE", 1_000, uint64(block.timestamp + 365 days), keccak256("i"));
         _readyForSale();
         vm.prank(farhana);
         vm.expectRevert(_outstanding("STORED_CROP"));
@@ -318,7 +318,7 @@ contract SettlementLedgerTest is Test {
     function test_FinalWaitsForDelivery() public {
         _inputs();
         vm.prank(habib);
-        receipts.issueReceipt("R", MAIZE, "MAIZE", 1_000, "A", uint64(block.timestamp + 365 days), keccak256("i"));
+        receipts.issueReceipt("R", MAIZE, "MAIZE", 1_000, uint64(block.timestamp + 365 days), keccak256("i"));
         bytes32 wegro = receipts.WEGRO();
         vm.prank(imran);
         receipts.offerHandover("R", wegro);

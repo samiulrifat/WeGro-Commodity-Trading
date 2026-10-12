@@ -2,7 +2,7 @@ import {
   DISTRICT_BY_GEO,
   type DistrictCode,
   isDistrictCode,
-} from './bd-districts';
+} from '../../../common/reference/bd-districts';
 
 /**
  * The practice ID check: strict, deterministic rules run on a person's

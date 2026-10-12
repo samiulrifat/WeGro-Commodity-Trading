@@ -262,7 +262,7 @@ describe('Identity (node + database)', () => {
         res.body.data.temporaryPassword,
       );
       const blocked = await http
-        .get('/api/participants/districts')
+        .get('/api/catalog')
         .auth(token, { type: 'bearer' })
         .expect(403);
       expect(blocked.body.message).toBe('Change your temporary password first');

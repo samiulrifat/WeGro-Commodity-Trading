@@ -32,7 +32,6 @@ contract WarehouseReceipt is AccessGuarded {
         bytes32 owner; // participant id, or WEGRO
         bytes32 produceCode;
         uint256 quantity; // in the catalog unit for produceCode
-        bytes32 grade;
         bytes32 detailsHash; // intake record: quality, moisture, etc.
         uint64 issuedAt;
         uint64 expiresAt;
@@ -66,7 +65,6 @@ contract WarehouseReceipt is AccessGuarded {
         bytes32 owner,
         bytes32 produceCode,
         uint256 quantity,
-        bytes32 grade,
         uint64 expiresAt,
         bytes32 detailsHash,
         bytes32 issuedBy
@@ -133,13 +131,10 @@ contract WarehouseReceipt is AccessGuarded {
         bytes32 projectId,
         bytes32 produceCode,
         uint256 quantity,
-        bytes32 grade,
         uint64 expiresAt,
         bytes32 detailsHash
     ) external onlyRole(Roles.WAREHOUSE) {
-        if (receiptId == bytes32(0) || quantity == 0 || grade == bytes32(0) || detailsHash == bytes32(0)) {
-            revert ZeroValue();
-        }
+        if (receiptId == bytes32(0) || quantity == 0 || detailsHash == bytes32(0)) revert ZeroValue();
         if (_receipts[receiptId].status != Status.None) revert ReceiptExists(receiptId);
         if (expiresAt <= block.timestamp) revert InvalidExpiry(expiresAt);
         bytes32 operatorId = _callerId();
@@ -157,7 +152,6 @@ contract WarehouseReceipt is AccessGuarded {
             owner: p.terms.farmerId,
             produceCode: produceCode,
             quantity: quantity,
-            grade: grade,
             detailsHash: detailsHash,
             issuedAt: uint64(block.timestamp),
             expiresAt: expiresAt,
@@ -167,7 +161,7 @@ contract WarehouseReceipt is AccessGuarded {
         });
         openReceipts[projectId]++;
         emit ReceiptIssued(
-            receiptId, projectId, siteId, p.terms.farmerId, produceCode, quantity, grade, expiresAt, detailsHash, operatorId
+            receiptId, projectId, siteId, p.terms.farmerId, produceCode, quantity, expiresAt, detailsHash, operatorId
         );
     }
 
@@ -246,7 +240,6 @@ contract WarehouseReceipt is AccessGuarded {
             owner: buyerId,
             produceCode: parent.produceCode,
             quantity: quantity,
-            grade: parent.grade,
             detailsHash: parent.detailsHash,
             issuedAt: uint64(block.timestamp),
             expiresAt: parent.expiresAt,

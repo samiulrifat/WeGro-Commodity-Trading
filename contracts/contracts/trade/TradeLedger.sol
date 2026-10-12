@@ -43,7 +43,6 @@ contract TradeLedger is AccessGuarded {
         bytes32 receiptId; // 0 = perishable, listed from the project
         bytes32 seller; // farmer's participant id, or WEGRO
         bytes32 produceCode;
-        bytes32 grade;
         uint256 quantity; // listed in total
         uint256 available; // not yet reserved by an approved offer
         uint256 askingUnitPrice;
@@ -75,7 +74,6 @@ contract TradeLedger is AccessGuarded {
         bytes32 buyerId;
         bytes32 produceCode;
         uint256 quantity;
-        bytes32 grade; // 0 = any grade
         uint256 maxUnitPrice;
         uint64 validUntil;
         bool cancelled;
@@ -106,7 +104,6 @@ contract TradeLedger is AccessGuarded {
         bytes32 seller,
         bytes32 produceCode,
         uint256 quantity,
-        bytes32 grade,
         uint256 askingUnitPrice,
         address listedBy
     );
@@ -129,7 +126,6 @@ contract TradeLedger is AccessGuarded {
         bytes32 indexed buyerId,
         bytes32 produceCode,
         uint256 quantity,
-        bytes32 grade,
         uint256 maxUnitPrice,
         uint64 validUntil
     );
@@ -170,17 +166,17 @@ contract TradeLedger is AccessGuarded {
 
         receipts.setListed(receiptId, true); // must be Issued and not expired
         listingId = _createListing(
-            r.projectId, p.terms.farmerId, receiptId, r.owner, r.produceCode, r.quantity, r.grade, askingUnitPrice
+            r.projectId, p.terms.farmerId, receiptId, r.owner, r.produceCode, r.quantity, askingUnitPrice
         );
     }
 
     /// @notice List perishable produce straight from a project: as WeGro (admin)
     /// or for the farmer (their field officer).
-    function listProduce(bytes32 projectId, uint256 quantity, bytes32 grade, uint256 askingUnitPrice)
+    function listProduce(bytes32 projectId, uint256 quantity, uint256 askingUnitPrice)
         external
         returns (uint256 listingId)
     {
-        if (quantity == 0 || grade == bytes32(0) || askingUnitPrice == 0) revert ZeroValue();
+        if (quantity == 0 || askingUnitPrice == 0) revert ZeroValue();
         ProjectLedger.Project memory p = _activeProject(projectId);
         if (p.terms.category != ProjectLedger.ProduceCategory.Perishable) revert NotPerishable(projectId);
 
@@ -193,7 +189,7 @@ contract TradeLedger is AccessGuarded {
             revert NotAuthorized(msg.sender);
         }
         listingId = _createListing(
-            projectId, p.terms.farmerId, bytes32(0), seller, p.terms.produceCode, quantity, grade, askingUnitPrice
+            projectId, p.terms.farmerId, bytes32(0), seller, p.terms.produceCode, quantity, askingUnitPrice
         );
     }
 
@@ -334,7 +330,7 @@ contract TradeLedger is AccessGuarded {
     }
 
 
-    function postRequest(bytes32 produceCode, uint256 quantity, bytes32 grade, uint256 maxUnitPrice, uint64 validUntil)
+    function postRequest(bytes32 produceCode, uint256 quantity, uint256 maxUnitPrice, uint64 validUntil)
         external
         onlyRole(Roles.BUYER)
         returns (uint256 requestId)
@@ -347,12 +343,11 @@ contract TradeLedger is AccessGuarded {
             buyerId: buyerId,
             produceCode: produceCode,
             quantity: quantity,
-            grade: grade,
             maxUnitPrice: maxUnitPrice,
             validUntil: validUntil,
             cancelled: false
         });
-        emit RequestPosted(requestId, buyerId, produceCode, quantity, grade, maxUnitPrice, validUntil);
+        emit RequestPosted(requestId, buyerId, produceCode, quantity, maxUnitPrice, validUntil);
     }
 
     function cancelRequest(uint256 requestId) external onlyRole(Roles.BUYER) {
@@ -397,7 +392,6 @@ contract TradeLedger is AccessGuarded {
         bytes32 seller,
         bytes32 produceCode,
         uint256 quantity,
-        bytes32 grade,
         uint256 askingUnitPrice
     ) private returns (uint256 listingId) {
         listingId = nextListingId++;
@@ -407,7 +401,6 @@ contract TradeLedger is AccessGuarded {
             receiptId: receiptId,
             seller: seller,
             produceCode: produceCode,
-            grade: grade,
             quantity: quantity,
             available: quantity,
             askingUnitPrice: askingUnitPrice,
@@ -416,7 +409,7 @@ contract TradeLedger is AccessGuarded {
             createdAt: uint64(block.timestamp)
         });
         openTrades[projectId]++;
-        emit ListingCreated(listingId, projectId, receiptId, seller, produceCode, quantity, grade, askingUnitPrice, msg.sender);
+        emit ListingCreated(listingId, projectId, receiptId, seller, produceCode, quantity, askingUnitPrice, msg.sender);
     }
 
     function _activeProject(bytes32 projectId) private view returns (ProjectLedger.Project memory p) {

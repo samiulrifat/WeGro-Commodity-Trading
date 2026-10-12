@@ -10,11 +10,15 @@ import { BlockchainModule } from './blockchain/blockchain.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 import { AUTH_THROTTLE } from './modules/auth/decorators';
 import { JwtAuthGuard, RolesGuard } from './modules/auth/guards';
+import { FieldRecordsModule } from './modules/field-records/field-records.module';
 import { HealthModule } from './modules/health/health.module';
 import { ParticipantsModule } from './modules/participants/participants.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 import { UsersModule } from './modules/users/users.module';
+import { VouchersModule } from './modules/vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -49,6 +53,10 @@ import { UsersModule } from './modules/users/users.module';
     UsersModule,
     AuthModule,
     ParticipantsModule,
+    CatalogModule,
+    ProjectsModule,
+    VouchersModule,
+    FieldRecordsModule,
     HealthModule,
   ],
   // In this order: rate limit, then authenticate, then check the role.

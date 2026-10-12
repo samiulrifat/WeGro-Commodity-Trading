@@ -127,10 +127,10 @@ contract WarehouseReceiptTest is Test {
         ledger.activate(id);
     }
 
-    /// Habib stores 5,000 kg of grade-A maize for 6 months.
+    /// Habib stores 5,000 kg of maize for 6 months.
     function _issue(bytes32 id) internal {
         vm.prank(habib);
-        receipts.issueReceipt(id, MAIZE, "MAIZE", 5_000, "A", uint64(block.timestamp + 180 days), keccak256("intake"));
+        receipts.issueReceipt(id, MAIZE, "MAIZE", 5_000, uint64(block.timestamp + 180 days), keccak256("intake"));
     }
 
     /// Imran offers Rahim's receipt to WeGro and Tania accepts.
@@ -205,14 +205,13 @@ contract WarehouseReceiptTest is Test {
     function test_IssueReceiptToFarmer() public {
         uint64 expiry = uint64(block.timestamp + 180 days);
         vm.expectEmit(address(receipts));
-        emit WarehouseReceipt.ReceiptIssued(R1, MAIZE, BOGURA, RAHIM, "MAIZE", 5_000, "A", expiry, keccak256("intake"), HABIB);
+        emit WarehouseReceipt.ReceiptIssued(R1, MAIZE, BOGURA, RAHIM, "MAIZE", 5_000, expiry, keccak256("intake"), HABIB);
         _issue(R1);
 
         WarehouseReceipt.Receipt memory r = receipts.getReceipt(R1);
         assertEq(r.owner, RAHIM);
         assertEq(r.siteId, BOGURA);
         assertEq(r.quantity, 5_000);
-        assertEq(r.grade, bytes32("A"));
         assertEq(r.issuedAt, block.timestamp);
         assertEq(uint8(r.status), uint8(WarehouseReceipt.Status.Issued));
         assertEq(receipts.ownerOf(R1), RAHIM);
@@ -222,40 +221,38 @@ contract WarehouseReceiptTest is Test {
         uint64 expiry = uint64(block.timestamp + 180 days);
         vm.startPrank(habib);
         vm.expectRevert(WarehouseReceipt.ZeroValue.selector);
-        receipts.issueReceipt(bytes32(0), MAIZE, "MAIZE", 1, "A", expiry, keccak256("x"));
+        receipts.issueReceipt(bytes32(0), MAIZE, "MAIZE", 1, expiry, keccak256("x"));
         vm.expectRevert(WarehouseReceipt.ZeroValue.selector);
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 0, "A", expiry, keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 0, expiry, keccak256("x"));
         vm.expectRevert(WarehouseReceipt.ZeroValue.selector);
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, bytes32(0), expiry, keccak256("x"));
-        vm.expectRevert(WarehouseReceipt.ZeroValue.selector);
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, "A", expiry, bytes32(0));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, expiry, bytes32(0));
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.InvalidExpiry.selector, block.timestamp));
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, "A", uint64(block.timestamp), keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, uint64(block.timestamp), keccak256("x"));
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.ProduceMismatch.selector, bytes32("MAIZE"), bytes32("RICE")));
-        receipts.issueReceipt(R1, MAIZE, "RICE", 1, "A", expiry, keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "RICE", 1, expiry, keccak256("x"));
         vm.stopPrank();
 
         _issue(R1);
         vm.prank(habib);
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.ReceiptExists.selector, R1));
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, "A", expiry, keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, expiry, keccak256("x"));
     }
 
     function test_OnlySiteOperatorsIssue() public {
         uint64 expiry = uint64(block.timestamp + 180 days);
         vm.prank(floating);
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.NotSiteOperator.selector, floating));
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, "A", expiry, keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, expiry, keccak256("x"));
 
         vm.prank(rahim);
         vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, rahim, WAREHOUSE));
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, "A", expiry, keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, expiry, keccak256("x"));
     }
 
     function test_NoReceiptForPerishables() public {
         vm.prank(habib);
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.NotStorable.selector, ONION));
-        receipts.issueReceipt(R1, ONION, "ONION", 1, "A", uint64(block.timestamp + 30 days), keccak256("x"));
+        receipts.issueReceipt(R1, ONION, "ONION", 1, uint64(block.timestamp + 30 days), keccak256("x"));
     }
 
     function test_IssueOnlyOnActiveProject() public {
@@ -265,7 +262,7 @@ contract WarehouseReceiptTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(WarehouseReceipt.WrongProjectStage.selector, MAIZE, ProjectLedger.Stage.ReadyForSale)
         );
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, "A", uint64(block.timestamp + 1 days), keccak256("x"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 1, uint64(block.timestamp + 1 days), keccak256("x"));
     }
 
     // --- buy-back (Stage 5) -------------------------------------------------------------
@@ -511,7 +508,6 @@ contract WarehouseReceiptTest is Test {
         assertEq(c.quantity, 2_000);
         assertEq(c.parentId, R1);
         assertEq(c.siteId, BOGURA);
-        assertEq(c.grade, bytes32("A"));
         assertEq(uint8(c.status), uint8(WarehouseReceipt.Status.Sold));
 
         // The parent keeps the rest, still WeGro's and still listed.

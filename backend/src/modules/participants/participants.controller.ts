@@ -28,14 +28,12 @@ import {
   VerifyParticipantDto,
 } from './dto/participant-request.dto';
 import {
-  DistrictDto,
   IntegrityReportDto,
   ParticipantDetailDto,
   ParticipantSummaryDto,
   RegisteredParticipantDto,
   TemporaryPasswordDto,
 } from './dto/participant-response.dto';
-import { BD_DISTRICTS, DISTRICT_CODES } from './id-check/bd-districts';
 import { ParticipantsService } from './participants.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -49,16 +47,6 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller('participants')
 export class ParticipantsController {
   constructor(private readonly participants: ParticipantsService) {}
-
-  @Get('districts')
-  @ApiOkResponse({ type: [DistrictDto] })
-  districts(): DistrictDto[] {
-    return DISTRICT_CODES.map((code) => ({
-      code,
-      name: BD_DISTRICTS[code].name,
-      division: BD_DISTRICTS[code].division,
-    }));
-  }
 
   @Post()
   @Roles(Role.SuperAdmin, Role.Admin, Role.FieldOfficer)

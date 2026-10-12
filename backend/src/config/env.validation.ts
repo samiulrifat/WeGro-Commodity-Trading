@@ -188,6 +188,21 @@ export class EnvironmentVariables {
   @Min(0)
   CHAIN_START_BLOCK?: number;
 
+  /** Run background jobs (expiring reservations, ...). Off in tests that drive them by hand. */
+  @Transform(toBoolean)
+  @IsBoolean()
+  JOBS_ENABLED: boolean = true;
+
+  /** How often items past their ledger deadline (reservations, voucher sales) are released. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  EXPIRY_SWEEP_MS: number = 60_000;
+
+  /** The frontend's address: QR codes link to pages under it. */
+  @IsUrl({ protocols: ['http', 'https'], require_tld: false })
+  PUBLIC_APP_URL: string = 'http://localhost:5173';
+
   /** Hardhat Ignition deployment folder holding the contract addresses. */
   @IsString()
   CONTRACTS_DEPLOYMENT_DIR: string =

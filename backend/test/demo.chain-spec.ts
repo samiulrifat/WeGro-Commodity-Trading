@@ -8,10 +8,13 @@ import { User } from '../src/modules/users/entities/user.entity';
 import {
   CHAIN_ROLE,
   PARTICIPANT_ROLES,
-  ParticipantStatus,
   Role,
 } from '../src/modules/users/roles';
-import { type ChainApp, startChainApp } from './support/chain-app';
+import {
+  type ChainApp,
+  startChainApp,
+  waitForDemoAccounts,
+} from './support/chain-app';
 
 const ALL_ROLES = Object.values(Role);
 
@@ -23,19 +26,7 @@ describe('Demo mode (node + database)', () => {
     chain = await startChainApp({ DEMO_MODE: 'true' });
     http = request(chain.app.getHttpServer());
 
-    // Startup creates the accounts in the background; wait until all are verified.
-    const users = chain.app.get(DataSource).getRepository(User);
-    const deadline = Date.now() + 60_000;
-    while (
-      (await users.countBy({
-        isDemo: true,
-        status: ParticipantStatus.Verified,
-      })) < ALL_ROLES.length
-    ) {
-      if (Date.now() > deadline)
-        throw new Error('Demo accounts were not created in time');
-      await new Promise((r) => setTimeout(r, 250));
-    }
+    await waitForDemoAccounts(chain);
   });
 
   afterAll(async () => {

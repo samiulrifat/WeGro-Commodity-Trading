@@ -88,7 +88,7 @@ contract TradeLedgerTest is Test {
         _activeProject(ONION, "ONION", ProjectLedger.ProduceCategory.Perishable);
 
         vm.prank(habib);
-        receipts.issueReceipt(R1, MAIZE, "MAIZE", 5_000, "A", uint64(block.timestamp + 180 days), keccak256("intake"));
+        receipts.issueReceipt(R1, MAIZE, "MAIZE", 5_000, uint64(block.timestamp + 180 days), keccak256("intake"));
     }
 
     // --- helpers ---------------------------------------------------------------
@@ -484,7 +484,7 @@ contract TradeLedgerTest is Test {
 
     function test_CancelledListingClearsOpenTrades() public {
         vm.prank(admin);
-        uint256 id = trade.listProduce(ONION, 1_000, "A", ASK);
+        uint256 id = trade.listProduce(ONION, 1_000, ASK);
         assertEq(trade.openTrades(ONION), 1);
         vm.prank(admin);
         trade.cancelListing(id);
@@ -504,7 +504,7 @@ contract TradeLedgerTest is Test {
 
     function test_PerishablesPartialSale() public {
         vm.prank(imran);
-        uint256 id = trade.listProduce(ONION, 1_000, "A", 45 * TK);
+        uint256 id = trade.listProduce(ONION, 1_000, 45 * TK);
         assertEq(trade.getListing(id).seller, RAHIM);
         assertEq(trade.getListing(id).receiptId, bytes32(0));
 
@@ -530,7 +530,7 @@ contract TradeLedgerTest is Test {
 
     function test_ListPerishableAsWeGro() public {
         vm.prank(admin);
-        uint256 id = trade.listProduce(ONION, 2_000, "B", 40 * TK);
+        uint256 id = trade.listProduce(ONION, 2_000, 40 * TK);
         assertEq(trade.getListing(id).seller, WEGRO);
         assertEq(trade.getListing(id).produceCode, bytes32("ONION"));
     }
@@ -538,20 +538,18 @@ contract TradeLedgerTest is Test {
     function test_ListProduceGuards() public {
         vm.startPrank(admin);
         vm.expectRevert(TradeLedger.ZeroValue.selector);
-        trade.listProduce(ONION, 0, "B", ASK);
+        trade.listProduce(ONION, 0, ASK);
         vm.expectRevert(TradeLedger.ZeroValue.selector);
-        trade.listProduce(ONION, 1, bytes32(0), ASK);
-        vm.expectRevert(TradeLedger.ZeroValue.selector);
-        trade.listProduce(ONION, 1, "B", 0);
+        trade.listProduce(ONION, 1, 0);
         vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotPerishable.selector, MAIZE));
-        trade.listProduce(MAIZE, 1, "B", ASK);
+        trade.listProduce(MAIZE, 1, ASK);
         vm.stopPrank();
 
         address[3] memory others = [sumon, rahim, sabbir];
         for (uint256 i = 0; i < others.length; i++) {
             vm.prank(others[i]);
             vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, others[i]));
-            trade.listProduce(ONION, 1, "B", ASK);
+            trade.listProduce(ONION, 1, ASK);
         }
     }
 
@@ -655,9 +653,9 @@ contract TradeLedgerTest is Test {
     function test_BuyerRequests() public {
         uint64 until = uint64(block.timestamp + 30 days);
         vm.expectEmit(address(trade));
-        emit TradeLedger.RequestPosted(1, SABBIR, "MAIZE", 20_000, "A", 32 * TK, until);
+        emit TradeLedger.RequestPosted(1, SABBIR, "MAIZE", 20_000, 32 * TK, until);
         vm.prank(sabbir);
-        uint256 id = trade.postRequest("MAIZE", 20_000, "A", 32 * TK, until);
+        uint256 id = trade.postRequest("MAIZE", 20_000, 32 * TK, until);
 
         assertTrue(trade.isRequestOpen(id));
         assertEq(trade.getRequest(id).buyerId, SABBIR);
@@ -676,7 +674,7 @@ contract TradeLedgerTest is Test {
 
     function test_RequestExpires() public {
         vm.prank(sabbir);
-        uint256 id = trade.postRequest("MAIZE", 1, bytes32(0), 1, uint64(block.timestamp + 1 days));
+        uint256 id = trade.postRequest("MAIZE", 1, 1, uint64(block.timestamp + 1 days));
         vm.warp(block.timestamp + 1 days);
         assertFalse(trade.isRequestOpen(id));
         assertFalse(trade.isRequestOpen(99));
@@ -686,20 +684,20 @@ contract TradeLedgerTest is Test {
         uint64 until = uint64(block.timestamp + 1 days);
         vm.startPrank(sabbir);
         vm.expectRevert(TradeLedger.ZeroValue.selector);
-        trade.postRequest(bytes32(0), 1, "A", 1, until);
+        trade.postRequest(bytes32(0), 1, 1, until);
         vm.expectRevert(TradeLedger.ZeroValue.selector);
-        trade.postRequest("MAIZE", 0, "A", 1, until);
+        trade.postRequest("MAIZE", 0, 1, until);
         vm.expectRevert(TradeLedger.ZeroValue.selector);
-        trade.postRequest("MAIZE", 1, "A", 0, until);
+        trade.postRequest("MAIZE", 1, 0, until);
         vm.expectRevert(abi.encodeWithSelector(TradeLedger.InvalidValidUntil.selector, block.timestamp));
-        trade.postRequest("MAIZE", 1, "A", 1, uint64(block.timestamp));
+        trade.postRequest("MAIZE", 1, 1, uint64(block.timestamp));
         vm.expectRevert(abi.encodeWithSelector(TradeLedger.RequestNotFound.selector, 7));
         trade.cancelRequest(7);
         vm.stopPrank();
 
         vm.prank(imran);
         vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, imran, BUYER));
-        trade.postRequest("MAIZE", 1, "A", 1, until);
+        trade.postRequest("MAIZE", 1, 1, until);
     }
 
     // --- invariant-style fuzz ----------------------------------------------------------------

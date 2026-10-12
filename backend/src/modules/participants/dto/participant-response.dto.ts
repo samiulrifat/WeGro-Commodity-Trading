@@ -150,14 +150,3 @@ export class IntegrityReportDto {
   @ApiProperty({ type: [String], example: ['status'] })
   mismatches: string[];
 }
-
-export class DistrictDto {
-  @ApiProperty({ example: 'BOGURA' })
-  code: string;
-
-  @ApiProperty({ example: 'Bogura' })
-  name: string;
-
-  @ApiProperty({ example: 'Rajshahi' })
-  division: string;
-}

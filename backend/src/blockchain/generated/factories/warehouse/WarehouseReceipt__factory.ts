@@ -419,12 +419,6 @@ import type { NonPayableOverrides } from "../../common.js"
       },
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "grade",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
         "internalType": "uint64",
         "name": "expiresAt",
         "type": "uint64"
@@ -682,11 +676,6 @@ import type { NonPayableOverrides } from "../../common.js"
           },
           {
             "internalType": "bytes32",
-            "name": "grade",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
             "name": "detailsHash",
             "type": "bytes32"
           },
@@ -788,11 +777,6 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "quantity",
         "type": "uint256"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "grade",
-        "type": "bytes32"
       },
       {
         "internalType": "uint64",

@@ -49,6 +49,7 @@ export async function startChainApp(
 
   Object.assign(process.env, {
     INDEXER_ENABLED: 'false',
+    JOBS_ENABLED: 'false',
     THROTTLE_LIMIT: '100000',
     AUTH_THROTTLE_LIMIT: '100000',
     ...env,
@@ -83,4 +84,40 @@ function withSearchPath(databaseUrl: string, schema: string): string {
   // Appended as text: pg accepts URLs that the WHATWG URL parser rejects.
   const options = encodeURIComponent(`-c search_path=${schema}`);
   return `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}options=${options}`;
+}
+
+/** DEMO_MODE builds its accounts in the background at startup: wait for all of them. */
+export async function waitForDemoAccounts(
+  chain: ChainApp,
+  timeoutMs = 60_000,
+): Promise<void> {
+  const { User } =
+    await import('../../src/modules/users/entities/user.entity.js');
+  const { ParticipantStatus, Role } =
+    await import('../../src/modules/users/roles.js');
+  const users = chain.app.get(DataSource).getRepository(User);
+  const expected = Object.values(Role).length;
+  const deadline = Date.now() + timeoutMs;
+  while (
+    (await users.countBy({
+      isDemo: true,
+      status: ParticipantStatus.Verified,
+    })) < expected
+  ) {
+    if (Date.now() > deadline)
+      throw new Error('Demo accounts were not created in time');
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
+/** Access token for the demo account of a role. */
+export async function demoToken(
+  http: ReturnType<typeof import('supertest')>,
+  role: string,
+): Promise<string> {
+  const res = await http
+    .post('/api/auth/demo/login')
+    .send({ role })
+    .expect(200);
+  return res.body.data.accessToken as string;
 }

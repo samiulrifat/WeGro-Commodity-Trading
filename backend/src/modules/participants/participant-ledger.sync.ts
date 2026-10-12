@@ -2,9 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { getAddress } from 'ethers';
 import { type EntityManager } from 'typeorm';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { toJsonSafe } from '../../blockchain/indexer/event-indexer.service';
 import { KeyService } from '../../blockchain/keys/key.service';
-import type { TxResult } from '../../blockchain/tx/transaction.service';
 import { bytes32ToUuid } from '../../blockchain/utils/ids';
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { ChainState, User } from '../users/entities/user.entity';
@@ -75,23 +73,6 @@ export class ParticipantLedgerSync implements OnModuleInit {
         .where('role <> :operator', { operator: Role.SuperAdmin })
         .execute();
     });
-  }
-
-  /** Applies the AccessRegistry events in a receipt, in log order. */
-  async applyReceipt(result: TxResult, manager: EntityManager): Promise<void> {
-    for (const e of result.events) {
-      if (e.contract !== 'AccessRegistry') continue;
-      await this.apply(
-        {
-          eventName: e.name,
-          args: toJsonSafe(e.args) as Record<string, unknown>,
-          blockNumber: result.blockNumber,
-          logIndex: e.logIndex,
-          txHash: result.hash,
-        },
-        manager,
-      );
-    }
   }
 
   async apply(event: LedgerEvent, manager: EntityManager): Promise<void> {
