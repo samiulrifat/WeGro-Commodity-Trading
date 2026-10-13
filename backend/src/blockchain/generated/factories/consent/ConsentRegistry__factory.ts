@@ -242,6 +242,12 @@ import type { NonPayableOverrides } from "../../common.js"
       {
         "indexed": false,
         "internalType": "bytes32",
+        "name": "evidenceHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
         "name": "grantedBy",
         "type": "bytes32"
       }
@@ -344,6 +350,19 @@ import type { NonPayableOverrides } from "../../common.js"
   },
   {
     "inputs": [],
+    "name": "MAX_CONSENT_DURATION",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "MAX_PROJECTS_PER_RECORD",
     "outputs": [
       {
@@ -431,6 +450,11 @@ import type { NonPayableOverrides } from "../../common.js"
           {
             "internalType": "bytes32",
             "name": "grantedBy",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "evidenceHash",
             "type": "bytes32"
           },
           {
@@ -538,6 +562,11 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint64",
         "name": "expiresAt",
         "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "evidenceHash",
+        "type": "bytes32"
       }
     ],
     "name": "grantConsent",

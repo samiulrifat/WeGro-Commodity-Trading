@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -53,7 +52,13 @@ export class FieldRecordsController {
   ) {}
 
   @Post('photos')
-  @Roles(Role.FieldOfficer)
+  @Roles(
+    Role.FieldOfficer,
+    Role.Buyer,
+    Role.Warehouse,
+    Role.Insurer,
+    Role.Accounts,
+  )
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: MAX_PHOTO_BYTES, files: 1 },
@@ -132,20 +137,7 @@ export class FieldRecordsController {
     @Res() res: Response,
   ): Promise<void> {
     const photo = await this.records.photoFor(actor, id);
-    const stream = this.records.stream(photo);
-    await new Promise<void>((resolve, reject) => {
-      stream.once('open', () => {
-        res.setHeader('Content-Type', photo.mimeType);
-        res.setHeader('Content-Length', String(photo.sizeBytes));
-        // Content-addressed: the bytes behind this record never change.
-        res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
-        stream.pipe(res);
-        stream.once('end', resolve);
-      });
-      stream.once('error', () =>
-        reject(new NotFoundException('The photo file is missing')),
-      );
-    });
+    await this.photos.send(photo, res);
   }
 
   @Get('field-records/:id/verify')

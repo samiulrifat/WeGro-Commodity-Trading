@@ -18,6 +18,9 @@ contract InsuranceRegistryTest is Test {
     address jui = makeAddr("jui"); // insurer
     address nasrin = makeAddr("nasrin");
     address rahim = makeAddr("rahim");
+    address imran = makeAddr("imran"); // Rahim's field officer
+    address sumon = makeAddr("sumon"); // another officer
+    address mitu = makeAddr("mitu"); // another insurer
 
     uint256 constant TK = 100;
     bytes32 constant RAHIM = keccak256("FARMER-0001");
@@ -27,6 +30,9 @@ contract InsuranceRegistryTest is Test {
     bytes32 constant RICE = keccak256("PRJ-RICE-BOGURA-02"); // not insured
     bytes32 constant FLOOD = "FLOOD-BOGURA-2026-07";
     bytes32 constant CLAIM = "CLM-0001";
+    bytes32 constant OFFICER = keccak256("STAFF-OFFICER-1");
+    bytes32 constant MITU = keccak256("INSURER-0002");
+    bytes32 constant EVIDENCE = keccak256("damage 40%, photos of flooded field");
 
     bytes32 INSURER;
     uint256 refCount;
@@ -41,11 +47,15 @@ contract InsuranceRegistryTest is Test {
         vm.startPrank(superAdmin);
         _person(keccak256("STAFF-ADMIN"), registry.ADMIN_ROLE(), admin);
         _person(keccak256("STAFF-ACCOUNTS"), registry.ACCOUNTS_ROLE(), accounts);
+        _person(OFFICER, registry.FIELD_OFFICER_ROLE(), imran);
+        _person(keccak256("STAFF-OFFICER-2"), registry.FIELD_OFFICER_ROLE(), sumon);
         vm.stopPrank();
         vm.startPrank(admin);
         _person(RAHIM, registry.FARMER_ROLE(), rahim);
         _person(NASRIN, registry.INVESTOR_ROLE(), nasrin);
         _person(JUI, INSURER, jui);
+        _person(MITU, INSURER, mitu);
+        registry.assignFieldOfficer(RAHIM, OFFICER);
         vm.stopPrank();
 
         _fund(MAIZE, true);
@@ -89,8 +99,8 @@ contract InsuranceRegistryTest is Test {
     }
 
     function _open() internal {
-        vm.prank(admin);
-        insurance.openClaim(CLAIM, MAIZE, FLOOD);
+        vm.prank(imran);
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
     }
 
     function _status() internal view returns (uint8) {
@@ -106,7 +116,7 @@ contract InsuranceRegistryTest is Test {
 
     function test_FloodClaimApproved() public {
         vm.expectEmit(address(insurance));
-        emit InsuranceRegistry.ClaimOpened(CLAIM, MAIZE, FLOOD);
+        emit InsuranceRegistry.ClaimOpened(CLAIM, MAIZE, FLOOD, EVIDENCE, OFFICER);
         _open();
         assertEq(_status(), uint8(InsuranceRegistry.ClaimStatus.Triggered));
         assertTrue(insurance.hasClaim(MAIZE, FLOOD));
@@ -124,6 +134,8 @@ contract InsuranceRegistryTest is Test {
 
         InsuranceRegistry.Claim memory c = insurance.getClaim(CLAIM);
         assertEq(c.approvedAmount, 120_000 * TK);
+        assertEq(c.claimHash, EVIDENCE);
+        assertEq(c.openedBy, OFFICER);
         assertEq(insurance.approvedTotal(MAIZE), 120_000 * TK);
     }
 
@@ -163,8 +175,8 @@ contract InsuranceRegistryTest is Test {
         // A second event can only use the remaining Tk 100,000.
         vm.prank(admin);
         insurance.recordWeatherEvent("DROUGHT-2026", "BOGURA", "DROUGHT", keccak256("r"));
-        vm.prank(jui);
-        insurance.openClaim("CLM-0002", MAIZE, "DROUGHT-2026");
+        vm.prank(imran); // Rahim's officer claims; the insurer reviews
+        insurance.openClaim("CLM-0002", MAIZE, "DROUGHT-2026", EVIDENCE);
         vm.startPrank(jui);
         insurance.startReview("CLM-0002");
         vm.expectRevert(
@@ -219,28 +231,32 @@ contract InsuranceRegistryTest is Test {
     function test_OpenClaimGuards() public {
         vm.startPrank(admin);
         vm.expectRevert(InsuranceRegistry.ZeroValue.selector);
-        insurance.openClaim(bytes32(0), MAIZE, FLOOD);
+        insurance.openClaim(bytes32(0), MAIZE, FLOOD, EVIDENCE);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.EventNotFound.selector, bytes32("NOPE")));
-        insurance.openClaim(CLAIM, MAIZE, "NOPE");
+        insurance.openClaim(CLAIM, MAIZE, "NOPE", EVIDENCE);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotInsured.selector, RICE));
-        insurance.openClaim(CLAIM, RICE, FLOOD);
+        insurance.openClaim(CLAIM, RICE, FLOOD, EVIDENCE);
 
         insurance.recordWeatherEvent("FLOOD-SYLHET", "SYLHET", "FLOOD", keccak256("x"));
         vm.expectRevert(
             abi.encodeWithSelector(InsuranceRegistry.RegionMismatch.selector, bytes32("BOGURA"), bytes32("SYLHET"))
         );
-        insurance.openClaim(CLAIM, MAIZE, "FLOOD-SYLHET");
+        insurance.openClaim(CLAIM, MAIZE, "FLOOD-SYLHET", EVIDENCE);
 
-        insurance.openClaim(CLAIM, MAIZE, FLOOD);
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.ClaimExists.selector, CLAIM));
-        insurance.openClaim(CLAIM, MAIZE, FLOOD);
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.AlreadyClaimed.selector, MAIZE, FLOOD));
-        insurance.openClaim("CLM-0002", MAIZE, FLOOD);
+        insurance.openClaim("CLM-0002", MAIZE, FLOOD, EVIDENCE);
         vm.stopPrank();
+
+        vm.prank(imran);
+        vm.expectRevert(InsuranceRegistry.ZeroValue.selector);
+        insurance.openClaim("CLM-0004", MAIZE, FLOOD, bytes32(0));
 
         vm.prank(nasrin);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotAuthorized.selector, nasrin));
-        insurance.openClaim("CLM-0003", MAIZE, FLOOD);
+        insurance.openClaim("CLM-0003", MAIZE, FLOOD, EVIDENCE);
     }
 
     function test_ClaimNeedsCoverage() public {
@@ -248,7 +264,7 @@ contract InsuranceRegistryTest is Test {
         _fund(other, true); // insured, but no cover set yet
         vm.prank(admin);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NoCoverage.selector, other));
-        insurance.openClaim(CLAIM, other, FLOOD);
+        insurance.openClaim(CLAIM, other, FLOOD, EVIDENCE);
     }
 
     function test_ReviewGuards() public {
@@ -288,7 +304,7 @@ contract InsuranceRegistryTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(InsuranceRegistry.WrongProjectStage.selector, MAIZE, ProjectLedger.Stage.ReadyForSale)
         );
-        insurance.openClaim(CLAIM, MAIZE, FLOOD);
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
         vm.stopPrank();
 
         vm.prank(jui);
@@ -305,7 +321,7 @@ contract InsuranceRegistryTest is Test {
         vm.prank(admin);
         insurance.recordWeatherEvent("DROUGHT-2026", "BOGURA", "DROUGHT", keccak256("r"));
         vm.prank(admin);
-        insurance.openClaim("CLM-0002", MAIZE, "DROUGHT-2026");
+        insurance.openClaim("CLM-0002", MAIZE, "DROUGHT-2026", EVIDENCE);
         assertEq(insurance.openClaims(MAIZE), 2);
 
         vm.startPrank(jui);
@@ -329,5 +345,42 @@ contract InsuranceRegistryTest is Test {
         vm.stopPrank();
         assertEq(insurance.approvedTotal(MAIZE), 50_000 * TK);
         assertEq(insurance.openClaims(MAIZE), 0);
+    }
+
+    // --- who claims, who reviews -----------------------------------------------------
+
+    function test_OnlyTheFarmersOfficerOrAnAdminClaims() public {
+        vm.prank(sumon); // an officer, but not Rahim's
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotAuthorized.selector, sumon));
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
+        vm.prank(jui); // insurers review, they do not claim
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotAuthorized.selector, jui));
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
+
+        vm.prank(admin);
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
+        assertEq(insurance.getClaim(CLAIM).openedBy, keccak256("STAFF-ADMIN"));
+    }
+
+    function test_OnlyTheCoveringInsurerChangesCoverOrReviews() public {
+        vm.prank(mitu);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, MAIZE, JUI));
+        insurance.setCoverage(MAIZE, 400_000 * TK, keccak256("x"));
+        vm.prank(jui); // the covering insurer can change it
+        insurance.setCoverage(MAIZE, 400_000 * TK, keccak256("wider cover"));
+        assertEq(insurance.getCoverage(MAIZE).maxAmount, 400_000 * TK);
+
+        _open();
+        vm.startPrank(mitu);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, MAIZE, JUI));
+        insurance.startReview(CLAIM);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, MAIZE, JUI));
+        insurance.rejectClaim(CLAIM, keccak256("x"));
+        vm.stopPrank();
+        vm.prank(jui);
+        insurance.startReview(CLAIM);
+        vm.prank(mitu);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, MAIZE, JUI));
+        insurance.approveClaim(CLAIM, 1, keccak256("x"));
     }
 }

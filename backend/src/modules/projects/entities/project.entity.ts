@@ -158,6 +158,14 @@ export class Project extends BaseEntity {
   @Column({ type: 'timestamptz', nullable: true })
   stageChangedAt: Date | null;
 
+  /** When the crop went into the field (became active), from the ledger. */
+  @Column({ type: 'timestamptz', nullable: true })
+  activatedAt: Date | null;
+
+  /** When the project finished: paid out, or closed without a payout. */
+  @Column({ type: 'timestamptz', nullable: true })
+  finishedAt: Date | null;
+
   /** Position of the last ledger stage event applied; older ones are ignored. */
   @Column({
     type: 'bigint',

@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 export declare namespace InsuranceRegistry {
       
-    export type ClaimStruct = {projectId: BytesLike, eventId: BytesLike, status: BigNumberish, approvedAmount: BigNumberish, assessmentHash: BytesLike, openedAt: BigNumberish}
+    export type ClaimStruct = {projectId: BytesLike, eventId: BytesLike, status: BigNumberish, approvedAmount: BigNumberish, claimHash: BytesLike, openedBy: BytesLike, assessmentHash: BytesLike, openedAt: BigNumberish}
 
-    export type ClaimStructOutput = [projectId: string, eventId: string, status: bigint, approvedAmount: bigint, assessmentHash: string, openedAt: bigint] & {projectId: string, eventId: string, status: bigint, approvedAmount: bigint, assessmentHash: string, openedAt: bigint }
+    export type ClaimStructOutput = [projectId: string, eventId: string, status: bigint, approvedAmount: bigint, claimHash: string, openedBy: string, assessmentHash: string, openedAt: bigint] & {projectId: string, eventId: string, status: bigint, approvedAmount: bigint, claimHash: string, openedBy: string, assessmentHash: string, openedAt: bigint }
   
 
     export type CoverageStruct = {insurerId: BytesLike, maxAmount: BigNumberish, termsHash: BytesLike}
@@ -33,7 +33,7 @@ encodeFunctionData(functionFragment: 'getClaim', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getCoverage', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getWeatherEvent', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'hasClaim', values: [BytesLike, BytesLike]): string;
-encodeFunctionData(functionFragment: 'openClaim', values: [BytesLike, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'openClaim', values: [BytesLike, BytesLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'openClaims', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'projectLedger', values?: undefined): string;
 encodeFunctionData(functionFragment: 'recordWeatherEvent', values: [BytesLike, BytesLike, BytesLike, BytesLike]): string;
@@ -60,9 +60,9 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
 
   
     export namespace ClaimOpenedEvent {
-      export type InputTuple = [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike];
-      export type OutputTuple = [claimId: string, projectId: string, eventId: string];
-      export interface OutputObject {claimId: string, projectId: string, eventId: string };
+      export type InputTuple = [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike, claimHash: BytesLike, openedBy: BytesLike];
+      export type OutputTuple = [claimId: string, projectId: string, eventId: string, claimHash: string, openedBy: string];
+      export interface OutputObject {claimId: string, projectId: string, eventId: string, claimHash: string, openedBy: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -190,7 +190,7 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
 
     
     openClaim: TypedContractMethod<
-      [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike, ],
+      [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike, claimHash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -286,7 +286,7 @@ getFunction(nameOrSignature: 'hasClaim'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'openClaim'): TypedContractMethod<
-      [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike, ],
+      [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike, claimHash: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -333,7 +333,7 @@ getEvent(key: 'WeatherEventRecorded'): TypedContractEvent<WeatherEventRecordedEv
 
     filters: {
       
-      'ClaimOpened(bytes32,bytes32,bytes32)': TypedContractEvent<ClaimOpenedEvent.InputTuple, ClaimOpenedEvent.OutputTuple, ClaimOpenedEvent.OutputObject>;
+      'ClaimOpened(bytes32,bytes32,bytes32,bytes32,bytes32)': TypedContractEvent<ClaimOpenedEvent.InputTuple, ClaimOpenedEvent.OutputTuple, ClaimOpenedEvent.OutputObject>;
       ClaimOpened: TypedContractEvent<ClaimOpenedEvent.InputTuple, ClaimOpenedEvent.OutputTuple, ClaimOpenedEvent.OutputObject>;
     
 

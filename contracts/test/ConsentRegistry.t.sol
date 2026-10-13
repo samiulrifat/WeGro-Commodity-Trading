@@ -145,9 +145,15 @@ contract ConsentRegistryTest is Test {
         consent.publishTrackRecord(RAHIM, _two(), keccak256("2 projects, paid on time, 104% of target"));
     }
 
-    function _grant(uint64 expiresAt) internal {
+    bytes32 constant FORM = keccak256("rahim's signed consent form");
+
+    function _until() internal view returns (uint64) {
+        return uint64(block.timestamp + 180 days);
+    }
+
+    function _grant() internal {
         vm.prank(imran);
-        consent.grantConsent(RAHIM, BRAC, expiresAt);
+        consent.grantConsent(RAHIM, BRAC, _until(), FORM);
     }
 
     // --- setup ---------------------------------------------------------------------
@@ -263,8 +269,9 @@ contract ConsentRegistryTest is Test {
         consent.viewSummary(RAHIM);
 
         vm.expectEmit(address(consent));
-        emit ConsentRegistry.ConsentGranted(RAHIM, BRAC, 0, keccak256("STAFF-OFFICER-1"));
-        _grant(0);
+        emit ConsentRegistry.ConsentGranted(RAHIM, BRAC, _until(), FORM, keccak256("STAFF-OFFICER-1"));
+        _grant();
+        assertEq(consent.getConsent(RAHIM, BRAC).evidenceHash, FORM);
         assertTrue(consent.hasConsent(RAHIM, BRAC));
 
         vm.expectEmit(address(consent));
@@ -281,7 +288,7 @@ contract ConsentRegistryTest is Test {
 
     function test_OtherBanksHaveNoAccess() public {
         _publish();
-        _grant(0);
+        _grant();
         vm.prank(zaman);
         vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NoActiveConsent.selector, RAHIM, CITY));
         consent.viewSummary(RAHIM);
@@ -295,7 +302,7 @@ contract ConsentRegistryTest is Test {
 
     function test_WithdrawingEndsAccess() public {
         _publish();
-        _grant(0);
+        _grant();
         vm.expectEmit(address(consent));
         emit ConsentRegistry.ConsentRevoked(RAHIM, BRAC, keccak256("STAFF-OFFICER-1"));
         vm.prank(imran);
@@ -310,7 +317,7 @@ contract ConsentRegistryTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NoActiveConsent.selector, RAHIM, BRAC));
         consent.revokeConsent(RAHIM, BRAC);
 
-        _grant(0); // Rahim can change his mind again
+        _grant(); // Rahim can change his mind again
         vm.prank(alam);
         consent.viewSummary(RAHIM);
     }
@@ -318,7 +325,8 @@ contract ConsentRegistryTest is Test {
     function test_PermissionExpires() public {
         _publish();
         uint64 until = uint64(block.timestamp + 90 days);
-        _grant(until);
+        vm.prank(imran);
+        consent.grantConsent(RAHIM, BRAC, until, FORM);
         assertEq(consent.getConsent(RAHIM, BRAC).expiresAt, until);
         vm.warp(until);
         assertFalse(consent.hasConsent(RAHIM, BRAC));
@@ -329,7 +337,7 @@ contract ConsentRegistryTest is Test {
 
     function test_RemovedBankOfficerLosesAccess() public {
         _publish();
-        _grant(0);
+        _grant();
         vm.prank(admin);
         consent.assignBankOfficer(ALAM, bytes32(0));
         vm.prank(alam);
@@ -338,7 +346,7 @@ contract ConsentRegistryTest is Test {
     }
 
     function test_NoSummaryBeforeTrackRecord() public {
-        _grant(0);
+        _grant();
         vm.prank(alam);
         vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NoTrackRecord.selector, RAHIM));
         consent.viewSummary(RAHIM);
@@ -347,18 +355,26 @@ contract ConsentRegistryTest is Test {
     function test_ConsentGuards() public {
         vm.startPrank(imran);
         vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.BankNotFound.selector, bytes32("NONE")));
-        consent.grantConsent(RAHIM, "NONE", 0);
-        vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.InvalidExpiry.selector, block.timestamp));
-        consent.grantConsent(RAHIM, BRAC, uint64(block.timestamp));
+        consent.grantConsent(RAHIM, "NONE", _until(), FORM);
+        vm.expectRevert(ConsentRegistry.ZeroValue.selector);
+        consent.grantConsent(RAHIM, BRAC, _until(), bytes32(0));
+        // An expiry is required: from now, at most a year ahead.
+        uint64 tooLate = uint64(block.timestamp + 365 days + 1);
+        uint64[3] memory bad = [uint64(0), uint64(block.timestamp), tooLate];
+        for (uint256 i = 0; i < bad.length; i++) {
+            vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.InvalidExpiry.selector, bad[i]));
+            consent.grantConsent(RAHIM, BRAC, bad[i], FORM);
+        }
+        consent.grantConsent(RAHIM, BRAC, uint64(block.timestamp + 365 days), FORM);
         vm.stopPrank();
 
         address[3] memory others = [sumon, rahim, alam];
         for (uint256 i = 0; i < others.length; i++) {
             vm.prank(others[i]);
             vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NotFarmersOfficer.selector, others[i]));
-            consent.grantConsent(RAHIM, BRAC, 0);
+            consent.grantConsent(RAHIM, BRAC, _until(), FORM);
         }
-        _grant(0);
+        _grant();
         vm.prank(sumon);
         vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NotFarmersOfficer.selector, sumon));
         consent.revokeConsent(RAHIM, BRAC);
@@ -366,7 +382,7 @@ contract ConsentRegistryTest is Test {
 
     function test_ConsentIsPerFarmer() public {
         _publish();
-        _grant(0);
+        _grant();
         // Karim gave no permission, even though his officer could.
         vm.prank(alam);
         vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NoActiveConsent.selector, KARIM, BRAC));

@@ -10,13 +10,18 @@ import { BlockchainModule } from './blockchain/blockchain.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { AUTH_THROTTLE } from './modules/auth/decorators';
 import { JwtAuthGuard, RolesGuard } from './modules/auth/guards';
 import { FieldRecordsModule } from './modules/field-records/field-records.module';
 import { HealthModule } from './modules/health/health.module';
+import { InsuranceModule } from './modules/insurance/insurance.module';
 import { ParticipantsModule } from './modules/participants/participants.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { SettlementModule } from './modules/settlement/settlement.module';
+import { TrackRecordModule } from './modules/track-record/track-record.module';
+import { TradeModule } from './modules/trade/trade.module';
 import { UsersModule } from './modules/users/users.module';
 import { VouchersModule } from './modules/vouchers/vouchers.module';
 import { WarehouseModule } from './modules/warehouse/warehouse.module';
@@ -59,6 +64,11 @@ import { WarehouseModule } from './modules/warehouse/warehouse.module';
     VouchersModule,
     FieldRecordsModule,
     WarehouseModule,
+    TradeModule,
+    InsuranceModule,
+    BankAccountsModule,
+    SettlementModule,
+    TrackRecordModule,
     HealthModule,
   ],
   // In this order: rate limit, then authenticate, then check the role.

@@ -21,5 +21,6 @@ import { PhotosService } from './photos.service';
   ],
   controllers: [FieldRecordsController],
   providers: [FieldRecordsService, PhotosService, FieldRecordLedgerSync],
+  exports: [PhotosService],
 })
 export class FieldRecordsModule {}

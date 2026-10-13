@@ -12,8 +12,10 @@ import {WarehouseReceipt} from "../warehouse/WarehouseReceipt.sol";
 /// A listing comes from a warehouse receipt (owner's side lists it) or, for
 /// perishables, straight from a project (WeGro or the farmer's officer lists it).
 /// Buyers offer their own quantity and unit price; a WeGro admin approves or rejects
-/// each offer. An approved offer is a deal that reserves its quantity. Per deal,
-/// Accounts confirms the buyer paid (hash only; a receipt splits off to the buyer),
+/// each offer. An approved offer is a deal that reserves its quantity until a payment
+/// deadline (`dealTtl` after approval); an unpaid deal past it can be expired by anyone,
+/// returning its quantity. Per deal, Accounts confirms the buyer paid before the
+/// deadline (hash only; a receipt splits off to the buyer),
 /// then the buyer and the handler (issuing warehouse site, or the farmer's field
 /// officer) each confirm delivery. Delivered deals add to the project's sale income.
 /// A listing whose whole quantity is paid for closes as SoldOut. The final payout waits
@@ -34,7 +36,8 @@ contract TradeLedger is AccessGuarded {
         Approved, // a deal: quantity reserved, awaiting payment
         Cancelled, // an approved deal the buyer never paid
         Paid,
-        Delivered
+        Delivered,
+        Expired // an approved deal left unpaid past its deadline
     }
 
     struct Listing {
@@ -58,6 +61,7 @@ contract TradeLedger is AccessGuarded {
         uint256 unitPrice;
         OfferStatus status;
         uint64 madeAt;
+        uint64 paymentDueAt; // set on approval; payment must be confirmed before it
         bytes32 paymentRefHash;
         bytes32 receiptPartId; // receipt split off to the buyer on payment
     }
@@ -82,6 +86,9 @@ contract TradeLedger is AccessGuarded {
     ProjectLedger public immutable projectLedger;
     WarehouseReceipt public immutable receipts;
     bytes32 public immutable WEGRO;
+
+    /// @notice How long a buyer has to pay for an approved deal.
+    uint64 public dealTtl;
 
     uint256 public nextListingId = 1;
     uint256 public nextOfferId = 1;
@@ -114,8 +121,12 @@ contract TradeLedger is AccessGuarded {
     );
     event OfferWithdrawn(uint256 indexed offerId);
     event OfferRejected(uint256 indexed offerId, address indexed rejectedBy);
-    event OfferApproved(uint256 indexed offerId, uint256 indexed listingId, address indexed approvedBy);
+    event OfferApproved(
+        uint256 indexed offerId, uint256 indexed listingId, address indexed approvedBy, uint64 paymentDueAt
+    );
     event DealCancelled(uint256 indexed offerId, address indexed cancelledBy);
+    event DealExpired(uint256 indexed offerId);
+    event DealTtlUpdated(uint64 previousTtl, uint64 newTtl);
     event BuyerPaymentConfirmed(uint256 indexed offerId, bytes32 paymentRefHash, bytes32 receiptPartId, address confirmedBy);
     event DeliveryConfirmed(
         uint256 indexed offerId, bytes32 indexed confirmedBy, bool isBuyer, uint256 quantity, bytes32 qualityHash
@@ -146,16 +157,28 @@ contract TradeLedger is AccessGuarded {
     error InvalidValidUntil(uint64 validUntil);
     error PaymentRefAlreadyUsed(bytes32 paymentRefHash);
     error AlreadyConfirmed(uint256 offerId);
+    error PaymentOverdue(uint256 offerId, uint64 paymentDueAt);
+    error DealNotYetDue(uint256 offerId, uint64 paymentDueAt);
     error NotAuthorized(address account);
 
-    constructor(AccessRegistry registry_, ProjectLedger projectLedger_, WarehouseReceipt receipts_)
+    constructor(AccessRegistry registry_, ProjectLedger projectLedger_, WarehouseReceipt receipts_, uint64 dealTtl_)
         AccessGuarded(registry_)
     {
         if (address(projectLedger_) == address(0) || address(receipts_) == address(0)) revert ZeroDependency();
+        if (dealTtl_ == 0) revert ZeroValue();
         projectLedger = projectLedger_;
         receipts = receipts_;
         WEGRO = receipts_.WEGRO();
+        dealTtl = dealTtl_;
     }
+
+    /// @notice Applies to deals approved from now on; existing deadlines stay.
+    function setDealTtl(uint64 newTtl) external onlyRole(Roles.ADMIN) {
+        if (newTtl == 0) revert ZeroValue();
+        emit DealTtlUpdated(dealTtl, newTtl);
+        dealTtl = newTtl;
+    }
+
     /// @notice List a warehouse receipt. Caller must act for its owner: an admin
     /// for WeGro, the farmer's field officer for a farmer. Locks the receipt.
     function listReceipt(bytes32 receiptId, uint256 askingUnitPrice) external returns (uint256 listingId) {
@@ -228,6 +251,7 @@ contract TradeLedger is AccessGuarded {
             unitPrice: unitPrice,
             status: OfferStatus.Pending,
             madeAt: uint64(block.timestamp),
+            paymentDueAt: 0,
             paymentRefHash: bytes32(0),
             receiptPartId: bytes32(0)
         });
@@ -257,25 +281,31 @@ contract TradeLedger is AccessGuarded {
         l.unpaidDeals++;
         openTrades[l.projectId]++;
         o.status = OfferStatus.Approved;
-        emit OfferApproved(offerId, o.listingId, msg.sender);
+        o.paymentDueAt = uint64(block.timestamp) + dealTtl;
+        emit OfferApproved(offerId, o.listingId, msg.sender, o.paymentDueAt);
     }
 
     /// @notice An admin cancels an approved deal the buyer never paid; its
     /// quantity returns to the listing.
     function cancelDeal(uint256 offerId) external onlyRole(Roles.ADMIN) {
         Offer storage o = _offerIn(offerId, OfferStatus.Approved);
-        Listing storage l = _listings[o.listingId];
-        l.available += o.quantity;
-        l.unpaidDeals--;
-        openTrades[l.projectId]--;
-        o.status = OfferStatus.Cancelled;
+        _releaseDeal(o, OfferStatus.Cancelled);
         emit DealCancelled(offerId, msg.sender);
+    }
+
+    /// @notice Release a deal left unpaid past its deadline. Callable by anyone.
+    function expireDeal(uint256 offerId) external {
+        Offer storage o = _offerIn(offerId, OfferStatus.Approved);
+        if (block.timestamp < o.paymentDueAt) revert DealNotYetDue(offerId, o.paymentDueAt);
+        _releaseDeal(o, OfferStatus.Expired);
+        emit DealExpired(offerId);
     }
 
     /// @notice Accounts saw the buyer pay for a deal. For a receipt, the sold
     /// quantity splits off into a receipt owned by the buyer.
     function confirmBuyerPayment(uint256 offerId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
         Offer storage o = _offerIn(offerId, OfferStatus.Approved);
+        if (block.timestamp >= o.paymentDueAt) revert PaymentOverdue(offerId, o.paymentDueAt);
         if (paymentRefHash == bytes32(0)) revert ZeroValue();
         if (paymentRefUsed[paymentRefHash]) revert PaymentRefAlreadyUsed(paymentRefHash);
         paymentRefUsed[paymentRefHash] = true;
@@ -410,6 +440,15 @@ contract TradeLedger is AccessGuarded {
         });
         openTrades[projectId]++;
         emit ListingCreated(listingId, projectId, receiptId, seller, produceCode, quantity, askingUnitPrice, msg.sender);
+    }
+
+    /// @dev An unpaid deal's quantity returns to its listing.
+    function _releaseDeal(Offer storage o, OfferStatus status) private {
+        Listing storage l = _listings[o.listingId];
+        l.available += o.quantity;
+        l.unpaidDeals--;
+        openTrades[l.projectId]--;
+        o.status = status;
     }
 
     function _activeProject(bytes32 projectId) private view returns (ProjectLedger.Project memory p) {

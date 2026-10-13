@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 export declare namespace ConsentRegistry {
       
-    export type ConsentStruct = {grantedBy: BytesLike, grantedAt: BigNumberish, expiresAt: BigNumberish, revoked: boolean}
+    export type ConsentStruct = {grantedBy: BytesLike, evidenceHash: BytesLike, grantedAt: BigNumberish, expiresAt: BigNumberish, revoked: boolean}
 
-    export type ConsentStructOutput = [grantedBy: string, grantedAt: bigint, expiresAt: bigint, revoked: boolean] & {grantedBy: string, grantedAt: bigint, expiresAt: bigint, revoked: boolean }
+    export type ConsentStructOutput = [grantedBy: string, evidenceHash: string, grantedAt: bigint, expiresAt: bigint, revoked: boolean] & {grantedBy: string, evidenceHash: string, grantedAt: bigint, expiresAt: bigint, revoked: boolean }
   
 
     export type TrackRecordStruct = {summaryHash: BytesLike, publishedBy: BytesLike, publishedAt: BigNumberish}
@@ -18,18 +18,19 @@ export declare namespace ConsentRegistry {
     }
 
   export interface ConsentRegistryInterface extends Interface {
-    getFunction(nameOrSignature: "MAX_PROJECTS_PER_RECORD" | "assignBankOfficer" | "bankDetails" | "bankOf" | "getConsent" | "getTrackRecord" | "getTrackRecordProjects" | "grantConsent" | "hasConsent" | "latestVersion" | "projectLedger" | "publishTrackRecord" | "registerBank" | "registry" | "revokeConsent" | "viewCount" | "viewSummary"): FunctionFragment;
+    getFunction(nameOrSignature: "MAX_CONSENT_DURATION" | "MAX_PROJECTS_PER_RECORD" | "assignBankOfficer" | "bankDetails" | "bankOf" | "getConsent" | "getTrackRecord" | "getTrackRecordProjects" | "grantConsent" | "hasConsent" | "latestVersion" | "projectLedger" | "publishTrackRecord" | "registerBank" | "registry" | "revokeConsent" | "viewCount" | "viewSummary"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "BankOfficerAssigned" | "BankRegistered" | "ConsentGranted" | "ConsentRevoked" | "SummaryViewed" | "TrackRecordPublished"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'MAX_PROJECTS_PER_RECORD', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'MAX_CONSENT_DURATION', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_PROJECTS_PER_RECORD', values?: undefined): string;
 encodeFunctionData(functionFragment: 'assignBankOfficer', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'bankDetails', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'bankOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getConsent', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'getTrackRecord', values: [BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getTrackRecordProjects', values: [BytesLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'grantConsent', values: [BytesLike, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'grantConsent', values: [BytesLike, BytesLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'hasConsent', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'latestVersion', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'projectLedger', values?: undefined): string;
@@ -40,7 +41,8 @@ encodeFunctionData(functionFragment: 'revokeConsent', values: [BytesLike, BytesL
 encodeFunctionData(functionFragment: 'viewCount', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'viewSummary', values: [BytesLike]): string;
 
-    decodeFunctionResult(functionFragment: 'MAX_PROJECTS_PER_RECORD', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'MAX_CONSENT_DURATION', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_PROJECTS_PER_RECORD', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'assignBankOfficer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bankDetails', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bankOf', data: BytesLike): Result;
@@ -85,9 +87,9 @@ decodeFunctionResult(functionFragment: 'viewSummary', data: BytesLike): Result;
   
 
     export namespace ConsentGrantedEvent {
-      export type InputTuple = [farmerId: BytesLike, bankId: BytesLike, expiresAt: BigNumberish, grantedBy: BytesLike];
-      export type OutputTuple = [farmerId: string, bankId: string, expiresAt: bigint, grantedBy: string];
-      export interface OutputObject {farmerId: string, bankId: string, expiresAt: bigint, grantedBy: string };
+      export type InputTuple = [farmerId: BytesLike, bankId: BytesLike, expiresAt: BigNumberish, evidenceHash: BytesLike, grantedBy: BytesLike];
+      export type OutputTuple = [farmerId: string, bankId: string, expiresAt: bigint, evidenceHash: string, grantedBy: string];
+      export interface OutputObject {farmerId: string, bankId: string, expiresAt: bigint, evidenceHash: string, grantedBy: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -166,6 +168,14 @@ decodeFunctionResult(functionFragment: 'viewSummary', data: BytesLike): Result;
 
     
     
+    MAX_CONSENT_DURATION: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     MAX_PROJECTS_PER_RECORD: TypedContractMethod<
       [],
       [bigint],
@@ -223,7 +233,7 @@ decodeFunctionResult(functionFragment: 'viewSummary', data: BytesLike): Result;
 
     
     grantConsent: TypedContractMethod<
-      [farmerId: BytesLike, bankId: BytesLike, expiresAt: BigNumberish, ],
+      [farmerId: BytesLike, bankId: BytesLike, expiresAt: BigNumberish, evidenceHash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -304,7 +314,12 @@ decodeFunctionResult(functionFragment: 'viewSummary', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'MAX_PROJECTS_PER_RECORD'): TypedContractMethod<
+    getFunction(nameOrSignature: 'MAX_CONSENT_DURATION'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MAX_PROJECTS_PER_RECORD'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -340,7 +355,7 @@ getFunction(nameOrSignature: 'getTrackRecordProjects'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'grantConsent'): TypedContractMethod<
-      [farmerId: BytesLike, bankId: BytesLike, expiresAt: BigNumberish, ],
+      [farmerId: BytesLike, bankId: BytesLike, expiresAt: BigNumberish, evidenceHash: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -407,7 +422,7 @@ getEvent(key: 'TrackRecordPublished'): TypedContractEvent<TrackRecordPublishedEv
       BankRegistered: TypedContractEvent<BankRegisteredEvent.InputTuple, BankRegisteredEvent.OutputTuple, BankRegisteredEvent.OutputObject>;
     
 
-      'ConsentGranted(bytes32,bytes32,uint64,bytes32)': TypedContractEvent<ConsentGrantedEvent.InputTuple, ConsentGrantedEvent.OutputTuple, ConsentGrantedEvent.OutputObject>;
+      'ConsentGranted(bytes32,bytes32,uint64,bytes32,bytes32)': TypedContractEvent<ConsentGrantedEvent.InputTuple, ConsentGrantedEvent.OutputTuple, ConsentGrantedEvent.OutputObject>;
       ConsentGranted: TypedContractEvent<ConsentGrantedEvent.InputTuple, ConsentGrantedEvent.OutputTuple, ConsentGrantedEvent.OutputObject>;
     
 

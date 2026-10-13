@@ -169,6 +169,22 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "insurerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "NotProjectInsurer",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "projectRegion",
         "type": "bytes32"
       },
@@ -247,6 +263,18 @@ import type { NonPayableOverrides } from "../../common.js"
         "indexed": true,
         "internalType": "bytes32",
         "name": "eventId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "claimHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "openedBy",
         "type": "bytes32"
       }
     ],
@@ -428,6 +456,16 @@ import type { NonPayableOverrides } from "../../common.js"
           },
           {
             "internalType": "bytes32",
+            "name": "claimHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "openedBy",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
             "name": "assessmentHash",
             "type": "bytes32"
           },
@@ -561,6 +599,11 @@ import type { NonPayableOverrides } from "../../common.js"
       {
         "internalType": "bytes32",
         "name": "eventId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "claimHash",
         "type": "bytes32"
       }
     ],

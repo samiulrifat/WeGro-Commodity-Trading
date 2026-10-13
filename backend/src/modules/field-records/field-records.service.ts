@@ -397,10 +397,6 @@ export class FieldRecordsService {
     return this.photos.find(record.photoId);
   }
 
-  stream(photo: Photo) {
-    return this.photos.stream(photo);
-  }
-
   /**
    * Verify: recomputes the data fingerprint from the stored values and the
    * photo fingerprint from the file on disk, and compares both with the ledger.

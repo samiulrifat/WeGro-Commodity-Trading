@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream, type ReadStream } from 'node:fs';
+import { createReadStream } from 'node:fs';
 import {
   mkdir,
   readFile,
@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import type { Response } from 'express';
 import { Repository } from 'typeorm';
 import type { EnvironmentVariables } from '../../config/env.validation';
 import { Photo } from './entities/photo.entity';
@@ -112,8 +113,22 @@ export class PhotosService {
     return photo;
   }
 
-  stream(photo: Photo): ReadStream {
-    return createReadStream(join(this.root, photo.storagePath));
+  /** Streams the photo as the response; 404 if its file is missing. */
+  async send(photo: Photo, res: Response): Promise<void> {
+    const stream = createReadStream(join(this.root, photo.storagePath));
+    await new Promise<void>((resolve, reject) => {
+      stream.once('open', () => {
+        res.setHeader('Content-Type', photo.mimeType);
+        res.setHeader('Content-Length', String(photo.sizeBytes));
+        // Content-addressed: the bytes behind an id never change.
+        res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+        stream.pipe(res);
+        stream.once('end', resolve);
+      });
+      stream.once('error', () =>
+        reject(new NotFoundException('The photo file is missing')),
+      );
+    });
   }
 
   /** SHA-256 of the file as it is on disk now: what Verify compares with the ledger. */

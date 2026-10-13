@@ -54,10 +54,10 @@ Build in order: each phase depends on the ones above it.
 - [x] 15. Vouchers (VoucherRegistry): propose, approve, reject, cancel; supplier batches with QR codes; sales, confirmation, expiry; per-voucher inactivity limit set by the super admin
 - [x] 16. Field records (FieldRecordLog): offline sync that is safe to resend, photo upload to a local folder, fingerprints, verify
 - [x] 17. Warehouse (WarehouseReceipt): sites and operators, issue receipts, buy-back handover, extend expiry, collect
-- [ ] 18. Marketplace (TradeLedger): listings, offers, approve or reject, cancel deals, buyer payment, delivery, buyer requests
-- [ ] 19. Insurance (InsuranceRegistry): cover, weather events (open claims on every insured project in the district), claim review
-- [ ] 20. Settlement (SettlementLedger): costs, prepare, approve or reject rounds, payout lines, payment references, CSV reports, investor statements
-- [ ] 21. Track record (ConsentRegistry): build the summary from finished projects, publish, grant or revoke bank permission, bank view
+- [x] 18. Marketplace (TradeLedger): listings, offers, approve or reject, cancel deals, buyer payment, delivery, buyer requests
+- [x] 19. Insurance (InsuranceRegistry): cover set by the project's insurer, weather events, claims opened by the farmer's field officer (or an admin) citing a recorded event, claim review
+- [x] 20. Settlement (SettlementLedger): costs with bills, prepare, approve (second Accounts person) or reject rounds, verified payout lines, payment references, payees' bank accounts (admin-verified), CSV reports, statements
+- [x] 21. Track record (ConsentRegistry): banks and officers, summary built from finished projects, publish, grant (signed form, max 1 year) or revoke bank permission, logged and verified bank view
 
 ## Phase 4: Cross-cutting
 

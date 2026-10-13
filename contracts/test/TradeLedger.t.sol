@@ -53,7 +53,7 @@ contract TradeLedgerTest is Test {
         registry = new AccessRegistry(superAdmin);
         ledger = new ProjectLedger(registry, 120 hours);
         receipts = new WarehouseReceipt(registry, ledger);
-        trade = new TradeLedger(registry, ledger, receipts);
+        trade = new TradeLedger(registry, ledger, receipts, 7 days);
         WEGRO = receipts.WEGRO();
         BUYER = registry.BUYER_ROLE();
         ADMIN_ROLE = registry.ADMIN_ROLE();
@@ -171,9 +171,91 @@ contract TradeLedgerTest is Test {
 
     function test_ConstructorGuards() public {
         vm.expectRevert(TradeLedger.ZeroDependency.selector);
-        new TradeLedger(registry, ProjectLedger(address(0)), receipts);
+        new TradeLedger(registry, ProjectLedger(address(0)), receipts, 7 days);
         vm.expectRevert(TradeLedger.ZeroDependency.selector);
-        new TradeLedger(registry, ledger, WarehouseReceipt(address(0)));
+        new TradeLedger(registry, ledger, WarehouseReceipt(address(0)), 7 days);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        new TradeLedger(registry, ledger, receipts, 0);
+    }
+
+    // --- payment deadline ------------------------------------------------------------------
+
+    function test_ApprovalSetsThePaymentDeadline() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+        uint64 due = uint64(block.timestamp + 7 days);
+        vm.expectEmit(address(trade));
+        emit TradeLedger.OfferApproved(o, id, admin, due);
+        _approve(o);
+        assertEq(trade.getOffer(o).paymentDueAt, due);
+    }
+
+    function test_UnpaidDealExpiresForAnyoneAfterTheDeadline() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+        _approve(o);
+        uint64 due = trade.getOffer(o).paymentDueAt;
+
+        vm.warp(due - 1);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.DealNotYetDue.selector, o, due));
+        trade.expireDeal(o);
+
+        vm.warp(due);
+        vm.expectEmit(address(trade));
+        emit TradeLedger.DealExpired(o);
+        vm.prank(address(0xBEEF)); // anyone
+        trade.expireDeal(o);
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Expired));
+        assertEq(trade.getListing(id).available, 5_000);
+        assertEq(trade.getListing(id).unpaidDeals, 0);
+
+        vm.expectRevert(_wrongOffer(o, TradeLedger.OfferStatus.Expired));
+        trade.expireDeal(o);
+        vm.prank(admin); // nothing left to block the listing
+        trade.cancelListing(id);
+    }
+
+    function test_PaymentIsRefusedOnceOverdue() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+        _approve(o);
+        uint64 due = trade.getOffer(o).paymentDueAt;
+        vm.warp(due);
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.PaymentOverdue.selector, o, due));
+        trade.confirmBuyerPayment(o, keccak256("late"));
+
+        vm.warp(due - 1); // just in time is fine
+        _pay(o);
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Paid));
+        vm.warp(due + 1); // paid deals never expire
+        vm.expectRevert(_wrongOffer(o, TradeLedger.OfferStatus.Paid));
+        trade.expireDeal(o);
+    }
+
+    function test_DealTtlChangesOnlyNewDeals() public {
+        uint256 id = _weGroListing();
+        uint256 first = _offer(sabbir, id, 1_000, ASK);
+        _approve(first);
+        uint64 firstDue = trade.getOffer(first).paymentDueAt;
+
+        vm.prank(sabbir);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, sabbir, ADMIN_ROLE));
+        trade.setDealTtl(3 days);
+        vm.prank(admin);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        trade.setDealTtl(0);
+
+        vm.expectEmit(address(trade));
+        emit TradeLedger.DealTtlUpdated(7 days, 3 days);
+        vm.prank(admin);
+        trade.setDealTtl(3 days);
+        assertEq(trade.dealTtl(), 3 days);
+
+        uint256 second = _offer(sabbir, id, 1_000, ASK);
+        _approve(second);
+        assertEq(trade.getOffer(second).paymentDueAt, uint64(block.timestamp + 3 days));
+        assertEq(trade.getOffer(first).paymentDueAt, firstDue);
     }
 
     // --- Stage 6, with two partial buyers -----------------------------------------------------

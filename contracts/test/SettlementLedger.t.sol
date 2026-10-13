@@ -59,7 +59,7 @@ contract SettlementLedgerTest is Test {
         ledger = new ProjectLedger(registry, 120 hours);
         vouchers = new VoucherRegistry(registry, ledger, 7 days);
         receipts = new WarehouseReceipt(registry, ledger);
-        trade = new TradeLedger(registry, ledger, receipts);
+        trade = new TradeLedger(registry, ledger, receipts, 7 days);
         insurance = new InsuranceRegistry(registry, ledger);
         settlement = new SettlementLedger(registry, ledger, vouchers, trade, insurance, receipts);
         ACCOUNTS = registry.ACCOUNTS_ROLE();
@@ -280,7 +280,7 @@ contract SettlementLedgerTest is Test {
         vm.prank(admin);
         insurance.recordWeatherEvent("FLOOD", "BOGURA", "FLOOD", keccak256("e"));
         vm.prank(admin);
-        insurance.openClaim("CLM", MAIZE, "FLOOD");
+        insurance.openClaim("CLM", MAIZE, "FLOOD", keccak256("evidence"));
         vm.startPrank(jui);
         insurance.startReview("CLM");
         insurance.approveClaim("CLM", 250_000 * TK, keccak256("assessment"));
@@ -374,7 +374,7 @@ contract SettlementLedgerTest is Test {
         insurance.setCoverage(MAIZE, 100_000 * TK, keccak256("cover"));
         vm.startPrank(admin);
         insurance.recordWeatherEvent("FLOOD", "BOGURA", "FLOOD", keccak256("e"));
-        insurance.openClaim("CLM", MAIZE, "FLOOD");
+        insurance.openClaim("CLM", MAIZE, "FLOOD", keccak256("evidence"));
         vm.stopPrank();
         _readyForSale();
 

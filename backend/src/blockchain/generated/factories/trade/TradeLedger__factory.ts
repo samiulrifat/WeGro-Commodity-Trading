@@ -3,7 +3,7 @@
 /* eslint-disable */
 import type { Addressable } from "ethers";
 import { Contract, ContractFactory, ContractTransactionResponse, Interface } from "ethers"
-import type { Signer, AddressLike, ContractDeployTransaction, ContractRunner } from "ethers"
+import type { Signer, BigNumberish, AddressLike, ContractDeployTransaction, ContractRunner } from "ethers"
 import type { NonPayableOverrides } from "../../common.js"
   import type { TradeLedger, TradeLedgerInterface } from "../../trade/TradeLedger.js";
 
@@ -24,6 +24,11 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "contract WarehouseReceipt",
         "name": "receipts_",
         "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "dealTtl_",
+        "type": "uint64"
       }
     ],
     "stateMutability": "nonpayable",
@@ -38,6 +43,22 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "AlreadyConfirmed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint64",
+        "name": "paymentDueAt",
+        "type": "uint64"
+      }
+    ],
+    "name": "DealNotYetDue",
     "type": "error"
   },
   {
@@ -152,6 +173,22 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "OfferNotFound",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint64",
+        "name": "paymentDueAt",
+        "type": "uint64"
+      }
+    ],
+    "name": "PaymentOverdue",
     "type": "error"
   },
   {
@@ -317,6 +354,38 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "offerId",
         "type": "uint256"
+      }
+    ],
+    "name": "DealExpired",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "previousTtl",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "newTtl",
+        "type": "uint64"
+      }
+    ],
+    "name": "DealTtlUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
       },
       {
         "indexed": true,
@@ -459,6 +528,12 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "address",
         "name": "approvedBy",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "paymentDueAt",
+        "type": "uint64"
       }
     ],
     "name": "OfferApproved",
@@ -696,6 +771,32 @@ import type { NonPayableOverrides } from "../../common.js"
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "dealTtl",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      }
+    ],
+    "name": "expireDeal",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -857,6 +958,11 @@ import type { NonPayableOverrides } from "../../common.js"
           {
             "internalType": "uint64",
             "name": "madeAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "paymentDueAt",
             "type": "uint64"
           },
           {
@@ -1215,6 +1321,19 @@ import type { NonPayableOverrides } from "../../common.js"
   {
     "inputs": [
       {
+        "internalType": "uint64",
+        "name": "newTtl",
+        "type": "uint64"
+      }
+    ],
+    "name": "setDealTtl",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "offerId",
         "type": "uint256"
@@ -1247,11 +1366,11 @@ import type { NonPayableOverrides } from "../../common.js"
         
       }
     
-    override getDeployTransaction(registry_: AddressLike, projectLedger_: AddressLike, receipts_: AddressLike, overrides?: NonPayableOverrides & { from?: string }): Promise<ContractDeployTransaction> {
-      return super.getDeployTransaction(registry_, projectLedger_, receipts_, overrides || {});
+    override getDeployTransaction(registry_: AddressLike, projectLedger_: AddressLike, receipts_: AddressLike, dealTtl_: BigNumberish, overrides?: NonPayableOverrides & { from?: string }): Promise<ContractDeployTransaction> {
+      return super.getDeployTransaction(registry_, projectLedger_, receipts_, dealTtl_, overrides || {});
     };
-    override deploy(registry_: AddressLike, projectLedger_: AddressLike, receipts_: AddressLike, overrides?: NonPayableOverrides & { from?: string }) {
-      return super.deploy(registry_, projectLedger_, receipts_, overrides || {}) as Promise<TradeLedger & {
+    override deploy(registry_: AddressLike, projectLedger_: AddressLike, receipts_: AddressLike, dealTtl_: BigNumberish, overrides?: NonPayableOverrides & { from?: string }) {
+      return super.deploy(registry_, projectLedger_, receipts_, dealTtl_, overrides || {}) as Promise<TradeLedger & {
         deploymentTransaction(): ContractTransactionResponse;
       }>;
     }

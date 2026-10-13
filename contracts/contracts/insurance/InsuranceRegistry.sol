@@ -7,12 +7,14 @@ import {Roles} from "../access/Roles.sol";
 import {ProjectLedger} from "../projects/ProjectLedger.sol";
 
 /// @title InsuranceRegistry
-/// @notice Pretend crop insurance. An insurer sets cover on an insured
-/// project; a recorded weather event opens a claim on insured projects in that
-/// district (Triggered -> UnderReview -> Approved or Rejected). Cover and claims are
-/// set while the crop is in the field (Funded or Active); the final payout waits until
-/// every claim is decided. Approved amounts count as project income at settlement.
-/// No money moves. Amounts in poisha.
+/// @notice Pretend crop insurance. An insurer sets cover on an insured project and
+/// becomes its insurer: only they change that cover and review its claims. Admins or
+/// insurers record weather events per district. When a farmer suffers damage, their
+/// field officer (or an admin) opens a claim citing a recorded event in the project's
+/// district, with a fingerprint of the claim evidence (Triggered -> UnderReview ->
+/// Approved or Rejected). Cover and claims are set while the crop is in the field
+/// (Funded or Active); the final payout waits until every claim is decided. Approved
+/// amounts count as project income at settlement. No money moves. Amounts in poisha.
 contract InsuranceRegistry is AccessGuarded {
     enum ClaimStatus {
         None,
@@ -40,6 +42,8 @@ contract InsuranceRegistry is AccessGuarded {
         bytes32 eventId;
         ClaimStatus status;
         uint256 approvedAmount;
+        bytes32 claimHash; // the officer's evidence: damage, notes, photos
+        bytes32 openedBy; // participant id
         bytes32 assessmentHash;
         uint64 openedAt;
     }
@@ -59,7 +63,9 @@ contract InsuranceRegistry is AccessGuarded {
     event WeatherEventRecorded(
         bytes32 indexed eventId, bytes32 indexed regionCode, bytes32 eventType, bytes32 detailsHash, address recordedBy
     );
-    event ClaimOpened(bytes32 indexed claimId, bytes32 indexed projectId, bytes32 indexed eventId);
+    event ClaimOpened(
+        bytes32 indexed claimId, bytes32 indexed projectId, bytes32 indexed eventId, bytes32 claimHash, bytes32 openedBy
+    );
     event ClaimStatusChanged(bytes32 indexed claimId, ClaimStatus status, uint256 approvedAmount, bytes32 assessmentHash);
 
     error ZeroValue();
@@ -76,6 +82,7 @@ contract InsuranceRegistry is AccessGuarded {
     error ClaimNotFound(bytes32 claimId);
     error WrongClaimStatus(bytes32 claimId, ClaimStatus status);
     error ExceedsCoverage(uint256 requested, uint256 available);
+    error NotProjectInsurer(bytes32 projectId, bytes32 insurerId);
     error NotAuthorized(address account);
 
     constructor(AccessRegistry registry_, ProjectLedger projectLedger_) AccessGuarded(registry_) {
@@ -83,12 +90,15 @@ contract InsuranceRegistry is AccessGuarded {
         projectLedger = projectLedger_;
     }
 
-    /// @notice The insurer sets (or changes) what an insured project is covered for.
+    /// @notice An insurer sets what an insured project is covered for. The first to do
+    /// so becomes the project's insurer; only they can change it later.
     function setCoverage(bytes32 projectId, uint256 maxAmount, bytes32 termsHash) external onlyRole(Roles.INSURER) {
         if (maxAmount == 0 || termsHash == bytes32(0)) revert ZeroValue();
         _insuredProject(projectId);
-        if (maxAmount < approvedTotal[projectId]) revert CoverageBelowApproved(maxAmount, approvedTotal[projectId]);
         bytes32 insurerId = _callerId();
+        bytes32 current = _coverage[projectId].insurerId;
+        if (current != bytes32(0) && current != insurerId) revert NotProjectInsurer(projectId, current);
+        if (maxAmount < approvedTotal[projectId]) revert CoverageBelowApproved(maxAmount, approvedTotal[projectId]);
         _coverage[projectId] = Coverage({insurerId: insurerId, maxAmount: maxAmount, termsHash: termsHash});
         emit CoverageSet(projectId, insurerId, maxAmount, termsHash);
     }
@@ -109,15 +119,19 @@ contract InsuranceRegistry is AccessGuarded {
         emit WeatherEventRecorded(eventId, regionCode, eventType, detailsHash, msg.sender);
     }
 
-    /// @notice Open a claim on a covered project in the event's district.
-    /// The backend calls this for each insured project in the region.
-    function openClaim(bytes32 claimId, bytes32 projectId, bytes32 eventId) external {
-        _requireAdminOrInsurer();
-        if (claimId == bytes32(0)) revert ZeroValue();
+    /// @notice The farmer's field officer (or an admin) claims for damage from a
+    /// recorded weather event in the project's district. `claimHash` fingerprints the
+    /// evidence. One claim per project per event.
+    function openClaim(bytes32 claimId, bytes32 projectId, bytes32 eventId, bytes32 claimHash) external {
+        if (claimId == bytes32(0) || claimHash == bytes32(0)) revert ZeroValue();
         if (_claims[claimId].status != ClaimStatus.None) revert ClaimExists(claimId);
         WeatherEvent storage e = _events[eventId];
         if (e.recordedAt == 0) revert EventNotFound(eventId);
         ProjectLedger.Project memory p = _insuredProject(projectId);
+        bytes32 openedBy = _callerId();
+        bool farmersOfficer =
+            _hasRole(Roles.FIELD_OFFICER) && registry.fieldOfficerOf(p.terms.farmerId) == openedBy;
+        if (!farmersOfficer && !_hasRole(Roles.ADMIN)) revert NotAuthorized(msg.sender);
         if (_coverage[projectId].maxAmount == 0) revert NoCoverage(projectId);
         if (p.terms.regionCode != e.regionCode) revert RegionMismatch(p.terms.regionCode, e.regionCode);
         if (hasClaim[projectId][eventId]) revert AlreadyClaimed(projectId, eventId);
@@ -129,14 +143,17 @@ contract InsuranceRegistry is AccessGuarded {
             eventId: eventId,
             status: ClaimStatus.Triggered,
             approvedAmount: 0,
+            claimHash: claimHash,
+            openedBy: openedBy,
             assessmentHash: bytes32(0),
             openedAt: uint64(block.timestamp)
         });
-        emit ClaimOpened(claimId, projectId, eventId);
+        emit ClaimOpened(claimId, projectId, eventId, claimHash, openedBy);
     }
 
     function startReview(bytes32 claimId) external onlyRole(Roles.INSURER) {
         Claim storage c = _claimIn(claimId, ClaimStatus.Triggered);
+        _requireProjectInsurer(c.projectId);
         c.status = ClaimStatus.UnderReview;
         emit ClaimStatusChanged(claimId, ClaimStatus.UnderReview, 0, bytes32(0));
     }
@@ -145,6 +162,7 @@ contract InsuranceRegistry is AccessGuarded {
     function approveClaim(bytes32 claimId, uint256 amount, bytes32 assessmentHash) external onlyRole(Roles.INSURER) {
         if (amount == 0 || assessmentHash == bytes32(0)) revert ZeroValue();
         Claim storage c = _claimIn(claimId, ClaimStatus.UnderReview);
+        _requireProjectInsurer(c.projectId);
         uint256 room = _coverage[c.projectId].maxAmount - approvedTotal[c.projectId];
         if (amount > room) revert ExceedsCoverage(amount, room);
 
@@ -163,6 +181,7 @@ contract InsuranceRegistry is AccessGuarded {
             if (c.status == ClaimStatus.None) revert ClaimNotFound(claimId);
             revert WrongClaimStatus(claimId, c.status);
         }
+        _requireProjectInsurer(c.projectId);
         c.status = ClaimStatus.Rejected;
         openClaims[c.projectId]--;
         c.assessmentHash = assessmentHash;
@@ -192,6 +211,12 @@ contract InsuranceRegistry is AccessGuarded {
             revert WrongProjectStage(projectId, p.stage);
         }
         if (!p.terms.insured) revert NotInsured(projectId);
+    }
+
+    /// @dev Only the insurer who covers the project reviews its claims.
+    function _requireProjectInsurer(bytes32 projectId) private view {
+        bytes32 insurerId = _coverage[projectId].insurerId;
+        if (_callerId() != insurerId) revert NotProjectInsurer(projectId, insurerId);
     }
 
     function _requireAdminOrInsurer() private view {

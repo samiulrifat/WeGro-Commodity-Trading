@@ -4,19 +4,22 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 const FIVE_DAYS = 120n * 60n * 60n;
 // Unconfirmed voucher sales release their hold after 7 days.
 const SEVEN_DAYS = 7n * 24n * 60n * 60n;
+// Approved deals the buyer has not paid for can be expired after 7 days.
+const DEAL_TTL = SEVEN_DAYS;
 
 export default buildModule("PlatformModule", (m) => {
   // The deploying account is the super admin; it also links the contracts.
   const superAdmin = m.getAccount(0);
   const reservationTtl = m.getParameter("reservationTtl", FIVE_DAYS);
   const saleTtl = m.getParameter("saleTtl", SEVEN_DAYS);
+  const dealTtl = m.getParameter("dealTtl", DEAL_TTL);
 
   const registry = m.contract("AccessRegistry", [superAdmin]);
   const projectLedger = m.contract("ProjectLedger", [registry, reservationTtl]);
   const voucherRegistry = m.contract("VoucherRegistry", [registry, projectLedger, saleTtl]);
   const fieldRecordLog = m.contract("FieldRecordLog", [registry, projectLedger]);
   const warehouseReceipt = m.contract("WarehouseReceipt", [registry, projectLedger]);
-  const tradeLedger = m.contract("TradeLedger", [registry, projectLedger, warehouseReceipt]);
+  const tradeLedger = m.contract("TradeLedger", [registry, projectLedger, warehouseReceipt, dealTtl]);
   const insuranceRegistry = m.contract("InsuranceRegistry", [registry, projectLedger]);
   const settlementLedger = m.contract("SettlementLedger", [
     registry,

@@ -10,7 +10,8 @@ import {ProjectLedger} from "../projects/ProjectLedger.sol";
 /// @notice Farmer track records and bank permissions. The farmer's field
 /// officer publishes a track record built from the farmer's finished projects (only
 /// its hash goes on-chain) and grants or withdraws a bank's permission on the
-/// farmer's behalf. Permission covers a whole bank; any officer assigned to that
+/// farmer's behalf, with a fingerprint of the farmer's signed consent form. Permission
+/// covers a whole bank for at most a year (renewable); any officer assigned to that
 /// bank can view the summary while it is active, and every view is logged.
 contract ConsentRegistry is AccessGuarded {
     struct TrackRecord {
@@ -21,12 +22,15 @@ contract ConsentRegistry is AccessGuarded {
 
     struct Consent {
         bytes32 grantedBy;
+        bytes32 evidenceHash; // the farmer's signed consent form
         uint64 grantedAt;
-        uint64 expiresAt; // 0 = until withdrawn
+        uint64 expiresAt;
         bool revoked;
     }
 
     uint256 public constant MAX_PROJECTS_PER_RECORD = 50;
+    /// @notice Longest a permission can run before it must be renewed.
+    uint64 public constant MAX_CONSENT_DURATION = 365 days;
 
     ProjectLedger public immutable projectLedger;
 
@@ -45,7 +49,9 @@ contract ConsentRegistry is AccessGuarded {
     event TrackRecordPublished(
         bytes32 indexed farmerId, uint32 indexed version, bytes32 summaryHash, bytes32[] projectIds, bytes32 publishedBy
     );
-    event ConsentGranted(bytes32 indexed farmerId, bytes32 indexed bankId, uint64 expiresAt, bytes32 grantedBy);
+    event ConsentGranted(
+        bytes32 indexed farmerId, bytes32 indexed bankId, uint64 expiresAt, bytes32 evidenceHash, bytes32 grantedBy
+    );
     event ConsentRevoked(bytes32 indexed farmerId, bytes32 indexed bankId, bytes32 revokedBy);
     event SummaryViewed(bytes32 indexed farmerId, bytes32 indexed bankId, bytes32 indexed viewerId, uint32 version);
 
@@ -112,15 +118,25 @@ contract ConsentRegistry is AccessGuarded {
 
     // --- Consent ---
 
-    /// @notice Record (or renew) the farmer's permission for a bank to view their summary.
-    function grantConsent(bytes32 farmerId, bytes32 bankId, uint64 expiresAt) external {
+    /// @notice Record (or renew) the farmer's permission for a bank to view their summary,
+    /// until `expiresAt` (at most a year ahead). `evidenceHash` fingerprints the farmer's
+    /// signed consent form.
+    function grantConsent(bytes32 farmerId, bytes32 bankId, uint64 expiresAt, bytes32 evidenceHash) external {
         bytes32 officerId = _farmersOfficer(farmerId);
+        if (evidenceHash == bytes32(0)) revert ZeroValue();
         if (bankDetails[bankId] == bytes32(0)) revert BankNotFound(bankId);
-        if (expiresAt != 0 && expiresAt <= block.timestamp) revert InvalidExpiry(expiresAt);
+        if (expiresAt <= block.timestamp || expiresAt > block.timestamp + MAX_CONSENT_DURATION) {
+            revert InvalidExpiry(expiresAt);
+        }
 
-        _consents[farmerId][bankId] =
-            Consent({grantedBy: officerId, grantedAt: uint64(block.timestamp), expiresAt: expiresAt, revoked: false});
-        emit ConsentGranted(farmerId, bankId, expiresAt, officerId);
+        _consents[farmerId][bankId] = Consent({
+            grantedBy: officerId,
+            evidenceHash: evidenceHash,
+            grantedAt: uint64(block.timestamp),
+            expiresAt: expiresAt,
+            revoked: false
+        });
+        emit ConsentGranted(farmerId, bankId, expiresAt, evidenceHash, officerId);
     }
 
     /// @notice The farmer withdraws permission; the bank's access ends at once.
@@ -158,7 +174,7 @@ contract ConsentRegistry is AccessGuarded {
     /// @notice True while the bank's permission is granted, not withdrawn and not expired.
     function hasConsent(bytes32 farmerId, bytes32 bankId) public view returns (bool) {
         Consent storage c = _consents[farmerId][bankId];
-        return c.grantedAt != 0 && !c.revoked && (c.expiresAt == 0 || block.timestamp < c.expiresAt);
+        return c.grantedAt != 0 && !c.revoked && block.timestamp < c.expiresAt;
     }
 
     function getConsent(bytes32 farmerId, bytes32 bankId) external view returns (Consent memory) {

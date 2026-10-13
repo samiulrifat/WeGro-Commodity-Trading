@@ -67,6 +67,8 @@ export class ProjectLedgerSync implements OnModuleInit {
           issuedSlots: 0,
           reservedSlots: 0,
           refundTotal: null,
+          activatedAt: null,
+          finishedAt: null,
           chainEventBlock: -1,
           chainEventLog: -1,
         })
@@ -126,10 +128,18 @@ export class ProjectLedgerSync implements OnModuleInit {
             chainEventBlock: event.blockNumber,
             chainEventLog: event.logIndex,
             ...(stage === ProjectStage.OpenForFunding && {
-              publishedAt: () => 'COALESCE("published_at", :publishedAt)',
+              publishedAt: () => 'COALESCE("published_at", :at)',
+            }),
+            ...(stage === ProjectStage.Active && {
+              activatedAt: () => 'COALESCE("activated_at", :at)',
+            }),
+            // The first finishing stage wins: paid out, then perhaps closed.
+            ...((stage === ProjectStage.PaidOut ||
+              stage === ProjectStage.Closed) && {
+              finishedAt: () => 'COALESCE("finished_at", :at)',
             }),
           })
-          .setParameter('publishedAt', when)
+          .setParameter('at', when)
           .where('id = :id', { id })
           .andWhere('(chain_event_block, chain_event_log) <= (:b, :l)', {
             b: event.blockNumber,

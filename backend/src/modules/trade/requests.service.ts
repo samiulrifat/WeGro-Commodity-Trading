@@ -1,0 +1,192 @@
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { ChainClock } from '../../blockchain/chain-clock';
+import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
+import { TransactionService } from '../../blockchain/tx/transaction.service';
+import { codeToBytes32 } from '../../blockchain/utils/ids';
+import { poishaToTaka, takaToPoisha } from '../../blockchain/utils/money';
+import { Paginated } from '../../common/dto/pagination.dto';
+import {
+  BD_DISTRICTS,
+  isDistrictCode,
+} from '../../common/reference/bd-districts';
+import { bdDate, bdDayEnd, bdLastDay } from '../../common/time/bd-dates';
+import type { AuthUser } from '../auth/auth-user';
+import { CatalogService } from '../catalog/catalog.service';
+import { Project } from '../projects/entities/project.entity';
+import { ProjectViews } from '../projects/project-views';
+import { Role } from '../users/roles';
+import type {
+  BuyerRequestDto,
+  ListRequestsQueryDto,
+  PostRequestDto,
+} from './dto/trade.dto';
+import { BuyerRequest } from './entities/buyer-request.entity';
+import { Listing } from './entities/listing.entity';
+import { ListingStatus, RequestStatus } from './trade.enums';
+import { TradeService } from './trade.service';
+
+/** Matches shown per request. */
+const MATCHES = 5;
+
+/** Buyers' standing requests for produce (FR-19), each with the open listings that match. */
+@Injectable()
+export class RequestsService {
+  constructor(
+    @InjectRepository(BuyerRequest)
+    private readonly requests: Repository<BuyerRequest>,
+    @InjectRepository(Listing) private readonly listings: Repository<Listing>,
+    @InjectRepository(Project) private readonly projects: Repository<Project>,
+    private readonly catalog: CatalogService,
+    private readonly trade: TradeService,
+    private readonly views: ProjectViews,
+    private readonly tx: TransactionService,
+    private readonly applier: ReceiptApplier,
+    private readonly clock: ChainClock,
+  ) {}
+
+  async post(actor: AuthUser, dto: PostRequestDto): Promise<BuyerRequestDto> {
+    this.catalog.produceTypes.requireActive(dto.produceCode);
+    if (dto.validUntil < bdDate(await this.clock.now())) {
+      throw new UnprocessableEntityException(
+        'validUntil cannot be in the past',
+      );
+    }
+    const result = await this.tx.send(actor.keyIndex, 'TradeLedger', (c) =>
+      c.postRequest.populateTransaction(
+        codeToBytes32(dto.produceCode),
+        dto.quantity,
+        takaToPoisha(dto.maxUnitPrice),
+        bdDayEnd(dto.validUntil),
+      ),
+    );
+    await this.applier.apply(result);
+    return this.one(
+      Number(
+        result.events.find((e) => e.name === 'RequestPosted')!.args.requestId,
+      ),
+    );
+  }
+
+  async cancel(actor: AuthUser, id: number): Promise<BuyerRequestDto> {
+    const request = await this.requests.findOneBy({ id });
+    if (!request || request.status === null || request.buyerId !== actor.id) {
+      throw new NotFoundException('Request not found');
+    }
+    if (request.status !== RequestStatus.Open)
+      throw new ConflictException('This request is already cancelled');
+    const result = await this.tx.send(actor.keyIndex, 'TradeLedger', (c) =>
+      c.cancelRequest.populateTransaction(id),
+    );
+    await this.applier.apply(result);
+    return this.one(id);
+  }
+
+  async list(
+    actor: AuthUser,
+    q: ListRequestsQueryDto,
+  ): Promise<Paginated<BuyerRequestDto>> {
+    const now = await this.clock.now();
+    const qb = this.requests
+      .createQueryBuilder('r')
+      .where('r.status IS NOT NULL');
+    if (!q.includeClosed) {
+      qb.andWhere("r.status = 'open' AND r.valid_until > :now", { now });
+    }
+    if (q.produceCode)
+      qb.andWhere('r.produce_code = :pc', { pc: q.produceCode });
+    if (q.mine && actor.role === Role.Buyer)
+      qb.andWhere('r.buyer_id = :me', { me: actor.id });
+    const [rows, total] = await qb
+      .orderBy('r.posted_at', 'DESC')
+      .addOrderBy('r.id', 'DESC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
+    return new Paginated(await this.dtos(rows, now), total, q);
+  }
+
+  async one(id: number): Promise<BuyerRequestDto> {
+    const request = await this.requests.findOneBy({ id });
+    if (!request || request.status === null)
+      throw new NotFoundException('Request not found');
+    return (await this.dtos([request], await this.clock.now()))[0];
+  }
+
+  /**
+   * Matches for a whole page in one query: open listings of the page's
+   * produce, cheapest first; each request then takes those within its price.
+   */
+  private async dtos(
+    rows: BuyerRequest[],
+    now: Date,
+  ): Promise<BuyerRequestDto[]> {
+    if (rows.length === 0) return [];
+    const codes = [...new Set(rows.map((r) => r.produceCode))];
+    const open = await this.listings
+      .createQueryBuilder('l')
+      .where(
+        'l.status = :open AND l.available > 0 AND l.produce_code IN (:...codes)',
+        {
+          open: ListingStatus.Open,
+          codes,
+        },
+      )
+      .orderBy('l.asking_unit_price', 'ASC')
+      .addOrderBy('l.id', 'ASC')
+      .getMany();
+    const projects = open.length
+      ? await this.projects.find({
+          where: { id: In([...new Set(open.map((l) => l.projectId))]) },
+          select: { id: true, districtCode: true },
+        })
+      : [];
+    const district = new Map(projects.map((p) => [p.id, p.districtCode]));
+    const byProduce = new Map<string, Listing[]>();
+    for (const l of open) {
+      const list = byProduce.get(l.produceCode) ?? [];
+      list.push(l);
+      byProduce.set(l.produceCode, list);
+    }
+    const names = await this.views.names(rows.map((r) => r.buyerId));
+    return rows.map((r) => {
+      const status =
+        r.status === RequestStatus.Cancelled
+          ? 'cancelled'
+          : r.validUntil <= now
+            ? 'expired'
+            : 'open';
+      const matches =
+        status === 'open'
+          ? (byProduce.get(r.produceCode) ?? [])
+              .filter((l) => l.askingUnitPrice <= r.maxUnitPrice)
+              .slice(0, MATCHES)
+          : [];
+      return {
+        id: r.id,
+        buyer: { id: r.buyerId, name: names.get(r.buyerId) ?? '' },
+        produce: this.trade.produceRef(r.produceCode),
+        quantity: r.quantity,
+        maxUnitPrice: poishaToTaka(r.maxUnitPrice),
+        validUntil: bdLastDay(Math.floor(r.validUntil.getTime() / 1000)),
+        status,
+        postedAt: r.postedAt,
+        matchingListings: matches.map((l) => {
+          const code = district.get(l.projectId) ?? '';
+          return {
+            id: l.id,
+            available: l.available,
+            askingUnitPrice: poishaToTaka(l.askingUnitPrice),
+            district: isDistrictCode(code) ? BD_DISTRICTS[code].name : code,
+          };
+        }),
+      };
+    });
+  }
+}
