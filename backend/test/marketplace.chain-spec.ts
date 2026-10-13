@@ -12,6 +12,7 @@ import { Role } from '../src/modules/users/roles';
 import {
   type ChainApp,
   demoToken,
+  ledgerDisagreements,
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
@@ -613,6 +614,10 @@ describe('Marketplace (node + database)', () => {
   });
 
   describe('integrity', () => {
+    it('agrees with the ledger on every record', async () => {
+      expect(await ledgerDisagreements(chain)).toEqual([]);
+    });
+
     it('rebuilds identical listings, offers, deliveries and requests from the ledger', async () => {
       const snapshot = async () => ({
         listings: await db.query(

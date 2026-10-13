@@ -1,0 +1,235 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
+import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+
+// --- History ---
+
+export class HistoryQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'asc' })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  order?: 'asc' | 'desc';
+}
+
+export class HistoryActorDto {
+  @ApiProperty({
+    enum: ['participant', 'system', 'unknown'],
+    description: 'System: an automatic platform job',
+  })
+  kind: 'participant' | 'system' | 'unknown';
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  address: string | null;
+
+  @ApiPropertyOptional()
+  id?: string;
+
+  @ApiPropertyOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'accounts' })
+  role?: string;
+}
+
+export class HistoryEntryDto {
+  @ApiProperty()
+  at: Date;
+
+  @ApiProperty()
+  blockNumber: number;
+
+  @ApiProperty()
+  logIndex: number;
+
+  @ApiProperty()
+  txHash: string;
+
+  @ApiProperty({ example: 'ProjectLedger' })
+  contract: string;
+
+  @ApiProperty({ example: 'ReservationConfirmed' })
+  event: string;
+
+  @ApiProperty({ example: 'Reservation paid and slots issued' })
+  title: string;
+
+  @ApiProperty({
+    type: HistoryActorDto,
+    description: 'Who sent the transaction',
+  })
+  actor: HistoryActorDto;
+
+  @ApiProperty({
+    description:
+      'Event arguments, readable: taka, ISO times, codes, statuses by name, ids as uuids',
+  })
+  details: Record<string, unknown>;
+
+  @ApiProperty({
+    description: 'Names of the people the event refers to, by id or address',
+    example: { '7d3f2c1a-…': 'Rahima Begum' },
+  })
+  parties: Record<string, string>;
+}
+
+// --- Verify ---
+
+export class VerificationDto {
+  @ApiProperty({ example: 'claim' })
+  type: string;
+
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ description: 'The ledger has this record' })
+  onLedger: boolean;
+
+  @ApiProperty({
+    description: 'Database and ledger agree on everything checked',
+  })
+  matches: boolean;
+
+  @ApiProperty({
+    type: [String],
+    example: ['fingerprint', 'status'],
+    description: 'What differs',
+  })
+  mismatches: string[];
+
+  @ApiProperty()
+  checkedAt: Date;
+}
+
+export class SweepDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ enum: ['running', 'done', 'failed', 'interrupted'] })
+  status: string;
+
+  @ApiProperty()
+  startedAt: Date;
+
+  @ApiPropertyOptional({ nullable: true, type: Date })
+  finishedAt: Date | null;
+
+  @ApiProperty({ example: { id: '…', name: 'Auditor' } })
+  startedBy: { id: string; name: string };
+
+  @ApiProperty({ description: 'Records checked so far' })
+  checked: number;
+
+  @ApiProperty({ description: 'Records that differ from the ledger' })
+  mismatched: number;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  error: string | null;
+}
+
+export class SweepFindingDto {
+  @ApiProperty({ example: 'offer' })
+  type: string;
+
+  @ApiProperty()
+  recordId: string;
+
+  @ApiProperty({ type: [String] })
+  mismatches: string[];
+}
+
+export class SweepFindingsQueryDto extends PaginationQueryDto {}
+
+// --- Audit log ---
+
+export class AuditLogQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  actorId?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-10-01',
+    description: 'From this day (Bangladesh)',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  from?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-10-31',
+    description: 'Through this day',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  to?: string;
+
+  @ApiPropertyOptional({
+    example: '/api/settlement/rounds/:id/approve',
+    description: 'Route pattern',
+  })
+  @IsOptional()
+  @Matches(/^\/[\w\-/:.]{0,200}$/)
+  route?: string;
+
+  @ApiPropertyOptional({ enum: ['ok', 'failed'] })
+  @IsOptional()
+  @IsIn(['ok', 'failed'])
+  outcome?: 'ok' | 'failed';
+
+  @ApiPropertyOptional({ example: 403 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(100)
+  @Max(599)
+  statusCode?: number;
+}
+
+export class AuditLogEntryDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  at: Date;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Object,
+    description: 'Null when not signed in',
+  })
+  actor: { id: string; name: string; role: string } | null;
+
+  @ApiProperty({ example: 'POST' })
+  method: string;
+
+  @ApiProperty({ example: '/api/settlement/rounds/:id/approve' })
+  route: string;
+
+  @ApiProperty({
+    example: { id: '12' },
+    description: 'Record ids from the path',
+  })
+  params: Record<string, string>;
+
+  @ApiProperty()
+  statusCode: number;
+
+  @ApiProperty({ enum: ['ok', 'failed'] })
+  outcome: 'ok' | 'failed';
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  requestId: string | null;
+
+  @ApiProperty()
+  durationMs: number;
+}

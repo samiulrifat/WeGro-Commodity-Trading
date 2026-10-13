@@ -54,7 +54,7 @@ export class BankAccountsController {
   }
 
   @Get('bank-accounts/pending')
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SuperAdmin, Role.Admin, Role.Auditor)
   @ApiOkResponse({
     type: [PendingBankAccountDto],
     description: 'Waiting for verification, oldest first',

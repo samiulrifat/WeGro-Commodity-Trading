@@ -61,7 +61,7 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 4: Cross-cutting
 
-- [ ] 22. History and audit: full history per record from indexed events, Verify endpoint, auditor read-only access
+- [x] 22. History and audit: full history per record from indexed events (with each transaction's sender), Verify per record and full sweep, append-only audit log of write requests, auditor read-only access
 - [ ] 23. Admin dashboard: funding progress, active projects, approvals waiting
 - [ ] 24. Notifications: in-app reminders (voucher inactivity, reservations about to expire)
 - [ ] 25. Scheduled jobs: expire reservations and voucher sales, send reminders

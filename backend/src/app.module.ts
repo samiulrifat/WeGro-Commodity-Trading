@@ -9,6 +9,7 @@ import {
 import { BlockchainModule } from './blockchain/blockchain.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { DatabaseModule } from './database/database.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -69,6 +70,7 @@ import { WarehouseModule } from './modules/warehouse/warehouse.module';
     BankAccountsModule,
     SettlementModule,
     TrackRecordModule,
+    AuditModule,
     HealthModule,
   ],
   // In this order: rate limit, then authenticate, then check the role.

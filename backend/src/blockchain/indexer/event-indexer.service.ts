@@ -20,6 +20,8 @@ import { IndexerState } from './indexer-state.entity';
 
 const STATE_ID = 'main';
 const INSERT_CHUNK = 500;
+/** Blocks per pass when filling in senders of events indexed before senders were kept. */
+const SENDER_FILL_BLOCKS = 50;
 const MAX_BACKOFF_MS = 30_000;
 
 export interface IndexerStatus {
@@ -36,7 +38,8 @@ export interface IndexerStatus {
  * ONE database transaction stores the events, runs the read-model handlers
  * and moves the checkpoint. A crash mid-batch therefore leaves nothing half
  * done. If the chain is found rewritten below the checkpoint, everything is
- * rebuilt from the deployment block.
+ * rebuilt from the deployment block. Blocks with logs are fetched with their
+ * transactions, which gives each event's sender at no extra cost.
  */
 @Injectable()
 export class EventIndexerService
@@ -159,6 +162,7 @@ export class EventIndexerService
   }
 
   private async processNextRange(): Promise<number> {
+    if ((await this.fillSenders()) > 0) return 1;
     const provider = this.registry.provider;
     const state = await this.dataSource
       .getRepository(IndexerState)
@@ -192,20 +196,24 @@ export class EventIndexerService
       toBlock: to,
     });
 
-    // Blocks we need: those with logs (for timestamps) and `to` (checkpoint hash).
-    // Fetched in parallel; ethers sends them as one JSON-RPC batch.
-    const needed = [...new Set([...logs.map((l) => l.blockNumber), to])];
+    // Blocks we need: those with logs (for timestamps and, with their
+    // transactions, senders) and `to` (checkpoint hash). Fetched in parallel;
+    // ethers sends them as one JSON-RPC batch.
+    const withLogs = new Set(logs.map((l) => l.blockNumber));
+    const needed = [...new Set([...withLogs, to])];
     const blocks = new Map<number, Block>();
     await Promise.all(
       needed.map(async (n) => {
-        const block = await provider.getBlock(n);
+        const block = await provider.getBlock(n, withLogs.has(n));
         if (!block?.hash) throw new Error(`Block ${n} not available`);
         blocks.set(n, block);
       }),
     );
 
+    // Only blocks fetched with their transactions can name senders.
+    const senders = sendersOf([...withLogs].map((n) => blocks.get(n)!));
     const events = logs
-      .map((log) => this.decode(log, blocks))
+      .map((log) => this.decode(log, blocks, senders))
       .filter((e): e is ChainEvent => e !== null);
 
     await this.dataSource.transaction(async (manager) => {
@@ -223,7 +231,11 @@ export class EventIndexerService
     return to - from + 1;
   }
 
-  private decode(log: Log, blocks: Map<number, Block>): ChainEvent | null {
+  private decode(
+    log: Log,
+    blocks: Map<number, Block>,
+    senders: Map<string, string>,
+  ): ChainEvent | null {
     const info = this.registry.byContractAddress(log.address);
     if (!info) return null;
     const parsed = info.iface.parseLog(log);
@@ -233,6 +245,7 @@ export class EventIndexerService
     event.blockHash = log.blockHash;
     event.blockTime = new Date(blocks.get(log.blockNumber)!.timestamp * 1000);
     event.txHash = log.transactionHash;
+    event.txFrom = senders.get(log.transactionHash) ?? null;
     event.logIndex = log.index;
     event.contract = info.name;
     event.address = info.address;
@@ -271,6 +284,37 @@ export class EventIndexerService
   }
 
   /**
+   * Fills in the sender of events indexed before senders were kept, a few
+   * blocks per pass (one block fetch each, with its transactions). Returns
+   * how many blocks it filled; zero once there is nothing left.
+   */
+  private async fillSenders(): Promise<number> {
+    const rows: Array<{ block_number: string }> = await this.dataSource.query(
+      `SELECT DISTINCT block_number FROM chain_event WHERE tx_from IS NULL
+        ORDER BY block_number LIMIT ${SENDER_FILL_BLOCKS}`,
+    );
+    if (rows.length === 0) return 0;
+    const provider = this.registry.provider;
+    const blocks = await Promise.all(
+      rows.map(async (r) => {
+        const block = await provider.getBlock(Number(r.block_number), true);
+        if (!block?.hash)
+          throw new Error(`Block ${r.block_number} not available`);
+        return block;
+      }),
+    );
+    const senders = sendersOf(blocks);
+    await this.dataSource.query(
+      `UPDATE chain_event c SET tx_from = v.sender
+         FROM unnest($1::text[], $2::text[]) AS v(hash, sender)
+        WHERE c.tx_hash = v.hash AND c.tx_from IS NULL`,
+      [[...senders.keys()], [...senders.values()]],
+    );
+    this.logger.log(`Filled in senders for ${blocks.length} indexed block(s)`);
+    return blocks.length;
+  }
+
+  /**
    * Where indexing begins: CHAIN_START_BLOCK if set, otherwise the block the
    * AccessRegistry was deployed in. Every other contract is deployed after it
    * (each takes its address), so nothing earlier can hold platform events.
@@ -298,6 +342,16 @@ export class EventIndexerService
       return 0;
     }
   }
+}
+
+/** Transaction hash -> sender, for blocks fetched with their transactions. */
+function sendersOf(blocks: Iterable<Block>): Map<string, string> {
+  const senders = new Map<string, string>();
+  for (const block of blocks) {
+    for (const tx of block.prefetchedTransactions)
+      senders.set(tx.hash, tx.from);
+  }
+  return senders;
 }
 
 /** bigint -> decimal string, recursively; everything else as is. */

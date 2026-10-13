@@ -11,6 +11,7 @@ export const IS_PUBLIC = 'auth:public';
 export const ROLES = 'auth:roles';
 export const ALLOW_PENDING_PASSWORD = 'auth:allowPendingPassword';
 export const AUTH_THROTTLE = 'auth:throttle';
+export const AUDIT_ACTION = 'auth:auditAction';
 
 /** Open to anyone. Every other route needs a valid access token. */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
@@ -20,6 +21,12 @@ export const Public = () => SetMetadata(IS_PUBLIC, true);
  * always allowed in when listed). The contracts check the same rule again.
  */
 export const Roles = (...roles: Role[]) => SetMetadata(ROLES, roles);
+
+/**
+ * A write an auditor may make because it changes no records (starting a
+ * verification sweep). Auditors are refused every other write.
+ */
+export const AuditAction = () => SetMetadata(AUDIT_ACTION, true);
 
 /** Reachable with a temporary password, before it has been changed. */
 export const AllowPendingPassword = () =>

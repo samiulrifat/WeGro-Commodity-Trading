@@ -121,3 +121,27 @@ export async function demoToken(
     .expect(200);
   return res.body.data.accessToken as string;
 }
+
+/**
+ * Sweeps every ledger record in the suite's schema and returns what differs
+ * from the ledger; a suite that changed nothing behind the ledger expects [].
+ */
+export async function ledgerDisagreements(
+  chain: ChainApp,
+): Promise<Array<{ type: string; recordId: string; mismatches: string[] }>> {
+  const { SweepService } =
+    await import('../../src/modules/audit/verify/sweep.service.js');
+  const { Role } = await import('../../src/modules/users/roles.js');
+  const sweeps = chain.app.get(SweepService);
+  const run = await sweeps.start({
+    id: '00000000-0000-4000-8000-000000000000',
+    role: Role.Auditor,
+  } as never);
+  await sweeps.idle();
+  const done = await sweeps.one(run.id);
+  if (done.status !== 'done')
+    throw new Error(`Sweep ${done.status}: ${done.error}`);
+  return (
+    await sweeps.findingsOf(run.id, { skip: 0, limit: 100, page: 1 } as never)
+  ).items;
+}

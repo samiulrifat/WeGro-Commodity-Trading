@@ -12,6 +12,7 @@ import { Role } from '../src/modules/users/roles';
 import {
   type ChainApp,
   demoToken,
+  ledgerDisagreements,
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
@@ -548,6 +549,12 @@ describe('Vouchers (node + database)', () => {
           [voucherId],
         ),
       ).rejects.toThrow(/ck_vouchers_balance/);
+    });
+  });
+
+  describe('ledger agreement', () => {
+    it('agrees with the ledger on every record', async () => {
+      expect(await ledgerDisagreements(chain)).toEqual([]);
     });
   });
 });

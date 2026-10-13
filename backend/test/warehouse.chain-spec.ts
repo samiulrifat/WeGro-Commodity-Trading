@@ -14,6 +14,7 @@ import { Role } from '../src/modules/users/roles';
 import {
   type ChainApp,
   demoToken,
+  ledgerDisagreements,
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
@@ -436,6 +437,10 @@ describe('Warehouse (node + database)', () => {
   });
 
   describe('integrity', () => {
+    it('agrees with the ledger on every record', async () => {
+      expect(await ledgerDisagreements(chain)).toEqual([]);
+    });
+
     it('rebuilds identical sites, operators and receipts from the ledger', async () => {
       const snapshot = async () => ({
         receipts: await db.query(

@@ -11,6 +11,7 @@ import { Role } from '../src/modules/users/roles';
 import {
   type ChainApp,
   demoToken,
+  ledgerDisagreements,
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
@@ -529,6 +530,12 @@ describe('Projects (node + database)', () => {
           [projectId],
         ),
       ).rejects.toThrow(/ck_projects_slots/);
+    });
+  });
+
+  describe('ledger agreement', () => {
+    it('agrees with the ledger on every record', async () => {
+      expect(await ledgerDisagreements(chain)).toEqual([]);
     });
   });
 });

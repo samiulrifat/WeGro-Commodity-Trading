@@ -7,9 +7,16 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
-import type { Role } from '../users/roles';
+import { Role } from '../users/roles';
 import { type AuthUser, canAct } from './auth-user';
-import { ALLOW_PENDING_PASSWORD, IS_PUBLIC, ROLES } from './decorators';
+import {
+  ALLOW_PENDING_PASSWORD,
+  AUDIT_ACTION,
+  IS_PUBLIC,
+  ROLES,
+} from './decorators';
+
+const READS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
  * Global: every route needs a valid access token unless marked @Public().
@@ -58,7 +65,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
 /**
  * Global: enforces @Roles(). Listed roles only, and only verified ones; the
- * super admin passes wherever it is listed.
+ * super admin passes wherever it is listed. Auditors only ever read: a write
+ * is refused even where they are listed, unless marked @AuditAction().
  */
 @Injectable()
 export class RolesGuard {
@@ -78,6 +86,17 @@ export class RolesGuard {
     }
     if (!canAct(user)) {
       throw new ForbiddenException('Your account is not verified');
+    }
+    const request = context.switchToHttp().getRequest<Request>();
+    if (
+      user.role === Role.Auditor &&
+      !READS.has(request.method) &&
+      this.reflector.getAllAndOverride<boolean>(AUDIT_ACTION, [
+        context.getHandler(),
+        context.getClass(),
+      ]) !== true
+    ) {
+      throw new ForbiddenException('Auditors have read-only access');
     }
     return true;
   }

@@ -23,6 +23,8 @@ export const blockNumberTransformer = {
 @Index('ix_chain_event_contract_event', ['contract', 'eventName'])
 /** Expression index on args->>'projectId' (migration Projects): per-project history. */
 @Index('ix_chain_event_project_id', { synchronize: false })
+/** GIN index on args (migration History): any record's history by its id, in any argument. */
+@Index('ix_chain_event_args', { synchronize: false })
 export class ChainEvent {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id: string;
@@ -39,6 +41,10 @@ export class ChainEvent {
   @Index('ix_chain_event_tx_hash')
   @Column({ type: 'char', length: 66 })
   txHash: string;
+
+  /** Who sent the transaction (checksummed address); null until filled in for rows indexed before it was kept. */
+  @Column({ type: 'char', length: 42, nullable: true })
+  txFrom: string | null;
 
   @Column({ type: 'int' })
   logIndex: number;

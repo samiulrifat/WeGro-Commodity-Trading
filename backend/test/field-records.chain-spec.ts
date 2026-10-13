@@ -18,6 +18,7 @@ import { Role } from '../src/modules/users/roles';
 import {
   type ChainApp,
   demoToken,
+  ledgerDisagreements,
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
@@ -473,6 +474,12 @@ describe('Field records (node + database)', () => {
       await indexer.reindex();
       await indexer.catchUp();
       expect(await snapshot()).toEqual(before);
+    });
+  });
+
+  describe('ledger agreement', () => {
+    it('agrees with the ledger on every record', async () => {
+      expect(await ledgerDisagreements(chain)).toEqual([]);
     });
   });
 });
