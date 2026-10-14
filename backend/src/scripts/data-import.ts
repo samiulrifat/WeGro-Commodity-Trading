@@ -15,6 +15,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { toCsv } from '../common/csv';
+import { writeCredentials } from '../data/credentials-file';
 import { Importer } from '../data/import/importer';
 import { appContext, fail } from './app-context';
 
@@ -74,21 +75,7 @@ async function main(): Promise<void> {
       ),
     );
     if (credentials.length > 0) {
-      const file = join(folder, `credentials-${stamp}.csv`);
-      writeFileSync(
-        file,
-        toCsv(
-          ['id', 'role', 'full_name', 'phone', 'temporary_password'],
-          credentials.map((c) => [
-            c.id,
-            c.role,
-            c.fullName,
-            c.phone,
-            c.temporaryPassword,
-          ]),
-        ),
-        { mode: 0o600 },
-      );
+      const file = writeCredentials(folder, 'credentials', credentials);
       console.log(
         `Temporary passwords: ${file} (hand them out, then delete it)`,
       );

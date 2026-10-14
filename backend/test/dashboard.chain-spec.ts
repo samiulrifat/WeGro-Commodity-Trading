@@ -3,7 +3,6 @@ import { randomBytes, randomInt } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
-import { ContractsRegistry } from '../src/blockchain/contracts.registry';
 import { bdDate } from '../src/common/time/bd-dates';
 import { User } from '../src/modules/users/entities/user.entity';
 import { Role } from '../src/modules/users/roles';
@@ -13,6 +12,7 @@ import {
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
+import { travel as chainTravel } from './support/chain-time';
 
 const RUN = randomBytes(4).toString('hex').toUpperCase();
 
@@ -62,10 +62,7 @@ describe('Dashboard (node + database)', () => {
   }
 
   async function travel(seconds: number) {
-    const provider = chain.app.get(ContractsRegistry).provider;
-    await provider.send('evm_increaseTime', [seconds]);
-    await provider.send('evm_mine', []);
-    await new Promise((r) => setTimeout(r, 1100)); // the app's chain clock caches for a second
+    return chainTravel(chain.app, seconds);
   }
 
   async function project(name: string, produceCode: string) {

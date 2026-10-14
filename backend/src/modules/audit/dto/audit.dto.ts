@@ -11,6 +11,10 @@ import {
   Min,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import {
+  AUDIT_OUTCOMES,
+  type AuditOutcome,
+} from '../entities/audit-log.entity';
 
 // --- History ---
 
@@ -181,10 +185,10 @@ export class AuditLogQueryDto extends PaginationQueryDto {
   @Matches(/^\/[\w\-/:.]{0,200}$/)
   route?: string;
 
-  @ApiPropertyOptional({ enum: ['ok', 'failed'] })
+  @ApiPropertyOptional({ enum: AUDIT_OUTCOMES })
   @IsOptional()
-  @IsIn(['ok', 'failed'])
-  outcome?: 'ok' | 'failed';
+  @IsIn(AUDIT_OUTCOMES)
+  outcome?: AuditOutcome;
 
   @ApiPropertyOptional({ example: 403 })
   @IsOptional()
@@ -224,8 +228,8 @@ export class AuditLogEntryDto {
   @ApiProperty()
   statusCode: number;
 
-  @ApiProperty({ enum: ['ok', 'failed'] })
-  outcome: 'ok' | 'failed';
+  @ApiProperty({ enum: AUDIT_OUTCOMES })
+  outcome: AuditOutcome;
 
   @ApiPropertyOptional({ nullable: true, type: String })
   requestId: string | null;

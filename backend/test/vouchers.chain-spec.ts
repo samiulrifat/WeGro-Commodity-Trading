@@ -3,7 +3,6 @@ import { randomBytes, randomInt } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
-import { ContractsRegistry } from '../src/blockchain/contracts.registry';
 import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
 import { bdDate } from '../src/modules/vouchers/batch-dates';
 import { SaleExpiryJob } from '../src/modules/vouchers/sale-expiry.job';
@@ -16,6 +15,7 @@ import {
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
+import { travel } from './support/chain-time';
 
 const RUN = randomBytes(4).toString('hex').toUpperCase();
 
@@ -40,11 +40,7 @@ describe('Vouchers (node + database)', () => {
   });
 
   async function chainTimeTravel(seconds: number) {
-    const provider = chain.app.get(ContractsRegistry).provider;
-    await provider.send('evm_increaseTime', [seconds]);
-    await provider.send('evm_mine', []);
-    // The app reads the chain clock through a one-second cache.
-    await new Promise((r) => setTimeout(r, 1100));
+    return travel(chain.app, seconds);
   }
 
   async function chainToday(offsetDays = 0): Promise<string> {

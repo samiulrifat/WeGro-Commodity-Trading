@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, parse, resolve } from 'node:path';
 import { DataSource } from 'typeorm';
 import { KEY_INDEX_SEQUENCE } from '../blockchain/keys/key.service';
-import { toCsv } from '../common/csv';
 import { SnakeNamingStrategy } from '../database/snake-naming.strategy';
 import { appContext } from '../scripts/app-context';
+import { writeCredentials } from './credentials-file';
 import { assertLocal } from '../scripts/local-only';
 import { ensureSuperAdmin } from '../scripts/super-admin';
 import { Importer } from './import/importer';
@@ -19,6 +19,8 @@ export interface ResetOptions {
   /** A folder of WeGro CSVs to import; null for none. */
   importFolder: string | null;
   contractsDir: string;
+  /** Where the sample people's sign-in details are written. */
+  credentialsDir: string;
   /** Keep the deployed contracts (e.g. just deployed). */
   skipDeploy: boolean;
   log: (message: string) => void;
@@ -122,22 +124,7 @@ export async function resetLocal(opts: ResetOptions): Promise<void> {
       }
       const { outcomes, credentials } = await importer.apply();
       if (credentials.length) {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const file = join(folder, `credentials-${stamp}.csv`);
-        writeFileSync(
-          file,
-          toCsv(
-            ['id', 'role', 'full_name', 'phone', 'temporary_password'],
-            credentials.map((c) => [
-              c.id,
-              c.role,
-              c.fullName,
-              c.phone,
-              c.temporaryPassword,
-            ]),
-          ),
-          { mode: 0o600 },
-        );
+        const file = writeCredentials(folder, 'credentials', credentials);
         log(`Imported; temporary passwords in ${file}`);
       }
       const failed = outcomes.filter((o) => o.result === 'failed');
@@ -152,8 +139,13 @@ export async function resetLocal(opts: ResetOptions): Promise<void> {
         scale: opts.seedScale,
         log,
       }).run();
+      const file = writeCredentials(
+        opts.credentialsDir,
+        'sample-credentials',
+        summary.credentials,
+      );
       log(
-        `Sample data loaded: ${summary.people} people, ${summary.projects} projects.`,
+        `Sample data loaded: ${summary.people} people, ${summary.projects} projects. Sign-in details: ${file}`,
       );
     }
   } finally {

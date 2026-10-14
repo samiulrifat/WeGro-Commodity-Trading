@@ -3,7 +3,6 @@ import { randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
-import { ContractsRegistry } from '../src/blockchain/contracts.registry';
 import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
 import { ReceiptApplier } from '../src/blockchain/indexer/receipt-applier';
 import { TransactionService } from '../src/blockchain/tx/transaction.service';
@@ -18,6 +17,7 @@ import {
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
+import { travel } from './support/chain-time';
 
 const RUN = randomBytes(4).toString('hex').toUpperCase();
 
@@ -421,10 +421,7 @@ describe('Warehouse (node + database)', () => {
           )
           .expect(201)
       ).body.data.id;
-      const provider = chain.app.get(ContractsRegistry).provider;
-      await provider.send('evm_increaseTime', [2 * 86_400]);
-      await provider.send('evm_mine', []);
-      await new Promise((r) => setTimeout(r, 1100));
+      await travel(chain.app, 2 * 86_400);
       const res = await as(t.field_officer)
         .post(`/warehouse-receipts/${c}/handover`)
         .expect(409);

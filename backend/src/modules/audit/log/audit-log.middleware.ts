@@ -1,25 +1,22 @@
-import { Injectable, Logger, type NestMiddleware } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
-import { Repository } from 'typeorm';
 import type { AuthUser } from '../../auth/auth-user';
-import { AuditLog } from '../entities/audit-log.entity';
+import { AuditLogService } from './audit-log.service';
 
 const WRITES: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+/** Recorded when the client leaves before the response (nginx's convention). */
+const CLIENT_CLOSED = 499;
 
 /**
  * Logs every write request once it has finished: who (when signed in), the
  * route, the record ids in the path, the status and how long it took. Runs
- * before guards, so refused attempts are logged too. Never the body. The
- * insert happens after the response is sent, so it adds no delay.
+ * before guards, so refused attempts are logged too. Never the body. A
+ * request the client abandons is logged as aborted: its work may still have
+ * happened. The insert happens after the response, so it adds no delay.
  */
 @Injectable()
 export class AuditLogMiddleware implements NestMiddleware {
-  private readonly logger = new Logger('AuditLog');
-
-  constructor(
-    @InjectRepository(AuditLog) private readonly log: Repository<AuditLog>,
-  ) {}
+  constructor(private readonly audit: AuditLogService) {}
 
   use(
     req: Request & { id?: string; user?: AuthUser },
@@ -28,7 +25,10 @@ export class AuditLogMiddleware implements NestMiddleware {
   ): void {
     if (!WRITES.has(req.method)) return next();
     const started = Date.now();
-    res.on('finish', () => {
+    let logged = false;
+    const write = (aborted: boolean) => {
+      if (logged) return;
+      logged = true;
       const route = req.route as { path?: string } | undefined;
       const user = req.user;
       const params = Object.fromEntries(
@@ -36,24 +36,24 @@ export class AuditLogMiddleware implements NestMiddleware {
           ([k, v]) => [k, String(v).slice(0, 100)],
         ),
       );
-      this.log
-        .insert({
+      this.audit.record(
+        {
           actorId: user?.id ?? null,
           role: user?.role ?? null,
           method: req.method,
           route: (route?.path ?? req.path).slice(0, 200),
           params,
-          statusCode: res.statusCode,
-          outcome: res.statusCode < 400 ? 'ok' : 'failed',
+          statusCode: aborted ? CLIENT_CLOSED : res.statusCode,
+          outcome: aborted ? 'aborted' : res.statusCode < 400 ? 'ok' : 'failed',
           requestId: req.id ?? null,
           durationMs: Date.now() - started,
-        })
-        .catch((error: unknown) =>
-          this.logger.error(
-            `Could not log ${req.method} ${req.path} [${req.id ?? '-'}]: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        );
-    });
+        },
+        `${req.method} ${req.path} [${req.id ?? '-'}]`,
+      );
+    };
+    res.on('finish', () => write(false));
+    // 'close' follows 'finish' normally; alone, the client went away.
+    res.on('close', () => write(!res.writableFinished));
     next();
   }
 }

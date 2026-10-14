@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Paginated } from '../../../common/dto/pagination.dto';
@@ -7,13 +7,40 @@ import { ProjectViews } from '../../projects/project-views';
 import type { AuditLogEntryDto, AuditLogQueryDto } from '../dto/audit.dto';
 import { AuditLog } from '../entities/audit-log.entity';
 
-/** Searches the write-request log, newest first. */
+/** Writes the write-request log, and searches it newest first. */
 @Injectable()
-export class AuditLogService {
+export class AuditLogService implements OnApplicationShutdown {
+  private readonly logger = new Logger('AuditLog');
+  /** Inserts still in flight: shutdown waits for them. */
+  private readonly pending = new Set<Promise<void>>();
+
   constructor(
     @InjectRepository(AuditLog) private readonly log: Repository<AuditLog>,
     private readonly views: ProjectViews,
   ) {}
+
+  /**
+   * Saves one entry without holding up the response. Runs before the
+   * database closes: Nest stops the HTTP server first (every response has
+   * finished) and shuts the database module down last.
+   */
+  record(entry: Omit<AuditLog, 'id' | 'at'>, label: string): void {
+    const insert: Promise<void> = this.log
+      .insert(entry)
+      .then(
+        () => undefined,
+        (error: unknown) =>
+          this.logger.error(
+            `Could not log ${label}: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+      )
+      .finally(() => this.pending.delete(insert));
+    this.pending.add(insert);
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    await Promise.all(this.pending);
+  }
 
   async search(q: AuditLogQueryDto): Promise<Paginated<AuditLogEntryDto>> {
     const qb = this.log.createQueryBuilder('a');

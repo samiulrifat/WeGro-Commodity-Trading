@@ -60,3 +60,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Uploaded files
 /uploads
+
+# One-time passwords written by the data tools: hand out, then delete
+credentials-*.csv
+sample-credentials-*.csv

@@ -56,18 +56,19 @@ export class ReminderJob implements ScheduledJobRunner {
 
   private async sweep(): Promise<number> {
     const now = await this.clock.now();
-    const sent = await this.dataSource.transaction(async (m) => {
-      const admins = await this.writer.withRole(m, [Role.Admin]);
-      const batches = await Promise.all([
-        this.reservations(m, now),
-        this.deals(m, now),
-        this.sales(m, now),
-        this.vouchers(m, now, admins),
-        this.receipts(m, now, admins),
-        this.consents(m, now),
-      ]);
-      return this.writer.sendMany(m, batches.flat());
-    });
+    // Independent reads, each on its own pooled connection, then one insert
+    // (atomic by itself; the dedupe key makes a repeat harmless).
+    const m = this.dataSource.manager;
+    const admins = await this.writer.withRole(m, [Role.Admin]);
+    const batches = await Promise.all([
+      this.reservations(m, now),
+      this.deals(m, now),
+      this.sales(m, now),
+      this.vouchers(m, now, admins),
+      this.receipts(m, now, admins),
+      this.consents(m, now),
+    ]);
+    const sent = await this.writer.sendMany(m, batches.flat());
     if (sent > 0) this.logger.log(`Sent ${sent} reminder(s)`);
     return sent;
   }

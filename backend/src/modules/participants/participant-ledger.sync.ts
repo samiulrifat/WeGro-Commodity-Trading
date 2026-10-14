@@ -172,16 +172,15 @@ export class ParticipantLedgerSync implements OnModuleInit {
     userId: string,
     manager: EntityManager,
   ): Promise<void> {
-    const [user, details] = await Promise.all([
-      manager.findOne(User, {
-        where: { id: userId },
-        select: { id: true, role: true },
-      }),
-      manager.findOne(PersonalDetails, {
-        where: { userId },
-        select: { userId: true, detailsHash: true },
-      }),
-    ]);
+    // One after the other: a transaction's connection runs one query at a time.
+    const user = await manager.findOne(User, {
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+    const details = await manager.findOne(PersonalDetails, {
+      where: { userId },
+      select: { userId: true, detailsHash: true },
+    });
     if (!user) return;
     const role = ROLE_BY_CHAIN_ID.get(String(event.args.role));
     if (role !== user.role || details?.detailsHash !== event.args.detailsHash) {

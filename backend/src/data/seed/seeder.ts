@@ -25,7 +25,7 @@ import { BatchesService } from '../../modules/vouchers/batches.service';
 import { VouchersService } from '../../modules/vouchers/vouchers.service';
 import { WarehouseService } from '../../modules/warehouse/warehouse.service';
 import { ImportRecord } from '../entities/import-record.entity';
-import { Importer } from '../import/importer';
+import { type Credential, Importer } from '../import/importer';
 import { buildDataset, type Dataset, type DatasetProject } from './dataset';
 
 /** Sample sizes: how many times the showcase is repeated. */
@@ -40,6 +40,8 @@ export interface SeedSummary {
   projects: number;
   stories: Record<string, number>;
   skipped: string[];
+  /** Every sample person's one-time password: the only way to sign in as them. */
+  credentials: Credential[];
 }
 
 /**
@@ -83,6 +85,7 @@ export class Seeder {
       );
     }
     const data = buildDataset(this.opts.scale, this.tag);
+    let credentials: Credential[] = [];
 
     // 1. People, projects, investments and history through the importer.
     const folder = mkdtempSync(join(tmpdir(), 'wegro-seed-'));
@@ -101,7 +104,9 @@ export class Seeder {
         );
       }
       this.opts.log('Importing people, projects and investments...');
-      const { outcomes } = await importer.apply();
+      const applied = await importer.apply();
+      credentials = applied.credentials;
+      const { outcomes } = applied;
       const failed = outcomes.filter((o) => o.result === 'failed');
       if (failed.length) {
         throw new Error(
@@ -127,6 +132,7 @@ export class Seeder {
       projects: data.projects.length,
       stories: {},
       skipped: [],
+      credentials,
     };
     const order: Array<DatasetProject['story']> = [
       'inputs-and-claim',

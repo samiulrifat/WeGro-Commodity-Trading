@@ -2,10 +2,10 @@
 import { randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { ContractsRegistry } from '../../src/blockchain/contracts.registry';
 import { User } from '../../src/modules/users/entities/user.entity';
 import { Role } from '../../src/modules/users/roles';
 import { demoToken, startChainApp, waitForDemoAccounts } from './chain-app';
+import { travel as chainTravel } from './chain-time';
 
 const RUN = randomBytes(4).toString('hex').toUpperCase();
 
@@ -61,10 +61,7 @@ export async function boot(env: Record<string, string>) {
     ).body.data.id as number;
   };
   const travel = async (seconds: number) => {
-    const provider = chain.app.get(ContractsRegistry).provider;
-    await provider.send('evm_increaseTime', [seconds]);
-    await provider.send('evm_mine', []);
-    await new Promise((r) => setTimeout(r, 1100)); // the app's chain clock caches for a second
+    return chainTravel(chain.app, seconds);
   };
   return { chain, t, as, unpaidReservation, travel };
 }

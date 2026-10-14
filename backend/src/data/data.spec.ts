@@ -1,4 +1,8 @@
+import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runIdCheck } from '../modules/participants/id-check/id-check';
+import { writeCredentials } from './credentials-file';
 import { CsvFormatError, readCsv } from './csv-read';
 import { IMPORT_FILES } from './import/import-files';
 import { buildDataset } from './seed/dataset';
@@ -137,4 +141,33 @@ describe('buildDataset', () => {
       ).toBe(true);
     },
   );
+});
+
+describe('writeCredentials', () => {
+  it('writes one-time passwords readable only by the owner, never over another file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wegro-creds-'));
+    try {
+      const people = [
+        {
+          id: 'P1',
+          role: 'farmer',
+          fullName: 'Rahim Uddin',
+          phone: '+8801711000001',
+          temporaryPassword: 'Kp7w-Xq3m-Rt9z',
+        },
+      ];
+      const file = writeCredentials(dir, 'sample-credentials', people);
+      expect(file).toMatch(/sample-credentials-\d{4}-.*\.csv$/);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      expect(readCsv(readFileSync(file, 'utf8')).rows[0].values).toEqual({
+        id: 'P1',
+        role: 'farmer',
+        full_name: 'Rahim Uddin',
+        phone: '+8801711000001',
+        temporary_password: 'Kp7w-Xq3m-Rt9z',
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

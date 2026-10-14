@@ -1,5 +1,9 @@
 import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
+/** ok / failed: the response's status; aborted: the client left first (status 499). */
+export const AUDIT_OUTCOMES = ['ok', 'failed', 'aborted'] as const;
+export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number];
+
 /**
  * Every write request: who, what, on which record, and the result. No
  * request bodies, so no personal data. Append-only: a database trigger
@@ -9,7 +13,7 @@ import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index('ix_audit_log_at', ['at'])
 @Index('ix_audit_log_actor', ['actorId', 'at'])
 @Index('ix_audit_log_route', ['route', 'at'])
-@Check('ck_audit_log_outcome', `"outcome" IN ('ok', 'failed')`)
+@Check('ck_audit_log_outcome', `"outcome" IN ('ok', 'failed', 'aborted')`)
 export class AuditLog {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id: string;
@@ -37,8 +41,8 @@ export class AuditLog {
   @Column({ type: 'smallint' })
   statusCode: number;
 
-  @Column({ type: 'varchar', length: 6 })
-  outcome: 'ok' | 'failed';
+  @Column({ type: 'varchar', length: 8 })
+  outcome: AuditOutcome;
 
   @Column({ type: 'varchar', length: 64, nullable: true })
   requestId: string | null;

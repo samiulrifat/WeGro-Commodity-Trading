@@ -45,6 +45,7 @@ describe('Local reset (node + database)', () => {
     seedScale: null,
     importFolder: folder,
     contractsDir: join(__dirname, '..', '..', 'contracts'),
+    credentialsDir: work,
     skipDeploy: true,
     log: () => undefined,
     ...over,

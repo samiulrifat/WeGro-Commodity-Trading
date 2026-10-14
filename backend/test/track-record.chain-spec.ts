@@ -17,6 +17,7 @@ import {
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
+import { travel as chainTravel } from './support/chain-time';
 
 const RUN = randomBytes(4).toString('hex').toUpperCase();
 const DAY = 86_400;
@@ -79,10 +80,7 @@ describe('Track record and bank permission (node + database)', () => {
   }
 
   async function travel(seconds: number) {
-    const provider = chain.app.get(ContractsRegistry).provider;
-    await provider.send('evm_increaseTime', [seconds]);
-    await provider.send('evm_mine', []);
-    await new Promise((r) => setTimeout(r, 1100)); // the app's chain clock caches for a second
+    return chainTravel(chain.app, seconds);
   }
 
   async function registerAccounts(): Promise<string> {

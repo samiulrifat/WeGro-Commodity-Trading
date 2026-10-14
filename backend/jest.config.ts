@@ -27,8 +27,9 @@ const config: Config = {
     'libs/**/*.(t|j)s',
     'apps/**/*.(t|j)s',
   ],
-  coverageDirectory: './coverage',
+  coverageDirectory: './coverage/unit',
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/test/support/quiet-logger.ts'],
 };
 
 export default config;

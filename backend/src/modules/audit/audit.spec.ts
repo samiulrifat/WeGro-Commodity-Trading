@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { id } from 'ethers';
@@ -17,8 +18,11 @@ import { AuditAction, Roles } from '../auth/decorators';
 import { RolesGuard } from '../auth/guards';
 import { ChainState } from '../users/entities/user.entity';
 import { CHAIN_ROLE, ParticipantStatus, Role } from '../users/roles';
+import type { AuditLog } from './entities/audit-log.entity';
 import { hasTitle, readableArgs } from './history/event-format';
 import { HISTORY_TYPES } from './history/history-types';
+import { AuditLogMiddleware } from './log/audit-log.middleware';
+import { AuditLogService } from './log/audit-log.service';
 
 const ABIS = {
   AccessRegistry: AccessRegistry__factory.abi,
@@ -163,5 +167,106 @@ describe('auditors only read', () => {
   it('allows the writes marked as audit actions', () => {
     const sweep = route(Roles(Role.Auditor), AuditAction());
     expect(guard.canActivate(context('POST', sweep))).toBe(true);
+  });
+});
+
+describe('write-request log', () => {
+  const request = (method = 'POST') =>
+    Object.assign(new EventEmitter(), {
+      method,
+      path: '/api/projects/7/publish',
+      route: { path: '/api/projects/:id/publish' },
+      params: { id: '7' },
+      id: 'req-1',
+      user: { id: 'u-1', role: 'admin' },
+    });
+  const response = (statusCode = 201) =>
+    Object.assign(new EventEmitter(), { statusCode, writableFinished: false });
+
+  const setup = () => {
+    const recorded: Array<Omit<AuditLog, 'id' | 'at'>> = [];
+    const audit = {
+      record: (entry: Omit<AuditLog, 'id' | 'at'>) => recorded.push(entry),
+    } as unknown as AuditLogService;
+    const middleware = new AuditLogMiddleware(audit);
+    const run = (req = request(), res = response()) => {
+      const next = jest.fn();
+      middleware.use(req as never, res as never, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      return res;
+    };
+    return { recorded, run };
+  };
+
+  it('logs a finished write once, with route, ids, status and outcome', () => {
+    const { recorded, run } = setup();
+    const res = run(request(), response(403));
+    res.emit('finish');
+    res.writableFinished = true;
+    res.emit('close');
+    expect(recorded).toEqual([
+      expect.objectContaining({
+        actorId: 'u-1',
+        role: 'admin',
+        method: 'POST',
+        route: '/api/projects/:id/publish',
+        params: { id: '7' },
+        statusCode: 403,
+        outcome: 'failed',
+        requestId: 'req-1',
+      }),
+    ]);
+  });
+
+  it('logs a write the client abandoned as aborted (499)', () => {
+    const { recorded, run } = setup();
+    run().emit('close');
+    expect(recorded).toEqual([
+      expect.objectContaining({ statusCode: 499, outcome: 'aborted' }),
+    ]);
+  });
+
+  it('leaves reads out', () => {
+    const { recorded, run } = setup();
+    const res = run(request('GET'));
+    res.emit('finish');
+    expect(recorded).toEqual([]);
+  });
+
+  it('waits at shutdown for every entry still being saved', async () => {
+    let finish!: () => void;
+    const insert = jest.fn(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    const service = new AuditLogService({ insert } as never, {} as never);
+    service.record({} as never, 'POST /x');
+    let closed = false;
+    const shutdown = service.onApplicationShutdown().then(() => {
+      closed = true;
+    });
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    finish();
+    await shutdown;
+    expect(closed).toBe(true);
+    expect(insert).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs a failed save instead of throwing', async () => {
+    const service = new AuditLogService(
+      { insert: () => Promise.reject(new Error('db down')) } as never,
+      {} as never,
+    );
+    const error = jest
+      .spyOn(
+        (service as unknown as { logger: { error: () => void } }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+    service.record({} as never, 'POST /x [req-1]');
+    await service.onApplicationShutdown();
+    expect(error).toHaveBeenCalledWith(
+      'Could not log POST /x [req-1]: db down',
+    );
   });
 });

@@ -9,6 +9,7 @@ import { DataSource } from 'typeorm';
 import { configureApp } from '../../src/app.setup';
 import { KEY_INDEX_SEQUENCE } from '../../src/blockchain/keys/key.service';
 import { SnakeNamingStrategy } from '../../src/database/snake-naming.strategy';
+import { indexFromHere } from './chain-head';
 
 /**
  * Boots the real AppModule against the local chain and a throwaway database
@@ -47,7 +48,9 @@ export async function startChainApp(
   );
   await setup.destroy();
 
+  const start = await indexFromHere(fileEnv.CHAIN_RPC_URL);
   Object.assign(process.env, {
+    CHAIN_START_BLOCK: start,
     INDEXER_ENABLED: 'false',
     JOBS_ENABLED: 'false',
     THROTTLE_LIMIT: '100000',
@@ -64,7 +67,8 @@ export async function startChainApp(
     logger: ['error'],
   });
   configureApp(app);
-  await app.init();
+  // Listening once: supertest otherwise starts a listener per request.
+  await app.listen(0, '127.0.0.1');
 
   return {
     app,

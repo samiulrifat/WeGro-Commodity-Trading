@@ -23,6 +23,11 @@ const INSERT_CHUNK = 500;
 /** Blocks per pass when filling in senders of events indexed before senders were kept. */
 const SENDER_FILL_BLOCKS = 50;
 const MAX_BACKOFF_MS = 30_000;
+/**
+ * Block fetches in flight at once (four JSON-RPC batches of 100). Firing a
+ * whole range at once opens dozens of connections, and nodes drop them.
+ */
+const BLOCK_FETCH_WAVE = 400;
 
 export interface IndexerStatus {
   enabled: boolean;
@@ -42,7 +47,9 @@ export interface IndexerStatus {
  * and moves the checkpoint. A crash mid-batch therefore leaves nothing half
  * done. If the chain is found rewritten below the checkpoint, everything is
  * rebuilt from the deployment block. Blocks with logs are fetched with their
- * transactions, which gives each event's sender at no extra cost.
+ * transactions, which gives each event's sender at no extra cost. A failed
+ * pass halves the next range (down to one block) and successes grow it back,
+ * so a range the node will not serve in one go cannot stall indexing.
  */
 @Injectable()
 export class EventIndexerService
@@ -61,6 +68,8 @@ export class EventIndexerService
   private current?: Promise<number>;
   private failures = 0;
   private lastError: string | null = null;
+  /** Blocks per pass now: INDEXER_BATCH_BLOCKS, less after failures. */
+  private span: number;
 
   constructor(
     config: ConfigService<EnvironmentVariables, true>,
@@ -71,6 +80,7 @@ export class EventIndexerService
     this.enabled = config.get('INDEXER_ENABLED', { infer: true });
     this.pollMs = config.get('INDEXER_POLL_MS', { infer: true });
     this.batchBlocks = config.get('INDEXER_BATCH_BLOCKS', { infer: true });
+    this.span = this.batchBlocks;
     this.confirmations = config.get('INDEXER_CONFIRMATIONS', { infer: true });
     this.configuredStart = config.get('CHAIN_START_BLOCK', { infer: true });
   }
@@ -196,7 +206,20 @@ export class EventIndexerService
     const safeHead = head - this.confirmations;
     const from = state ? state.lastBlock + 1 : await this.startBlock();
     if (from > safeHead) return 0;
-    const to = Math.min(safeHead, from + this.batchBlocks - 1);
+    const to = Math.min(safeHead, from + this.span - 1);
+    try {
+      await this.indexRange(from, to);
+    } catch (error) {
+      if (this.span > 1) this.span = Math.max(1, Math.floor(this.span / 2));
+      throw error;
+    }
+    this.span = Math.min(this.batchBlocks, this.span * 2);
+    return to - from + 1;
+  }
+
+  /** One range: logs, their blocks, then events and checkpoint in one transaction. */
+  private async indexRange(from: number, to: number): Promise<void> {
+    const provider = this.registry.provider;
 
     // One call for every platform contract over the whole range.
     const logs = await provider.getLogs({
@@ -206,18 +229,20 @@ export class EventIndexerService
     });
 
     // Blocks we need: those with logs (for timestamps and, with their
-    // transactions, senders) and `to` (checkpoint hash). Fetched in parallel;
-    // ethers sends them as one JSON-RPC batch.
+    // transactions, senders) and `to` (checkpoint hash). Fetched in waves;
+    // within a wave ethers groups the calls into JSON-RPC batches.
     const withLogs = new Set(logs.map((l) => l.blockNumber));
     const needed = [...new Set([...withLogs, to])];
     const blocks = new Map<number, Block>();
-    await Promise.all(
-      needed.map(async (n) => {
-        const block = await provider.getBlock(n, withLogs.has(n));
-        if (!block?.hash) throw new Error(`Block ${n} not available`);
-        blocks.set(n, block);
-      }),
-    );
+    for (let i = 0; i < needed.length; i += BLOCK_FETCH_WAVE) {
+      await Promise.all(
+        needed.slice(i, i + BLOCK_FETCH_WAVE).map(async (n) => {
+          const block = await provider.getBlock(n, withLogs.has(n));
+          if (!block?.hash) throw new Error(`Block ${n} not available`);
+          blocks.set(n, block);
+        }),
+      );
+    }
 
     // Only blocks fetched with their transactions can name senders.
     const senders = sendersOf([...withLogs].map((n) => blocks.get(n)!));
@@ -237,7 +262,6 @@ export class EventIndexerService
     if (events.length > 0) {
       this.logger.log(`Indexed blocks ${from}-${to}: ${events.length} events`);
     }
-    return to - from + 1;
   }
 
   private decode(

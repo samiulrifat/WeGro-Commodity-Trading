@@ -8,6 +8,7 @@
  * database: reset first to load it again (npm run data:reset).
  */
 import { parseArgs } from 'node:util';
+import { writeCredentials } from '../data/credentials-file';
 import { SEED_SIZES as SIZES, Seeder } from '../data/seed/seeder';
 import { appContext, fail } from './app-context';
 import { assertLocal, loadEnv } from './local-only';
@@ -26,9 +27,15 @@ async function main(): Promise<void> {
       scale,
       log: (m) => console.log(m),
     }).run();
+    const file = writeCredentials(
+      process.cwd(),
+      'sample-credentials',
+      summary.credentials,
+    );
     console.log(
       `Sample data loaded: ${summary.people} people, ${summary.projects} projects.`,
     );
+    console.log(`Sign-in details (one-time passwords): ${file}`);
     for (const [story, n] of Object.entries(summary.stories))
       console.log(`  ${story}: ${n}`);
     if (summary.skipped.length)

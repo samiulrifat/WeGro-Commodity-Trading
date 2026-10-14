@@ -15,6 +15,7 @@ import {
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
+import { travel } from './support/chain-time';
 
 // The ledger never accepts a payment reference twice, across runs too: make them unique.
 const RUN = randomBytes(4).toString('hex').toUpperCase();
@@ -91,11 +92,7 @@ describe('Projects (node + database)', () => {
   });
 
   async function chainTimeTravel(seconds: number) {
-    const provider = chain.app.get(ContractsRegistry).provider;
-    await provider.send('evm_increaseTime', [seconds]);
-    await provider.send('evm_mine', []);
-    // The app reads the chain clock through a one-second cache.
-    await new Promise((r) => setTimeout(r, 1100));
+    return travel(chain.app, seconds);
   }
 
   let projectId: string;

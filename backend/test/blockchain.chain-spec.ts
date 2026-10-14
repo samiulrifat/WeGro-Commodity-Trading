@@ -6,9 +6,10 @@
  * uses fresh ids and key indexes, so runs never collide on the shared node.
  */
 import { randomInt, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseEnv } from 'node:util';
 import type { INestApplicationContext } from '@nestjs/common';
-import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -29,6 +30,7 @@ import {
   validateEnv,
 } from '../src/config/env.validation';
 import { SnakeNamingStrategy } from '../src/database/snake-naming.strategy';
+import { indexFromHere } from './support/chain-head';
 
 const SCHEMA = `chain_test_${process.pid}`;
 const OPERATOR = KeyService.OPERATOR_INDEX;
@@ -40,26 +42,24 @@ const details = (id: string) => fingerprint('participant', { id });
 
 process.env.INDEXER_ENABLED = 'false';
 
-@Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<EnvironmentVariables, true>) => ({
-        type: 'postgres' as const,
-        url: config.get('DATABASE_URL', { infer: true }),
-        autoLoadEntities: true,
-        synchronize: false,
-        migrations: [join(__dirname, '../src/database/migrations/*.ts')],
-        migrationsRun: true,
-        namingStrategy: new SnakeNamingStrategy(),
-        extra: { options: `-c search_path=${SCHEMA}` },
-      }),
+/** Built only once the environment is final: ConfigModule reads it in forRoot. */
+const chainTestImports = () => [
+  ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+  TypeOrmModule.forRootAsync({
+    inject: [ConfigService],
+    useFactory: (config: ConfigService<EnvironmentVariables, true>) => ({
+      type: 'postgres' as const,
+      url: config.get('DATABASE_URL', { infer: true }),
+      autoLoadEntities: true,
+      synchronize: false,
+      migrations: [join(__dirname, '../src/database/migrations/*.ts')],
+      migrationsRun: true,
+      namingStrategy: new SnakeNamingStrategy(),
+      extra: { options: `-c search_path=${SCHEMA}` },
     }),
-    BlockchainModule,
-  ],
-})
-class ChainTestModule {}
+  }),
+  BlockchainModule,
+];
 
 describe('Blockchain layer (node + database)', () => {
   let app: INestApplicationContext;
@@ -80,18 +80,23 @@ describe('Blockchain layer (node + database)', () => {
   }
 
   beforeAll(async () => {
+    // Only this run's blocks: the deployment-block search has unit tests.
+    const fileEnv = parseEnv(
+      readFileSync(join(__dirname, '..', '.env'), 'utf8'),
+    );
+    process.env.CHAIN_START_BLOCK = await indexFromHere(fileEnv.CHAIN_RPC_URL);
+    const imports = chainTestImports(); // also loads .env into process.env
+
     // Throwaway schema first, so the migrations run inside it.
     const setup = new DataSource({
       type: 'postgres',
-      url: process.env.DATABASE_URL ?? readDatabaseUrl(),
+      url: process.env.DATABASE_URL,
     });
     await setup.initialize();
     await setup.query(`CREATE SCHEMA "${SCHEMA}"`);
     await setup.destroy();
 
-    const moduleRef = await Test.createTestingModule({
-      imports: [ChainTestModule],
-    }).compile();
+    const moduleRef = await Test.createTestingModule({ imports }).compile();
     moduleRef.useLogger(false);
     app = await moduleRef.init();
 
@@ -113,7 +118,7 @@ describe('Blockchain layer (node + database)', () => {
     await app?.close();
     const teardown = new DataSource({
       type: 'postgres',
-      url: process.env.DATABASE_URL ?? readDatabaseUrl(),
+      url: process.env.DATABASE_URL,
     });
     await teardown.initialize();
     await teardown.query(`DROP SCHEMA IF EXISTS "${SCHEMA}" CASCADE`);
@@ -343,7 +348,3 @@ describe('Blockchain layer (node + database)', () => {
 });
 
 /** DATABASE_URL from .env, for the schema setup that runs before Nest loads it. */
-function readDatabaseUrl(): string {
-  process.loadEnvFile(join(__dirname, '..', '.env'));
-  return process.env.DATABASE_URL!;
-}

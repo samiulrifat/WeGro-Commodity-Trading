@@ -69,5 +69,5 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 5: Quality and handover
 
-- [ ] 27. Tests: unit tests per service, end-to-end tests with Supertest against a local Hardhat node
-- [ ] 28. Docs: setup notes and README
+- [x] 27. Tests: unit tests for every service (498), HTTP pipeline e2e (15), end-to-end through HTTP, contracts and database (247), contracts (261, 100% line coverage); fixes found by the run: bounded indexer fetches with adaptive range, no overlapping queries in transactions (guarded in the chain suite), audit log flushed at shutdown and aborted requests logged; chain tests index only their own blocks
+- [x] 28. Docs: root, backend and contracts READMEs (setup, settings, data tools, operations, tests, troubleshooting), backend/.env.example with no usable values

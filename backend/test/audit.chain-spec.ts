@@ -2,7 +2,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { ContractsRegistry } from '../src/blockchain/contracts.registry';
 import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
 import { uuidToBytes32 } from '../src/blockchain/utils/ids';
 import { SweepService } from '../src/modules/audit/verify/sweep.service';
@@ -15,6 +14,7 @@ import {
   startChainApp,
   waitForDemoAccounts,
 } from './support/chain-app';
+import { travel as chainTravel } from './support/chain-time';
 
 const RUN = randomBytes(4).toString('hex').toUpperCase();
 
@@ -52,10 +52,7 @@ describe('Audit (node + database)', () => {
     ).body as { data: Entry[]; meta: { total: number } };
 
   async function travel(seconds: number) {
-    const provider = chain.app.get(ContractsRegistry).provider;
-    await provider.send('evm_increaseTime', [seconds]);
-    await provider.send('evm_mine', []);
-    await new Promise((r) => setTimeout(r, 1100)); // the app's chain clock caches for a second
+    return chainTravel(chain.app, seconds);
   }
 
   /** Audit rows are written once the response has gone; wait for them. */

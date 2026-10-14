@@ -28,4 +28,9 @@ export class ChainClock {
     }
     return this.cached.value;
   }
+
+  /** Drops the shared reading: the chain's clock jumped (Hardhat time travel). */
+  forget(): void {
+    this.cached = undefined;
+  }
 }

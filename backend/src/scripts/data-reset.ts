@@ -66,6 +66,7 @@ async function main(): Promise<void> {
     seedScale: scale,
     importFolder: values.import ?? null,
     contractsDir: values['contracts-dir'],
+    credentialsDir: process.cwd(),
     skipDeploy: values['skip-deploy'],
     log: (m) => console.log(m),
   }).catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));

@@ -257,6 +257,13 @@ describe('Data tools (node + database)', () => {
       const seeder = new Seeder(chain.app, { scale: 1, log: () => undefined });
       const summary = await seeder.run();
       expect(summary.skipped).toEqual([]);
+      // Everyone can sign in: one one-time password per sample person.
+      expect(summary.credentials).toHaveLength(summary.people);
+      expect(
+        summary.credentials.every((c) =>
+          /^\w{4}-\w{4}-\w{4}$/.test(c.temporaryPassword),
+        ),
+      ).toBe(true);
       expect(summary.stories).toMatchObject({
         'inputs-and-claim': 1,
         'stored-and-paid-out': 1,
