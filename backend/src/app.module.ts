@@ -8,15 +8,19 @@ import {
 } from './config/env.validation';
 import { BlockchainModule } from './blockchain/blockchain.module';
 import { CryptoModule } from './common/crypto/crypto.module';
+import { DataModule } from './data/data.module';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AUTH_THROTTLE } from './modules/auth/decorators';
 import { JwtAuthGuard, RolesGuard } from './modules/auth/guards';
 import { FieldRecordsModule } from './modules/field-records/field-records.module';
 import { HealthModule } from './modules/health/health.module';
+import { JobsModule } from './modules/jobs/jobs.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { InsuranceModule } from './modules/insurance/insurance.module';
 import { ParticipantsModule } from './modules/participants/participants.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -71,6 +75,10 @@ import { WarehouseModule } from './modules/warehouse/warehouse.module';
     SettlementModule,
     TrackRecordModule,
     AuditModule,
+    DashboardModule,
+    NotificationsModule,
+    JobsModule,
+    DataModule,
     HealthModule,
   ],
   // In this order: rate limit, then authenticate, then check the role.

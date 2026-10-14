@@ -33,6 +33,8 @@ import { Listing } from './listing.entity';
   `"status" IS NULL OR "status" IN ('pending', 'withdrawn', 'rejected', 'approved', 'cancelled', 'expired', 'paid', 'delivered')`,
 )
 @Check('ck_offers_amounts', `"quantity" > 0 AND "unit_price" > 0`)
+@Index('ix_offers_pending', ['madeAt'], { where: `"status" = 'pending'` })
+@Index('ix_offers_paid', ['paidAt'], { where: `"status" = 'paid'` })
 export class Offer {
   @PrimaryColumn({ type: 'bigint', transformer: numericBigintTransformer })
   id: number;

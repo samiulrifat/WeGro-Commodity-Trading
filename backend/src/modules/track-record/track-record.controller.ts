@@ -33,6 +33,7 @@ import {
   BankViewDto,
   ConsentDto,
   GrantConsentDto,
+  ImportedProjectDto,
   ListBankFarmersQueryDto,
   ListBanksQueryDto,
   ListViewsQueryDto,
@@ -158,6 +159,20 @@ export class TrackRecordController {
     @Param('version', version) v: number,
   ): Promise<TrackRecordDto> {
     return this.records.record(actor, farmerId, v);
+  }
+
+  @Get('farmers/:farmerId/history')
+  @Roles(...FARMER_READERS)
+  @ApiOkResponse({
+    type: [ImportedProjectDto],
+    description:
+      'Projects finished before the platform, imported from WeGro records; not on the ledger',
+  })
+  importedHistory(
+    @CurrentUser() actor: AuthUser,
+    @Param('farmerId', uuid) farmerId: string,
+  ): Promise<ImportedProjectDto[]> {
+    return this.records.importedHistory(actor, farmerId);
   }
 
   // --- Consent ---

@@ -34,6 +34,9 @@ import { ClaimStatus } from '../insurance.enums';
   'ck_insurance_claims_amount',
   `("approved_amount" IS NULL) OR ("approved_amount" > 0 AND "status" = 'approved')`,
 )
+@Index('ix_insurance_claims_open', ['openedAt'], {
+  where: `"status" IN ('triggered', 'under_review')`,
+})
 export class InsuranceClaim {
   @PrimaryColumn({ type: 'uuid' })
   id: string;

@@ -28,6 +28,9 @@ export interface IndexerStatus {
   enabled: boolean;
   lastBlock: number | null;
   running: boolean;
+  /** Consecutive failed passes; 0 once a pass succeeds. */
+  failures: number;
+  lastError: string | null;
 }
 
 /**
@@ -57,6 +60,7 @@ export class EventIndexerService
   private stopped = true;
   private current?: Promise<number>;
   private failures = 0;
+  private lastError: string | null = null;
 
   constructor(
     config: ConfigService<EnvironmentVariables, true>,
@@ -99,6 +103,8 @@ export class EventIndexerService
       enabled: this.enabled,
       lastBlock: state?.lastBlock ?? null,
       running: !this.stopped,
+      failures: this.failures,
+      lastError: this.lastError,
     };
   }
 
@@ -144,11 +150,14 @@ export class EventIndexerService
       this.tick()
         .then((covered) => {
           this.failures = 0;
+          this.lastError = null;
           // Behind the head: continue at once. Caught up: wait for new blocks.
           this.schedule(covered > 0 ? 0 : this.pollMs);
         })
         .catch((error: unknown) => {
           this.failures++;
+          this.lastError =
+            error instanceof Error ? error.message : String(error);
           const backoff = Math.min(
             this.pollMs * 2 ** this.failures,
             MAX_BACKOFF_MS,

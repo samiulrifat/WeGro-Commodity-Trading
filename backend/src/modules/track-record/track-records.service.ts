@@ -45,6 +45,7 @@ import { SummaryView } from './entities/summary-view.entity';
 import { TrackRecord } from './entities/track-record.entity';
 import { consentFingerprint } from './track-record-fingerprints';
 import {
+  type ImportedProject,
   summaryFingerprint,
   type TrackRecordSummary,
   TrackRecordBuilder,
@@ -202,6 +203,15 @@ export class TrackRecordsService {
       summary: row.summary,
       verified: matches(row, onChain.summaryHash),
     };
+  }
+
+  /** Finished projects imported from WeGro's records (off the ledger). */
+  async importedHistory(
+    actor: AuthUser,
+    farmerId: string,
+  ): Promise<ImportedProject[]> {
+    await this.visibleFarmer(actor, farmerId);
+    return this.builder.importedHistory(farmerId);
   }
 
   // --- Consent ---
@@ -619,6 +629,11 @@ function matches(row: TrackRecord, ledgerHash: string): boolean {
 /** Same farmer, projects and totals: publishing again would add nothing. */
 function sameContent(a: TrackRecordSummary, b: TrackRecordSummary): boolean {
   const content = (s: TrackRecordSummary) =>
-    canonicalJson({ farmer: s.farmer, projects: s.projects, totals: s.totals });
+    canonicalJson({
+      farmer: s.farmer,
+      projects: s.projects,
+      totals: s.totals,
+      importedHistory: s.importedHistory ?? [],
+    });
   return content(a) === content(b);
 }

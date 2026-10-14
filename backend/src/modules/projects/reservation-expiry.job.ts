@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
@@ -10,28 +9,27 @@ import {
   TransactionService,
 } from '../../blockchain/tx/transaction.service';
 import { ExpiryJob } from '../../common/jobs/expiry-job';
-import type { EnvironmentVariables } from '../../config/env.validation';
+import { ScheduledJob } from '../../common/jobs/scheduled-job';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationStatus } from './project.enums';
 
 /** Releases unpaid reservations past their deadline, returning their slots. */
 @Injectable()
+@ScheduledJob({
+  name: 'reservation-expiry',
+  description:
+    'Releases unpaid reservations past their deadline, returning their slots',
+  every: 'EXPIRY_SWEEP_MS',
+})
 export class ReservationExpiryJob extends ExpiryJob<number> {
   constructor(
-    config: ConfigService<EnvironmentVariables, true>,
     clock: ChainClock,
     receipts: ReceiptApplier,
     @InjectRepository(Reservation)
     private readonly reservations: Repository<Reservation>,
     private readonly tx: TransactionService,
   ) {
-    super(
-      ReservationExpiryJob.name,
-      config.get('JOBS_ENABLED', { infer: true }),
-      config.get('EXPIRY_SWEEP_MS', { infer: true }),
-      clock,
-      receipts,
-    );
+    super(ReservationExpiryJob.name, clock, receipts);
   }
 
   protected async dueIds(chainNow: Date, limit: number): Promise<number[]> {

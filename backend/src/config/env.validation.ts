@@ -199,6 +199,24 @@ export class EnvironmentVariables {
   @Min(1000)
   EXPIRY_SWEEP_MS: number = 60_000;
 
+  /** How often time-based reminders (deadlines, inactivity, expiring storage) are sent. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  REMINDER_SWEEP_MS: number = 300_000;
+
+  /** How often the indexer watchdog checks that the database keeps up with the ledger. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  WATCHDOG_INTERVAL_MS: number = 300_000;
+
+  /** Blocks the indexer may fall behind the chain before admins are notified. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  WATCHDOG_LAG_BLOCKS: number = 100;
+
   /** The frontend's address: QR codes link to pages under it. */
   @IsUrl({ protocols: ['http', 'https'], require_tld: false })
   PUBLIC_APP_URL: string = 'http://localhost:5173';

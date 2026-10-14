@@ -37,6 +37,9 @@ export enum BankAccountStatus {
   'ck_bank_accounts_status',
   `"status" IN ('pending', 'verified', 'rejected', 'superseded')`,
 )
+@Index('ix_bank_accounts_pending', ['createdAt'], {
+  where: `"status" = 'pending'`,
+})
 export class BankAccount {
   @PrimaryColumn({ type: 'uuid' })
   id: string;

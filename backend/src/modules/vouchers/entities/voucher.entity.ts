@@ -34,6 +34,12 @@ import { VoucherStatus } from '../voucher.enums';
   'ck_vouchers_inactivity',
   `"inactivity_limit_days" IS NULL OR "inactivity_limit_days" BETWEEN 1 AND 3650`,
 )
+@Index('ix_vouchers_proposed', ['proposedAt'], {
+  where: `"status" = 'proposed'`,
+})
+@Index('ix_vouchers_inactivity', ['lastActivityAt'], {
+  where: `"status" = 'active' AND "inactivity_limit_days" IS NOT NULL`,
+})
 export class Voucher extends BaseEntity {
   @Column({ type: 'uuid' })
   projectId: string;

@@ -28,3 +28,14 @@ export const bdLastDay = (endSeconds: number): string =>
 export function isPastDay(date: string | null, now: Date): boolean {
   return date !== null && now.getTime() / 1000 >= bdDayEnd(date);
 }
+
+/** A calendar date plus whole months, clamped to the month's last day (Jan 31 + 1 = Feb 28). */
+export function addMonths(date: string, months: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}

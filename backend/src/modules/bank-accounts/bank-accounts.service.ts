@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -13,6 +14,11 @@ import { Paginated } from '../../common/dto/pagination.dto';
 import type { AuthUser } from '../auth/auth-user';
 import { ProjectViews } from '../projects/project-views';
 import { User } from '../users/entities/user.entity';
+import { NotificationCategory } from '../notifications/notification.enums';
+import {
+  type Note,
+  NotificationWriter,
+} from '../notifications/notification-writer';
 import { Role } from '../users/roles';
 import type {
   BankAccountDto,
@@ -46,6 +52,8 @@ export interface BankDetails {
  */
 @Injectable()
 export class BankAccountsService {
+  private readonly logger = new Logger(BankAccountsService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(BankAccount)
@@ -53,6 +61,7 @@ export class BankAccountsService {
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly crypto: IdentityCryptoService,
     private readonly views: ProjectViews,
+    private readonly writer: NotificationWriter,
   ) {}
 
   /** Enters new details for a payee; they wait for an admin, replacing any still waiting. */
@@ -104,6 +113,13 @@ export class BankAccountsService {
         }
         throw error;
       });
+    await this.notify(await this.admins([actor.id]), {
+      category: NotificationCategory.Action,
+      kind: 'bank-account.submitted',
+      title: 'Bank details awaiting verification',
+      subject: { type: 'participant', id: userId },
+      key: `bank:${id}:submitted`,
+    });
     return this.forUser(actor, userId);
   }
 
@@ -136,6 +152,13 @@ export class BankAccountsService {
         throw new ConflictException('The details changed meanwhile; try again');
       }
     });
+    await this.notify([userId], {
+      category: NotificationCategory.Outcome,
+      kind: 'bank-account.verified',
+      title: 'Your bank details are verified: payouts will go there',
+      subject: { type: 'participant', id: userId },
+      key: `bank:${pending.id}:verified`,
+    });
     return this.forUser(actor, userId);
   }
 
@@ -157,6 +180,14 @@ export class BankAccountsService {
     if (done.affected !== 1) {
       throw new ConflictException('The details changed meanwhile; try again');
     }
+    await this.notify([userId], {
+      category: NotificationCategory.Outcome,
+      kind: 'bank-account.rejected',
+      title: 'Your new bank details were not accepted',
+      body: reason,
+      subject: { type: 'participant', id: userId },
+      key: `bank:${pending.id}:rejected`,
+    });
     return this.forUser(actor, userId);
   }
 
@@ -250,6 +281,21 @@ export class BankAccountsService {
   }
 
   // --- Internals ---
+
+  /** Best effort: the change itself stands even if the notice fails. */
+  private async notify(to: string[], note: Note): Promise<void> {
+    try {
+      await this.writer.send(this.dataSource.manager, to, note);
+    } catch (error) {
+      this.logger.error(
+        `Notification ${note.kind} failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private admins(except: string[]): Promise<string[]> {
+    return this.writer.withRole(this.dataSource.manager, [Role.Admin], except);
+  }
 
   private async requirePayee(userId: string): Promise<void> {
     const user = await this.users.findOne({

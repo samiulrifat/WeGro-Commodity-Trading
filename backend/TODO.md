@@ -62,10 +62,10 @@ Build in order: each phase depends on the ones above it.
 ## Phase 4: Cross-cutting
 
 - [x] 22. History and audit: full history per record from indexed events (with each transaction's sender), Verify per record and full sweep, append-only audit log of write requests, auditor read-only access
-- [ ] 23. Admin dashboard: funding progress, active projects, approvals waiting
-- [ ] 24. Notifications: in-app reminders (voucher inactivity, reservations about to expire)
-- [ ] 25. Scheduled jobs: expire reservations and voucher sales, send reminders
-- [ ] 26. Data: one ingestion entry point for real WeGro data later, a repeatable sample-data seeder, full reset and reload script
+- [x] 23. Admin dashboard: funding progress, active projects, stages, role-tailored approval queues (count + oldest 5), all-time figures and 12-month trends (cached 60 s)
+- [x] 24. Notifications: in-app reminders (deadlines 24 h before, voucher inactivity, receipt storage and bank permission 7 days before), action-needed and outcome notices from ledger events and bank details, inbox with unread count, kept forever
+- [x] 25. Scheduled jobs: one scheduler for all jobs (expiries every minute, reminders every 5 minutes, env-tunable, backlogs cleared in one run), job status, history and run-now, indexer watchdog
+- [x] 26. Data: CSV import of real WeGro data (people, catalog, live projects and investments, finished history; dry run by default, resumable), sample-data seeder (showcase or large, every story through the real services), local-only reset and reload
 
 ## Phase 5: Quality and handover
 

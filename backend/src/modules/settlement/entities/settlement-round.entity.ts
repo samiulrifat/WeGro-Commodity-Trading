@@ -23,6 +23,9 @@ import { RoundStatus } from '../settlement.enums';
   'ck_settlement_rounds_split',
   `"farmer_share" + "investor_share" + "wegro_share" <= "profit" AND "paid_count" <= "payee_count"`,
 )
+@Index('ix_settlement_rounds_prepared', ['preparedAt'], {
+  where: `"status" = 'prepared'`,
+})
 export class SettlementRound {
   @PrimaryColumn({ type: 'bigint', transformer: numericBigintTransformer })
   id: number;

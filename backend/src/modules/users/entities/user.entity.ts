@@ -34,6 +34,7 @@ export enum ChainState {
   unique: true,
   where: `"role" = 'super_admin'`,
 })
+@Index('ix_users_pending', ['createdAt'], { where: `"status" = 'pending'` })
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 20 })
   role: Role;

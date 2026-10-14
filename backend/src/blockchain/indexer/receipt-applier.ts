@@ -46,21 +46,50 @@ export class ReceiptApplier {
           details: { txHash: result.hash },
         });
       }
+      await this.announce(result);
       return;
     }
     for (const e of result.events) {
       const handlers = this.handlers.handlersFor(e.contract, e.name);
       if (handlers.length === 0) continue;
-      const event = {
-        contract: e.contract,
-        eventName: e.name,
-        args: toJsonSafe(e.args) as Record<string, unknown>,
-        blockNumber: result.blockNumber,
-        logIndex: e.logIndex,
-        txHash: result.hash,
-        blockTime: result.blockTime,
-      } as ChainEvent;
+      const event = toEvent(result, e);
       for (const handler of handlers) await handler(event, manager);
     }
   }
+
+  /**
+   * Runs the live reactions (notifications) to a transaction whose read-model
+   * update has committed. Callers that pass their own manager to apply() call
+   * this once their transaction commits. Best effort: a failure is logged and
+   * never undoes or fails the action itself.
+   */
+  async announce(result: TxResult): Promise<void> {
+    const work = result.events.flatMap((e) =>
+      this.handlers
+        .liveHandlersFor(e.contract, e.name)
+        .map((h) => [h, toEvent(result, e)] as const),
+    );
+    if (work.length === 0) return;
+    try {
+      await this.dataSource.transaction(async (m) => {
+        for (const [handler, event] of work) await handler(event, m);
+      });
+    } catch (error) {
+      this.logger.error(
+        `Notifications for ${result.hash} failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+}
+
+function toEvent(result: TxResult, e: TxResult['events'][number]): ChainEvent {
+  return {
+    contract: e.contract,
+    eventName: e.name,
+    args: toJsonSafe(e.args) as Record<string, unknown>,
+    blockNumber: result.blockNumber,
+    logIndex: e.logIndex,
+    txHash: result.hash,
+    blockTime: result.blockTime,
+  } as ChainEvent;
 }

@@ -25,7 +25,10 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "contracts:sync": "cd ../contracts && npx hardhat build && cd ../backend && node scripts/sync-contracts.mjs",
-    "user:super-admin": "nest build && node dist/scripts/create-super-admin.js"
+    "user:super-admin": "nest build && node dist/scripts/create-super-admin.js",
+    "data:import": "nest build && node dist/scripts/data-import.js",
+    "data:seed": "nest build && node dist/scripts/data-seed.js",
+    "data:reset": "nest build && node dist/scripts/data-reset.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

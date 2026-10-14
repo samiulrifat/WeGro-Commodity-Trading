@@ -6,7 +6,7 @@ import {
   BD_DISTRICTS,
   isDistrictCode,
 } from '../../common/reference/bd-districts';
-import { bdDate } from '../../common/time/bd-dates';
+import { addMonths, bdDate } from '../../common/time/bd-dates';
 import { CatalogService } from '../catalog/catalog.service';
 import { signedTaka } from '../settlement/settlement-math';
 import { MAX_PROJECTS_PER_RECORD } from './track-record.enums';
@@ -17,7 +17,8 @@ import { MAX_PROJECTS_PER_RECORD } from './track-record.enums';
  * round trip. Money is taka; quantities are in the produce's unit.
  */
 export interface TrackRecordSummary {
-  v: 1;
+  /** 2 added importedHistory; published v1 records stay valid as stored. */
+  v: 1 | 2;
   /** Makes each published version's fingerprint unique. */
   recordId: string;
   generatedAt: string;
@@ -34,6 +35,26 @@ export interface TrackRecordSummary {
     claimsApproved: number;
     claimsApprovedAmount: string;
   };
+  /**
+   * Projects WeGro finished before the platform, from its own records: not
+   * on the ledger and not in the totals above.
+   */
+  importedHistory?: ImportedProject[];
+}
+
+export interface ImportedProject {
+  title: string;
+  produce: { code: string; name: string; unit: string };
+  district: Place;
+  startedOn: string;
+  finishedOn: string;
+  fundingRaised: string;
+  income: string;
+  costs: string;
+  net: string;
+  farmerReceived: string;
+  harvested: string | null;
+  sold: string | null;
 }
 
 interface Place {
@@ -302,9 +323,11 @@ export class TrackRecordBuilder {
       };
     });
 
+    const importedHistory = await this.importedHistory(input.farmer.id);
+
     return {
       summary: {
-        v: 1,
+        v: 2,
         recordId: input.recordId,
         generatedAt: input.now.toISOString(),
         farmer: {
@@ -326,25 +349,79 @@ export class TrackRecordBuilder {
           claimsApproved: totals.claimsApproved,
           claimsApprovedAmount: poishaToTaka(totals.claimsApprovedAmount),
         },
+        importedHistory,
       },
       projectIds: projects.map((p) => p.id),
+    };
+  }
+
+  /** Finished projects imported from WeGro's records, newest first. */
+  async importedHistory(farmerId: string): Promise<ImportedProject[]> {
+    const legacy = await this.dataSource.query<
+      {
+        title: string;
+        produce_code: string;
+        district_code: string;
+        started_on: string;
+        finished_on: string;
+        funding_raised: string;
+        income: string;
+        costs: string;
+        farmer_received: string;
+        harvested: string | null;
+        sold: string | null;
+      }[]
+    >(
+      `SELECT title, produce_code, district_code, to_char(started_on, 'YYYY-MM-DD') AS started_on,
+              to_char(finished_on, 'YYYY-MM-DD') AS finished_on, funding_raised::text, income::text,
+              costs::text, farmer_received::text, trim_scale(harvested)::text AS harvested,
+              trim_scale(sold)::text AS sold
+         FROM legacy_projects WHERE farmer_id = $1 ORDER BY finished_on DESC, id`,
+      [farmerId],
+    );
+    return legacy.map((l) => this.imported(l));
+  }
+
+  /** An imported project as shown: money in taka, names from the catalog. */
+  imported(l: {
+    title: string;
+    produce_code: string;
+    district_code: string;
+    started_on: string;
+    finished_on: string;
+    funding_raised: string;
+    income: string;
+    costs: string;
+    farmer_received: string;
+    harvested: string | null;
+    sold: string | null;
+  }): ImportedProject {
+    const produce = this.catalog.produceTypes.get(l.produce_code);
+    return {
+      title: l.title,
+      produce: {
+        code: l.produce_code,
+        name: produce?.name ?? l.produce_code,
+        unit: produce
+          ? (this.catalog.units.get(produce.unitCode)?.symbol ?? '')
+          : '',
+      },
+      district: place(l.district_code),
+      startedOn: l.started_on,
+      finishedOn: l.finished_on,
+      fundingRaised: poishaToTaka(BigInt(l.funding_raised)),
+      income: poishaToTaka(BigInt(l.income)),
+      costs: poishaToTaka(BigInt(l.costs)),
+      net: signedTaka(BigInt(l.income) - BigInt(l.costs)),
+      farmerReceived: poishaToTaka(BigInt(l.farmer_received)),
+      harvested: l.harvested,
+      sold: l.sold,
     };
   }
 }
 
 function place(code: string): Place {
   return { code, name: isDistrictCode(code) ? BD_DISTRICTS[code].name : code };
-}
-
-/** A calendar date plus whole months, clamped to the month's last day (Jan 31 + 1 = Feb 28). */
-export function addMonths(date: string, months: number): string {
-  const [y, m, d] = date.split('-').map(Number);
-  const target = new Date(Date.UTC(y, m - 1 + months, 1));
-  const last = new Date(
-    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  target.setUTCDate(Math.min(d, last));
-  return target.toISOString().slice(0, 10);
 }
 
 /** gain / base as a percentage with two decimals, rounded toward zero: "12.35", "-3.10". */

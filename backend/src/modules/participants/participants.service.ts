@@ -285,6 +285,7 @@ export class ParticipantsService {
       await m.increment(User, { id }, 'tokenVersion', 1);
       await this.tokens.revokeAllForUser(id, m);
     });
+    await this.receipts.announce(result);
     return this.findOne(actor, id);
   }
 

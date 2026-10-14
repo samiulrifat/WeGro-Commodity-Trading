@@ -276,3 +276,41 @@ export class MyBankDto {
   @ApiPropertyOptional({ nullable: true, type: BankDto })
   bank: BankDto | null;
 }
+
+export class ImportedProjectDto {
+  @ApiProperty()
+  title: string;
+
+  @ApiProperty({ example: { code: 'MAIZE', name: 'Maize', unit: 'kg' } })
+  produce: { code: string; name: string; unit: string };
+
+  @ApiProperty({ example: { code: 'BOGURA', name: 'Bogura' } })
+  district: { code: string; name: string };
+
+  @ApiProperty({ example: '2024-01-15' })
+  startedOn: string;
+
+  @ApiProperty({ example: '2024-06-30' })
+  finishedOn: string;
+
+  @ApiProperty()
+  fundingRaised: string;
+
+  @ApiProperty()
+  income: string;
+
+  @ApiProperty()
+  costs: string;
+
+  @ApiProperty({ description: 'Income less costs; below zero is a loss' })
+  net: string;
+
+  @ApiProperty()
+  farmerReceived: string;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  harvested: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  sold: string | null;
+}

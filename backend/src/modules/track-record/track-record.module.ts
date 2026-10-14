@@ -9,6 +9,7 @@ import { BanksService } from './banks.service';
 import { Bank } from './entities/bank.entity';
 import { BankConsent } from './entities/bank-consent.entity';
 import { BankOfficer } from './entities/bank-officer.entity';
+import { LegacyProject } from './entities/legacy-project.entity';
 import { SummaryView } from './entities/summary-view.entity';
 import { TrackRecord } from './entities/track-record.entity';
 import { TrackRecordController } from './track-record.controller';
@@ -25,6 +26,7 @@ import { TrackRecordsService } from './track-records.service';
       TrackRecord,
       BankConsent,
       SummaryView,
+      LegacyProject,
       Photo,
     ]),
     CatalogModule,

@@ -55,6 +55,10 @@ import {
 @Index('ix_projects_district', ['districtCode'])
 @Index('ix_projects_duration_type', ['durationType'])
 @Index('ix_projects_farmer', ['farmerId'])
+@Index('ix_projects_open', ['publishedAt'], {
+  where: `"stage" = 'open_for_funding'`,
+})
+@Index('ix_projects_active', ['activatedAt'], { where: `"stage" = 'active'` })
 export class Project extends BaseEntity {
   @Column({ type: 'varchar', length: 120 })
   title: string;

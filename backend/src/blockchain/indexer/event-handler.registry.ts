@@ -23,6 +23,7 @@ export type ReadModelReset = (manager: EntityManager) => Promise<void>;
 @Injectable()
 export class EventHandlerRegistry {
   private readonly handlers = new Map<string, ChainEventHandler[]>();
+  private readonly live = new Map<string, ChainEventHandler[]>();
   private readonly resets: ReadModelReset[] = [];
 
   on(
@@ -34,6 +35,26 @@ export class EventHandlerRegistry {
     const list = this.handlers.get(key);
     if (list) list.push(handler);
     else this.handlers.set(key, [handler]);
+  }
+
+  /**
+   * Reacts to an event as it happens (notifications): run only for
+   * transactions this backend sends, after their read-model update has
+   * committed, never by the indexer, so a replay never repeats them.
+   */
+  onLive(
+    contract: ContractName,
+    eventName: string,
+    handler: ChainEventHandler,
+  ): void {
+    const key = `${contract}.${eventName}`;
+    const list = this.live.get(key);
+    if (list) list.push(handler);
+    else this.live.set(key, [handler]);
+  }
+
+  liveHandlersFor(contract: string, eventName: string): ChainEventHandler[] {
+    return this.live.get(`${contract}.${eventName}`) ?? [];
   }
 
   onReset(reset: ReadModelReset): void {

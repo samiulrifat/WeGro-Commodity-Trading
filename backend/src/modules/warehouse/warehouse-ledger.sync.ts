@@ -44,6 +44,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
       await m.query(
         `UPDATE "warehouse_receipts"
             SET "status" = 'submitted', "quantity" = "original_quantity", "pending_to_wegro" = false,
+                "handover_offered_at" = NULL,
                 "collected_at" = NULL, "chain_event_block" = -1, "chain_event_log" = -1`,
       );
       await m
@@ -125,12 +126,14 @@ export class WarehouseLedgerSync implements OnModuleInit {
         return this.patch(m, event, {
           status: ReceiptStatus.PendingHandover,
           pendingToWegro: true,
+          handoverOfferedAt: event.blockTime ?? new Date(),
         });
 
       case 'HandoverCancelled':
         return this.patch(m, event, {
           status: ReceiptStatus.Issued,
           pendingToWegro: false,
+          handoverOfferedAt: null,
         });
 
       case 'ReceiptTransferred': {
@@ -144,6 +147,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
         return this.patch(m, event, {
           ...owner(String(a.to)),
           pendingToWegro: false,
+          handoverOfferedAt: null,
           ...(row.status === ReceiptStatus.PendingHandover && {
             status: ReceiptStatus.Issued,
           }),

@@ -22,6 +22,9 @@ import { ConsentStatus } from '../track-record.enums';
   'ck_bank_consents_status',
   `"status" IN ('submitted', 'active', 'replaced', 'revoked')`,
 )
+@Index('ix_bank_consents_expiring', ['expiresAt'], {
+  where: `"status" = 'active'`,
+})
 export class BankConsent {
   @PrimaryColumn({ type: 'uuid' })
   id: string;

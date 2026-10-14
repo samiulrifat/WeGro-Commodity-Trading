@@ -29,6 +29,12 @@ import { ReceiptStatus } from '../warehouse.enums';
   'ck_warehouse_receipts_quantity',
   `"quantity" >= 0 AND "quantity" <= "original_quantity" AND ("quantity" > 0 OR "status" = 'sold_out')`,
 )
+@Index('ix_warehouse_receipts_handover', ['handoverOfferedAt'], {
+  where: `"status" = 'pending_handover'`,
+})
+@Index('ix_warehouse_receipts_expiring', ['expiresOn'], {
+  where: `"status" IN ('issued', 'listed', 'pending_handover')`,
+})
 export class WarehouseReceipt {
   @PrimaryColumn({ type: 'char', length: 66 })
   id: string;
@@ -48,6 +54,10 @@ export class WarehouseReceipt {
 
   @Column({ type: 'boolean', default: false })
   pendingToWegro: boolean;
+
+  /** When the farmer's officer offered the buy-back; null when none is pending. */
+  @Column({ type: 'timestamptz', nullable: true })
+  handoverOfferedAt: Date | null;
 
   @Column({ type: 'varchar', length: 31 })
   produceCode: string;

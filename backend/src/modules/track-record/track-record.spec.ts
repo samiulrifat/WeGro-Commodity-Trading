@@ -1,9 +1,9 @@
+import { addMonths } from '../../common/time/bd-dates';
 import {
   bankFingerprint,
   consentFingerprint,
 } from './track-record-fingerprints';
 import {
-  addMonths,
   percent,
   summaryFingerprint,
   type TrackRecordSummary,
