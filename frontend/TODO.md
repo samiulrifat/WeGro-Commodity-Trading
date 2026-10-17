@@ -6,7 +6,8 @@ Feature-based layout: each business area keeps its pages, components, hooks and 
 
 ```
 src/
-  app/          router, providers, layout shell, route guards
+  app/          router, navigation map, shell, session guards, shared pages
+  routes/       one file per page
   api/          RTK Query base API (its own fetch client), types generated from the backend's OpenAPI
   store/        Redux store and app-wide slices (session, language, offline drafts)
   features/
@@ -38,7 +39,7 @@ Build in order: each phase depends on the ones above it.
 - [x] 3. API layer: Redux store (session) and RTK Query with every endpoint generated from the backend's OpenAPI (one file per area, `npm run api:generate`); one fetch that adds the token and renews the session once on 401; responses exactly as sent (`{ data }`, pages `{ data, meta }`); error mapping; photo upload and file downloads. Backend docs now describe every response exactly, checked against real responses in the chain tests
 - [x] 4. Language and formats: English by default with an EN | বাংলা switch; the choice is remembered on the device and saved to each person's account (backend: `users.language`, `PATCH /api/auth/me`, returned on sign-in); i18next with Bengali loaded only when chosen; taka (`৳ 1,234,567.50`), numbers and dates in Bangladesh time with Bengali digits in Bengali; calendar in the app's language; errors worded from the backend's code and values, notifications from their kind and values (sign-in and session errors and five notifications converted as proof)
 - [x] 4b. Server text in every language: one central list of error codes in the backend (245, published in the API docs; a test fails if anything is thrown without one), input checks per field (rule and limit), lists of problems coded one by one, every notification and reminder saving its values under one of 61 kinds; English and Bengali wording for every code, rule and kind, checked by the type check against the backend's lists. The ledger's own errors keep their contract names and show a sentence for their kind
-- [ ] 5. App shell: routing, role-based navigation and route guards, desktop sidebar and phone bottom bar, loading, empty and error states, not-found and no-access pages
+- [x] 5. App shell: TanStack Router with one file per page (each loads on its own); each role's menu and home from one map (`src/app/navigation.ts`), the same map guarding every page; session restored on load, signed-out people sent to sign-in and back, temporary passwords held to their change page, unverified people to their registration status; desktop sidebar, phone bottom bar (four places and More), top bar with language, notifications and account; loading, empty and error states, not-found and no-access pages; demo-mode role picker at /sign-in until item 7; the design preview at /design in development only
 - [ ] 6. Installable app: manifest and icons, service worker so the app opens without internet, update prompt, local storage for drafts (kept at least 7 days)
 
 ## Phase 1: Identity

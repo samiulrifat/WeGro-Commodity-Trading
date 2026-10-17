@@ -65,11 +65,22 @@ English by default; the `EN | বাংলা` switch ([LanguageSwitch](src/comp
 - Server text: `errorText(apiError, i18n)` words an error by its `code` and `details`, including each input check (`details.fields`) and each problem of a list (`details.problems`); `fieldErrors(apiError, i18n)` gives a form one message per field. A ledger refusal shows the server's English to English readers and a sentence for its kind to others. `notificationText(n, i18n)` words a notification by its `kind` and `params`, keeping the English of ones saved before their values were. Where the server sends a Bengali form of a name (`labelBn`, `produceBn`), Bengali readers get it.
 - Every error code, input rule and notification kind must have wording: `npm run api:generate` writes the backend's lists to `src/api/generated/codes.ts` and `notifications.ts`, and the type check fails if `en.ts` misses one (and `bn.ts` must match `en.ts`).
 
+## App shell
+
+Routes are files under [src/routes](src/routes): one per page, and each page's code loads only when it is opened. `npm run dev` and `npm run build` regenerate `src/routeTree.gen.ts` (never edit it).
+
+- [src/app/navigation.ts](src/app/navigation.ts) is the one map of who sees what: each role's menu in order, its first entry being where the role lands. The same map guards pages: a page names its area (`staticData: { area: 'projects' }`) and a role without that area sees "not available for your role" instead (its data is never requested). Pages without an area (account, notifications) are open to everyone signed in.
+- Every signed-in page sits under `_app`: on a page load the session is restored from the refresh cookie; signed-out people go to `/sign-in` and come back afterwards; a temporary password allows only `/change-password`; someone not verified yet sees only `/status`.
+- Desktop: sidebar, top bar with language, notifications and account. Phone: the top bar and a bottom bar with up to five places (four and "More" when there are more).
+- States for any page: `LoadingState`, `EmptyState`, `ErrorState` (worded in the reader's language, with the reference to quote) in [src/components/states.tsx](src/components/states.tsx); the router shows them while a page loads or if it fails, and not-found for unknown addresses.
+- `/sign-in` offers the demo accounts when the backend runs in demo mode (`DEMO_MODE=true`); sign-in with phone and password comes in item 7. `/design` shows the design system, in development only.
+
 ## Layout
 
 ```
 src/
-  app/          router, providers, layout shell, route guards
+  app/          router, navigation map, shell, session guards, shared pages
+  routes/       one file per page (routeTree.gen.ts is generated from them)
   api/          RTK Query base API, generated API types
   store/        Redux store and app-wide slices
   features/     one folder per business area: pages, components, api.ts
