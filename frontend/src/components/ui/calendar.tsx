@@ -7,6 +7,8 @@ import {
   type Locale,
 } from 'react-day-picker';
 
+import { bn, enGB } from 'react-day-picker/locale';
+import { useTranslation } from 'react-i18next';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   ChevronLeftIcon,
@@ -28,6 +30,10 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>['variant'];
 }) {
   const defaultClassNames = getDefaultClassNames();
+  // WeGro: in the app's language and Bangladesh time unless told otherwise.
+  const { i18n } = useTranslation();
+  const bengali = i18n.resolvedLanguage === 'bn';
+  const shownLocale = locale ?? (bengali ? bn : enGB);
 
   return (
     <DayPicker
@@ -39,10 +45,12 @@ function Calendar({
         className,
       )}
       captionLayout={captionLayout}
-      locale={locale}
+      locale={shownLocale}
+      numerals={bengali ? 'beng' : 'latn'}
+      timeZone="Asia/Dhaka"
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: 'short' }),
+          date.toLocaleString(shownLocale.code, { month: 'short' }),
         ...formatters,
       }}
       classNames={{
@@ -167,7 +175,7 @@ function Calendar({
           );
         },
         DayButton: ({ ...props }) => (
-          <CalendarDayButton locale={locale} {...props} />
+          <CalendarDayButton locale={shownLocale} {...props} />
         ),
         WeekNumber: ({ children, ...props }) => {
           return (

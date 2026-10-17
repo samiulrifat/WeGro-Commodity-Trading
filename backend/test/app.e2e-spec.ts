@@ -254,12 +254,33 @@ describe('HTTP pipeline (e2e)', () => {
           'slots must not be less than 1',
         ]),
       );
+      // What the app words in the reader's language, field by field.
+      expect(res.body.code).toBe('INVALID_INPUT');
+      expect(res.body.details.fields).toEqual(
+        expect.arrayContaining([
+          { field: 'admin', rule: 'notAllowed' },
+          { field: 'slots', rule: 'min', limit: 1 },
+        ]),
+      );
     });
 
-    it('rejects a bad page size', async () => {
-      await request(app.getHttpServer())
+    it('says a missing field is required, once', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/probe/echo')
+        .send({ slots: 2 })
+        .expect(400);
+      expect(res.body.details.fields).toEqual([
+        { field: 'name', rule: 'required' },
+      ]);
+    });
+
+    it('rejects a bad page size, with the limit', async () => {
+      const res = await request(app.getHttpServer())
         .get('/api/probe/items?limit=500')
         .expect(400);
+      expect(res.body.details.fields).toEqual([
+        { field: 'limit', rule: 'max', limit: 100 },
+      ]);
     });
   });
 
@@ -269,6 +290,7 @@ describe('HTTP pipeline (e2e)', () => {
         .get('/api/probe/boom')
         .expect(500);
       expect(res.body.message).toBe('Something went wrong. Please try again.');
+      expect(res.body.code).toBe('SERVER_ERROR');
       expect(JSON.stringify(res.body)).not.toContain('password');
     });
 
@@ -281,10 +303,20 @@ describe('HTTP pipeline (e2e)', () => {
       expect(res.body).toMatchObject({
         statusCode: 404,
         error: 'Not Found',
+        code: 'NOT_FOUND',
         path: '/api/nope',
         requestId: 'trace-123',
       });
       expect(typeof res.body.timestamp).toBe('string');
+    });
+
+    it('gives malformed JSON a code too', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/probe/echo')
+        .set('Content-Type', 'application/json')
+        .send('{"name": ')
+        .expect(400);
+      expect(res.body.code).toBe('INVALID_REQUEST');
     });
   });
 
@@ -315,6 +347,17 @@ describe('HTTP pipeline (e2e)', () => {
         .expect(200);
       expect(res.body.info.title).toBe('WeGro Commodity Trading Platform API');
       expect(res.body.paths['/api/health']).toBeDefined();
+      // The code lists the app must have wording for, and the error body.
+      const schemas = res.body.components.schemas;
+      expect(schemas.ErrorCode.enum).toContain('ACCOUNT_LOCKED');
+      expect(schemas.LedgerErrorCode.enum).toContain('ProjectNotFound');
+      expect(schemas.ValidationRule.enum).toContain('required');
+      expect(schemas.ErrorBody.properties.code).toEqual({
+        oneOf: [
+          { $ref: '#/components/schemas/ErrorCode' },
+          { $ref: '#/components/schemas/LedgerErrorCode' },
+        ],
+      });
     });
   });
 });
@@ -336,6 +379,7 @@ describe('rate limiting (e2e)', () => {
       await request(server).get('/api/probe/items').expect(200);
     const res = await request(server).get('/api/probe/items').expect(429);
     expect(res.body.statusCode).toBe(429);
+    expect(res.body.code).toBe('TOO_MANY_REQUESTS');
   });
 
   it('never limits the health check', async () => {

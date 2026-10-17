@@ -162,10 +162,10 @@ describe('ProjectsService', () => {
         {
           code: 'INVALID_TERMS',
           details: {
-            problems: expect.arrayContaining([
-              'Funding target must be a whole number of slots',
-              'farmerId must be a verified farmer',
-            ]),
+            problems: [
+              expect.objectContaining({ code: 'TERMS_PARTIAL_SLOT' }),
+              expect.objectContaining({ code: 'TERMS_FARMER_NOT_VERIFIED' }),
+            ],
           },
         },
       );

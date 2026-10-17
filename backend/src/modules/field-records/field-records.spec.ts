@@ -202,10 +202,27 @@ describe('measurements', () => {
       { plant_height: '12.55', colour: 'green' },
       [def(), def({ key: 'leaves', decimals: 0 })],
     );
+    // Each with its code and values, and the label in both languages.
     expect(r.problems).toEqual([
-      'colour: not a measurement of this record type',
-      'plant_height: must be a number with at most 1 decimal places',
-      'leaves: required',
+      {
+        code: 'MEASUREMENT_UNKNOWN',
+        message: 'colour: not a measurement of this record type',
+        details: { key: 'colour' },
+      },
+      {
+        code: 'MEASUREMENT_NOT_A_NUMBER',
+        message: 'plant_height: must be a number with at most 1 decimal places',
+        details: {
+          key: 'plant_height',
+          label: def().label,
+          labelBn: def().labelBn,
+          decimals: 1,
+        },
+      },
+      expect.objectContaining({
+        code: 'MEASUREMENT_REQUIRED',
+        details: expect.objectContaining({ key: 'leaves' }) as object,
+      }),
     ]);
     for (const bad of ['1e3', 'NaN', '', '12,5', true, {}]) {
       const out = normaliseMeasurements({ plant_height: bad }, [def()]);
@@ -225,11 +242,17 @@ describe('location', () => {
       longitude: '89.377600',
     });
     expect(normaliseLocation('24.8465123', 89.3)).toEqual({
-      problem:
-        'Coordinates must be decimal degrees with at most 6 decimal places',
+      problem: {
+        code: 'COORDINATES_INVALID',
+        message:
+          'Coordinates must be decimal degrees with at most 6 decimal places',
+      },
     });
     expect(normaliseLocation(51.5, -0.12)).toEqual({
-      problem: 'The location is outside Bangladesh',
+      problem: {
+        code: 'LOCATION_OUTSIDE_BANGLADESH',
+        message: 'The location is outside Bangladesh',
+      },
     });
   });
 

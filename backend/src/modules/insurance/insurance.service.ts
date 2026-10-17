@@ -47,6 +47,7 @@ import {
   coverageFingerprint,
   weatherEventFingerprint,
 } from './insurance-fingerprints';
+import { ErrorCode } from '../../common/errors/error-code';
 
 export const STAFF: ReadonlySet<Role> = new Set([
   Role.SuperAdmin,
@@ -98,18 +99,24 @@ export class InsuranceService {
     const project = await this.requireInsurable(projectId);
     const current = await this.currentCover(project.id);
     if (current && current.insurerId !== actor.id) {
-      throw new ForbiddenException('Another insurer covers this project');
+      throw new ForbiddenException({
+        message: 'Another insurer covers this project',
+        code: ErrorCode.OtherInsurer,
+      });
     }
     const maxAmount = takaToPoisha(dto.maxAmount);
     if (maxAmount <= 0n)
-      throw new UnprocessableEntityException('maxAmount must be above zero');
+      throw new UnprocessableEntityException({
+        message: 'maxAmount must be above zero',
+        code: ErrorCode.AmountNotPositive,
+      });
     const approved = await this.registry().approvedTotal(
       uuidToBytes32(project.id),
     );
     if (maxAmount < approved) {
       throw new ConflictException({
         message: `Claims of ${poishaToTaka(approved)} taka are already approved; the cover cannot be less`,
-        code: 'COVERAGE_BELOW_APPROVED',
+        code: ErrorCode.CoverageBelowApproved,
         details: { approvedTotal: poishaToTaka(approved) },
       });
     }
@@ -134,7 +141,10 @@ export class InsuranceService {
       current.notes === version.notes &&
       current.coveredEventTypes.join() === version.coveredEventTypes.join()
     ) {
-      throw new ConflictException('These are already the current terms');
+      throw new ConflictException({
+        message: 'These are already the current terms',
+        code: ErrorCode.CoverUnchanged,
+      });
     }
     version.termsHash = coverageFingerprint(version);
     // Identical terms from an attempt that never reached the ledger are reused.
@@ -164,7 +174,10 @@ export class InsuranceService {
   async coverage(actor: AuthUser, projectId: string): Promise<CoverageDto> {
     const project = await this.projects.findOneBy({ id: projectId });
     if (!project || !(await this.canSeeProject(actor, project))) {
-      throw new NotFoundException('Project not found');
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     }
     const key = uuidToBytes32(projectId);
     const [versions, approvedTotal, openClaims] = await Promise.all([
@@ -176,7 +189,11 @@ export class InsuranceService {
       this.registry().openClaims(key),
     ]);
     const [current, ...history] = versions;
-    if (!current) throw new NotFoundException('This project has no cover yet');
+    if (!current)
+      throw new NotFoundException({
+        message: 'This project has no cover yet',
+        code: ErrorCode.NoCoverage,
+      });
     const names = await this.views.names([current.insurerId]);
     const remaining = current.maxAmount - approvedTotal;
     return {
@@ -242,9 +259,10 @@ export class InsuranceService {
       dto.eventTypeCode,
     );
     if (dto.occurredOn > bdDate(await this.clock.now())) {
-      throw new UnprocessableEntityException(
-        'occurredOn cannot be in the future',
-      );
+      throw new UnprocessableEntityException({
+        message: 'occurredOn cannot be in the future',
+        code: ErrorCode.OccurredInFuture,
+      });
     }
     const event = this.events.create({
       id: randomUUID(),
@@ -297,7 +315,11 @@ export class InsuranceService {
 
   async weatherEvent(id: string): Promise<WeatherEventDto> {
     const event = await this.events.findOneBy({ id });
-    if (!event) throw new NotFoundException('Weather event not found');
+    if (!event)
+      throw new NotFoundException({
+        message: 'Weather event not found',
+        code: ErrorCode.WeatherEventNotFound,
+      });
     return (await this.weatherEventDtos([event]))[0];
   }
 
@@ -347,17 +369,23 @@ export class InsuranceService {
   /** An insured project whose crop is in the field. */
   async requireInsurable(projectId: string): Promise<Project> {
     const project = await this.projects.findOneBy({ id: projectId });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     if (!project.insured) {
       throw new ConflictException({
         message: 'This project is not insured',
-        code: 'NOT_INSURED',
+        code: ErrorCode.NotInsured,
       });
     }
     if (!IN_FIELD.includes(project.stage)) {
-      throw new ConflictException(
-        `Insurance applies while the crop is in the field (funded or active); this project is ${project.stage}`,
-      );
+      throw new ConflictException({
+        message: `Insurance applies while the crop is in the field (funded or active); this project is ${project.stage}`,
+        code: ErrorCode.InsuranceProjectStage,
+        details: { stage: project.stage },
+      });
     }
     return project;
   }

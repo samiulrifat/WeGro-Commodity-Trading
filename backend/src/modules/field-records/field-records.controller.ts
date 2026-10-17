@@ -38,6 +38,7 @@ import {
 } from './dto/field-record.dto';
 import { FieldRecordsService } from './field-records.service';
 import { MAX_PHOTO_BYTES, photoHash, PhotosService } from './photos.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 
@@ -81,7 +82,10 @@ export class FieldRecordsController {
     @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<PhotoDto> {
     if (!file)
-      throw new BadRequestException('Send the photo as the "file" field');
+      throw new BadRequestException({
+        message: 'Send the photo as the "file" field',
+        code: ErrorCode.PhotoFieldMissing,
+      });
     const photo = await this.photos.store(file.buffer, actor.id);
     return {
       id: photo.id,

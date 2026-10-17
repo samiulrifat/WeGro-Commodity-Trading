@@ -8,6 +8,7 @@ import type {
   NotificationPageDto,
 } from './dto/notification.dto';
 import { Notification } from './entities/notification.entity';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /**
  * A person's own notifications. Pages are by keyset (newest first, "older
@@ -51,7 +52,11 @@ export class NotificationsService {
       id: String(id),
       userId: actor.id,
     });
-    if (!note) throw new NotFoundException('Notification not found');
+    if (!note)
+      throw new NotFoundException({
+        message: 'Notification not found',
+        code: ErrorCode.NotificationNotFound,
+      });
     if (!note.readAt) {
       await this.notes.update(
         { id: note.id, readAt: IsNull() },
@@ -77,6 +82,7 @@ function view(n: Notification): NotificationDto {
     kind: n.kind,
     title: n.title,
     body: n.body,
+    params: n.params,
     subject:
       n.subjectType && n.subjectId
         ? { type: n.subjectType, id: n.subjectId }

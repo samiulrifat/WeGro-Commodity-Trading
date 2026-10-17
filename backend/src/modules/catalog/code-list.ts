@@ -2,6 +2,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ErrorCode } from '../../common/errors/error-code';
 
 export interface ListEntry {
   code: string;
@@ -44,7 +45,12 @@ export class CodeList<T extends ListEntry> {
   /** 404: for routes addressing the entry itself. */
   find(code: string): Readonly<T> {
     const entry = this.byCode.get(code);
-    if (!entry) throw new NotFoundException(`No ${this.label} ${code}`);
+    if (!entry)
+      throw new NotFoundException({
+        message: `No ${this.label} ${code}`,
+        code: ErrorCode.CatalogEntryNotFound,
+        details: { code },
+      });
     return entry;
   }
 
@@ -52,11 +58,17 @@ export class CodeList<T extends ListEntry> {
   requireActive(code: string): Readonly<T> {
     const entry = this.byCode.get(code);
     if (!entry)
-      throw new UnprocessableEntityException(`Unknown ${this.label} ${code}`);
+      throw new UnprocessableEntityException({
+        message: `Unknown ${this.label} ${code}`,
+        code: ErrorCode.CatalogCodeUnknown,
+        details: { code },
+      });
     if (!entry.active) {
-      throw new UnprocessableEntityException(
-        `The ${this.label} ${code} is no longer in use`,
-      );
+      throw new UnprocessableEntityException({
+        message: `The ${this.label} ${code} is no longer in use`,
+        code: ErrorCode.CatalogCodeRetired,
+        details: { code },
+      });
     }
     return entry;
   }

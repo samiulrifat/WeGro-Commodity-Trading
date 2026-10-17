@@ -521,7 +521,7 @@ describe('Track record and bank permission (node + database)', () => {
       const again = await as(t.field_officer)
         .post(`${farmerPath()}/consents/${bankA}/revoke`)
         .expect(409);
-      expect(again.body.code).toBe('NO_ACTIVE_CONSENT');
+      expect(again.body.code).toBe('NO_CONSENT_TO_WITHDRAW');
       const list = await as(t.bank).get('/bank/farmers').expect(200);
       expect(
         list.body.data.map((f: { farmer: { id: string } }) => f.farmer.id),

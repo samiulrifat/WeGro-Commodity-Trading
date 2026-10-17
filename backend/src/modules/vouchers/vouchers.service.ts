@@ -55,6 +55,8 @@ import {
   SaleStatus,
   VoucherStatus,
 } from './voucher.enums';
+import { ErrorCode } from '../../common/errors/error-code';
+import { type Problem, problem } from '../../common/errors/problem';
 
 /** Staff see every voucher; others see only their own part. */
 const VOUCHER_STAFF: ReadonlySet<Role> = new Set([
@@ -99,14 +101,19 @@ export class VouchersService {
     dto: ProposeVoucherDto,
   ): Promise<VoucherDto> {
     const project = await this.projects.findOneBy({ id: projectId });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     if (
       project.stage !== ProjectStage.Funded &&
       project.stage !== ProjectStage.Active
     ) {
-      throw new ConflictException(
-        'Vouchers are issued only for funded or active projects',
-      );
+      throw new ConflictException({
+        message: 'Vouchers are issued only for funded or active projects',
+        code: ErrorCode.VoucherProjectStage,
+      });
     }
     this.catalog.inputTypes.requireActive(dto.inputTypeCode);
     await this.requireSuppliers(dto.supplierIds);
@@ -120,7 +127,7 @@ export class VouchersService {
     if (value > room) {
       throw new UnprocessableEntityException({
         message: 'The voucher is worth more than the funding left for inputs',
-        code: 'EXCEEDS_FUNDING_TARGET',
+        code: ErrorCode.ExceedsFundingTarget,
         details: { value: poishaToTaka(value), room: poishaToTaka(room) },
       });
     }
@@ -203,9 +210,10 @@ export class VouchersService {
     );
     if (res.affected !== 1) {
       await this.load(id);
-      throw new ConflictException(
-        'Limits apply only to proposed or active vouchers',
-      );
+      throw new ConflictException({
+        message: 'Limits apply only to proposed or active vouchers',
+        code: ErrorCode.VoucherLimitsNotApplicable,
+      });
     }
     return this.findOne(actor, id);
   }
@@ -214,22 +222,28 @@ export class VouchersService {
   async discard(id: string): Promise<void> {
     const voucher = await this.load(id);
     if (voucher.status !== VoucherStatus.Submitted) {
-      throw new ConflictException(
-        'Only unconfirmed proposals can be discarded',
-      );
+      throw new ConflictException({
+        message: 'Only unconfirmed proposals can be discarded',
+        code: ErrorCode.VoucherNotDiscardable,
+      });
     }
     const onChain = await this.registry().getVoucher(uuidToBytes32(id));
     if (onChain.status !== 0n) {
-      throw new ConflictException(
-        'The ledger has this voucher; it will appear shortly',
-      );
+      throw new ConflictException({
+        message: 'The ledger has this voucher; it will appear shortly',
+        code: ErrorCode.VoucherOnLedger,
+      });
     }
     await this.removeLocal(id);
   }
 
   async summary(projectId: string): Promise<VoucherSummaryDto> {
     const project = await this.projects.findOneBy({ id: projectId });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     const key = uuidToBytes32(projectId);
     const r = this.registry();
     // Sent together: one batched JSON-RPC request.
@@ -291,7 +305,11 @@ export class VouchersService {
       .where('v.id = :id', { id });
     this.scope(actor, qb);
     const voucher = await qb.getOne();
-    if (!voucher) throw new NotFoundException('Voucher not found');
+    if (!voucher)
+      throw new NotFoundException({
+        message: 'Voucher not found',
+        code: ErrorCode.VoucherNotFound,
+      });
     return voucher;
   }
 
@@ -305,22 +323,26 @@ export class VouchersService {
   ): Promise<VoucherSaleDto> {
     const voucher = await this.visible(actor, voucherId);
     if (voucher.status !== VoucherStatus.Active) {
-      throw new ConflictException('This voucher is not active');
+      throw new ConflictException({
+        message: 'This voucher is not active',
+        code: ErrorCode.VoucherNotActive,
+      });
     }
     const project = await this.projects.findOneByOrFail({
       id: voucher.projectId,
     });
     if (project.stage !== ProjectStage.Active) {
-      throw new ConflictException(
-        'Sales are recorded only while the project is active',
-      );
+      throw new ConflictException({
+        message: 'Sales are recorded only while the project is active',
+        code: ErrorCode.ProjectNotActive,
+      });
     }
     const available =
       voucher.quantity - voucher.spentQuantity - voucher.heldQuantity;
     if (dto.quantity > available) {
       throw new ConflictException({
         message: `Only ${available} left on this voucher`,
-        code: 'EXCEEDS_VOUCHER_QUANTITY',
+        code: ErrorCode.ExceedsVoucherQuantity,
         details: { available },
       });
     }
@@ -345,9 +367,10 @@ export class VouchersService {
     const sale = await this.pendingSale(saleId);
     const voucher = await this.vouchers.findOneByOrFail({ id: sale.voucherId });
     if (!(await this.isFarmersOfficer(actor, voucher.farmerId))) {
-      throw new ForbiddenException(
-        "Only the farmer's own field officer can confirm",
-      );
+      throw new ForbiddenException({
+        message: "Only the farmer's own field officer can confirm",
+        code: ErrorCode.NotFarmersOfficer,
+      });
     }
     await this.send(actor, (c) => c.confirmSale.populateTransaction(saleId));
     return this.saleOne(saleId);
@@ -363,7 +386,11 @@ export class VouchersService {
       (actor.role === Role.Farmer && voucher.farmerId === actor.id) ||
       (actor.role === Role.FieldOfficer &&
         (await this.isFarmersOfficer(actor, voucher.farmerId)));
-    if (!allowed) throw new ForbiddenException('You cannot cancel this sale');
+    if (!allowed)
+      throw new ForbiddenException({
+        message: 'You cannot cancel this sale',
+        code: ErrorCode.SaleCancelNotAllowed,
+      });
     await this.send(actor, (c) => c.cancelSale.populateTransaction(saleId));
     return this.saleOne(saleId);
   }
@@ -423,7 +450,7 @@ export class VouchersService {
     if (bad.length > 0) {
       throw new UnprocessableEntityException({
         message: 'Every supplier must be a verified supplier',
-        code: 'SUPPLIER_NOT_VERIFIED',
+        code: ErrorCode.SupplierNotVerified,
         details: { supplierIds: bad },
       });
     }
@@ -441,23 +468,46 @@ export class VouchersService {
       this.clock.now(),
     ]);
     const byId = new Map(rows.map((b) => [b.id, b]));
-    const problems: string[] = [];
+    const problems: Problem[] = [];
     for (const id of ids) {
       const b = byId.get(id);
-      if (!b || b.supplierId !== actor.id)
-        problems.push(`${id}: not one of your batches`);
-      else if (b.status !== BatchStatus.Registered)
-        problems.push(`${id}: not registered yet`);
-      else if (b.inputTypeCode !== voucher.inputTypeCode) {
+      const batch = { batch: id };
+      if (!b || b.supplierId !== actor.id) {
         problems.push(
-          `${id}: a batch of ${b.inputTypeCode}, not ${voucher.inputTypeCode}`,
+          problem(
+            ErrorCode.BatchNotYours,
+            `${id}: not one of your batches`,
+            batch,
+          ),
         );
-      } else if (isExpired(b.expiresOn, now)) problems.push(`${id}: expired`);
+      } else if (b.status !== BatchStatus.Registered) {
+        problems.push(
+          problem(
+            ErrorCode.BatchNotRegistered,
+            `${id}: not registered yet`,
+            batch,
+          ),
+        );
+      } else if (b.inputTypeCode !== voucher.inputTypeCode) {
+        problems.push(
+          problem(
+            ErrorCode.BatchWrongInput,
+            `${id}: a batch of ${b.inputTypeCode}, not ${voucher.inputTypeCode}`,
+            {
+              ...batch,
+              input: b.inputTypeCode,
+              expected: voucher.inputTypeCode,
+            },
+          ),
+        );
+      } else if (isExpired(b.expiresOn, now)) {
+        problems.push(problem(ErrorCode.BatchExpired, `${id}: expired`, batch));
+      }
     }
     if (problems.length > 0) {
       throw new UnprocessableEntityException({
         message: 'Some batches cannot be used for this sale',
-        code: 'INVALID_BATCHES',
+        code: ErrorCode.InvalidBatches,
         details: { problems },
       });
     }
@@ -508,23 +558,38 @@ export class VouchersService {
   ): Promise<Voucher> {
     const voucher = await this.load(id);
     if (!allowed.includes(voucher.status)) {
-      throw new ConflictException(`This voucher is ${voucher.status}`);
+      throw new ConflictException({
+        message: `This voucher is ${voucher.status}`,
+        code: ErrorCode.VoucherWrongStatus,
+        details: { status: voucher.status },
+      });
     }
     return voucher;
   }
 
   private async load(id: string): Promise<Voucher> {
     const voucher = await this.vouchers.findOneBy({ id });
-    if (!voucher) throw new NotFoundException('Voucher not found');
+    if (!voucher)
+      throw new NotFoundException({
+        message: 'Voucher not found',
+        code: ErrorCode.VoucherNotFound,
+      });
     return voucher;
   }
 
   private async pendingSale(id: number): Promise<VoucherSale> {
     const sale = await this.sales.findOneBy({ id });
     if (!sale || sale.status === null)
-      throw new NotFoundException('Sale not found');
+      throw new NotFoundException({
+        message: 'Sale not found',
+        code: ErrorCode.SaleNotFound,
+      });
     if (sale.status !== SaleStatus.Pending) {
-      throw new ConflictException(`This sale is ${sale.status}`);
+      throw new ConflictException({
+        message: `This sale is ${sale.status}`,
+        code: ErrorCode.SaleWrongStatus,
+        details: { status: sale.status },
+      });
     }
     return sale;
   }

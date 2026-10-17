@@ -31,6 +31,7 @@ import { BuyerRequest } from './entities/buyer-request.entity';
 import { Listing } from './entities/listing.entity';
 import { ListingStatus, RequestStatus } from './trade.enums';
 import { TradeService } from './trade.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** Matches shown per request. */
 const MATCHES = 5;
@@ -54,9 +55,10 @@ export class RequestsService {
   async post(actor: AuthUser, dto: PostRequestDto): Promise<BuyerRequestDto> {
     this.catalog.produceTypes.requireActive(dto.produceCode);
     if (dto.validUntil < bdDate(await this.clock.now())) {
-      throw new UnprocessableEntityException(
-        'validUntil cannot be in the past',
-      );
+      throw new UnprocessableEntityException({
+        message: 'validUntil cannot be in the past',
+        code: ErrorCode.ValidUntilInPast,
+      });
     }
     const result = await this.tx.send(actor.keyIndex, 'TradeLedger', (c) =>
       c.postRequest.populateTransaction(
@@ -77,10 +79,16 @@ export class RequestsService {
   async cancel(actor: AuthUser, id: number): Promise<BuyerRequestDto> {
     const request = await this.requests.findOneBy({ id });
     if (!request || request.status === null || request.buyerId !== actor.id) {
-      throw new NotFoundException('Request not found');
+      throw new NotFoundException({
+        message: 'Request not found',
+        code: ErrorCode.RequestNotFound,
+      });
     }
     if (request.status !== RequestStatus.Open)
-      throw new ConflictException('This request is already cancelled');
+      throw new ConflictException({
+        message: 'This request is already cancelled',
+        code: ErrorCode.RequestAlreadyCancelled,
+      });
     const result = await this.tx.send(actor.keyIndex, 'TradeLedger', (c) =>
       c.cancelRequest.populateTransaction(id),
     );
@@ -115,7 +123,10 @@ export class RequestsService {
   async one(id: number): Promise<BuyerRequestDto> {
     const request = await this.requests.findOneBy({ id });
     if (!request || request.status === null)
-      throw new NotFoundException('Request not found');
+      throw new NotFoundException({
+        message: 'Request not found',
+        code: ErrorCode.RequestNotFound,
+      });
     return (await this.dtos([request], await this.clock.now()))[0];
   }
 

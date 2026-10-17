@@ -1,4 +1,6 @@
 import { fingerprint } from '../../blockchain/utils/fingerprint';
+import { ErrorCode } from '../../common/errors/error-code';
+import { type Problem, problem } from '../../common/errors/problem';
 import { DurationType } from './project.enums';
 
 /** The ledger's limits (ProjectLedger constants). */
@@ -39,44 +41,94 @@ export interface ProjectTerms {
  * checked up front so a draft that passes here cannot be refused for a rule
  * when it is published. Returns all problems at once; empty means valid.
  */
-export function checkTerms(t: ProjectTerms): string[] {
-  const problems: string[] = [];
+export function checkTerms(t: ProjectTerms): Problem[] {
+  const problems: Problem[] = [];
   if (t.slotPrice <= 0n || t.fundingTarget <= 0n) {
-    problems.push('Funding target and slot price must be above zero');
+    problems.push(
+      problem(
+        ErrorCode.TermsAmountsNotPositive,
+        'Funding target and slot price must be above zero',
+      ),
+    );
   } else if (t.fundingTarget % t.slotPrice !== 0n) {
-    problems.push('Funding target must be a whole number of slots');
+    problems.push(
+      problem(
+        ErrorCode.TermsPartialSlot,
+        'Funding target must be a whole number of slots',
+      ),
+    );
   } else if (t.fundingTarget / t.slotPrice > BigInt(MAX_SLOTS)) {
-    problems.push(`A project can have at most ${MAX_SLOTS} slots`);
+    problems.push(
+      problem(
+        ErrorCode.TermsTooManySlots,
+        `A project can have at most ${MAX_SLOTS} slots`,
+        { max: MAX_SLOTS },
+      ),
+    );
   }
 
   if (t.farmerBps + t.investorBps + t.wegroBps !== BPS) {
-    problems.push('Farmer, investor and WeGro shares must add up to 100%');
+    problems.push(
+      problem(
+        ErrorCode.TermsSharesNot100,
+        'Farmer, investor and WeGro shares must add up to 100%',
+      ),
+    );
   }
 
   if (t.durationMonths < 1 || t.durationMonths > 255) {
-    problems.push('Duration must be 1 to 255 months');
+    problems.push(
+      problem(
+        ErrorCode.TermsDurationRange,
+        'Duration must be 1 to 255 months',
+        { min: 1, max: 255 },
+      ),
+    );
   } else if (t.durationType === DurationType.ShortTerm) {
     if (t.durationMonths > SHORT_TERM_MAX_MONTHS) {
       problems.push(
-        `A short-term project lasts at most ${SHORT_TERM_MAX_MONTHS} months`,
+        problem(
+          ErrorCode.TermsShortTooLong,
+          `A short-term project lasts at most ${SHORT_TERM_MAX_MONTHS} months`,
+          { max: SHORT_TERM_MAX_MONTHS },
+        ),
       );
     }
     if (t.payoutIntervalMonths !== 0) {
-      problems.push('A short-term project has a single final payout');
+      problems.push(
+        problem(
+          ErrorCode.TermsShortHasInterval,
+          'A short-term project has a single final payout',
+        ),
+      );
     }
   } else {
     if (t.durationMonths <= SHORT_TERM_MAX_MONTHS) {
       problems.push(
-        `A long-term project lasts more than ${SHORT_TERM_MAX_MONTHS} months`,
+        problem(
+          ErrorCode.TermsLongTooShort,
+          `A long-term project lasts more than ${SHORT_TERM_MAX_MONTHS} months`,
+          { min: SHORT_TERM_MAX_MONTHS },
+        ),
       );
     }
     if (t.payoutIntervalMonths > t.durationMonths) {
-      problems.push('The payout interval cannot be longer than the project');
+      problems.push(
+        problem(
+          ErrorCode.TermsIntervalTooLong,
+          'The payout interval cannot be longer than the project',
+        ),
+      );
     }
   }
 
   if (t.estimatedReturnMinBps > t.estimatedReturnMaxBps) {
-    problems.push('The low estimate is above the high estimate');
+    problems.push(
+      problem(
+        ErrorCode.TermsEstimatesReversed,
+        'The low estimate is above the high estimate',
+      ),
+    );
   }
   return problems;
 }

@@ -145,6 +145,12 @@ describe('Identity (node + database)', () => {
         .send({ phone: SUPER_PHONE, password: 'wrong-password' })
         .expect(401);
       expect(unknown.body.message).toBe(wrong.body.message);
+      for (const res of [unknown, wrong]) {
+        expect(res.body).toMatchObject({
+          error: 'Unauthorized',
+          code: 'BAD_CREDENTIALS',
+        });
+      }
     });
 
     it('signs in and sets the refresh token as a strict httpOnly cookie', async () => {
@@ -157,7 +163,7 @@ describe('Identity (node + database)', () => {
         tokenType: 'Bearer',
         expiresIn: 900,
         mustChangePassword: false,
-        user: { role: 'super_admin', status: 'verified' },
+        user: { role: 'super_admin', status: 'verified', language: null },
       });
       expect(JSON.stringify(res.body)).not.toContain('refresh');
       const cookie = res.headers['set-cookie'][0];
@@ -265,7 +271,10 @@ describe('Identity (node + database)', () => {
         .get('/api/catalog')
         .auth(token, { type: 'bearer' })
         .expect(403);
-      expect(blocked.body.message).toBe('Change your temporary password first');
+      expect(blocked.body).toMatchObject({
+        message: 'Change your temporary password first',
+        code: 'PASSWORD_CHANGE_REQUIRED',
+      });
       const me = await http
         .get('/api/auth/me')
         .auth(token, { type: 'bearer' })
@@ -273,7 +282,40 @@ describe('Identity (node + database)', () => {
       expect(me.body.data).toMatchObject({
         role: 'investor',
         mustChangePassword: true,
+        language: null,
       });
+    });
+
+    it('saves the language, even before the password is changed, and signs in with it', async () => {
+      const body = person(Role.Farmer);
+      const res = await register(admin.token, body).expect(201);
+      const password = res.body.data.temporaryPassword as string;
+      const { token } = await login(body.phone, password);
+      const saved = await http
+        .patch('/api/auth/me')
+        .auth(token, { type: 'bearer' })
+        .send({ language: 'bn' })
+        .expect(200);
+      expect(saved.body.data).toMatchObject({
+        fullName: body.fullName,
+        language: 'bn',
+      });
+      const again = await http
+        .post('/api/auth/login')
+        .send({ phone: body.phone, password })
+        .expect(200);
+      expect(again.body.data.user.language).toBe('bn');
+      await http
+        .patch('/api/auth/me')
+        .auth(token, { type: 'bearer' })
+        .send({ language: 'fr' })
+        .expect(400);
+      await http
+        .patch('/api/auth/me')
+        .auth(token, { type: 'bearer' })
+        .send({ language: 'en', role: 'admin' })
+        .expect(400);
+      await http.patch('/api/auth/me').send({ language: 'en' }).expect(401);
     });
 
     it('voids every older token when the password changes', async () => {
@@ -515,6 +557,11 @@ describe('Identity (node + database)', () => {
         .send({ phone: officer.phone, password: `${officer.phone}-real-pass` })
         .expect(429);
       expect(locked.body.message).toMatch(/Try again in 1 minute/);
+      expect(locked.body).toMatchObject({
+        error: 'Too Many Requests',
+        code: 'ACCOUNT_LOCKED',
+        details: { minutes: 1 },
+      });
       await db.query(
         'UPDATE users SET locked_until = NULL, failed_login_count = 0 WHERE id = $1',
         [officer.id],

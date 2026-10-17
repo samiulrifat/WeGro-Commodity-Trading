@@ -69,7 +69,12 @@ The [technical report](../Technical_Report.pdf) explains the internals module by
    | Interactive docs | http://localhost:3000/docs |
    | Health | http://localhost:3000/api/health |
 
-   Responses are wrapped as `{ data }` (pages: `{ data, meta }`); errors as `{ statusCode, error, message, path, requestId, timestamp }`.
+   Responses are wrapped as `{ data }` (pages: `{ data, meta }`); errors as `{ statusCode, error, message, code?, details?, path, requestId, timestamp }`. `code` is a stable reason (e.g. `ACCOUNT_LOCKED`) and `details` its values (`{ minutes: 2 }`): the app words the error from them in the reader's language, and `message` stays the English wording. Notifications likewise carry `params` beside their English `title` and `body`.
+
+   - Codes come from one list, [src/common/errors/error-code.ts](src/common/errors/error-code.ts), published in the API docs with `LedgerErrorCode` (a ledger refusal keeps the contract's error name) and `ValidationRule`. A test fails if anything is thrown without a code, if a code is written as text, or if a listed code is never used.
+   - Input checks answer `INVALID_INPUT` with `details.fields`: `[{ field, rule, limit? }]`. Several problems at once (project terms, a farm update, batches, intake details) answer with `details.problems`, each `{ code, message, details }`.
+   - A value with a Bengali form travels as `x` and `xBn` (a measurement's `label` and `labelBn`, a produce's name).
+   - Adding an error: add the code to the list, throw `{ message, code: ErrorCode.X, details }`, and add its English and Bengali wording in the frontend (`frontend/src/i18n`). Adding a notification: add its kind to `NotificationKind`, send `params`, and word it in the frontend. The frontend's type check fails until both languages have it.
 
 ### Demo mode
 

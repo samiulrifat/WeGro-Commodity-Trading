@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -35,12 +36,14 @@ import {
   ChangePasswordDto,
   DemoLoginDto,
   LoginDto,
+  UpdateMeDto,
 } from './dto/auth-request.dto';
 import {
   DemoAccountDto,
   MeResponseDto,
   TokenResponseDto,
 } from './dto/auth-response.dto';
+import { ErrorCode } from '../../common/errors/error-code';
 
 export const REFRESH_COOKIE = 'wegro_rt';
 
@@ -86,7 +89,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
     const token = readCookie(req, REFRESH_COOKIE);
-    if (!token) throw new UnauthorizedException('Sign in required');
+    if (!token) {
+      throw new UnauthorizedException({
+        message: 'Sign in required',
+        code: ErrorCode.SignInRequired,
+      });
+    }
     try {
       return this.respond(res, await this.auth.refresh(token));
     } catch (error) {
@@ -149,6 +157,17 @@ export class AuthController {
     return this.auth.me(user);
   }
 
+  @ApiBearerAuth()
+  @AllowPendingPassword()
+  @Patch('me')
+  @ApiOkResponse({ type: MeResponseDto })
+  updateMe(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateMeDto,
+  ): Promise<MeResponseDto> {
+    return this.auth.updateMe(user, dto);
+  }
+
   @Public()
   @Get('demo/accounts')
   @ApiOkResponse({
@@ -188,7 +207,12 @@ export class AuthController {
       tokenType: 'Bearer',
       expiresIn: tokens.expiresIn,
       mustChangePassword: user.mustChangePassword,
-      user: { id: user.id, role: user.role, status: user.status },
+      user: {
+        id: user.id,
+        role: user.role,
+        status: user.status,
+        language: user.language,
+      },
     };
   }
 }

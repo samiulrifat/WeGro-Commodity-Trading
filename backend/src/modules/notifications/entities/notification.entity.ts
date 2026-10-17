@@ -6,7 +6,11 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { NotificationCategory } from '../notification.enums';
+import {
+  NotificationCategory,
+  NotificationKind,
+  type NotificationParams,
+} from '../notification.enums';
 
 /**
  * One in-app notification for one person. dedupe_key names the occasion and
@@ -31,15 +35,22 @@ export class Notification {
   @Column({ type: 'varchar', length: 8 })
   category: NotificationCategory;
 
-  /** Machine-readable, e.g. reservation.expiring, offer.approved. */
   @Column({ type: 'varchar', length: 40 })
-  kind: string;
+  kind: NotificationKind;
 
   @Column({ type: 'varchar', length: 200 })
   title: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   body: string | null;
+
+  /**
+   * The values in the text (amounts as taka strings, dates as ISO), so the
+   * app can word it in the reader's language; title and body stay as the
+   * English fallback.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  params: NotificationParams | null;
 
   /** What it is about, for linking: e.g. reservation / 12. */
   @Column({ type: 'varchar', length: 30, nullable: true })

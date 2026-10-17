@@ -15,6 +15,7 @@ import {
   IS_PUBLIC,
   ROLES,
 } from './decorators';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const READS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -38,7 +39,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       user.mustChangePassword &&
       !this.flag(context, ALLOW_PENDING_PASSWORD)
     ) {
-      throw new ForbiddenException('Change your temporary password first');
+      throw new ForbiddenException({
+        message: 'Change your temporary password first',
+        code: ErrorCode.PasswordChangeRequired,
+      });
     }
     return true;
   }
@@ -48,7 +52,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     if (error || !user) {
       throw error instanceof UnauthorizedException
         ? error
-        : new UnauthorizedException('Sign in required');
+        : new UnauthorizedException({
+            message: 'Sign in required',
+            code: ErrorCode.SignInRequired,
+          });
     }
     return user;
   }
@@ -82,10 +89,16 @@ export class RolesGuard {
       .switchToHttp()
       .getRequest<Request & { user?: AuthUser }>().user;
     if (!user || !roles.includes(user.role)) {
-      throw new ForbiddenException('Your role cannot do this');
+      throw new ForbiddenException({
+        message: 'Your role cannot do this',
+        code: ErrorCode.RoleNotAllowed,
+      });
     }
     if (!canAct(user)) {
-      throw new ForbiddenException('Your account is not verified');
+      throw new ForbiddenException({
+        message: 'Your account is not verified',
+        code: ErrorCode.AccountNotVerified,
+      });
     }
     const request = context.switchToHttp().getRequest<Request>();
     if (
@@ -96,7 +109,10 @@ export class RolesGuard {
         context.getClass(),
       ]) !== true
     ) {
-      throw new ForbiddenException('Auditors have read-only access');
+      throw new ForbiddenException({
+        message: 'Auditors have read-only access',
+        code: ErrorCode.AuditorReadOnly,
+      });
     }
     return true;
   }

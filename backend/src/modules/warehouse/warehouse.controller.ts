@@ -40,6 +40,7 @@ import {
 } from './dto/warehouse.dto';
 import { RECEIPT_ID } from './warehouse.enums';
 import { WarehouseService } from './warehouse.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 
@@ -47,7 +48,11 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 class ReceiptIdPipe implements PipeTransform<string, string> {
   transform(value: string): string {
     const id = value.toLowerCase();
-    if (!RECEIPT_ID.test(id)) throw new NotFoundException('Receipt not found');
+    if (!RECEIPT_ID.test(id))
+      throw new NotFoundException({
+        message: 'Receipt not found',
+        code: ErrorCode.ReceiptNotFound,
+      });
     return id;
   }
 }

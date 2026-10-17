@@ -14,7 +14,10 @@ import { Paginated } from '../../common/dto/pagination.dto';
 import type { AuthUser } from '../auth/auth-user';
 import { ProjectViews } from '../projects/project-views';
 import { User } from '../users/entities/user.entity';
-import { NotificationCategory } from '../notifications/notification.enums';
+import {
+  NotificationCategory,
+  NotificationKind,
+} from '../notifications/notification.enums';
 import {
   type Note,
   NotificationWriter,
@@ -28,6 +31,7 @@ import type {
   PendingBankAccountDto,
 } from './dto/bank-account.dto';
 import { BankAccount, BankAccountStatus } from './entities/bank-account.entity';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** Only payees have bank accounts. */
 const PAYEE_ROLES: ReadonlySet<Role> = new Set([Role.Farmer, Role.Investor]);
@@ -83,7 +87,10 @@ export class BankAccountsService {
       status: BankAccountStatus.Verified,
     });
     if (current && sameDetails(this.open(current), details)) {
-      throw new ConflictException('These details are already verified');
+      throw new ConflictException({
+        message: 'These details are already verified',
+        code: ErrorCode.BankDetailsAlreadyVerified,
+      });
     }
     const id = randomUUID();
     await this.dataSource
@@ -107,16 +114,18 @@ export class BankAccountsService {
           error instanceof QueryFailedError &&
           /uq_bank_accounts_pending/.test(error.message)
         ) {
-          throw new ConflictException(
-            'Other details were entered meanwhile; try again',
-          );
+          throw new ConflictException({
+            message: 'Other details were entered meanwhile; try again',
+            code: ErrorCode.ChangedMeanwhile,
+          });
         }
         throw error;
       });
     await this.notify(await this.admins([actor.id]), {
       category: NotificationCategory.Action,
-      kind: 'bank-account.submitted',
+      kind: NotificationKind.BankAccountSubmitted,
       title: 'Bank details awaiting verification',
+      params: {},
       subject: { type: 'participant', id: userId },
       key: `bank:${id}:submitted`,
     });
@@ -130,7 +139,7 @@ export class BankAccountsService {
       throw new ForbiddenException({
         message:
           'Details must be verified by someone other than who entered them',
-        code: 'SAME_PERSON',
+        code: ErrorCode.SamePerson,
       });
     }
     await this.dataSource.transaction(async (m) => {
@@ -149,13 +158,17 @@ export class BankAccountsService {
         },
       );
       if (done.affected !== 1) {
-        throw new ConflictException('The details changed meanwhile; try again');
+        throw new ConflictException({
+          message: 'The details changed meanwhile; try again',
+          code: ErrorCode.ChangedMeanwhile,
+        });
       }
     });
     await this.notify([userId], {
       category: NotificationCategory.Outcome,
-      kind: 'bank-account.verified',
+      kind: NotificationKind.BankAccountVerified,
       title: 'Your bank details are verified: payouts will go there',
+      params: {},
       subject: { type: 'participant', id: userId },
       key: `bank:${pending.id}:verified`,
     });
@@ -178,13 +191,17 @@ export class BankAccountsService {
       },
     );
     if (done.affected !== 1) {
-      throw new ConflictException('The details changed meanwhile; try again');
+      throw new ConflictException({
+        message: 'The details changed meanwhile; try again',
+        code: ErrorCode.ChangedMeanwhile,
+      });
     }
     await this.notify([userId], {
       category: NotificationCategory.Outcome,
-      kind: 'bank-account.rejected',
+      kind: NotificationKind.BankAccountRejected,
       title: 'Your new bank details were not accepted',
       body: reason,
+      params: { reason },
       subject: { type: 'participant', id: userId },
       key: `bank:${pending.id}:rejected`,
     });
@@ -302,11 +319,16 @@ export class BankAccountsService {
       where: { id: userId },
       select: { id: true, role: true },
     });
-    if (!user) throw new NotFoundException('Participant not found');
+    if (!user)
+      throw new NotFoundException({
+        message: 'Participant not found',
+        code: ErrorCode.ParticipantNotFound,
+      });
     if (!PAYEE_ROLES.has(user.role)) {
-      throw new UnprocessableEntityException(
-        'Only farmers and investors receive payouts',
-      );
+      throw new UnprocessableEntityException({
+        message: 'Only farmers and investors receive payouts',
+        code: ErrorCode.NotAPayee,
+      });
     }
   }
 
@@ -316,7 +338,11 @@ export class BankAccountsService {
       userId,
       status: BankAccountStatus.Pending,
     });
-    if (!pending) throw new NotFoundException('No details waiting');
+    if (!pending)
+      throw new NotFoundException({
+        message: 'No details waiting',
+        code: ErrorCode.NoDetailsWaiting,
+      });
     return pending;
   }
 

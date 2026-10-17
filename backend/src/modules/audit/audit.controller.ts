@@ -44,6 +44,7 @@ import {
   VerifyService,
   type VerifyType,
 } from './verify/verify.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const STAFF = [
   Role.SuperAdmin,
@@ -61,7 +62,10 @@ const oneOf = <T extends string>(
 ): PipeTransform<string, T> => ({
   transform(value: string): T {
     if (!(allowed as readonly string[]).includes(value))
-      throw new NotFoundException('Unknown record type');
+      throw new NotFoundException({
+        message: 'Unknown record type',
+        code: ErrorCode.UnknownRecordType,
+      });
     return value as T;
   },
 });

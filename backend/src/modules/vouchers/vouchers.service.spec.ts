@@ -296,13 +296,30 @@ describe('VouchersService', () => {
         } as never)
         .catch((e: UnprocessableEntityException) => e.getResponse());
       expect(err).toMatchObject({ code: 'INVALID_BATCHES' });
-      expect(
-        (err as { details: { problems: string[] } }).details.problems,
-      ).toEqual([
-        `${batches[0].id}: not one of your batches`,
-        `${batches[1].id}: not registered yet`,
-        `${batches[2].id}: a batch of SEED_MAIZE, not UREA`,
-        `${batches[3].id}: expired`,
+      const problems = (err as { details: { problems: object[] } }).details
+        .problems;
+      expect(problems).toEqual([
+        expect.objectContaining({
+          code: 'BATCH_NOT_YOURS',
+          details: { batch: batches[0].id },
+        }),
+        expect.objectContaining({
+          code: 'BATCH_NOT_REGISTERED',
+          details: { batch: batches[1].id },
+        }),
+        expect.objectContaining({
+          code: 'BATCH_WRONG_INPUT',
+          details: {
+            batch: batches[2].id,
+            input: 'SEED_MAIZE',
+            expected: 'UREA',
+          },
+          message: `${batches[2].id}: a batch of SEED_MAIZE, not UREA`,
+        }),
+        expect.objectContaining({
+          code: 'BATCH_EXPIRED',
+          details: { batch: batches[3].id },
+        }),
       ]);
     });
 

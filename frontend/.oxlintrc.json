@@ -26,6 +26,12 @@
         "jsx-a11y/prefer-tag-over-role": "off",
         "jsx-a11y/label-has-associated-control": "off"
       }
+    },
+    {
+      "files": ["src/api/generated/**"],
+      "rules": {
+        "typescript/no-duplicate-type-constituents": "off"
+      }
     }
   ]
 }

@@ -8,6 +8,7 @@ import type { TxResult } from '../tx/transaction.service';
 import type { ChainEvent } from './chain-event.entity';
 import { EventHandlerRegistry } from './event-handler.registry';
 import { toJsonSafe } from './event-indexer.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /**
  * Applies a transaction's events to the read models straight away, through
@@ -42,7 +43,7 @@ export class ReceiptApplier {
         throw new InternalServerErrorException({
           message:
             'Saved on the ledger, but the database copy could not be updated yet; it will be retried automatically. Do not repeat the action.',
-          code: 'READ_MODEL_UPDATE_FAILED',
+          code: ErrorCode.ReadModelUpdateFailed,
           details: { txHash: result.hash },
         });
       }

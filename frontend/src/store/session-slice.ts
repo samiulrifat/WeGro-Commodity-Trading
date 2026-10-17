@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { TokenResponseDto } from '@/api/generated/auth';
+import type { Language } from '@/i18n/languages';
 
 type SessionUser = TokenResponseDto['user'];
 
@@ -30,6 +31,10 @@ export const sessionSlice = createSlice({
       state.user = payload.user;
       state.mustChangePassword = payload.mustChangePassword;
     },
+    /** The account now holds this language. */
+    sessionLanguageSaved(state, { payload }: PayloadAction<Language>) {
+      if (state.user) state.user.language = payload;
+    },
     /** Signed out, or the session could not be renewed. */
     sessionEnded() {
       return { ...initialState, status: 'signedOut' as const };
@@ -37,4 +42,5 @@ export const sessionSlice = createSlice({
   },
 });
 
-export const { sessionStarted, sessionEnded } = sessionSlice.actions;
+export const { sessionStarted, sessionLanguageSaved, sessionEnded } =
+  sessionSlice.actions;

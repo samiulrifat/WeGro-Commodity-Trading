@@ -369,7 +369,7 @@ describe('Field records (node + database)', () => {
       const res = await sync(t.field_officer, [
         draft({ projectId: open }),
       ]).expect(200);
-      expect(res.body.data[0].code).toBe('WRONG_STAGE');
+      expect(res.body.data[0].code).toBe('FARM_UPDATE_WRONG_STAGE');
     });
   });
 

@@ -2,7 +2,11 @@ import { RecordLinkDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { NotificationCategory } from '../notification.enums';
+import {
+  NotificationCategory,
+  NotificationKind,
+  type NotificationParams,
+} from '../notification.enums';
 
 export class ListNotificationsQueryDto {
   @ApiPropertyOptional({ description: 'Only unread ones' })
@@ -38,14 +42,27 @@ export class NotificationDto {
   @ApiProperty({ enum: NotificationCategory })
   category: NotificationCategory;
 
-  @ApiProperty({ example: 'reservation.expiring' })
-  kind: string;
+  @ApiProperty({ enum: NotificationKind, enumName: 'NotificationKind' })
+  kind: NotificationKind;
 
   @ApiProperty()
   title: string;
 
   @ApiPropertyOptional({ nullable: true, type: String })
   body: string | null;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    nullable: true,
+    additionalProperties: {
+      oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
+      nullable: true,
+    },
+    example: { reservationId: '12', slots: 3, project: 'Bogura maize 2026' },
+    description:
+      'Values in the text, for wording it in the reader’s language (amounts as taka strings, dates as ISO); title and body are the English wording',
+  })
+  params: NotificationParams | null;
 
   @ApiPropertyOptional({
     type: RecordLinkDto,

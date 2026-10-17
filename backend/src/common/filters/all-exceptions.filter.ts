@@ -1,3 +1,4 @@
+import { STATUS_CODES } from 'node:http';
 import {
   type ArgumentsHost,
   Catch,
@@ -7,14 +8,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ErrorCode } from '../errors/error-code';
 import { redact } from '../utils/redact';
 
 export interface ErrorBody {
   statusCode: number;
   error: string;
   message: string | string[];
-  /** Machine-readable reason, e.g. a contract error name like "ProjectNotFound". */
-  code?: string;
+  /** Why: an ErrorCode, or the contract's error name for a ledger refusal. */
+  code: string;
   details?: Record<string, unknown>;
   path: string;
   requestId?: string;
@@ -55,7 +57,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
           details?: Record<string, unknown>;
         };
         message = b.message ?? exception.message;
-        error = b.error ?? exception.name;
+        // As Nest words it for a plain message: "Unauthorized", "Conflict".
+        error = b.error ?? STATUS_CODES[status] ?? exception.name;
         code = b.code;
         details = b.details;
       }
@@ -72,7 +75,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       error,
       message,
-      ...(code !== undefined && { code }),
+      // Errors raised by the framework itself (unknown route, rate limit,
+      // malformed JSON, oversized upload) get a general code for their status.
+      code: code ?? fallbackCode(status),
       ...(details !== undefined && { details }),
       path: req.originalUrl ?? req.url,
       requestId: req.id,
@@ -80,4 +85,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
     res.status(status).json(body);
   }
+}
+
+const FALLBACK: Partial<Record<number, ErrorCode>> = {
+  400: ErrorCode.InvalidRequest,
+  401: ErrorCode.SignInRequired,
+  403: ErrorCode.Forbidden,
+  404: ErrorCode.NotFound,
+  409: ErrorCode.Conflict,
+  413: ErrorCode.RequestTooLarge,
+  415: ErrorCode.UnsupportedMediaType,
+  422: ErrorCode.InvalidRequest,
+  429: ErrorCode.TooManyRequests,
+  503: ErrorCode.ServiceUnavailable,
+};
+
+function fallbackCode(status: number): ErrorCode {
+  return (
+    FALLBACK[status] ??
+    (status >= 500 ? ErrorCode.ServerError : ErrorCode.InvalidRequest)
+  );
 }

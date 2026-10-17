@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   Entity,
   Index,
@@ -8,6 +9,7 @@ import {
 } from 'typeorm';
 import { blockNumberTransformer } from '../../../blockchain/indexer/chain-event.entity';
 import { BaseEntity } from '../../../database/base.entity';
+import { Language } from '../language';
 import { ParticipantStatus, Role } from '../roles';
 import { PersonalDetails } from './personal-details.entity';
 
@@ -35,6 +37,7 @@ export enum ChainState {
   where: `"role" = 'super_admin'`,
 })
 @Index('ix_users_pending', ['createdAt'], { where: `"status" = 'pending'` })
+@Check('ck_users_language', `"language" IN ('en', 'bn')`)
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 20 })
   role: Role;
@@ -128,6 +131,10 @@ export class User extends BaseEntity {
 
   @Column({ type: 'boolean', default: false })
   isDemo: boolean;
+
+  /** The language the person chose; null until they choose (the app shows English). */
+  @Column({ type: 'varchar', length: 2, nullable: true })
+  language: Language | null;
 
   @OneToOne(() => PersonalDetails, (d) => d.user)
   details?: PersonalDetails;

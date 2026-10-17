@@ -8,6 +8,7 @@ import type { EnvironmentVariables } from '../../config/env.validation';
 import { User } from '../users/entities/user.entity';
 import type { AccessTokenClaims } from './auth-user';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { ErrorCode } from '../../common/errors/error-code';
 
 export const JWT_ISSUER = 'wegro-commodity-api';
 export const JWT_AUDIENCE = 'wegro-commodity-app';
@@ -172,7 +173,10 @@ export class TokenService {
 }
 
 function invalidSession() {
-  return new UnauthorizedException('Session expired. Please sign in again.');
+  return new UnauthorizedException({
+    message: 'Session expired. Please sign in again.',
+    code: ErrorCode.SessionExpired,
+  });
 }
 
 function toSeconds(value: string): number {

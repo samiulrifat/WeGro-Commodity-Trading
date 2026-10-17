@@ -269,7 +269,7 @@ export class Importer {
         );
       try {
         for (const problem of checkTerms(termsOf(p, category ?? ''))) {
-          add(row.spec.file, row.line, row.id, problem);
+          add(row.spec.file, row.line, row.id, problem.message);
         }
       } catch {
         // Malformed money is already reported by the DTO.

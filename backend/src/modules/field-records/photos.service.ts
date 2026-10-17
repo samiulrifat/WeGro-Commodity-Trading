@@ -27,6 +27,7 @@ import {
   MalformedImageError,
   stripMetadata,
 } from './photo-sanitise';
+import { ErrorCode } from '../../common/errors/error-code';
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
@@ -53,19 +54,27 @@ export class PhotosService {
 
   async store(data: Buffer, uploadedById: string): Promise<Photo> {
     if (data.length === 0 || data.length > MAX_PHOTO_BYTES) {
-      throw new UnprocessableEntityException('A photo must be 1 byte to 10 MB');
+      throw new UnprocessableEntityException({
+        message: 'A photo must be 1 byte to 10 MB',
+        code: ErrorCode.PhotoSize,
+        details: { maxMb: MAX_PHOTO_BYTES / 1024 / 1024 },
+      });
     }
     const type = detectType(data);
     if (!type)
-      throw new UnsupportedMediaTypeException(
-        'Photos must be JPEG, PNG or WebP',
-      );
+      throw new UnsupportedMediaTypeException({
+        message: 'Photos must be JPEG, PNG or WebP',
+        code: ErrorCode.PhotoType,
+      });
     let clean: Buffer;
     try {
       clean = stripMetadata(data, type);
     } catch (error) {
       if (error instanceof MalformedImageError) {
-        throw new UnprocessableEntityException('The image file is damaged');
+        throw new UnprocessableEntityException({
+          message: 'The image file is damaged',
+          code: ErrorCode.PhotoDamaged,
+        });
       }
       throw error;
     }
@@ -109,7 +118,11 @@ export class PhotosService {
 
   async find(id: string): Promise<Photo> {
     const photo = await this.photos.findOneBy({ id });
-    if (!photo) throw new NotFoundException('Photo not found');
+    if (!photo)
+      throw new NotFoundException({
+        message: 'Photo not found',
+        code: ErrorCode.PhotoNotFound,
+      });
     return photo;
   }
 
@@ -126,7 +139,12 @@ export class PhotosService {
         stream.once('end', resolve);
       });
       stream.once('error', () =>
-        reject(new NotFoundException('The photo file is missing')),
+        reject(
+          new NotFoundException({
+            message: 'The photo file is missing',
+            code: ErrorCode.PhotoFileMissing,
+          }),
+        ),
       );
     });
   }

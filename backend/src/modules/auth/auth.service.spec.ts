@@ -13,6 +13,7 @@ import {
   Role,
 } from '../../../test/support/unit';
 import type { User } from '../users/entities/user.entity';
+import { Language } from '../users/language';
 import { AuthService, MAX_FAILED_LOGINS } from './auth.service';
 
 const PHONE = '01711000000';
@@ -60,7 +61,15 @@ describe('AuthService', () => {
     const codec = {
       phoneIndex: jest.fn((p: string) => `idx:${p}`),
       openName: jest.fn(() => 'Rahim Uddin'),
+      open: jest.fn(() => ({
+        fullName: 'Rahim Uddin',
+        phone: '+8801711000000',
+        district: 'BOGURA',
+      })),
     };
+    const details = fakeRepo({
+      findOneOrFail: jest.fn(() => Promise.resolve({ userId: 'u1' })),
+    });
     const tokens = {
       issue: jest.fn(() => Promise.resolve({ accessToken: 'a' })),
       revokeAllForUser: jest.fn(() => Promise.resolve()),
@@ -69,7 +78,7 @@ describe('AuthService', () => {
     const service = new AuthService(
       config({ DEMO_MODE: opts.demo ?? false }),
       users as never,
-      fakeRepo() as never,
+      details as never,
       hasher as never,
       codec as never,
       tokens as never,
@@ -97,6 +106,9 @@ describe('AuthService', () => {
       expect((err as Error).message).toBe(
         'Phone number or password is incorrect',
       );
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'BAD_CREDENTIALS',
+      });
       expect(hasher.verifyDummy).toHaveBeenCalledTimes(1);
     });
 
@@ -128,6 +140,11 @@ describe('AuthService', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(429);
       expect((err as Error).message).toContain('2 minutes');
+      // The app words it in the reader's language from the code and values.
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'ACCOUNT_LOCKED',
+        details: { minutes: 2 },
+      });
       expect(hasher.verify).not.toHaveBeenCalled();
     });
 
@@ -217,6 +234,30 @@ describe('AuthService', () => {
       );
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1', manager);
       expect(tokens.issue).toHaveBeenCalled();
+    });
+  });
+
+  describe('my settings', () => {
+    it('saves the language and answers with my details', async () => {
+      const { service, users } = build();
+      users.findOneOrFail.mockResolvedValueOnce({
+        id: 'u1',
+        role: Role.Farmer,
+        status: ParticipantStatus.Verified,
+        language: Language.Bengali,
+      });
+      const me = await service.updateMe({ id: 'u1' } as never, {
+        language: Language.Bengali,
+      });
+      expect(users.update).toHaveBeenCalledWith(
+        { id: 'u1' },
+        { language: Language.Bengali },
+      );
+      expect(me).toMatchObject({
+        id: 'u1',
+        fullName: 'Rahim Uddin',
+        language: 'bn',
+      });
     });
   });
 

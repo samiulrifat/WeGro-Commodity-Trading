@@ -1,14 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { Role } from '../users/roles';
-import { NotificationCategory } from './notification.enums';
+import {
+  NotificationCategory,
+  NotificationKind,
+  type NotificationParams,
+} from './notification.enums';
 
 /** One notification, before it is addressed. */
 export interface Note {
   category: NotificationCategory;
-  kind: string;
+  kind: NotificationKind;
+  /** English wording; the app words it from kind and params. */
   title: string;
   body?: string | null;
+  /** The values in the wording; {} when it has none. */
+  params: NotificationParams;
   subject?: { type: string; id: string | number } | null;
   /** The occasion; the recipient is appended to make the dedupe key. */
   key: string;
@@ -44,9 +51,9 @@ export class NotificationWriter {
       items.map(f);
     const inserted: unknown[] = await m.query(
       `INSERT INTO notifications
-         (user_id, category, kind, title, body, subject_type, subject_id, dedupe_key)
+         (user_id, category, kind, title, body, subject_type, subject_id, dedupe_key, params)
        SELECT * FROM unnest($1::uuid[], $2::varchar[], $3::varchar[], $4::varchar[], $5::varchar[],
-                            $6::varchar[], $7::varchar[], $8::varchar[])
+                            $6::varchar[], $7::varchar[], $8::varchar[], $9::jsonb[])
        ON CONFLICT (dedupe_key) DO NOTHING
        RETURNING 1`,
       [
@@ -58,6 +65,7 @@ export class NotificationWriter {
         col((x) => x.note.subject?.type ?? null),
         col((x) => (x.note.subject ? String(x.note.subject.id) : null)),
         col((x) => `${x.note.key}:${x.userId}`.slice(0, 200)),
+        col((x) => JSON.stringify(x.note.params)),
       ],
     );
     return inserted.length;

@@ -58,6 +58,7 @@ import {
   siteFingerprint,
 } from '../../warehouse/warehouse.service';
 import { WEGRO_OWNER } from '../../warehouse/warehouse.enums';
+import { ErrorCode } from '../../../common/errors/error-code';
 
 /** A record checked against the ledger. */
 export interface Verification {
@@ -384,7 +385,11 @@ export class VerifyService {
       where: { projectId, status: 'recorded' },
       order: { chainEventBlock: 'DESC', chainEventLog: 'DESC' },
     });
-    if (!t) throw new NotFoundException('No cover for this project');
+    if (!t)
+      throw new NotFoundException({
+        message: 'No cover for this project',
+        code: ErrorCode.NoCoverage,
+      });
     const c = await this.c('InsuranceRegistry').getCoverage(
       uuidToBytes32(projectId),
     );
@@ -620,7 +625,11 @@ export class VerifyService {
     const row = await this.dataSource
       .getRepository(entity)
       .findOneBy(where as never);
-    if (!row) throw new NotFoundException('Record not found');
+    if (!row)
+      throw new NotFoundException({
+        message: 'Record not found',
+        code: ErrorCode.RecordNotFound,
+      });
     return row;
   }
 
@@ -701,16 +710,28 @@ function fields(k: ProjectCost) {
 }
 
 function uuid(id: string): string {
-  if (!UUID.test(id)) throw new NotFoundException('Record not found');
+  if (!UUID.test(id))
+    throw new NotFoundException({
+      message: 'Record not found',
+      code: ErrorCode.RecordNotFound,
+    });
   return id.toLowerCase();
 }
 
 function num(id: string): number {
-  if (!NUMBER.test(id)) throw new NotFoundException('Record not found');
+  if (!NUMBER.test(id))
+    throw new NotFoundException({
+      message: 'Record not found',
+      code: ErrorCode.RecordNotFound,
+    });
   return Number(id);
 }
 
 function bytes32(id: string): string {
-  if (!BYTES32.test(id)) throw new NotFoundException('Record not found');
+  if (!BYTES32.test(id))
+    throw new NotFoundException({
+      message: 'Record not found',
+      code: ErrorCode.RecordNotFound,
+    });
   return id.toLowerCase();
 }

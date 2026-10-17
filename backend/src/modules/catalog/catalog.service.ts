@@ -41,6 +41,7 @@ import { InputType } from './entities/input-type.entity';
 import { ProduceType } from './entities/produce-type.entity';
 import { Unit } from './entities/unit.entity';
 import { WeatherEventType } from './entities/weather-event-type.entity';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const DISTRICTS: readonly DistrictDto[] = Object.freeze(
   DISTRICT_CODES.map((code) =>
@@ -153,9 +154,11 @@ export class CatalogService implements OnModuleInit {
         ...this.inputTypes.list().filter((i) => i.unitCode === code),
       ].map((e) => e.code);
       if (users.length > 0) {
-        throw new ConflictException(
-          `Unit ${code} is used by active entries: ${users.join(', ')}`,
-        );
+        throw new ConflictException({
+          message: `Unit ${code} is used by active entries: ${users.join(', ')}`,
+          code: ErrorCode.UnitInUse,
+          details: { unit: code, entries: users.join(', ') },
+        });
       }
     }
     const row = await this.update(Unit, code, {
@@ -301,9 +304,11 @@ export class CatalogService implements OnModuleInit {
 
   private assertNew(list: CodeList<ListEntry>, code: string): void {
     if (list.has(code)) {
-      throw new ConflictException(
-        `The ${list.label} code ${code} already exists`,
-      );
+      throw new ConflictException({
+        message: `The ${list.label} code ${code} already exists`,
+        code: ErrorCode.CatalogCodeExists,
+        details: { code },
+      });
     }
   }
 
@@ -423,23 +428,29 @@ export function checkMeasurements(
   const seen = new Set<string>();
   return list.map((m) => {
     if (seen.has(m.key)) {
-      throw new UnprocessableEntityException(
-        `Measurement key ${m.key} is used twice`,
-      );
+      throw new UnprocessableEntityException({
+        message: `Measurement key ${m.key} is used twice`,
+        code: ErrorCode.MeasurementKeyRepeated,
+        details: { key: m.key },
+      });
     }
     seen.add(m.key);
     const min = m.min ?? null;
     const max = m.max ?? null;
     if (min !== null && max !== null && min > max) {
-      throw new UnprocessableEntityException(
-        `Measurement ${m.key}: min is above max`,
-      );
+      throw new UnprocessableEntityException({
+        message: `Measurement ${m.key}: min is above max`,
+        code: ErrorCode.MeasurementRangeInvalid,
+        details: { key: m.key },
+      });
     }
     for (const bound of [min, max]) {
       if (bound !== null && decimalPlaces(bound) > m.decimals) {
-        throw new UnprocessableEntityException(
-          `Measurement ${m.key}: bound ${bound} has more than ${m.decimals} decimal places`,
-        );
+        throw new UnprocessableEntityException({
+          message: `Measurement ${m.key}: bound ${bound} has more than ${m.decimals} decimal places`,
+          code: ErrorCode.MeasurementBoundDecimals,
+          details: { key: m.key, bound, decimals: m.decimals },
+        });
       }
     }
     return {
@@ -468,14 +479,21 @@ function mapUniqueViolation(error: unknown): unknown {
     if (driver.code === '23505') {
       return new ConflictException(
         driver.constraint && NAME_INDEXES.has(driver.constraint)
-          ? 'An entry with this name already exists'
-          : 'An entry with this code already exists',
+          ? {
+              message: 'An entry with this name already exists',
+              code: ErrorCode.CatalogNameExists,
+            }
+          : {
+              message: 'An entry with this code already exists',
+              code: ErrorCode.CatalogCodeExists,
+            },
       );
     }
     if (driver.code === '23503') {
-      return new UnprocessableEntityException(
-        'A referenced code does not exist',
-      );
+      return new UnprocessableEntityException({
+        message: 'A referenced code does not exist',
+        code: ErrorCode.CatalogReferenceUnknown,
+      });
     }
   }
   return error;

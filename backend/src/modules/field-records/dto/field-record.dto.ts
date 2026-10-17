@@ -244,11 +244,21 @@ export class SyncResultDto {
   })
   outcome: 'recorded' | 'already_recorded' | 'pending' | 'rejected';
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Why it was rejected: an error code, as in error responses (ErrorCode or a ledger error name)',
+  })
   code?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'English wording' })
   message?: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'The values in the wording, as in error responses',
+  })
+  details?: Record<string, unknown>;
 
   @ApiPropertyOptional({ type: FieldRecordDto })
   record?: FieldRecordDto;

@@ -51,6 +51,7 @@ import {
   TrackRecordBuilder,
 } from './track-record-summary';
 import { ConsentStatus, MAX_CONSENT_SECONDS } from './track-record.enums';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** See any farmer's track record, consents and view log. */
 const STAFF: ReadonlySet<Role> = new Set([
@@ -118,13 +119,14 @@ export class TrackRecordsService {
     if (projectIds.length === 0) {
       throw new ConflictException({
         message: 'The farmer has no finished projects yet',
-        code: 'NO_FINISHED_PROJECTS',
+        code: ErrorCode.NoFinishedProjects,
       });
     }
     if (latest && sameContent(latest.summary, summary)) {
       throw new ConflictException({
         message: `Nothing changed since version ${latest.version}`,
-        code: 'UNCHANGED',
+        code: ErrorCode.Unchanged,
+        details: { version: latest.version },
       });
     }
     const summaryHash = summaryFingerprint(summary);
@@ -193,7 +195,11 @@ export class TrackRecordsService {
       version,
       status: 'recorded',
     });
-    if (!row) throw new NotFoundException('No such version');
+    if (!row)
+      throw new NotFoundException({
+        message: 'No such version',
+        code: ErrorCode.VersionNotFound,
+      });
     const [onChain, names] = await Promise.all([
       this.registry().getTrackRecord(uuidToBytes32(farmerId), version),
       this.views.names([row.publishedById]),
@@ -229,18 +235,22 @@ export class TrackRecordsService {
     await this.requireOfficer(actor, farmerId);
     const bank = await this.bankRows.findOneBy({ id: dto.bankId });
     if (!bank || bank.status !== 'registered')
-      throw new NotFoundException('Bank not found');
+      throw new NotFoundException({
+        message: 'Bank not found',
+        code: ErrorCode.BankNotFound,
+      });
     const now = Math.floor((await this.clock.now()).getTime() / 1000);
     const expiresAt = bdDayEnd(dto.expiresOn);
     if (expiresAt <= now) {
-      throw new UnprocessableEntityException(
-        'expiresOn must be today or later',
-      );
+      throw new UnprocessableEntityException({
+        message: 'expiresOn must be today or later',
+        code: ErrorCode.ExpiryInPast,
+      });
     }
     if (expiresAt > now + MAX_CONSENT_SECONDS) {
       throw new UnprocessableEntityException({
         message: 'Permission lasts at most a year; renew it when it ends',
-        code: 'EXPIRY_TOO_LATE',
+        code: ErrorCode.ExpiryTooLate,
         details: { latest: bdLastDay(now + MAX_CONSENT_SECONDS) },
       });
     }
@@ -249,9 +259,10 @@ export class TrackRecordsService {
       uploadedById: actor.id,
     });
     if (!photo) {
-      throw new UnprocessableEntityException(
-        'evidencePhotoId must be a photo you uploaded',
-      );
+      throw new UnprocessableEntityException({
+        message: 'evidencePhotoId must be a photo you uploaded',
+        code: ErrorCode.PhotoNotYours,
+      });
     }
     const id = randomUUID();
     const evidenceHash = consentFingerprint({
@@ -299,7 +310,7 @@ export class TrackRecordsService {
     if (!current) {
       throw new ConflictException({
         message: 'This bank has no current permission to withdraw',
-        code: 'NO_ACTIVE_CONSENT',
+        code: ErrorCode.NoConsentToWithdraw,
       });
     }
     await this.banks.send(actor, (c) =>
@@ -324,7 +335,10 @@ export class TrackRecordsService {
   async evidencePhoto(actor: AuthUser, consentId: string): Promise<Photo> {
     const row = await this.consents.findOneBy({ id: consentId });
     if (!row || row.status === ConsentStatus.Submitted)
-      throw new NotFoundException('Consent not found');
+      throw new NotFoundException({
+        message: 'Consent not found',
+        code: ErrorCode.ConsentNotFound,
+      });
     await this.visibleFarmer(actor, row.farmerId);
     return this.photos.find(row.evidencePhotoId);
   }
@@ -424,13 +438,13 @@ export class TrackRecordsService {
     if (!(await this.current(farmerId, bankId))) {
       throw new ForbiddenException({
         message: 'This farmer has not given your bank permission',
-        code: 'NO_ACTIVE_CONSENT',
+        code: ErrorCode.NoActiveConsent,
       });
     }
     if (!(await this.latest(farmerId))) {
       throw new NotFoundException({
         message: 'This farmer has no track record yet',
-        code: 'NO_TRACK_RECORD',
+        code: ErrorCode.NoTrackRecord,
       });
     }
     const result = await this.banks.send(actor, (c) =>
@@ -473,7 +487,11 @@ export class TrackRecordsService {
         farmer.id === actor.id ||
         (actor.role === Role.FieldOfficer &&
           farmer.fieldOfficerId === actor.id));
-    if (!allowed) throw new NotFoundException('Farmer not found');
+    if (!allowed)
+      throw new NotFoundException({
+        message: 'Farmer not found',
+        code: ErrorCode.FarmerNotFound,
+      });
   }
 
   /** Only the farmer's own field officer publishes, grants and withdraws. */
@@ -488,9 +506,10 @@ export class TrackRecordsService {
         where: { id: farmerId, fieldOfficerId: actor.id },
       }));
     if (!isOfficer) {
-      throw new ForbiddenException(
-        "Only the farmer's field officer can do this",
-      );
+      throw new ForbiddenException({
+        message: "Only the farmer's field officer can do this",
+        code: ErrorCode.NotFarmersOfficer,
+      });
     }
   }
 
@@ -499,7 +518,7 @@ export class TrackRecordsService {
     if (!bankId) {
       throw new ForbiddenException({
         message: 'You are not assigned to a bank',
-        code: 'NOT_ASSIGNED_TO_BANK',
+        code: ErrorCode.NotAssignedToBank,
       });
     }
     return bankId;

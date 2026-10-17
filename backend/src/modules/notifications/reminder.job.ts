@@ -9,7 +9,7 @@ import {
 } from '../../common/jobs/scheduled-job';
 import { Role } from '../users/roles';
 import { type Note, NotificationWriter } from './notification-writer';
-import { NotificationCategory } from './notification.enums';
+import { NotificationCategory, NotificationKind } from './notification.enums';
 
 const { Reminder } = NotificationCategory;
 const DAY_MS = 86_400_000;
@@ -91,9 +91,14 @@ export class ReminderJob implements ScheduledJobRunner {
       userId: r.investor_id,
       note: {
         category: Reminder,
-        kind: 'reservation.expiring',
+        kind: NotificationKind.ReservationExpiring,
         title: `Your reservation of ${r.slots} slots expires soon`,
         body: `${r.title}: pay before ${utc(r.expires_at)} UTC or the slots are released`,
+        params: {
+          slots: r.slots,
+          project: r.title,
+          expiresAt: r.expires_at.toISOString(),
+        },
         subject: { type: 'reservation', id: r.id },
         key: `reservation:${r.id}:expiring`,
       },
@@ -116,9 +121,14 @@ export class ReminderJob implements ScheduledJobRunner {
       userId: r.buyer_id,
       note: {
         category: Reminder,
-        kind: 'deal.payment-due',
+        kind: NotificationKind.DealPaymentDue,
         title: `Payment for deal #${r.id} is due soon`,
         body: `${poishaToTaka(BigInt(r.amount))} taka by ${utc(r.payment_due_at)} UTC, or the deal lapses`,
+        params: {
+          offerId: r.id,
+          amount: poishaToTaka(BigInt(r.amount)),
+          paymentDueAt: r.payment_due_at.toISOString(),
+        },
         subject: { type: 'offer', id: r.id },
         key: `deal:${r.id}:due`,
       },
@@ -144,9 +154,10 @@ export class ReminderJob implements ScheduledJobRunner {
               userId: r.officer_id,
               note: {
                 category: Reminder,
-                kind: 'sale.confirm-due',
+                kind: NotificationKind.SaleConfirmDue,
                 title: `Input sale #${r.id} lapses soon unless you confirm it`,
                 body: `Confirm before ${utc(r.expires_at)} UTC`,
+                params: { saleId: r.id, expiresAt: r.expires_at.toISOString() },
                 subject: { type: 'voucher-sale', id: r.id },
                 key: `sale:${r.id}:due`,
               },
@@ -167,11 +178,15 @@ export class ReminderJob implements ScheduledJobRunner {
       officer_id: string | null;
       deadline: Date;
       input_type_code: string;
+      input: string | null;
+      input_bn: string | null;
       title: string;
     }> = await m.query(
       `SELECT v.id, f.field_officer_id AS officer_id, v.input_type_code, p.title,
+              i.name AS input, i.name_bn AS input_bn,
               v.last_activity_at + make_interval(days => v.inactivity_limit_days) AS deadline
          FROM vouchers v JOIN users f ON f.id = v.farmer_id JOIN projects p ON p.id = v.project_id
+         LEFT JOIN input_types i ON i.code = v.input_type_code
         WHERE v.status = 'active' AND v.inactivity_limit_days IS NOT NULL
           AND v.last_activity_at + make_interval(days => v.inactivity_limit_days)
               <= $1::timestamptz + make_interval(days => ${INACTIVITY_LEAD_DAYS})`,
@@ -181,11 +196,19 @@ export class ReminderJob implements ScheduledJobRunner {
       const passed = r.deadline.getTime() <= now.getTime();
       const note: Note = {
         category: Reminder,
-        kind: passed ? 'voucher.inactive' : 'voucher.inactive-soon',
+        kind: passed
+          ? NotificationKind.VoucherInactive
+          : NotificationKind.VoucherInactiveSoon,
         title: passed
           ? `Voucher for ${r.input_type_code} has passed its inactivity limit`
           : `Voucher for ${r.input_type_code} nears its inactivity limit`,
         body: `${r.title}: ${passed ? 'an admin decides what happens next' : `use it before ${utc(r.deadline)} UTC`}`,
+        params: {
+          input: r.input ?? r.input_type_code,
+          inputBn: r.input_bn,
+          project: r.title,
+          deadline: r.deadline.toISOString(),
+        },
         subject: { type: 'voucher', id: r.id },
         // Activity moves the deadline: a new occasion.
         key: `voucher:${r.id}:${passed ? 'inactive' : 'inactive-soon'}:${r.deadline.getTime() / 1000}`,
@@ -213,11 +236,15 @@ export class ReminderJob implements ScheduledJobRunner {
       operators: string[] | null;
       quantity: string;
       produce_code: string;
+      produce: string | null;
+      produce_bn: string | null;
     }> = await m.query(
       `SELECT r.id, to_char(r.expires_on, 'YYYY-MM-DD') AS expires_on, r.owner_is_wegro, r.owner_id,
               f.field_officer_id AS officer_id, r.quantity, r.produce_code,
+              pt.name AS produce, pt.name_bn AS produce_bn,
               (SELECT array_agg(w.operator_id) FROM warehouse_operators w WHERE w.site_id = r.site_id) AS operators
          FROM warehouse_receipts r LEFT JOIN users f ON f.id = r.owner_id
+         LEFT JOIN produce_types pt ON pt.code = r.produce_code
         WHERE r.status IN ('issued', 'listed', 'pending_handover')
           AND r.expires_on >= $1::date AND r.expires_on <= $2::date`,
       [today, until],
@@ -225,9 +252,15 @@ export class ReminderJob implements ScheduledJobRunner {
     return rows.flatMap((r) => {
       const note: Note = {
         category: Reminder,
-        kind: 'receipt.expiring',
+        kind: NotificationKind.ReceiptExpiring,
         title: `Storage of ${r.quantity} ${r.produce_code} ends on ${r.expires_on}`,
         body: 'Re-check and extend the receipt, sell, or collect the goods',
+        params: {
+          quantity: r.quantity,
+          produce: r.produce ?? r.produce_code,
+          produceBn: r.produce_bn,
+          expiresOn: r.expires_on,
+        },
         subject: { type: 'receipt', id: r.id.trim() },
         key: `receipt:${r.id.trim()}:expiring:${r.expires_on}`,
       };
@@ -257,9 +290,10 @@ export class ReminderJob implements ScheduledJobRunner {
     return rows.flatMap((r) => {
       const note: Note = {
         category: Reminder,
-        kind: 'consent.expiring',
+        kind: NotificationKind.ConsentExpiring,
         title: `Permission for ${r.bank} ends soon`,
         body: `It ends at ${utc(r.expires_at)} UTC; renew it if the farmer agrees`,
+        params: { bank: r.bank, expiresAt: r.expires_at.toISOString() },
         subject: { type: 'consent', id: r.id },
         key: `consent:${r.id}:expiring`,
       };

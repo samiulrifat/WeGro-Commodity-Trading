@@ -41,6 +41,8 @@ import {
   normaliseMeasurements,
   roundCoordinate,
 } from './record-values';
+import { ErrorCode } from '../../common/errors/error-code';
+import { type Problem, problem } from '../../common/errors/problem';
 
 /** Stages in which the ledger accepts farm updates. */
 const OPEN_STAGES: readonly ProjectStage[] = [
@@ -109,7 +111,7 @@ export class FieldRecordsService {
           `${d.id}#dup`,
           rejected(
             d.id,
-            'DUPLICATE_IN_BATCH',
+            ErrorCode.DuplicateInBatch,
             'The same id appears twice in this batch',
           ),
         );
@@ -141,7 +143,7 @@ export class FieldRecordsService {
           d.id,
           rejected(
             d.id,
-            'CORRECTION_CYCLE',
+            ErrorCode.CorrectionCycle,
             'Corrections in this batch refer to each other in a circle',
           ),
         );
@@ -187,7 +189,7 @@ export class FieldRecordsService {
       ) {
         return rejected(
           r.id,
-          'ENTRY_ID_REUSED',
+          ErrorCode.EntryIdReused,
           'This id was already used for a different record',
         );
       }
@@ -238,7 +240,7 @@ export class FieldRecordsService {
       return {
         id: r.id,
         outcome: 'pending',
-        code: 'NOT_CONFIRMED',
+        code: ErrorCode.NotConfirmed,
         message:
           'Not confirmed by the ledger yet; keep the draft and send it again later',
       };
@@ -267,7 +269,7 @@ export class FieldRecordsService {
       throw new UnprocessableEntityException({
         message:
           'Farm updates are recorded from funding until the produce is ready for sale',
-        code: 'WRONG_STAGE',
+        code: ErrorCode.FarmUpdateWrongStage,
       });
     }
     const farmer = await this.users.findOne({
@@ -277,12 +279,13 @@ export class FieldRecordsService {
     if (farmer?.fieldOfficerId !== actor.id) {
       throw new UnprocessableEntityException({
         message: "Only the farmer's own field officer records farm updates",
-        code: 'NOT_FARMERS_OFFICER',
+        code: ErrorCode.NotFarmersOfficer,
       });
     }
 
     const type = this.catalog.fieldRecordTypes.requireActive(d.entryTypeCode);
-    const problems: string[] = [];
+    const problems: Problem[] = [];
+    const recordType = { recordType: type.name, recordTypeBn: type.nameBn };
 
     const m = normaliseMeasurements(d.measurements ?? {}, type.measurements);
     problems.push(...m.problems);
@@ -294,24 +297,46 @@ export class FieldRecordsService {
     const hasLng =
       d.longitude !== undefined && d.longitude !== null && d.longitude !== '';
     if (hasLat !== hasLng) {
-      problems.push('Give both latitude and longitude, or neither');
+      problems.push(
+        problem(
+          ErrorCode.LocationIncomplete,
+          'Give both latitude and longitude, or neither',
+        ),
+      );
     } else if (hasLat) {
       const loc = normaliseLocation(d.latitude, d.longitude);
       if ('problem' in loc) problems.push(loc.problem);
       else ({ latitude, longitude } = loc);
     } else if (type.requiresLocation) {
-      problems.push(`A ${type.name.toLowerCase()} needs the location`);
+      problems.push(
+        problem(
+          ErrorCode.LocationRequired,
+          `A ${type.name.toLowerCase()} needs the location`,
+          recordType,
+        ),
+      );
     }
 
     let photo: Photo | null = null;
     if (d.photoId) {
       photo = await this.photos.find(d.photoId).catch(() => null);
       if (!photo || photo.uploadedById !== actor.id) {
-        problems.push('photoId must be a photo you uploaded');
+        problems.push(
+          problem(
+            ErrorCode.PhotoNotYours,
+            'photoId must be a photo you uploaded',
+          ),
+        );
         photo = null;
       }
     } else if (type.requiresPhoto) {
-      problems.push(`A ${type.name.toLowerCase()} needs a photo`);
+      problems.push(
+        problem(
+          ErrorCode.PhotoRequired,
+          `A ${type.name.toLowerCase()} needs a photo`,
+          recordType,
+        ),
+      );
     }
 
     if (d.correctsEntryId) {
@@ -320,7 +345,12 @@ export class FieldRecordsService {
         select: { id: true, projectId: true },
       });
       if (!original || original.projectId !== d.projectId) {
-        problems.push('correctsEntryId must be a record of the same project');
+        problems.push(
+          problem(
+            ErrorCode.CorrectionOtherProject,
+            'correctsEntryId must be a record of the same project',
+          ),
+        );
       }
     }
 
@@ -328,16 +358,23 @@ export class FieldRecordsService {
     const observedAt = new Date(
       Math.floor(new Date(d.observedAt).getTime() / 1000) * 1000,
     );
-    if (observedAt.getTime() <= 0)
-      problems.push('observedAt is not a valid time');
-    else if (observedAt > chainNow) {
-      problems.push("observedAt is in the future: check the phone's clock");
+    if (observedAt.getTime() <= 0) {
+      problems.push(
+        problem(ErrorCode.ObservedAtInvalid, 'observedAt is not a valid time'),
+      );
+    } else if (observedAt > chainNow) {
+      problems.push(
+        problem(
+          ErrorCode.ObservedAtFuture,
+          "observedAt is in the future: check the phone's clock",
+        ),
+      );
     }
 
     if (problems.length > 0) {
       throw new UnprocessableEntityException({
         message: 'The record is not valid',
-        code: 'INVALID_RECORD',
+        code: ErrorCode.InvalidRecord,
         details: { problems },
       });
     }
@@ -393,7 +430,10 @@ export class FieldRecordsService {
   async photoFor(actor: AuthUser, id: string): Promise<Photo> {
     const record = await this.visibleRecord(actor, id);
     if (!record.photoId)
-      throw new NotFoundException('This record has no photo');
+      throw new NotFoundException({
+        message: 'This record has no photo',
+        code: ErrorCode.RecordHasNoPhoto,
+      });
     return this.photos.find(record.photoId);
   }
 
@@ -403,7 +443,11 @@ export class FieldRecordsService {
    */
   async verify(id: string): Promise<FieldRecordVerificationDto> {
     const record = await this.records.findOneBy({ id });
-    if (!record) throw new NotFoundException('Field record not found');
+    if (!record)
+      throw new NotFoundException({
+        message: 'Field record not found',
+        code: ErrorCode.FieldRecordNotFound,
+      });
     const dataHash = recordFingerprint(record);
     const photo = record.photoId
       ? await this.photos.find(record.photoId)
@@ -445,7 +489,7 @@ export class FieldRecordsService {
     if (!project) {
       throw new UnprocessableEntityException({
         message: 'Project not found',
-        code: 'PROJECT_NOT_FOUND',
+        code: ErrorCode.ProjectNotFound,
       });
     }
     return project;
@@ -456,10 +500,17 @@ export class FieldRecordsService {
     id: string,
   ): Promise<FieldRecord> {
     const record = await this.records.findOneBy({ id });
-    if (!record) throw new NotFoundException('Field record not found');
+    if (!record)
+      throw new NotFoundException({
+        message: 'Field record not found',
+        code: ErrorCode.FieldRecordNotFound,
+      });
     await this.projects.visible(actor, record.projectId);
     if (record.status !== 'recorded' && !this.seesDrafts(actor)) {
-      throw new NotFoundException('Field record not found');
+      throw new NotFoundException({
+        message: 'Field record not found',
+        code: ErrorCode.FieldRecordNotFound,
+      });
     }
     return record;
   }
@@ -601,8 +652,19 @@ export function recordFingerprint(
   });
 }
 
-function rejected(id: string, code: string, message: string): SyncResultDto {
-  return { id, outcome: 'rejected', code, message };
+function rejected(
+  id: string,
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+): SyncResultDto {
+  return {
+    id,
+    outcome: 'rejected',
+    code,
+    message,
+    ...(details && { details }),
+  };
 }
 
 function fromHttpError(id: string, error: unknown): SyncResultDto {
@@ -610,7 +672,7 @@ function fromHttpError(id: string, error: unknown): SyncResultDto {
   const body = error.getResponse() as {
     message?: string | string[];
     code?: string;
-    details?: { problems?: string[] };
+    details?: Record<string, unknown> & { problems?: Problem[] };
   };
   const message = Array.isArray(body.message)
     ? body.message.join('; ')
@@ -619,6 +681,9 @@ function fromHttpError(id: string, error: unknown): SyncResultDto {
   return rejected(
     id,
     body.code ?? error.name,
-    problems?.length ? `${message}: ${problems.join('; ')}` : message,
+    problems?.length
+      ? `${message}: ${problems.map((p) => p.message).join('; ')}`
+      : message,
+    body.details,
   );
 }

@@ -73,6 +73,68 @@ export type NotificationsReadApiResponse = /** status 200  */ {
 export type NotificationsReadApiArg = {
   id: number;
 };
+export type NotificationKind =
+  | 'participant.registered'
+  | 'participant.verified'
+  | 'participant.rejected'
+  | 'farmer.assigned'
+  | 'reservation.made'
+  | 'reservation.confirmed'
+  | 'reservation.expired'
+  | 'reservation.cancelled'
+  | 'reservation.expiring'
+  | 'project.funded'
+  | 'project.active'
+  | 'project.ready-for-sale'
+  | 'project.paid-out'
+  | 'project.cancelled'
+  | 'project.refunds-due'
+  | 'refund.paid'
+  | 'voucher.proposed'
+  | 'voucher.approved'
+  | 'voucher.rejected'
+  | 'voucher.cancelled'
+  | 'voucher.inactive-soon'
+  | 'voucher.inactive'
+  | 'sale.recorded'
+  | 'sale.confirmed'
+  | 'sale.cancelled'
+  | 'sale.expired'
+  | 'sale.confirm-due'
+  | 'receipt.issued'
+  | 'receipt.expiring'
+  | 'handover.offered'
+  | 'handover.cancelled'
+  | 'handover.accepted'
+  | 'offer.made'
+  | 'offer.approved'
+  | 'offer.rejected'
+  | 'deal.awaiting-payment'
+  | 'deal.payment-due'
+  | 'deal.cancelled'
+  | 'deal.expired'
+  | 'deal.paid'
+  | 'deal.deliver'
+  | 'deal.delivered'
+  | 'claim.opened'
+  | 'claim.approved'
+  | 'claim.rejected'
+  | 'round.prepared'
+  | 'round.rejected'
+  | 'round.approved'
+  | 'payout.paid'
+  | 'track-record.published'
+  | 'track-record.viewed'
+  | 'consent.granted'
+  | 'consent.revoked'
+  | 'consent.expiring'
+  | 'bank-account.submitted'
+  | 'bank-account.verified'
+  | 'bank-account.rejected'
+  | 'system.node-unreachable'
+  | 'system.indexer-behind'
+  | 'system.indexer-failing'
+  | 'system.resolved';
 export type RecordLinkDto = {
   type: string;
   id: string;
@@ -80,9 +142,14 @@ export type RecordLinkDto = {
 export type NotificationDto = {
   id: number;
   category: 'reminder' | 'action' | 'outcome';
-  kind: string;
+  kind: NotificationKind;
   title: string;
   body?: string | null;
+  /** Values in the text, for wording it in the reader’s language (amounts as taka strings, dates as ISO); title and body are the English wording */
+  params?: {
+    [key: string]:
+      ((string | null) | (number | null) | (boolean | null)) | null;
+  } | null;
   /** What it is about */
   subject?: RecordLinkDto | null;
   createdAt: string;

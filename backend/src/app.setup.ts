@@ -1,4 +1,4 @@
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import {
@@ -7,10 +7,12 @@ import {
   SwaggerModule,
 } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { InputValidationPipe } from './common/errors/validation';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { requestLogger } from './common/middleware/request-logger.middleware';
 import { describeEnvelopes, PageMetaDto } from './common/swagger/envelope';
+import { describeErrors } from './common/swagger/errors';
 import type { EnvironmentVariables } from './config/env.validation';
 
 export const API_PREFIX = 'api';
@@ -50,7 +52,7 @@ export function configureApp(app: INestApplication): void {
 
   app.setGlobalPrefix(API_PREFIX);
   app.useGlobalPipes(
-    new ValidationPipe({
+    new InputValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
@@ -73,25 +75,27 @@ export function configureApp(app: INestApplication): void {
  * chain tests' response check are built from it.
  */
 export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
-  return describeEnvelopes(
-    SwaggerModule.createDocument(
-      app,
-      new DocumentBuilder()
-        .setTitle('WeGro Commodity Trading Platform API')
-        .setDescription(
-          'Prototype API. Responses are wrapped as { data } (or { data, meta } for pages); ' +
-            'errors as { statusCode, error, message, path, requestId, timestamp }. No real money moves.',
-        )
-        .setVersion('0.1.0')
-        .addBearerAuth()
-        .build(),
-      {
-        extraModels: [PageMetaDto],
-        // "Projects_list" rather than "ProjectsController_list": the names
-        // generated clients use for their calls.
-        operationIdFactory: (controller: string, method: string) =>
-          `${controller.replace(/Controller$/, '')}_${method}`,
-      },
+  return describeErrors(
+    describeEnvelopes(
+      SwaggerModule.createDocument(
+        app,
+        new DocumentBuilder()
+          .setTitle('WeGro Commodity Trading Platform API')
+          .setDescription(
+            'Prototype API. Responses are wrapped as { data } (or { data, meta } for pages); ' +
+              'errors as ErrorBody: { statusCode, error, message, code, details, path, requestId, timestamp }. No real money moves.',
+          )
+          .setVersion('0.1.0')
+          .addBearerAuth()
+          .build(),
+        {
+          extraModels: [PageMetaDto],
+          // "Projects_list" rather than "ProjectsController_list": the names
+          // generated clients use for their calls.
+          operationIdFactory: (controller: string, method: string) =>
+            `${controller.replace(/Controller$/, '')}_${method}`,
+        },
+      ),
     ),
   );
 }

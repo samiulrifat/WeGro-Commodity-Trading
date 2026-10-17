@@ -270,6 +270,14 @@ export type CostsDto = {
   /** Costs Accounts entered */
   other: string;
 };
+export type RoundBlock =
+  | 'ROUND_OPEN'
+  | 'ALREADY_SETTLED'
+  | 'ROUND_WRONG_STAGE'
+  | 'NOT_STAGED'
+  | 'TOO_EARLY'
+  | 'NOTHING_TO_DISTRIBUTE'
+  | 'STILL_OUTSTANDING';
 export type PreviewDto = {
   /** Profit not yet split */
   profit: string;
@@ -284,8 +292,8 @@ export type PreviewDto = {
 };
 export type RoundEligibilityDto = {
   allowed: boolean;
-  /** Why not, when not allowed */
-  reason?: string | null;
+  /** Why not, when not allowed: an error code */
+  reason?: RoundBlock | null;
   /** Staged: earliest time */
   nextAllowedAt?: string | null;
   /** Final: what is still unfinished */

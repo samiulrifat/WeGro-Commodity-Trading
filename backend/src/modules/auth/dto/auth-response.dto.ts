@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Language } from '../../users/language';
 import { ParticipantStatus, Role } from '../../users/roles';
+
+const LANGUAGE = {
+  enum: Language,
+  enumName: 'Language',
+  nullable: true,
+  description: 'The language the person chose; null until chosen (English)',
+} as const;
 
 export class SessionUserDto {
   @ApiProperty({ format: 'uuid' })
@@ -10,6 +18,9 @@ export class SessionUserDto {
 
   @ApiProperty({ enum: ParticipantStatus })
   status: ParticipantStatus;
+
+  @ApiProperty(LANGUAGE)
+  language: Language | null;
 }
 
 /** Sign-in result. The refresh token is set as an httpOnly cookie, never in the body. */
@@ -63,6 +74,9 @@ export class MeResponseDto {
 
   @ApiProperty()
   isDemo: boolean;
+
+  @ApiProperty(LANGUAGE)
+  language: Language | null;
 }
 
 export class DemoAccountDto {

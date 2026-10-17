@@ -36,6 +36,7 @@ import { Reservation } from './entities/reservation.entity';
 import { ProjectStage, ReservationStatus } from './project.enums';
 import { estimate, ProjectViews } from './project-views';
 import { ProjectsService } from './projects.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** Who may read payment references. */
 const SEES_PAYMENTS: ReadonlySet<Role> = new Set([
@@ -84,14 +85,17 @@ export class ReservationsService {
   ): Promise<ReservationDto> {
     const project = await this.projects.visible(actor, projectId);
     if (project.stage !== ProjectStage.OpenForFunding) {
-      throw new ConflictException('This project is not open for funding');
+      throw new ConflictException({
+        message: 'This project is not open for funding',
+        code: ErrorCode.ProjectNotOpen,
+      });
     }
     const available =
       project.totalSlots - project.issuedSlots - project.reservedSlots;
     if (slots > available) {
       throw new ConflictException({
         message: `Only ${available} slot${available === 1 ? ' is' : 's are'} available`,
-        code: 'NOT_ENOUGH_SLOTS',
+        code: ErrorCode.NotEnoughSlots,
         details: { available },
       });
     }
@@ -107,12 +111,17 @@ export class ReservationsService {
   async cancel(actor: AuthUser, id: number): Promise<ReservationDto> {
     const reservation = await this.load(id);
     if (actor.role === Role.Investor && reservation.investorId !== actor.id) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException({
+        message: 'Reservation not found',
+        code: ErrorCode.ReservationNotFound,
+      });
     }
     if (reservation.status !== ReservationStatus.Pending) {
-      throw new ConflictException(
-        `This reservation is ${reservation.status ?? 'not active'}`,
-      );
+      throw new ConflictException({
+        message: `This reservation is ${reservation.status ?? 'not active'}`,
+        code: ErrorCode.ReservationWrongStatus,
+        details: { status: reservation.status ?? null },
+      });
     }
     await this.send(actor, (c) => c.cancelReservation.populateTransaction(id));
     return this.findOne(actor, id);
@@ -168,9 +177,11 @@ export class ReservationsService {
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const reservation = await this.load(id);
     if (reservation.status !== ReservationStatus.Pending) {
-      throw new ConflictException(
-        `This reservation is ${reservation.status ?? 'not active'}`,
-      );
+      throw new ConflictException({
+        message: `This reservation is ${reservation.status ?? 'not active'}`,
+        code: ErrorCode.ReservationWrongStatus,
+        details: { status: reservation.status ?? null },
+      });
     }
 
     try {
@@ -191,9 +202,10 @@ export class ReservationsService {
         })
         .execute();
       if (saved.affected !== 1) {
-        throw new ConflictException(
-          'This reservation is already being confirmed',
-        );
+        throw new ConflictException({
+          message: 'This reservation is already being confirmed',
+          code: ErrorCode.ReservationConfirming,
+        });
       }
     } catch (error) {
       throw duplicateRef(error);
@@ -224,26 +236,33 @@ export class ReservationsService {
   ): Promise<RefundLineDto[]> {
     const project = await this.projects.visible(actor, projectId);
     if (project.stage !== ProjectStage.Cancelled) {
-      throw new ConflictException(
-        'Refunds are recorded only for cancelled projects',
-      );
+      throw new ConflictException({
+        message: 'Refunds are recorded only for cancelled projects',
+        code: ErrorCode.RefundProjectNotCancelled,
+      });
     }
     const due = (await this.holdings(projectId)).find(
       (h) => h.investorId === investorId,
     );
     if (!due)
-      throw new UnprocessableEntityException(
-        'This investor holds no slots in the project',
-      );
+      throw new UnprocessableEntityException({
+        message: 'This investor holds no slots in the project',
+        code: ErrorCode.NoSlotsHeld,
+      });
 
     const ref = normalise(paymentReference);
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const existing = await this.refunds.findOneBy({ projectId, investorId });
-    if (existing?.confirmed) throw new ConflictException('Already refunded');
+    if (existing?.confirmed)
+      throw new ConflictException({
+        message: 'Already refunded',
+        code: ErrorCode.AlreadyRefunded,
+      });
     if (existing && existing.paymentRefHash !== hash) {
-      throw new ConflictException(
-        'A different refund for this investor is being recorded',
-      );
+      throw new ConflictException({
+        message: 'A different refund for this investor is being recorded',
+        code: ErrorCode.RefundInProgress,
+      });
     }
     if (!existing) {
       try {
@@ -314,7 +333,10 @@ export class ReservationsService {
       row.status === null ||
       (actor.role === Role.Investor && row.investorId !== actor.id)
     ) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException({
+        message: 'Reservation not found',
+        code: ErrorCode.ReservationNotFound,
+      });
     }
     return (await this.reservationViews(actor, [row]))[0];
   }
@@ -410,7 +432,10 @@ export class ReservationsService {
   private async load(id: number): Promise<Reservation> {
     const row = await this.reservations.findOneBy({ id });
     if (!row || row.status === null)
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException({
+        message: 'Reservation not found',
+        code: ErrorCode.ReservationNotFound,
+      });
     return row;
   }
 
@@ -431,7 +456,10 @@ function normalise(ref: string): string {
   try {
     return normalisePaymentRef(ref);
   } catch (error) {
-    throw new UnprocessableEntityException((error as Error).message);
+    throw new UnprocessableEntityException({
+      message: (error as Error).message,
+      code: ErrorCode.PaymentRefInvalid,
+    });
   }
 }
 
@@ -442,7 +470,7 @@ function duplicateRef(error: unknown): unknown {
   ) {
     return new ConflictException({
       message: 'This payment reference was already used',
-      code: 'PAYMENT_REF_ALREADY_USED',
+      code: ErrorCode.PaymentRefAlreadyUsed,
     });
   }
   return error;

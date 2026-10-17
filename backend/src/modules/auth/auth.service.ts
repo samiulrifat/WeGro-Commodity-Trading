@@ -18,15 +18,20 @@ import { ChainState, User } from '../users/entities/user.entity';
 import { PersonalDetailsCodec } from '../users/personal-details.codec';
 import { ParticipantStatus, type Role } from '../users/roles';
 import type { AuthUser } from './auth-user';
+import type { UpdateMeDto } from './dto/auth-request.dto';
 import type { MeResponseDto } from './dto/auth-response.dto';
 import { type IssuedTokens, TokenService } from './token.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** Failed sign-ins allowed before the account locks. */
 export const MAX_FAILED_LOGINS = 5;
 /** Lock doubles with each further failure: 1, 2, 4 ... minutes, at most an hour. */
 const MAX_LOCK_MINUTES = 60;
 
-const BAD_CREDENTIALS = 'Phone number or password is incorrect';
+const BAD_CREDENTIALS = {
+  message: 'Phone number or password is incorrect',
+  code: ErrorCode.BadCredentials,
+};
 
 export interface SignInResult {
   user: User;
@@ -90,10 +95,18 @@ export class AuthService {
 
   /** Demo mode only: sign in as the ready-made account for a role. */
   async demoLogin(role: Role): Promise<SignInResult> {
-    if (!this.demoMode) throw new NotFoundException();
+    if (!this.demoMode)
+      throw new NotFoundException({
+        message: 'Not found',
+        code: ErrorCode.NotFound,
+      });
     const user = await this.users.findOne({ where: { role, isDemo: true } });
     if (!user) {
-      throw new NotFoundException(`No demo account for role ${role} yet`);
+      throw new NotFoundException({
+        message: `No demo account for role ${role} yet`,
+        code: ErrorCode.NoDemoAccount,
+        details: { role },
+      });
     }
     this.assertMaySignIn(user);
     await this.users.update({ id: user.id }, { lastLoginAt: new Date() });
@@ -101,7 +114,11 @@ export class AuthService {
   }
 
   async demoAccounts(): Promise<Array<{ role: Role; fullName: string }>> {
-    if (!this.demoMode) throw new NotFoundException();
+    if (!this.demoMode)
+      throw new NotFoundException({
+        message: 'Not found',
+        code: ErrorCode.NotFound,
+      });
     const users = await this.users.find({
       where: { isDemo: true },
       relations: { details: true },
@@ -155,12 +172,16 @@ export class AuthService {
     // must not become a way to guess the password.
     if (!(await this.hasher.verify(current, user.passwordHash))) {
       await this.recordFailure(user.id);
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException({
+        message: 'Current password is incorrect',
+        code: ErrorCode.WrongCurrentPassword,
+      });
     }
     if (current.normalize('NFKC') === next.normalize('NFKC')) {
-      throw new BadRequestException(
-        'New password must differ from the current one',
-      );
+      throw new BadRequestException({
+        message: 'New password must differ from the current one',
+        code: ErrorCode.PasswordUnchanged,
+      });
     }
     const passwordHash = await this.hasher.hash(next);
     return this.users.manager.transaction(async (m) => {
@@ -197,7 +218,14 @@ export class AuthService {
       account: user.account,
       mustChangePassword: user.mustChangePassword,
       isDemo: user.isDemo,
+      language: user.language,
     };
+  }
+
+  /** Saves my settings (for now, the language). */
+  async updateMe(auth: AuthUser, dto: UpdateMeDto): Promise<MeResponseDto> {
+    await this.users.update({ id: auth.id }, { language: dto.language });
+    return this.me(auth);
   }
 
   private assertNotLocked(user: User): void {
@@ -206,7 +234,11 @@ export class AuthService {
       (user.lockedUntil.getTime() - Date.now()) / 60_000,
     );
     throw new HttpException(
-      `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      {
+        message: `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+        code: ErrorCode.AccountLocked,
+        details: { minutes },
+      },
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -214,12 +246,17 @@ export class AuthService {
   /** Pending participants may sign in (to see their status); rejected or unconfirmed ones may not. */
   private assertMaySignIn(user: User): void {
     if (user.chainState === ChainState.Submitted) {
-      throw new ForbiddenException(
-        'Your registration is still being confirmed. Try again shortly.',
-      );
+      throw new ForbiddenException({
+        message:
+          'Your registration is still being confirmed. Try again shortly.',
+        code: ErrorCode.RegistrationConfirming,
+      });
     }
     if (user.status === ParticipantStatus.Rejected) {
-      throw new ForbiddenException('This account was not approved');
+      throw new ForbiddenException({
+        message: 'This account was not approved',
+        code: ErrorCode.AccountRejected,
+      });
     }
   }
 

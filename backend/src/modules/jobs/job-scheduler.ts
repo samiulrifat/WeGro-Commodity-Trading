@@ -26,6 +26,7 @@ import {
   type ScheduledJobMeta,
   type ScheduledJobRunner,
 } from '../../common/jobs/scheduled-job';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** Gap between first runs at startup, so jobs do not all start at once. */
 const STAGGER_MS = 5_000;
@@ -130,7 +131,8 @@ export class JobScheduler
     if (e.running) {
       throw new ConflictException({
         message: `${name} is running; try again when it finishes`,
-        code: 'JOB_RUNNING',
+        code: ErrorCode.JobRunning,
+        details: { job: name },
       });
     }
     const run = await this.execute(e, 'manual', actor.id);
@@ -174,7 +176,12 @@ export class JobScheduler
 
   private entry(name: string): Entry {
     const e = this.jobs.get(name);
-    if (!e) throw new NotFoundException(`No job named ${name}`);
+    if (!e)
+      throw new NotFoundException({
+        message: `No job named ${name}`,
+        code: ErrorCode.JobNotFound,
+        details: { job: name },
+      });
     return e;
   }
 

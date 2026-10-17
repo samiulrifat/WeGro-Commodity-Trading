@@ -19,6 +19,7 @@ import {
   titleOf,
 } from './event-format';
 import { HISTORY_TYPES, type HistoryTypeName } from './history-types';
+import { ErrorCode } from '../../../common/errors/error-code';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BYTES32 = /^0x[0-9a-f]{64}$/i;
@@ -202,13 +203,25 @@ export class HistoryService {
 function ledgerValue(kind: 'uuid' | 'number' | 'bytes32', id: string): string {
   switch (kind) {
     case 'uuid':
-      if (!UUID.test(id)) throw new NotFoundException('Record not found');
+      if (!UUID.test(id))
+        throw new NotFoundException({
+          message: 'Record not found',
+          code: ErrorCode.RecordNotFound,
+        });
       return uuidToBytes32(id);
     case 'number':
-      if (!NUMBER.test(id)) throw new NotFoundException('Record not found');
+      if (!NUMBER.test(id))
+        throw new NotFoundException({
+          message: 'Record not found',
+          code: ErrorCode.RecordNotFound,
+        });
       return BigInt(id).toString();
     case 'bytes32':
-      if (!BYTES32.test(id)) throw new NotFoundException('Record not found');
+      if (!BYTES32.test(id))
+        throw new NotFoundException({
+          message: 'Record not found',
+          code: ErrorCode.RecordNotFound,
+        });
       return id.toLowerCase();
   }
 }

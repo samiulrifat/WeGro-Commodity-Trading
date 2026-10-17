@@ -249,7 +249,7 @@ describe('FieldRecordsService', () => {
     const [tooEarly] = await build({
       stage: ProjectStage.OpenForFunding,
     }).service.sync(officer, [draft()] as never);
-    expect(tooEarly.code).toBe('WRONG_STAGE');
+    expect(tooEarly.code).toBe('FARM_UPDATE_WRONG_STAGE');
   });
 
   it('removes a record the ledger refuses', async () => {

@@ -424,7 +424,7 @@ describe('Settlement (node + database)', () => {
             payees: 3,
           },
         },
-        final: { allowed: false, reason: 'WRONG_STAGE' },
+        final: { allowed: false, reason: 'ROUND_WRONG_STAGE' },
       });
       const early = await as(t.accounts)
         .post(`/settlement/projects/${project}/rounds`, { final: false })
@@ -572,7 +572,7 @@ describe('Settlement (node + database)', () => {
       const res = await as(t.accounts)
         .post(`/settlement/projects/${project}/rounds`, { final: true })
         .expect(409);
-      expect(res.body.code).toBe('WRONG_STAGE');
+      expect(res.body.code).toBe('ROUND_WRONG_STAGE');
       await as(t.admin).post(`/projects/${project}/ready-for-sale`).expect(200);
       const summary = await as(t.accounts)
         .get(`/settlement/projects/${project}`)

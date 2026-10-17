@@ -27,6 +27,7 @@ import { SettlementRound } from './entities/settlement-round.entity';
 import { signedTaka } from './settlement-math';
 import { PayeeRole, RoundStatus } from './settlement.enums';
 import { lineContext } from './settlement.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const STATEMENT_NOTE =
   'Figures come from the ledger. Each payout can be checked against SettlementLedger.payoutLineHash(roundId, payeeId). Returns are never guaranteed.';
@@ -62,7 +63,10 @@ export class SettlementReportsService {
   async payoutSheet(roundId: number): Promise<{ name: string; csv: string }> {
     const round = await this.rounds.findOneBy({ id: roundId });
     if (!round || round.status === null)
-      throw new NotFoundException('Round not found');
+      throw new NotFoundException({
+        message: 'Round not found',
+        code: ErrorCode.RoundNotFound,
+      });
     const [project, lines] = await Promise.all([
       this.projects.findOne({
         where: { id: round.projectId },
@@ -150,7 +154,11 @@ export class SettlementReportsService {
     projectId: string,
   ): Promise<{ name: string; csv: string }> {
     const project = await this.projects.findOneBy({ id: projectId });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     const key = uuidToBytes32(projectId);
     const c = this.contracts;
     const [sales, claims, inputs, costs, rounds, ledger] = await Promise.all([
@@ -331,11 +339,16 @@ export class SettlementReportsService {
     const start = bdDayStart(from);
     const end = bdDayEnd(to);
     if (end <= start)
-      throw new UnprocessableEntityException('to must not be before from');
+      throw new UnprocessableEntityException({
+        message: 'to must not be before from',
+        code: ErrorCode.PeriodReversed,
+      });
     if (end - start > MAX_PERIOD_DAYS * 86_400) {
-      throw new UnprocessableEntityException(
-        `A period is at most ${MAX_PERIOD_DAYS} days`,
-      );
+      throw new UnprocessableEntityException({
+        message: `A period is at most ${MAX_PERIOD_DAYS} days`,
+        code: ErrorCode.PeriodTooLong,
+        details: { maxDays: MAX_PERIOD_DAYS },
+      });
     }
     const rounds = await this.rounds
       .createQueryBuilder('r')
@@ -416,12 +429,18 @@ export class SettlementReportsService {
       select: { id: true, role: true },
     });
     if (!user || (user.role !== Role.Investor && user.role !== Role.Farmer)) {
-      throw new NotFoundException('No statement for this participant');
+      throw new NotFoundException({
+        message: 'No statement for this participant',
+        code: ErrorCode.NoStatement,
+      });
     }
     const start = q.from ? new Date(bdDayStart(q.from) * 1000) : null;
     const end = q.to ? new Date(bdDayEnd(q.to) * 1000) : null;
     if (start && end && end <= start)
-      throw new UnprocessableEntityException('to must not be before from');
+      throw new UnprocessableEntityException({
+        message: 'to must not be before from',
+        code: ErrorCode.PeriodReversed,
+      });
     const investor = user.role === Role.Investor;
 
     const [payouts, stakes, people] = await Promise.all([

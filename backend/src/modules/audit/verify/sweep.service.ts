@@ -20,6 +20,7 @@ import type {
 import { VerificationFinding } from '../entities/verification-finding.entity';
 import { VerificationRun } from '../entities/verification-run.entity';
 import { VerifyService, type VerifyType } from './verify.service';
+import { ErrorCode } from '../../../common/errors/error-code';
 
 const PAGE = 500;
 const CONCURRENCY = 8;
@@ -119,7 +120,7 @@ export class SweepService implements OnModuleInit, OnApplicationShutdown {
     if (this.running) {
       throw new ConflictException({
         message: 'A sweep is already running',
-        code: 'SWEEP_RUNNING',
+        code: ErrorCode.SweepRunning,
       });
     }
     const run = await this.runs.save({
@@ -153,7 +154,11 @@ export class SweepService implements OnModuleInit, OnApplicationShutdown {
 
   async one(id: string): Promise<SweepDto> {
     const run = await this.runs.findOneBy({ id });
-    if (!run) throw new NotFoundException('Sweep not found');
+    if (!run)
+      throw new NotFoundException({
+        message: 'Sweep not found',
+        code: ErrorCode.SweepNotFound,
+      });
     return (await this.dtos([run]))[0];
   }
 

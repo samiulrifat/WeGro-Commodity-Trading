@@ -328,7 +328,7 @@ describe('TrackRecordsService', () => {
       const err = await build()
         .service.revoke(officer, FARMER, BANK)
         .catch((e: ConflictException) => e.getResponse());
-      expect(err).toMatchObject({ code: 'NO_ACTIVE_CONSENT' });
+      expect(err).toMatchObject({ code: 'NO_CONSENT_TO_WITHDRAW' });
       const { service, chain } = build({ consent: {} });
       await service.revoke(officer, FARMER, BANK);
       expect(chain.methods()).toEqual(['revokeConsent']);

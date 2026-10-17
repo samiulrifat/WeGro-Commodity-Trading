@@ -278,16 +278,22 @@ describe('WarehouseService', () => {
           moisturePercent: '101',
         } as never)
         .catch((e: UnprocessableEntityException) => e.getResponse());
-      const problems = (err as { details: { problems: string[] } }).details
+      const problems = (err as { details: { problems: object[] } }).details
         .problems;
-      expect(problems).toEqual(
-        expect.arrayContaining([
-          'intakeDate cannot be in the future',
-          'expiresOn cannot be in the past',
-          'expiresOn cannot be before intakeDate',
-        ]),
-      );
-      expect(problems).toHaveLength(4);
+      expect(problems).toEqual([
+        expect.objectContaining({ code: 'INTAKE_IN_FUTURE' }),
+        expect.objectContaining({ code: 'EXPIRY_IN_PAST' }),
+        expect.objectContaining({ code: 'EXPIRES_BEFORE_INTAKE' }),
+        expect.objectContaining({
+          code: 'MEASUREMENT_ABOVE_MAX',
+          details: {
+            key: 'moisturePercent',
+            label: 'Moisture',
+            labelBn: 'আর্দ্রতা',
+            max: 100,
+          },
+        }),
+      ]);
     });
 
     it.each([
@@ -295,7 +301,7 @@ describe('WarehouseService', () => {
       [
         'a project not active',
         { project: { stage: ProjectStage.Funded } },
-        'WRONG_STAGE',
+        'PROJECT_NOT_ACTIVE',
       ],
       [
         'fresh produce',

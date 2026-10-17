@@ -2,14 +2,20 @@ import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { baseApi } from '@/api/base-api';
 import { connectSession } from '@/api/http';
+import { languageListener } from './language-listener';
+import { languageSlice } from './language-slice';
 import { sessionEnded, sessionSlice, sessionStarted } from './session-slice';
 
 export const store = configureStore({
   reducer: {
     [sessionSlice.name]: sessionSlice.reducer,
+    [languageSlice.name]: languageSlice.reducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
-  middleware: (getDefault) => getDefault().concat(baseApi.middleware),
+  middleware: (getDefault) =>
+    getDefault()
+      .prepend(languageListener.middleware)
+      .concat(baseApi.middleware),
 });
 
 // Requests read the token from here; a renewal or a failed one updates it.

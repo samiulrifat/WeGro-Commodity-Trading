@@ -29,6 +29,7 @@ import type {
 import { Bank } from './entities/bank.entity';
 import { BankOfficer } from './entities/bank-officer.entity';
 import { bankFingerprint } from './track-record-fingerprints';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** See which officers work for each bank. */
 const SEES_OFFICERS: ReadonlySet<Role> = new Set([
@@ -68,7 +69,10 @@ export class BanksService {
         (error as { driverError?: { code?: string } }).driverError?.code ===
         '23505'
       ) {
-        throw new ConflictException('This bank branch is already registered');
+        throw new ConflictException({
+          message: 'This bank branch is already registered',
+          code: ErrorCode.BankExists,
+        });
       }
       throw error;
     }
@@ -100,7 +104,11 @@ export class BanksService {
 
   async one(actor: AuthUser, id: string): Promise<BankDto> {
     const bank = await this.banks.findOneBy({ id });
-    if (!bank) throw new NotFoundException('Bank not found');
+    if (!bank)
+      throw new NotFoundException({
+        message: 'Bank not found',
+        code: ErrorCode.BankNotFound,
+      });
     return (await this.dtos(actor, [bank]))[0];
   }
 
@@ -117,14 +125,18 @@ export class BanksService {
       officer.status !== ParticipantStatus.Verified ||
       officer.chainState !== ChainState.Confirmed
     ) {
-      throw new UnprocessableEntityException(
-        'Only a verified bank officer can be assigned',
-      );
+      throw new UnprocessableEntityException({
+        message: 'Only a verified bank officer can be assigned',
+        code: ErrorCode.BankOfficerInvalid,
+      });
     }
     if (bankId) {
       const bank = await this.banks.findOneBy({ id: bankId });
       if (!bank || bank.status !== 'registered')
-        throw new NotFoundException('Bank not found');
+        throw new NotFoundException({
+          message: 'Bank not found',
+          code: ErrorCode.BankNotFound,
+        });
     }
     await this.send(actor, (c) =>
       c.assignBankOfficer.populateTransaction(

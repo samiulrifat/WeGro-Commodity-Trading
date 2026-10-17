@@ -52,8 +52,18 @@ data?.meta; // { page, limit, total, totalPages }
 - Responses are exactly what the backend sends: `{ data }`, or `{ data, meta }` for pages.
 - `npm run api:generate` (backend running) rewrites `src/api/generated/` from the backend's docs; never edit those files. `npm run api:check` fails if they are out of date. The backend's chain tests check every response against those same docs.
 - [src/api/http.ts](src/api/http.ts) sends every request: it adds the access token and, on a 401, renews the session once (the refresh token is an httpOnly cookie) and repeats the request.
-- [src/api/errors.ts](src/api/errors.ts): `toApiError(error)` gives one shape for any failure: kind (`invalid`, `conflict`, `unavailable`, `network`, ...), messages, the server's `code` and `requestId`.
+- [src/api/errors.ts](src/api/errors.ts): `toApiError(error)` gives one shape for any failure: kind (`invalid`, `conflict`, `unavailable`, `network`, ...), messages, the server's `code`, `details` and `requestId`. Show it with `errorText()` (see Language).
 - [src/api/files.ts](src/api/files.ts): `usePhotoUploadMutation`, `useApiFile(path)` for photos and QR codes, `downloadFile(path)` for CSV reports.
+
+## Language
+
+English by default; the `EN | বাংলা` switch ([LanguageSwitch](src/components/language-switch.tsx)) changes the whole app at once. The choice is remembered on the device, and once signed in it is saved to the person's account (`PATCH /api/auth/me`) and follows them to other devices: signing in takes the account's language, or saves the one picked on the sign-in page if the account has none yet.
+
+- Words live in [src/i18n/en.ts](src/i18n/en.ts) and [bn.ts](src/i18n/bn.ts). English is the source of every key; the type check fails if Bengali misses one, and a test checks both fill in the same values. Bengali is downloaded only when chosen.
+- Numbers in sentences always take a format, so Bengali gets Bengali digits: `{{n, number}}`, `{{amount, taka}}`, `{{at, date}}`, `{{at, datetime}}`, `{{role, role}}`; counted words nest a plural, `$t(units.slot, {"count": {{slots}} })`.
+- Formats ([src/lib/format.ts](src/lib/format.ts), or `useFormat()` in components): taka as `৳ 1,234,567.50`, poisha only when there are some, exact for any amount (never through a float); short figures `৳ 657.7M` (`৳ ৬৫৭.৭ মিলিয়ন`); dates `17 Oct 2026` (`১৭ অক্টোবর ২০২৬`), always in Bangladesh time, and `YYYY-MM-DD` days never shifted. Phone numbers, NIDs, record numbers and ledger addresses stay in English digits; `latinDigits()` turns Bengali digits typed into a field into ones the API reads.
+- Server text: `errorText(apiError, i18n)` words an error by its `code` and `details`, including each input check (`details.fields`) and each problem of a list (`details.problems`); `fieldErrors(apiError, i18n)` gives a form one message per field. A ledger refusal shows the server's English to English readers and a sentence for its kind to others. `notificationText(n, i18n)` words a notification by its `kind` and `params`, keeping the English of ones saved before their values were. Where the server sends a Bengali form of a name (`labelBn`, `produceBn`), Bengali readers get it.
+- Every error code, input rule and notification kind must have wording: `npm run api:generate` writes the backend's lists to `src/api/generated/codes.ts` and `notifications.ts`, and the type check fails if `en.ts` misses one (and `bn.ts` must match `en.ts`).
 
 ## Layout
 

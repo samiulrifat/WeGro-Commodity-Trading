@@ -56,6 +56,8 @@ import {
   totalSlots,
 } from './project-terms';
 import { ProjectViews } from './project-views';
+import { ErrorCode } from '../../common/errors/error-code';
+import { problem } from '../../common/errors/problem';
 
 /** Staff see every project, drafts included. */
 export const PROJECT_STAFF: ReadonlySet<Role> = new Set([
@@ -171,7 +173,10 @@ export class ProjectsService {
         { chainState: ProjectChainState.Submitted, termsHash: hash },
       );
       if (res.affected !== 1)
-        throw new ConflictException('Already being published');
+        throw new ConflictException({
+          message: 'Already being published',
+          code: ErrorCode.AlreadyPublishing,
+        });
       project = await this.projects.findOneByOrFail({ id });
     }
 
@@ -214,8 +219,14 @@ export class ProjectsService {
     if (project.chainState === ProjectChainState.Local) {
       throw new ConflictException(
         action === 'cancelProject'
-          ? 'This draft was never published: delete it instead'
-          : 'Publish the project first',
+          ? {
+              message: 'This draft was never published: delete it instead',
+              code: ErrorCode.DraftNeverPublished,
+            }
+          : {
+              message: 'Publish the project first',
+              code: ErrorCode.ProjectNotPublished,
+            },
       );
     }
     await this.send(actor, (c) =>
@@ -262,7 +273,11 @@ export class ProjectsService {
       .where('p.id = :id', { id });
     this.scope(actor, qb);
     const project = await qb.getOne();
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     return project;
   }
 
@@ -365,7 +380,11 @@ export class ProjectsService {
 
   private async findOrFail(id: string): Promise<Project> {
     const project = await this.projects.findOneBy({ id });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     return project;
   }
 
@@ -391,12 +410,17 @@ export class ProjectsService {
       farmer.status !== ParticipantStatus.Verified ||
       farmer.chainState !== ChainState.Confirmed
     ) {
-      problems.push('farmerId must be a verified farmer');
+      problems.push(
+        problem(
+          ErrorCode.TermsFarmerNotVerified,
+          'farmerId must be a verified farmer',
+        ),
+      );
     }
     if (problems.length > 0) {
       throw new UnprocessableEntityException({
         message: 'The project terms are not valid',
-        code: 'INVALID_TERMS',
+        code: ErrorCode.InvalidTerms,
         details: { problems },
       });
     }
@@ -473,7 +497,8 @@ function definedOnly<T extends object>(o: T): Partial<T> {
 }
 
 function publishedConflict() {
-  return new ConflictException(
-    'Published projects cannot be changed or deleted',
-  );
+  return new ConflictException({
+    message: 'Published projects cannot be changed or deleted',
+    code: ErrorCode.ProjectPublishedLocked,
+  });
 }

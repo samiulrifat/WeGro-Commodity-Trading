@@ -158,8 +158,14 @@ export type SyncResultDto = {
   id: string;
   /** recorded: new; already_recorded: sent before, nothing duplicated; pending: keep the draft and resend later; rejected: fix and resend */
   outcome: 'recorded' | 'already_recorded' | 'pending' | 'rejected';
+  /** Why it was rejected: an error code, as in error responses (ErrorCode or a ledger error name) */
   code?: string;
+  /** English wording */
   message?: string;
+  /** The values in the wording, as in error responses */
+  details?: {
+    [key: string]: unknown;
+  };
   record?: FieldRecordDto;
 };
 export type FieldRecordDraftDto = {

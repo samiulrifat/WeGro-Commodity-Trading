@@ -1,3 +1,5 @@
+import { ErrorCode } from '../../common/errors/error-code';
+import { type Problem, problem } from '../../common/errors/problem';
 import type { MeasurementDefinition } from '../catalog/entities/field-record-type.entity';
 
 /**
@@ -61,25 +63,41 @@ function compare(a: string, b: string): number {
 export function normaliseMeasurements(
   input: Record<string, unknown>,
   defs: readonly MeasurementDefinition[],
-): { values: Record<string, string>; problems: string[] } {
-  const problems: string[] = [];
+): { values: Record<string, string>; problems: Problem[] } {
+  const problems: Problem[] = [];
   const values: Record<string, string> = {};
   const known = new Map(defs.map((d) => [d.key, d]));
   for (const key of Object.keys(input)) {
-    if (!known.has(key))
-      problems.push(`${key}: not a measurement of this record type`);
+    if (!known.has(key)) {
+      problems.push(
+        problem(
+          ErrorCode.MeasurementUnknown,
+          `${key}: not a measurement of this record type`,
+          { key },
+        ),
+      );
+    }
   }
   for (const d of defs) {
+    const named = { key: d.key, label: d.label, labelBn: d.labelBn };
     const raw = input[d.key];
     if (raw === undefined || raw === null || raw === '') {
-      if (d.required) problems.push(`${d.key}: required`);
+      if (d.required) {
+        problems.push(
+          problem(ErrorCode.MeasurementRequired, `${d.key}: required`, named),
+        );
+      }
       continue;
     }
     const decimal = asDecimal(raw);
     const fixed = decimal === null ? null : fixPlaces(decimal, d.decimals);
     if (fixed === null) {
       problems.push(
-        `${d.key}: must be a number with at most ${d.decimals} decimal places`,
+        problem(
+          ErrorCode.MeasurementNotANumber,
+          `${d.key}: must be a number with at most ${d.decimals} decimal places`,
+          { ...named, decimals: d.decimals },
+        ),
       );
       continue;
     }
@@ -87,12 +105,24 @@ export function normaliseMeasurements(
       d.min !== null &&
       compare(fixed, fixPlaces(String(d.min), d.decimals)!) < 0
     ) {
-      problems.push(`${d.key}: below the minimum ${d.min}`);
+      problems.push(
+        problem(
+          ErrorCode.MeasurementBelowMin,
+          `${d.key}: below the minimum ${d.min}`,
+          { ...named, min: d.min },
+        ),
+      );
     } else if (
       d.max !== null &&
       compare(fixed, fixPlaces(String(d.max), d.decimals)!) > 0
     ) {
-      problems.push(`${d.key}: above the maximum ${d.max}`);
+      problems.push(
+        problem(
+          ErrorCode.MeasurementAboveMax,
+          `${d.key}: above the maximum ${d.max}`,
+          { ...named, max: d.max },
+        ),
+      );
     } else {
       values[d.key] = fixed;
     }
@@ -107,15 +137,17 @@ const BD_BOUNDS = { minLat: 20.3, maxLat: 26.8, minLng: 87.9, maxLng: 92.8 };
 export function normaliseLocation(
   latitude: unknown,
   longitude: unknown,
-): { latitude: string; longitude: string } | { problem: string } {
+): { latitude: string; longitude: string } | { problem: Problem } {
   const lat = asDecimal(latitude);
   const lng = asDecimal(longitude);
   const latFixed = lat === null ? null : fixPlaces(lat, 6);
   const lngFixed = lng === null ? null : fixPlaces(lng, 6);
   if (latFixed === null || lngFixed === null) {
     return {
-      problem:
+      problem: problem(
+        ErrorCode.CoordinatesInvalid,
         'Coordinates must be decimal degrees with at most 6 decimal places',
+      ),
     };
   }
   const la = Number(latFixed);
@@ -126,7 +158,12 @@ export function normaliseLocation(
     lo < BD_BOUNDS.minLng ||
     lo > BD_BOUNDS.maxLng
   ) {
-    return { problem: 'The location is outside Bangladesh' };
+    return {
+      problem: problem(
+        ErrorCode.LocationOutsideBangladesh,
+        'The location is outside Bangladesh',
+      ),
+    };
   }
   return { latitude: latFixed, longitude: lngFixed };
 }
@@ -144,20 +181,18 @@ export function roundCoordinate(value: string): string {
 
 /**
  * One decimal value in canonical form with exactly `places` decimals, within
- * [min, max]. Returns the string, or a problem message naming `label`.
+ * [min, max]. Returns the string, or a problem naming the field.
  */
 export function normaliseDecimal(
   value: unknown,
   places: number,
   min: number,
   max: number,
-  label: string,
-): string | { problem: string } {
-  const out = normaliseMeasurements({ v: value }, [
+  field: { key: string; label: string; labelBn: string },
+): string | { problem: Problem } {
+  const out = normaliseMeasurements({ [field.key]: value }, [
     {
-      key: 'v',
-      label,
-      labelBn: label,
+      ...field,
       unit: null,
       min,
       max,
@@ -165,7 +200,6 @@ export function normaliseDecimal(
       required: true,
     },
   ]);
-  return out.problems.length > 0
-    ? { problem: out.problems[0].replace(/^v:/, `${label}:`) }
-    : out.values.v;
+  const [first] = out.problems;
+  return first ? { problem: first } : out.values[field.key];
 }

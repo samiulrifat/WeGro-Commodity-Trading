@@ -34,6 +34,7 @@ import {
 } from './insurance-fingerprints';
 import { ClaimStatus } from './insurance.enums';
 import { InsuranceService, STAFF } from './insurance.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const MAX_PHOTOS = 5;
 
@@ -71,9 +72,10 @@ export class ClaimsService {
       actor.role !== Role.Admin &&
       !(await this.insurance.isOfficerOf(actor, project.farmerId))
     ) {
-      throw new ForbiddenException(
-        "Only the farmer's field officer or an admin can claim",
-      );
+      throw new ForbiddenException({
+        message: "Only the farmer's field officer or an admin can claim",
+        code: ErrorCode.ClaimNotAllowed,
+      });
     }
     const [cover, event, existing] = await Promise.all([
       this.insurance.currentCover(project.id),
@@ -86,37 +88,45 @@ export class ClaimsService {
     if (!cover) {
       throw new ConflictException({
         message: 'No insurer covers this project yet',
-        code: 'NO_COVERAGE',
+        code: ErrorCode.NoCoverage,
       });
     }
     if (!event || event.status !== 'recorded') {
-      throw new UnprocessableEntityException(
-        'eventId must be a recorded weather event',
-      );
+      throw new UnprocessableEntityException({
+        message: 'eventId must be a recorded weather event',
+        code: ErrorCode.WeatherEventInvalid,
+      });
     }
     if (event.districtCode !== project.districtCode) {
       throw new UnprocessableEntityException({
         message: `The event was in ${event.districtCode}; the project is in ${project.districtCode}`,
-        code: 'REGION_MISMATCH',
+        code: ErrorCode.RegionMismatch,
+        details: {
+          eventDistrict: event.districtCode,
+          projectDistrict: project.districtCode,
+        },
       });
     }
     if (!cover.coveredEventTypes.includes(event.eventTypeCode)) {
       throw new UnprocessableEntityException({
         message: `The cover does not include ${event.eventTypeCode}`,
-        code: 'EVENT_NOT_COVERED',
+        code: ErrorCode.EventNotCovered,
         details: { coveredEventTypes: cover.coveredEventTypes },
       });
     }
     if (existing && existing.status !== ClaimStatus.Submitted) {
       throw new ConflictException({
         message: 'This project has already claimed for this event',
-        code: 'ALREADY_CLAIMED',
+        code: ErrorCode.AlreadyClaimed,
         details: { claimId: existing.id },
       });
     }
     const damagePercent = normalisePercent(dto.damagePercent);
     if (damagePercent === '0.0') {
-      throw new UnprocessableEntityException('damagePercent must be above 0');
+      throw new UnprocessableEntityException({
+        message: 'damagePercent must be above 0',
+        code: ErrorCode.DamageNotPositive,
+      });
     }
     const photos = await this.ownPhotos(actor, dto.photoIds ?? []);
 
@@ -186,7 +196,10 @@ export class ClaimsService {
     const claim = await this.forInsurer(actor, id, [ClaimStatus.UnderReview]);
     const amount = takaToPoisha(dto.amount);
     if (amount <= 0n)
-      throw new UnprocessableEntityException('amount must be above zero');
+      throw new UnprocessableEntityException({
+        message: 'amount must be above zero',
+        code: ErrorCode.AmountNotPositive,
+      });
     const key = uuidToBytes32(claim.projectId);
     const registry = this.insurance.registry();
     const [cover, approved] = await Promise.all([
@@ -197,7 +210,7 @@ export class ClaimsService {
     if (amount > remaining) {
       throw new ConflictException({
         message: `Only ${poishaToTaka(remaining)} taka of the cover remains`,
-        code: 'EXCEEDS_COVERAGE',
+        code: ErrorCode.ExceedsCoverage,
         details: { remaining: poishaToTaka(remaining) },
       });
     }
@@ -247,14 +260,21 @@ export class ClaimsService {
   async claimPhoto(actor: AuthUser, id: string, n: number): Promise<Photo> {
     const claim = await this.visible(actor, id);
     const photoId = claim.photoIds[n];
-    if (!photoId) throw new NotFoundException('No such photo on this claim');
+    if (!photoId)
+      throw new NotFoundException({
+        message: 'No such photo on this claim',
+        code: ErrorCode.ClaimPhotoNotFound,
+      });
     return this.photos.find(photoId);
   }
 
   async assessmentPhoto(actor: AuthUser, id: string): Promise<Photo> {
     const claim = await this.visible(actor, id);
     if (!claim.assessmentPhotoId || !claim.decidedAt) {
-      throw new NotFoundException('No assessment photo for this claim');
+      throw new NotFoundException({
+        message: 'No assessment photo for this claim',
+        code: ErrorCode.ClaimHasNoPhoto,
+      });
     }
     return this.photos.find(claim.assessmentPhotoId);
   }
@@ -301,7 +321,10 @@ export class ClaimsService {
       pending,
     );
     if (saved.affected === 0) {
-      throw new ConflictException('The claim changed meanwhile; try again');
+      throw new ConflictException({
+        message: 'The claim changed meanwhile; try again',
+        code: ErrorCode.ChangedMeanwhile,
+      });
     }
     try {
       const key = uuidToBytes32(claim.id);
@@ -335,21 +358,26 @@ export class ClaimsService {
   ): Promise<InsuranceClaim> {
     const claim = await this.claims.findOneBy({ id });
     if (!claim || claim.status === ClaimStatus.Submitted) {
-      throw new NotFoundException('Claim not found');
+      throw new NotFoundException({
+        message: 'Claim not found',
+        code: ErrorCode.ClaimNotFound,
+      });
     }
     const cover = await this.insurance.currentCover(claim.projectId);
     if (cover?.insurerId !== actor.id) {
-      throw new ForbiddenException(
-        "Only the project's insurer can review this claim",
-      );
+      throw new ForbiddenException({
+        message: "Only the project's insurer can review this claim",
+        code: ErrorCode.NotProjectInsurer,
+      });
     }
     if (!allowed.includes(claim.status)) {
       throw new ConflictException({
         message: `This claim is ${claim.status}`,
         code:
           claim.status === ClaimStatus.Triggered
-            ? 'REVIEW_NOT_STARTED'
-            : 'WRONG_CLAIM_STATUS',
+            ? ErrorCode.ReviewNotStarted
+            : ErrorCode.ClaimWrongStatus,
+        details: { status: claim.status },
       });
     }
     return claim;
@@ -365,7 +393,11 @@ export class ClaimsService {
       });
     this.scope(actor, qb);
     const claim = await qb.getOne();
-    if (!claim) throw new NotFoundException('Claim not found');
+    if (!claim)
+      throw new NotFoundException({
+        message: 'Claim not found',
+        code: ErrorCode.ClaimNotFound,
+      });
     return claim;
   }
 
@@ -401,7 +433,11 @@ export class ClaimsService {
   private async ownPhotos(actor: AuthUser, ids: string[]): Promise<Photo[]> {
     if (ids.length === 0) return [];
     if (ids.length > MAX_PHOTOS) {
-      throw new UnprocessableEntityException(`At most ${MAX_PHOTOS} photos`);
+      throw new UnprocessableEntityException({
+        message: `At most ${MAX_PHOTOS} photos`,
+        code: ErrorCode.TooManyPhotos,
+        details: { max: MAX_PHOTOS },
+      });
     }
     const rows = await this.photoRows.findBy({
       id: In(ids),
@@ -411,9 +447,11 @@ export class ClaimsService {
     return ids.map((id) => {
       const photo = byId.get(id);
       if (!photo) {
-        throw new UnprocessableEntityException(
-          `Photo ${id} must be one you uploaded`,
-        );
+        throw new UnprocessableEntityException({
+          message: `Photo ${id} must be one you uploaded`,
+          code: ErrorCode.PhotoNotYours,
+          details: { photo: id },
+        });
       }
       return photo;
     });

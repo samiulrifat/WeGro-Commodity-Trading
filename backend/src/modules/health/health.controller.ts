@@ -8,6 +8,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../auth/decorators';
 import { HealthResponseDto } from './dto/health-response.dto';
 import { HealthService } from './health.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 @ApiTags('Health')
 @Public()
@@ -28,7 +29,10 @@ export class HealthController {
   async check(): Promise<HealthResponseDto> {
     const result = await this.health.check();
     if (result.database === 'down')
-      throw new ServiceUnavailableException('Database unavailable');
+      throw new ServiceUnavailableException({
+        message: 'Database unavailable',
+        code: ErrorCode.DatabaseUnavailable,
+      });
     return result;
   }
 }

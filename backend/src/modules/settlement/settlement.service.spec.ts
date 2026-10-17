@@ -391,7 +391,7 @@ describe('SettlementService', () => {
     it('a staged round: in the ledger’s order of checks', async () => {
       expect(await staged({ openRound: 3 })).toBe('ROUND_OPEN');
       expect(await staged({ settled: true })).toBe('ALREADY_SETTLED');
-      expect(await staged({ stage: 5 })).toBe('WRONG_STAGE');
+      expect(await staged({ stage: 5 })).toBe('ROUND_WRONG_STAGE');
       expect(await staged({ interval: 0 })).toBe('NOT_STAGED');
       expect(await staged({ createdAt: NOW_S - 2 * MONTH_SECONDS })).toBe(
         'TOO_EARLY',
@@ -550,7 +550,7 @@ describe('SettlementService', () => {
         costs: { inputs: '20000.00', other: '10000.00', total: '30000.00' },
         net: '70000.00',
         staged: { allowed: true },
-        final: { allowed: false, reason: 'WRONG_STAGE' },
+        final: { allowed: false, reason: 'ROUND_WRONG_STAGE' },
       });
       expect(s.staged.preview?.payees).toBeGreaterThan(0);
     });

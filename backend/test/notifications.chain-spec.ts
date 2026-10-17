@@ -117,6 +117,7 @@ describe('Notifications (node + database)', () => {
     expect(note).toMatchObject({
       category: 'action',
       title: 'New buyer registration awaiting verification',
+      params: { role: 'buyer' },
       subject: { type: 'participant', id: registered },
       readAt: null,
     });
@@ -134,6 +135,12 @@ describe('Notifications (node + database)', () => {
     expect(made).toMatchObject({
       category: 'action',
       title: `Reservation #${lapsing} awaiting payment confirmation`,
+      params: {
+        reservationId: String(lapsing),
+        slots: 1,
+        project: expect.any(String) as string,
+        expiresAt: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) as string,
+      },
       subject: { type: 'reservation', id: String(lapsing) },
     });
 
@@ -146,6 +153,11 @@ describe('Notifications (node + database)', () => {
     expect(reminder).toMatchObject({
       category: 'reminder',
       title: 'Your reservation of 1 slots expires soon',
+      params: {
+        slots: 1,
+        project: expect.any(String) as string,
+        expiresAt: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) as string,
+      },
       subject: { type: 'reservation', id: String(lapsing) },
     });
   });

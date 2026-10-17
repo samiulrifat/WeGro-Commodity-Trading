@@ -38,6 +38,7 @@ import type {
 } from './dto/voucher-response.dto';
 import { InputBatch } from './entities/input-batch.entity';
 import { BatchStatus } from './voucher.enums';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -70,14 +71,16 @@ export class BatchesService {
     this.catalog.inputTypes.requireActive(dto.inputTypeCode);
     const today = bdDate(await this.clock.now());
     if (dto.producedOn > today) {
-      throw new UnprocessableEntityException(
-        'producedOn cannot be in the future',
-      );
+      throw new UnprocessableEntityException({
+        message: 'producedOn cannot be in the future',
+        code: ErrorCode.ProducedInFuture,
+      });
     }
     if (dto.expiresOn && dto.expiresOn < dto.producedOn) {
-      throw new UnprocessableEntityException(
-        'expiresOn cannot be before producedOn',
-      );
+      throw new UnprocessableEntityException({
+        message: 'expiresOn cannot be before producedOn',
+        code: ErrorCode.ExpiresBeforeProduced,
+      });
     }
 
     const batch = this.batches.create({
@@ -101,9 +104,10 @@ export class BatchesService {
         error instanceof QueryFailedError &&
         (error.driverError as { code?: string }).code === '23505'
       ) {
-        throw new ConflictException(
-          'You already registered this lot number for this input',
-        );
+        throw new ConflictException({
+          message: 'You already registered this lot number for this input',
+          code: ErrorCode.LotAlreadyRegistered,
+        });
       }
       throw error;
     }
@@ -154,7 +158,10 @@ export class BatchesService {
       !batch ||
       (actor.role === Role.Supplier && batch.supplierId !== actor.id)
     ) {
-      throw new NotFoundException('Batch not found');
+      throw new NotFoundException({
+        message: 'Batch not found',
+        code: ErrorCode.BatchNotFound,
+      });
     }
     return (await this.dtos([batch]))[0];
   }

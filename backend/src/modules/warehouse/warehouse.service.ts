@@ -53,6 +53,8 @@ import { WarehouseOperator } from './entities/warehouse-operator.entity';
 import { WarehouseReceipt } from './entities/warehouse-receipt.entity';
 import { WarehouseSite } from './entities/warehouse-site.entity';
 import { RECEIPT_ID, ReceiptStatus, WEGRO_OWNER } from './warehouse.enums';
+import { ErrorCode } from '../../common/errors/error-code';
+import { type Problem, problem } from '../../common/errors/problem';
 
 const STAFF: ReadonlySet<Role> = new Set([
   Role.SuperAdmin,
@@ -128,7 +130,10 @@ export class WarehouseService {
         (error as { driverError?: { code?: string } }).driverError?.code ===
         '23505'
       ) {
-        throw new ConflictException('A site with this name already exists');
+        throw new ConflictException({
+          message: 'A site with this name already exists',
+          code: ErrorCode.SiteNameExists,
+        });
       }
       throw error;
     }
@@ -162,7 +167,10 @@ export class WarehouseService {
       !site ||
       (actor.role === Role.Warehouse && (await this.siteOf(actor.id)) !== id)
     ) {
-      throw new NotFoundException('Site not found');
+      throw new NotFoundException({
+        message: 'Site not found',
+        code: ErrorCode.SiteNotFound,
+      });
     }
     return (await this.siteDtos([site]))[0];
   }
@@ -180,14 +188,18 @@ export class WarehouseService {
       operator.status !== ParticipantStatus.Verified ||
       operator.chainState !== ChainState.Confirmed
     ) {
-      throw new UnprocessableEntityException(
-        'Only a verified warehouse operator can be assigned',
-      );
+      throw new UnprocessableEntityException({
+        message: 'Only a verified warehouse operator can be assigned',
+        code: ErrorCode.WarehouseOperatorInvalid,
+      });
     }
     if (siteId) {
       const site = await this.sites.findOneBy({ id: siteId });
       if (!site || site.status !== 'registered')
-        throw new NotFoundException('Site not found');
+        throw new NotFoundException({
+          message: 'Site not found',
+          code: ErrorCode.SiteNotFound,
+        });
     }
     await this.send(actor, (c) =>
       c.assignOperator.populateTransaction(
@@ -209,31 +221,48 @@ export class WarehouseService {
     if (!siteId) {
       throw new UnprocessableEntityException({
         message: 'You are not assigned to a warehouse site',
-        code: 'NOT_SITE_OPERATOR',
+        code: ErrorCode.NotSiteOperator,
       });
     }
     const project = await this.projects.findOneBy({ id: dto.projectId });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     if (project.stage !== ProjectStage.Active) {
       throw new UnprocessableEntityException({
         message: 'Receipts are issued only for active projects',
-        code: 'WRONG_STAGE',
+        code: ErrorCode.ProjectNotActive,
       });
     }
     if (project.category === (ProduceCategory.Perishable as string)) {
       throw new UnprocessableEntityException({
         message: 'Fresh produce is sold directly, not stored',
-        code: 'NOT_STORABLE',
+        code: ErrorCode.NotStorable,
       });
     }
 
     const today = bdDate(await this.clock.now());
-    const problems: string[] = [];
-    if (dto.intakeDate > today)
-      problems.push('intakeDate cannot be in the future');
-    if (dto.expiresOn < today) problems.push('expiresOn cannot be in the past');
-    if (dto.expiresOn < dto.intakeDate)
-      problems.push('expiresOn cannot be before intakeDate');
+    const problems: Problem[] = [];
+    if (dto.intakeDate > today) {
+      problems.push(
+        problem(ErrorCode.IntakeInFuture, 'intakeDate cannot be in the future'),
+      );
+    }
+    if (dto.expiresOn < today) {
+      problems.push(
+        problem(ErrorCode.ExpiryInPast, 'expiresOn cannot be in the past'),
+      );
+    }
+    if (dto.expiresOn < dto.intakeDate) {
+      problems.push(
+        problem(
+          ErrorCode.ExpiresBeforeIntake,
+          'expiresOn cannot be before intakeDate',
+        ),
+      );
+    }
     const intake = this.intake(dto, problems);
     if (problems.length > 0) throw invalid(problems);
 
@@ -288,16 +317,33 @@ export class WarehouseService {
         ReceiptStatus.SoldOut,
       ].includes(receipt.status)
     ) {
-      throw new ConflictException(`This receipt is ${receipt.status}`);
+      throw new ConflictException({
+        message: `This receipt is ${receipt.status}`,
+        code: ErrorCode.ReceiptWrongStatus,
+        details: { status: receipt.status },
+      });
     }
     const today = bdDate(await this.clock.now());
-    const problems: string[] = [];
-    if (dto.checkedOn > today)
-      problems.push('checkedOn cannot be in the future');
-    if (dto.newExpiresOn <= receipt.expiresOn)
-      problems.push('newExpiresOn must be later than the current expiry');
-    if (dto.newExpiresOn < today)
-      problems.push('newExpiresOn cannot be in the past');
+    const problems: Problem[] = [];
+    if (dto.checkedOn > today) {
+      problems.push(
+        problem(ErrorCode.CheckInFuture, 'checkedOn cannot be in the future'),
+      );
+    }
+    if (dto.newExpiresOn <= receipt.expiresOn) {
+      problems.push(
+        problem(
+          ErrorCode.NewExpiryNotLater,
+          'newExpiresOn must be later than the current expiry',
+          { current: receipt.expiresOn },
+        ),
+      );
+    }
+    if (dto.newExpiresOn < today) {
+      problems.push(
+        problem(ErrorCode.ExpiryInPast, 'newExpiresOn cannot be in the past'),
+      );
+    }
     const values = this.intake(dto, problems);
     if (problems.length > 0) throw invalid(problems);
 
@@ -331,9 +377,11 @@ export class WarehouseService {
   async collect(actor: AuthUser, id: string): Promise<ReceiptDetailDto> {
     const receipt = await this.siteReceipt(actor, id);
     if (receipt.status !== ReceiptStatus.Issued) {
-      throw new ConflictException(
-        `Only an issued receipt can be collected; this one is ${receipt.status}`,
-      );
+      throw new ConflictException({
+        message: `Only an issued receipt can be collected; this one is ${receipt.status}`,
+        code: ErrorCode.ReceiptNotIssued,
+        details: { status: receipt.status },
+      });
     }
     await this.send(actor, (c) => c.markCollected.populateTransaction(id));
     return this.findOne(actor, id);
@@ -347,19 +395,25 @@ export class WarehouseService {
       !receipt.ownerId ||
       !(await this.isOfficerOf(actor, receipt.ownerId))
     ) {
-      throw new ForbiddenException(
-        "Only the farmer's own field officer can offer the farmer's receipt",
-      );
+      throw new ForbiddenException({
+        message:
+          "Only the farmer's own field officer can offer the farmer's receipt",
+        code: ErrorCode.NotFarmersOfficer,
+      });
     }
     if (receipt.status !== ReceiptStatus.Issued) {
-      throw new ConflictException(
-        `Only an issued receipt can be handed over; this one is ${receipt.status}`,
-      );
+      throw new ConflictException({
+        message: `Only an issued receipt can be handed over; this one is ${receipt.status}`,
+        code: ErrorCode.ReceiptNotIssued,
+        details: { status: receipt.status },
+      });
     }
     if (isPastDay(receipt.expiresOn, await this.clock.now())) {
-      throw new ConflictException(
-        'This receipt has expired; the site must re-check and extend it first',
-      );
+      throw new ConflictException({
+        message:
+          'This receipt has expired; the site must re-check and extend it first',
+        code: ErrorCode.ReceiptExpired,
+      });
     }
     await this.send(actor, (c) =>
       c.offerHandover.populateTransaction(id, WEGRO_OWNER),
@@ -380,7 +434,10 @@ export class WarehouseService {
       actor.role !== Role.Admin &&
       !(receipt.ownerId && (await this.isOfficerOf(actor, receipt.ownerId)))
     ) {
-      throw new ForbiddenException('You cannot cancel this handover');
+      throw new ForbiddenException({
+        message: 'You cannot cancel this handover',
+        code: ErrorCode.HandoverCancelNotAllowed,
+      });
     }
     await this.send(actor, (c) => c.cancelHandover.populateTransaction(id));
     return this.findOne(actor, id);
@@ -412,7 +469,11 @@ export class WarehouseService {
       .where('r.id = :id', { id });
     await this.scope(actor, qb);
     const receipt = await qb.getOne();
-    if (!receipt) throw new NotFoundException('Receipt not found');
+    if (!receipt)
+      throw new NotFoundException({
+        message: 'Receipt not found',
+        code: ErrorCode.ReceiptNotFound,
+      });
     const [[dto], rechecks, children] = await Promise.all([
       this.dtos([receipt]),
       this.rechecks.find({
@@ -501,7 +562,7 @@ export class WarehouseService {
       storageBay?: string | null;
       notes?: string | null;
     },
-    problems: string[],
+    problems: Problem[],
   ): IntakeValues {
     let moisture: string | null = null;
     if (
@@ -509,13 +570,11 @@ export class WarehouseService {
       dto.moisturePercent !== null &&
       dto.moisturePercent !== ''
     ) {
-      const m = normaliseDecimal(
-        dto.moisturePercent,
-        1,
-        0,
-        100,
-        'moisturePercent',
-      );
+      const m = normaliseDecimal(dto.moisturePercent, 1, 0, 100, {
+        key: 'moisturePercent',
+        label: 'Moisture',
+        labelBn: 'আর্দ্রতা',
+      });
       if (typeof m === 'string') moisture = m;
       else problems.push(m.problem);
     }
@@ -542,9 +601,10 @@ export class WarehouseService {
   ): Promise<WarehouseReceipt> {
     const receipt = await this.load(id);
     if ((await this.siteOf(actor.id)) !== receipt.siteId) {
-      throw new ForbiddenException(
-        'Only an operator of the issuing site can do this',
-      );
+      throw new ForbiddenException({
+        message: 'Only an operator of the issuing site can do this',
+        code: ErrorCode.NotIssuingSiteOperator,
+      });
     }
     return receipt;
   }
@@ -552,7 +612,10 @@ export class WarehouseService {
   private async pendingHandover(id: string): Promise<WarehouseReceipt> {
     const receipt = await this.load(id);
     if (receipt.status !== ReceiptStatus.PendingHandover) {
-      throw new ConflictException('No handover is waiting on this receipt');
+      throw new ConflictException({
+        message: 'No handover is waiting on this receipt',
+        code: ErrorCode.NoHandoverWaiting,
+      });
     }
     return receipt;
   }
@@ -562,7 +625,10 @@ export class WarehouseService {
       ? await this.receipts.findOneBy({ id })
       : null;
     if (!receipt || receipt.status === ReceiptStatus.Submitted) {
-      throw new NotFoundException('Receipt not found');
+      throw new NotFoundException({
+        message: 'Receipt not found',
+        code: ErrorCode.ReceiptNotFound,
+      });
     }
     return receipt;
   }
@@ -729,10 +795,10 @@ function districtName(code: string): string {
   return isDistrictCode(code) ? BD_DISTRICTS[code].name : code;
 }
 
-function invalid(problems: string[]) {
+function invalid(problems: Problem[]) {
   return new UnprocessableEntityException({
     message: 'Some details are not valid',
-    code: 'INVALID_DETAILS',
+    code: ErrorCode.InvalidDetails,
     details: { problems },
   });
 }

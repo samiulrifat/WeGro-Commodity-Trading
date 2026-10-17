@@ -44,6 +44,16 @@ const injectedRtkApi = api
         query: () => ({ url: `/api/auth/me` }),
         providesTags: ['Auth'],
       }),
+      authUpdateMe: build.mutation<AuthUpdateMeApiResponse, AuthUpdateMeApiArg>(
+        {
+          query: (queryArg) => ({
+            url: `/api/auth/me`,
+            method: 'PATCH',
+            body: queryArg.updateMeDto,
+          }),
+          invalidatesTags: ['Auth'],
+        },
+      ),
       authDemoAccounts: build.query<
         AuthDemoAccountsApiResponse,
         AuthDemoAccountsApiArg
@@ -90,6 +100,12 @@ export type AuthMeApiResponse = /** status 200  */ {
   data: MeResponseDto;
 };
 export type AuthMeApiArg = void;
+export type AuthUpdateMeApiResponse = /** status 200  */ {
+  data: MeResponseDto;
+};
+export type AuthUpdateMeApiArg = {
+  updateMeDto: UpdateMeDto;
+};
 export type AuthDemoAccountsApiResponse =
   /** status 200 Demo mode only (404 otherwise) */ {
     data: DemoAccountDto[];
@@ -102,6 +118,7 @@ export type AuthDemoLoginApiResponse =
 export type AuthDemoLoginApiArg = {
   demoLoginDto: DemoLoginDto;
 };
+export type Language = 'en' | 'bn';
 export type SessionUserDto = {
   id: string;
   role:
@@ -119,6 +136,8 @@ export type SessionUserDto = {
     | 'insurer'
     | 'auditor';
   status: 'pending' | 'verified' | 'rejected';
+  /** The language the person chose; null until chosen (English) */
+  language: Language | null;
 };
 export type TokenResponseDto = {
   accessToken: string;
@@ -162,6 +181,11 @@ export type MeResponseDto = {
   account: string;
   mustChangePassword: boolean;
   isDemo: boolean;
+  /** The language the person chose; null until chosen (English) */
+  language: Language | null;
+};
+export type UpdateMeDto = {
+  language: Language;
 };
 export type DemoAccountDto = {
   role:
@@ -204,6 +228,7 @@ export const {
   useAuthChangePasswordMutation,
   useAuthMeQuery,
   useLazyAuthMeQuery,
+  useAuthUpdateMeMutation,
   useAuthDemoAccountsQuery,
   useLazyAuthDemoAccountsQuery,
   useAuthDemoLoginMutation,

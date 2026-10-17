@@ -65,6 +65,7 @@ import { Delivery } from './entities/delivery.entity';
 import { Listing } from './entities/listing.entity';
 import { Offer } from './entities/offer.entity';
 import { DeliverySide, ListingStatus, OfferStatus } from './trade.enums';
+import { ErrorCode } from '../../common/errors/error-code';
 
 const STAFF: ReadonlySet<Role> = new Set([
   Role.SuperAdmin,
@@ -119,22 +120,32 @@ export class TradeService {
     const receiptId = dto.receiptId.toLowerCase();
     const receipt = await this.receipts.findOneBy({ id: receiptId });
     if (!receipt || receipt.status === ReceiptStatus.Submitted) {
-      throw new NotFoundException('Receipt not found');
+      throw new NotFoundException({
+        message: 'Receipt not found',
+        code: ErrorCode.ReceiptNotFound,
+      });
     }
     const ownerSide = receipt.ownerIsWegro
       ? actor.role === Role.Admin
       : !!receipt.ownerId && (await this.isOfficerOf(actor, receipt.ownerId));
     if (!ownerSide)
-      throw new ForbiddenException("Only the receipt owner's side can list it");
+      throw new ForbiddenException({
+        message: "Only the receipt owner's side can list it",
+        code: ErrorCode.NotReceiptOwner,
+      });
     if (receipt.status !== ReceiptStatus.Issued) {
-      throw new ConflictException(
-        `Only an issued receipt can be listed; this one is ${receipt.status}`,
-      );
+      throw new ConflictException({
+        message: `Only an issued receipt can be listed; this one is ${receipt.status}`,
+        code: ErrorCode.ReceiptNotIssued,
+        details: { status: receipt.status },
+      });
     }
     if (isPastDay(receipt.expiresOn, await this.clock.now())) {
-      throw new ConflictException(
-        'This receipt has expired; the site must re-check and extend it first',
-      );
+      throw new ConflictException({
+        message:
+          'This receipt has expired; the site must re-check and extend it first',
+        code: ErrorCode.ReceiptExpired,
+      });
     }
     await this.requireActive(receipt.projectId);
     const result = await this.send(actor, (c) =>
@@ -157,16 +168,17 @@ export class TradeService {
       throw new UnprocessableEntityException({
         message:
           'Stored crops and spices are sold through their warehouse receipts',
-        code: 'NOT_PERISHABLE',
+        code: ErrorCode.NotPerishable,
       });
     }
     if (
       actor.role !== Role.Admin &&
       !(await this.isOfficerOf(actor, project.farmerId))
     ) {
-      throw new ForbiddenException(
-        "Only an admin or the farmer's field officer can list this",
-      );
+      throw new ForbiddenException({
+        message: "Only an admin or the farmer's field officer can list this",
+        code: ErrorCode.ListingNotAllowed,
+      });
     }
     const result = await this.send(actor, (c) =>
       c.listProduce.populateTransaction(
@@ -189,14 +201,15 @@ export class TradeService {
       actor.role !== Role.Admin &&
       !(await this.isSellerSide(actor, listing))
     ) {
-      throw new ForbiddenException(
-        'Only the seller side or an admin can cancel this listing',
-      );
+      throw new ForbiddenException({
+        message: 'Only the seller side or an admin can cancel this listing',
+        code: ErrorCode.ListingCancelNotAllowed,
+      });
     }
     if (listing.unpaidDeals > 0) {
       throw new ConflictException({
         message: `${listing.unpaidDeals} approved deal(s) are waiting for payment`,
-        code: 'DEALS_PENDING',
+        code: ErrorCode.DealsPending,
         details: { unpaidDeals: listing.unpaidDeals },
       });
     }
@@ -231,7 +244,10 @@ export class TradeService {
   async listingOne(id: number): Promise<ListingDto> {
     const listing = await this.listings.findOneBy({ id });
     if (!listing || listing.status === null)
-      throw new NotFoundException('Listing not found');
+      throw new NotFoundException({
+        message: 'Listing not found',
+        code: ErrorCode.ListingNotFound,
+      });
     return (await this.listingDtos([listing]))[0];
   }
 
@@ -246,7 +262,7 @@ export class TradeService {
     if (dto.quantity > listing.available) {
       throw new ConflictException({
         message: `Only ${listing.available} available`,
-        code: 'EXCEEDS_AVAILABLE',
+        code: ErrorCode.ExceedsAvailable,
         details: { available: listing.available },
       });
     }
@@ -266,7 +282,10 @@ export class TradeService {
   async withdrawOffer(actor: AuthUser, id: number): Promise<OfferDto> {
     const offer = await this.offerIn(id, [OfferStatus.Pending]);
     if (offer.buyerId !== actor.id)
-      throw new NotFoundException('Offer not found');
+      throw new NotFoundException({
+        message: 'Offer not found',
+        code: ErrorCode.OfferNotFound,
+      });
     await this.send(actor, (c) => c.withdrawOffer.populateTransaction(id));
     return this.offerOne(actor, id);
   }
@@ -284,7 +303,7 @@ export class TradeService {
     if (offer.quantity > listing.available) {
       throw new ConflictException({
         message: `Only ${listing.available} still available`,
-        code: 'EXCEEDS_AVAILABLE',
+        code: ErrorCode.ExceedsAvailable,
         details: { available: listing.available },
       });
     }
@@ -313,14 +332,17 @@ export class TradeService {
     try {
       ref = normalisePaymentRef(paymentReference);
     } catch (error) {
-      throw new UnprocessableEntityException((error as Error).message);
+      throw new UnprocessableEntityException({
+        message: (error as Error).message,
+        code: ErrorCode.PaymentRefInvalid,
+      });
     }
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const offer = await this.offerIn(id, [OfferStatus.Approved]);
     if (offer.paymentDueAt && offer.paymentDueAt <= (await this.clock.now())) {
       throw new ConflictException({
         message: 'The payment deadline for this deal has passed',
-        code: 'PAYMENT_OVERDUE',
+        code: ErrorCode.PaymentOverdue,
       });
     }
     try {
@@ -338,7 +360,10 @@ export class TradeService {
         })
         .execute();
       if (saved.affected !== 1)
-        throw new ConflictException('This deal is already being confirmed');
+        throw new ConflictException({
+          message: 'This deal is already being confirmed',
+          code: ErrorCode.DealConfirming,
+        });
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
@@ -346,7 +371,7 @@ export class TradeService {
       ) {
         throw new ConflictException({
           message: 'This payment reference was already used',
-          code: 'PAYMENT_REF_ALREADY_USED',
+          code: ErrorCode.PaymentRefAlreadyUsed,
         });
       }
       throw error;
@@ -393,26 +418,30 @@ export class TradeService {
           ? DeliverySide.Handler
           : null;
     if (!side)
-      throw new ForbiddenException(
-        'Only the buyer or the handler confirms delivery',
-      );
+      throw new ForbiddenException({
+        message: 'Only the buyer or the handler confirms delivery',
+        code: ErrorCode.DeliveryConfirmNotAllowed,
+      });
     if (
       await this.deliveries.exists({
         where: { offerId: id, side, status: 'recorded' },
       })
     ) {
-      throw new ConflictException(
-        `The ${side} has already confirmed this delivery`,
-      );
+      throw new ConflictException({
+        message: `The ${side} has already confirmed this delivery`,
+        code: ErrorCode.DeliveryAlreadyConfirmed,
+        details: { side },
+      });
     }
 
     let photo: Photo | null = null;
     if (dto.photoId) {
       photo = await this.photos.find(dto.photoId).catch(() => null);
       if (!photo || photo.uploadedById !== actor.id) {
-        throw new UnprocessableEntityException(
-          'photoId must be a photo you uploaded',
-        );
+        throw new UnprocessableEntityException({
+          message: 'photoId must be a photo you uploaded',
+          code: ErrorCode.PhotoNotYours,
+        });
       }
     }
     const delivery = this.deliveries.create({
@@ -483,7 +512,11 @@ export class TradeService {
       .where('o.id = :id AND o.status IS NOT NULL', { id });
     await this.scopeOffers(actor, qb);
     const offer = await qb.getOne();
-    if (!offer) throw new NotFoundException('Offer not found');
+    if (!offer)
+      throw new NotFoundException({
+        message: 'Offer not found',
+        code: ErrorCode.OfferNotFound,
+      });
     return (await this.offerDtos(actor, [offer]))[0];
   }
 
@@ -496,7 +529,10 @@ export class TradeService {
     await this.offerOne(actor, id);
     const delivery = await this.deliveries.findOneBy({ offerId: id, side });
     if (!delivery?.photoId)
-      throw new NotFoundException('No photo for this delivery');
+      throw new NotFoundException({
+        message: 'No photo for this delivery',
+        code: ErrorCode.DeliveryHasNoPhoto,
+      });
     return this.photos.find(delivery.photoId);
   }
 
@@ -504,11 +540,16 @@ export class TradeService {
 
   private async requireActive(projectId: string): Promise<Project> {
     const project = await this.projects.findOneBy({ id: projectId });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project)
+      throw new NotFoundException({
+        message: 'Project not found',
+        code: ErrorCode.ProjectNotFound,
+      });
     if (project.stage !== ProjectStage.Active) {
-      throw new ConflictException(
-        'Produce is sold only while the project is active',
-      );
+      throw new ConflictException({
+        message: 'Produce is sold only while the project is active',
+        code: ErrorCode.ProjectNotActive,
+      });
     }
     return project;
   }
@@ -516,9 +557,16 @@ export class TradeService {
   private async openListing(id: number): Promise<Listing> {
     const listing = await this.listings.findOneBy({ id });
     if (!listing || listing.status === null)
-      throw new NotFoundException('Listing not found');
+      throw new NotFoundException({
+        message: 'Listing not found',
+        code: ErrorCode.ListingNotFound,
+      });
     if (listing.status !== ListingStatus.Open) {
-      throw new ConflictException(`This listing is ${listing.status}`);
+      throw new ConflictException({
+        message: `This listing is ${listing.status}`,
+        code: ErrorCode.ListingWrongStatus,
+        details: { status: listing.status },
+      });
     }
     return listing;
   }
@@ -526,9 +574,16 @@ export class TradeService {
   private async offerIn(id: number, allowed: OfferStatus[]): Promise<Offer> {
     const offer = await this.offers.findOneBy({ id });
     if (!offer || offer.status === null)
-      throw new NotFoundException('Offer not found');
+      throw new NotFoundException({
+        message: 'Offer not found',
+        code: ErrorCode.OfferNotFound,
+      });
     if (!allowed.includes(offer.status))
-      throw new ConflictException(`This offer is ${offer.status}`);
+      throw new ConflictException({
+        message: `This offer is ${offer.status}`,
+        code: ErrorCode.OfferWrongStatus,
+        details: { status: offer.status },
+      });
     return offer;
   }
 

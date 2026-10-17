@@ -11,6 +11,7 @@ import {
   type Interface,
   isHexString,
 } from 'ethers';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /**
  * HTTP status for every custom error the platform contracts can raise. Kept
@@ -148,6 +149,13 @@ export const CONTRACT_ERROR_STATUS: Record<string, HttpStatus> = {
   ZeroRegistry: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
+/** Every code a ledger refusal can carry: the contracts' errors and Solidity's own. */
+export const LEDGER_ERROR_CODES: readonly string[] = [
+  ...Object.keys(CONTRACT_ERROR_STATUS),
+  'Error',
+  'Panic',
+];
+
 export interface DecodedRevert {
   name: string;
   args: Record<string, string>;
@@ -231,9 +239,15 @@ export class ContractErrorDecoder {
       if (revert) return new ContractRevertException(revert);
     }
     if (isNodeUnavailable(error)) {
-      return new ServiceUnavailableException('Blockchain node unavailable');
+      return new ServiceUnavailableException({
+        message: 'Blockchain node unavailable',
+        code: ErrorCode.LedgerUnavailable,
+      });
     }
-    return new InternalServerErrorException('Blockchain transaction failed');
+    return new InternalServerErrorException({
+      message: 'Blockchain transaction failed',
+      code: ErrorCode.LedgerFailed,
+    });
   }
 }
 

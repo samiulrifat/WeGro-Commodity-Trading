@@ -32,7 +32,7 @@ describe('generated endpoints', () => {
         tokenType: 'Bearer',
         expiresIn: 900,
         mustChangePassword: false,
-        user: { id: 'u', role: 'investor', status: 'verified' },
+        user: { id: 'u', role: 'investor', status: 'verified', language: null },
       }),
     );
     const result = await store.dispatch(

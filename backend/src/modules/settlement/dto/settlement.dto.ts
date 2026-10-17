@@ -19,6 +19,19 @@ import {
   PayeeRole,
   RoundStatus,
 } from '../settlement.enums';
+import { ErrorCode } from '../../../common/errors/error-code';
+
+/** Why a round cannot be prepared now: the error codes a prepare would get. */
+export const ROUND_BLOCKS = [
+  ErrorCode.RoundOpen,
+  ErrorCode.AlreadySettled,
+  ErrorCode.RoundWrongStage,
+  ErrorCode.NotStaged,
+  ErrorCode.TooEarly,
+  ErrorCode.NothingToDistribute,
+  ErrorCode.StillOutstanding,
+] as const;
+export type RoundBlock = (typeof ROUND_BLOCKS)[number];
 
 const Text = () =>
   Transform(({ value }: { value: unknown }) =>
@@ -224,11 +237,12 @@ export class RoundEligibilityDto {
 
   @ApiPropertyOptional({
     nullable: true,
-    type: String,
-    example: 'TOO_EARLY',
-    description: 'Why not, when not allowed',
+    enum: ROUND_BLOCKS,
+    enumName: 'RoundBlock',
+    example: ErrorCode.TooEarly,
+    description: 'Why not, when not allowed: an error code',
   })
-  reason: string | null;
+  reason: RoundBlock | null;
 
   @ApiPropertyOptional({
     nullable: true,

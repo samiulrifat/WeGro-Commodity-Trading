@@ -41,12 +41,21 @@ describe('checkTerms', () => {
 
   it('needs a whole number of slots, at most 10,000', () => {
     expect(checkTerms(terms({ fundingTarget: 2_000_050_00n }))).toEqual([
-      'Funding target must be a whole number of slots',
+      {
+        code: 'TERMS_PARTIAL_SLOT',
+        message: 'Funding target must be a whole number of slots',
+      },
     ]);
     expect(checkTerms(terms({ slotPrice: 0n }))).toHaveLength(1);
     expect(
       checkTerms(terms({ fundingTarget: 10_001n, slotPrice: 1n })),
-    ).toEqual(['A project can have at most 10000 slots']);
+    ).toEqual([
+      {
+        code: 'TERMS_TOO_MANY_SLOTS',
+        message: 'A project can have at most 10000 slots',
+        details: { max: 10_000 },
+      },
+    ]);
     expect(
       checkTerms(terms({ fundingTarget: 10_000n, slotPrice: 1n })),
     ).toEqual([]);

@@ -1,6 +1,9 @@
 import { CalendarDays, Filter, Plus, Search } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useHealthCheckQuery } from '@/api/generated/health';
+import { LanguageSwitch } from '@/components/language-switch';
 import { Logo } from '@/components/logo';
 import { PageHeader } from '@/components/page-header';
 import { PersonCell } from '@/components/person-cell';
@@ -21,6 +24,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { errorText, notificationText } from '@/i18n/text';
+import { useFormat } from '@/i18n/use-format';
 
 /**
  * Temporary: the design system on one page, laid out like WeGro's own
@@ -29,14 +34,14 @@ import { Textarea } from '@/components/ui/textarea';
  */
 
 const STATS = [
-  { value: '129', label: 'Total Projects', tone: 'total' },
-  { value: '17084', label: 'Total Applications', tone: 'total' },
-  { value: '13711', label: 'Approved Applications', tone: 'positive' },
-  { value: '2643', label: 'Rejected Applications', tone: 'negative' },
-  { value: '75', label: 'Total Field Officers', tone: 'total' },
-  { value: '657.7M BDT', label: 'Total Collectable', tone: 'total' },
-  { value: '412.1M BDT', label: 'Total Collection', tone: 'positive' },
-  { value: '195.3M BDT', label: 'Total Overdue', tone: 'negative' },
+  { count: 129, label: 'Total Projects', tone: 'total' },
+  { count: 17084, label: 'Total Applications', tone: 'total' },
+  { count: 13711, label: 'Approved Applications', tone: 'positive' },
+  { count: 2643, label: 'Rejected Applications', tone: 'negative' },
+  { count: 75, label: 'Total Field Officers', tone: 'total' },
+  { taka: '657700000.00', label: 'Total Collectable', tone: 'total' },
+  { taka: '412100000.00', label: 'Total Collection', tone: 'positive' },
+  { taka: '195300000.00', label: 'Total Overdue', tone: 'negative' },
 ] as const;
 
 const ROWS: Array<{
@@ -100,9 +105,13 @@ const SWATCHES = [
 ] as const;
 
 export function DesignPreview() {
+  const f = useFormat();
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 p-4 sm:p-6">
-      <Logo className="h-10 self-start" />
+      <div className="flex items-center justify-between gap-4">
+        <Logo className="h-10" />
+        <LanguageSwitch />
+      </div>
 
       <PageHeader
         title="All Farmers Onboarding"
@@ -115,8 +124,13 @@ export function DesignPreview() {
       />
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {STATS.map((s) => (
-          <StatCard key={s.label} {...s} />
+        {STATS.map(({ label, tone, ...s }) => (
+          <StatCard
+            key={label}
+            label={label}
+            tone={tone}
+            value={'taka' in s ? f.takaShort(s.taka) : f.number(s.count)}
+          />
         ))}
       </section>
 
@@ -266,6 +280,8 @@ export function DesignPreview() {
         </div>
       </section>
 
+      <FormatsPreview />
+
       <section className="grid gap-3">
         <h2 className="text-lg font-bold">Palette</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
@@ -287,6 +303,70 @@ export function DesignPreview() {
         <BackendStatus />
       </footer>
     </div>
+  );
+}
+
+/** Language item: the formats and translated server text, following the switch. */
+function FormatsPreview() {
+  const { t, i18n } = useTranslation();
+  const f = useFormat();
+  const [now] = useState(Date.now);
+  const note = notificationText(
+    {
+      kind: 'reservation.made',
+      title: 'Reservation #12 awaiting payment confirmation',
+      body: '3 slots in Bogura maize 2026',
+      params: {
+        reservationId: '12',
+        slots: 3,
+        project: 'Bogura maize 2026',
+        expiresAt: new Date(now + 86_400_000).toISOString(),
+      },
+    },
+    i18n,
+  );
+  const rows: Array<[string, string]> = [
+    [t('formats.amount'), `${f.taka('1234567.50')} · ${f.taka('45000.00')}`],
+    [
+      t('formats.shortAmount'),
+      `${f.takaShort('657700000')} · ${f.takaShort('12500')}`,
+    ],
+    [t('formats.count'), f.number(17084)],
+    [t('formats.date'), f.date('2026-10-17')],
+    [t('formats.dateTime'), f.dateTime(now)],
+    [t('formats.relative'), f.relative(now - 5 * 60_000)],
+    [
+      t('formats.error'),
+      errorText(
+        {
+          kind: 'rate-limited',
+          status: 429,
+          messages: [
+            'Too many failed sign-in attempts. Try again in 2 minutes.',
+          ],
+          code: 'ACCOUNT_LOCKED',
+          details: { minutes: 2 },
+        },
+        i18n,
+      ),
+    ],
+    [t('formats.notification'), `${note.title} — ${note.body ?? ''}`],
+  ];
+  return (
+    <section className="grid gap-3 rounded-lg border p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">{t('formats.title')}</h2>
+        <LanguageSwitch />
+      </div>
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_1fr]">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-medium tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 

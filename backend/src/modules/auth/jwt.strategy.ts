@@ -8,6 +8,7 @@ import type { EnvironmentVariables } from '../../config/env.validation';
 import { ChainState, User } from '../users/entities/user.entity';
 import type { AccessTokenClaims, AuthUser } from './auth-user';
 import { JWT_AUDIENCE, JWT_ISSUER } from './token.service';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /**
  * Checks the access token (signature, HS256 only, issuer, audience, expiry),
@@ -50,7 +51,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       user.role !== claims.role ||
       user.chainState === ChainState.Submitted
     ) {
-      throw new UnauthorizedException('Session is no longer valid');
+      throw new UnauthorizedException({
+        message: 'Session is no longer valid',
+        code: ErrorCode.SessionEnded,
+      });
     }
     return {
       id: user.id,

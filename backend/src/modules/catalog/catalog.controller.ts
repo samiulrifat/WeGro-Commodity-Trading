@@ -45,11 +45,17 @@ import {
   UnitDto,
   WeatherEventTypeDto,
 } from './dto/catalog-response.dto';
+import { ErrorCode } from '../../common/errors/error-code';
 
 /** A malformed code can never exist: answer 404 without a lookup. */
 class CodePipe implements PipeTransform<string, string> {
   transform(value: string): string {
-    if (!CODE_PATTERN.test(value)) throw new NotFoundException();
+    if (!CODE_PATTERN.test(value))
+      throw new NotFoundException({
+        message: 'Not found',
+        code: ErrorCode.CatalogEntryNotFound,
+        details: { code: value },
+      });
     return value;
   }
 }
