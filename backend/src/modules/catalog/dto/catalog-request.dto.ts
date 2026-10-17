@@ -137,21 +137,21 @@ export class CreateProduceTypeDto extends CreateEntryDto {
   @CodeField()
   unitCode: string;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 60 })
+  @ApiPropertyOptional({ minimum: 1, maximum: 60, type: Number })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(60)
   typicalDurationMonths?: number | null;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ maxLength: 500, type: String })
   @IsOptional()
   @Text()
   @IsString()
   @MaxLength(500)
   description?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ maxLength: 500, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -160,21 +160,26 @@ export class CreateProduceTypeDto extends CreateEntryDto {
 }
 
 export class UpdateProduceTypeDto extends UpdateEntryDto {
-  @ApiPropertyOptional({ nullable: true, minimum: 1, maximum: 60 })
+  @ApiPropertyOptional({
+    nullable: true,
+    minimum: 1,
+    maximum: 60,
+    type: Number,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(60)
   typicalDurationMonths?: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @Text()
   @IsString()
   @MaxLength(500)
   description?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -197,13 +202,14 @@ export class CreateInputTypeDto extends CreateEntryDto {
   @ApiPropertyOptional({
     example: 'MAIZE',
     description: 'Crop a seed is for. Fixed once created',
+    type: String,
   })
   @IsOptional()
   @IsString()
   @CodeField()
   produceCode?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ maxLength: 500, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -212,7 +218,7 @@ export class CreateInputTypeDto extends CreateEntryDto {
 }
 
 export class UpdateInputTypeDto extends UpdateEntryDto {
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -244,19 +250,19 @@ export class MeasurementDto {
   @MaxLength(60)
   labelBn: string;
 
-  @ApiPropertyOptional({ example: 'cm', nullable: true })
+  @ApiPropertyOptional({ example: 'cm', nullable: true, type: String })
   @IsOptional()
   @Text()
   @IsString()
   @MaxLength(16)
   unit?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: Number })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   min?: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: Number })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   max?: number | null;
@@ -322,7 +328,7 @@ export class UpdateFieldRecordTypeDto extends UpdateEntryDto {
 // --- Weather events ---
 
 export class CreateWeatherEventTypeDto extends CreateEntryDto {
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ maxLength: 500, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -331,7 +337,7 @@ export class CreateWeatherEventTypeDto extends CreateEntryDto {
 }
 
 export class UpdateWeatherEventTypeDto extends UpdateEntryDto {
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @Text()
   @IsString()

@@ -1,3 +1,4 @@
+import { ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -54,6 +55,7 @@ export class BankAccountsController {
   }
 
   @Get('bank-accounts/pending')
+  @ApiPaged()
   @Roles(Role.SuperAdmin, Role.Admin, Role.Auditor)
   @ApiOkResponse({
     type: [PendingBankAccountDto],

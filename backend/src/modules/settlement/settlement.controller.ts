@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -15,7 +16,6 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -94,7 +94,7 @@ export class SettlementController {
   @Get('settlement/projects/:projectId/report.csv')
   @Roles(...STAFF)
   @RawResponse()
-  @ApiProduces('text/csv')
+  @ApiFile('text/csv')
   @ApiOkResponse({
     description: 'Income, costs and rounds, with ledger totals',
   })
@@ -155,7 +155,7 @@ export class SettlementController {
 
   @Get('settlement/costs/:id/photo')
   @Roles(...PROJECT_READERS)
-  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
   async costPhoto(
     @CurrentUser() actor: AuthUser,
     @Param('id', uuid) id: string,
@@ -182,6 +182,7 @@ export class SettlementController {
   }
 
   @Get('settlement/rounds')
+  @ApiPaged()
   @Roles(...STAFF)
   @ApiOkResponse({ type: [RoundListItemDto], description: 'Newest first' })
   listRounds(
@@ -244,7 +245,7 @@ export class SettlementController {
   @Get('settlement/rounds/:id/payout-sheet.csv')
   @Roles(Role.SuperAdmin, Role.Accounts)
   @RawResponse()
-  @ApiProduces('text/csv')
+  @ApiFile('text/csv')
   @ApiOkResponse({
     description: 'Each payee with phone and verified bank account',
   })
@@ -258,7 +259,7 @@ export class SettlementController {
   @Get('settlement/reports/period.csv')
   @Roles(...BOOKS)
   @RawResponse()
-  @ApiProduces('text/csv')
+  @ApiFile('text/csv')
   @ApiOkResponse({ description: 'Rounds approved in the period' })
   async period(
     @Query() query: PeriodQueryDto,
@@ -282,7 +283,7 @@ export class SettlementController {
   @Get('me/statement.csv')
   @Roles(Role.Investor, Role.Farmer)
   @RawResponse()
-  @ApiProduces('text/csv')
+  @ApiFile('text/csv')
   async myStatementCsv(
     @CurrentUser() actor: AuthUser,
     @Query() query: StatementQueryDto,
@@ -304,7 +305,7 @@ export class SettlementController {
   @Get('settlement/statements/:payeeId/statement.csv')
   @Roles(...BOOKS)
   @RawResponse()
-  @ApiProduces('text/csv')
+  @ApiFile('text/csv')
   async statementCsv(
     @Param('payeeId', uuid) payeeId: string,
     @Query() query: StatementQueryDto,

@@ -1,3 +1,6 @@
+import { SummaryProduceDto } from './track-record-summary.dto';
+import { TrackRecordSummaryDto } from './track-record-summary.dto';
+import { PlaceDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -114,7 +117,7 @@ export class BankDto {
   @ApiProperty()
   branchName: string;
 
-  @ApiProperty({ example: { code: 'BOGURA', name: 'Bogura' } })
+  @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };
 
   @ApiProperty()
@@ -152,6 +155,7 @@ export class TrackRecordVersionDto {
 
 export class TrackRecordDto extends TrackRecordVersionDto {
   @ApiProperty({
+    type: TrackRecordSummaryDto,
     description:
       'Outcomes, money, harvest and sales, and claims of each finished project, with totals',
   })
@@ -164,7 +168,10 @@ export class TrackRecordDto extends TrackRecordVersionDto {
 }
 
 export class TrackRecordPreviewDto {
-  @ApiProperty({ description: 'What would be published now' })
+  @ApiProperty({
+    type: TrackRecordSummaryDto,
+    description: 'What would be published now',
+  })
   summary: TrackRecordSummary;
 
   @ApiPropertyOptional({ nullable: true, type: Number })
@@ -254,7 +261,7 @@ export class BankViewDto {
   @ApiProperty()
   publishedAt: Date;
 
-  @ApiProperty()
+  @ApiProperty({ type: TrackRecordSummaryDto })
   summary: TrackRecordSummary;
 
   @ApiProperty()
@@ -281,10 +288,10 @@ export class ImportedProjectDto {
   @ApiProperty()
   title: string;
 
-  @ApiProperty({ example: { code: 'MAIZE', name: 'Maize', unit: 'kg' } })
+  @ApiProperty({ type: SummaryProduceDto })
   produce: { code: string; name: string; unit: string };
 
-  @ApiProperty({ example: { code: 'BOGURA', name: 'Bogura' } })
+  @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };
 
   @ApiProperty({ example: '2024-01-15' })

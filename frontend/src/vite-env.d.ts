@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Base URL of the backend API; '/api' (same origin, proxied in development) by default. */
-  readonly VITE_API_URL?: string;
+  /** Origin of the backend, e.g. https://api.example.org; empty for the same origin. */
+  readonly VITE_API_ORIGIN?: string;
 }
 
 interface ImportMeta {

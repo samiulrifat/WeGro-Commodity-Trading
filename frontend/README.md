@@ -25,6 +25,8 @@ The dev server passes `/api` to the backend at `http://localhost:3000`. To point
 | `npm run typecheck` | TypeScript only |
 | `npm run lint` | oxlint with type information |
 | `npm run format` / `format:check` | Prettier (same settings as the backend) |
+| `npm test` | Unit tests (Vitest) |
+| `npm run api:generate` / `api:check` | Regenerate the API client from the running backend / check it is current |
 
 ## Design
 
@@ -34,6 +36,24 @@ The theme lives in [src/index.css](src/index.css): WeGro's palette as `--wegro-*
 - **Type**: Manrope; Bengali letters come from Noto Sans Bengali automatically.
 - **Sizes**: buttons and inputs are at least 44 px wherever a finger may press; the `sm` sizes are for mouse-driven dense tables and grow on touch screens.
 - **Components**: shadcn/ui primitives in `src/components/ui/`; WeGro pieces in `src/components/`: `StatCard`, `StatusPill` (always a word with the colour), `StepIcon`, `PageHeader`, `PersonCell`, `Logo`.
+
+## API
+
+Every backend route has a generated RTK Query hook, typed from the backend's OpenAPI document:
+
+```ts
+import { useProjectsListQuery } from '@/api/generated/projects';
+
+const { data } = useProjectsListQuery({ page: 1, stage: 'open_for_funding' });
+data?.data; // ProjectDto[]
+data?.meta; // { page, limit, total, totalPages }
+```
+
+- Responses are exactly what the backend sends: `{ data }`, or `{ data, meta }` for pages.
+- `npm run api:generate` (backend running) rewrites `src/api/generated/` from the backend's docs; never edit those files. `npm run api:check` fails if they are out of date. The backend's chain tests check every response against those same docs.
+- [src/api/http.ts](src/api/http.ts) sends every request: it adds the access token and, on a 401, renews the session once (the refresh token is an httpOnly cookie) and repeats the request.
+- [src/api/errors.ts](src/api/errors.ts): `toApiError(error)` gives one shape for any failure: kind (`invalid`, `conflict`, `unavailable`, `network`, ...), messages, the server's `code` and `requestId`.
+- [src/api/files.ts](src/api/files.ts): `usePhotoUploadMutation`, `useApiFile(path)` for photos and QR codes, `downloadFile(path)` for CSV reports.
 
 ## Layout
 

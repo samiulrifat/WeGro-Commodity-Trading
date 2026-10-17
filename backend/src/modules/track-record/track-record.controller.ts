@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -15,9 +16,10 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiOkResponse,
-  ApiProduces,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Paginated } from '../../common/dto/pagination.dto';
@@ -102,9 +104,10 @@ export class TrackRecordController {
 
   @Put('bank-officers/:officerId')
   @Roles(Role.Admin)
+  @ApiExtraModels(BankDto)
   @ApiOkResponse({
-    type: BankDto,
     description: 'The bank now, or null when removed',
+    schema: { nullable: true, allOf: [{ $ref: getSchemaPath(BankDto) }] },
   })
   assignOfficer(
     @CurrentUser() actor: AuthUser,
@@ -221,6 +224,7 @@ export class TrackRecordController {
   }
 
   @Get('farmers/:farmerId/consents/views')
+  @ApiPaged()
   @Roles(...FARMER_READERS)
   @ApiOkResponse({
     type: [SummaryViewDto],
@@ -236,7 +240,7 @@ export class TrackRecordController {
 
   @Get('consents/:id/evidence-photo')
   @Roles(...FARMER_READERS)
-  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
   async evidence(
     @CurrentUser() actor: AuthUser,
     @Param('id', uuid) id: string,
@@ -256,6 +260,7 @@ export class TrackRecordController {
   }
 
   @Get('bank/farmers')
+  @ApiPaged()
   @Roles(Role.Bank)
   @ApiOkResponse({
     type: [BankFarmerDto],

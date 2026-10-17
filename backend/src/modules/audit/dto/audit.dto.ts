@@ -1,3 +1,5 @@
+import { PersonNameDto } from '../../../common/swagger/refs';
+import { ActorDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -74,14 +76,17 @@ export class HistoryEntryDto {
   actor: HistoryActorDto;
 
   @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
     description:
       'Event arguments, readable: taka, ISO times, codes, statuses by name, ids as uuids',
   })
   details: Record<string, unknown>;
 
   @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
     description: 'Names of the people the event refers to, by id or address',
-    example: { '7d3f2c1a-…': 'Rahima Begum' },
   })
   parties: Record<string, string>;
 }
@@ -127,7 +132,7 @@ export class SweepDto {
   @ApiPropertyOptional({ nullable: true, type: Date })
   finishedAt: Date | null;
 
-  @ApiProperty({ example: { id: '…', name: 'Auditor' } })
+  @ApiProperty({ type: PersonNameDto })
   startedBy: { id: string; name: string };
 
   @ApiProperty({ description: 'Records checked so far' })
@@ -207,8 +212,8 @@ export class AuditLogEntryDto {
   at: Date;
 
   @ApiPropertyOptional({
+    type: ActorDto,
     nullable: true,
-    type: Object,
     description: 'Null when not signed in',
   })
   actor: { id: string; name: string; role: string } | null;
@@ -220,6 +225,8 @@ export class AuditLogEntryDto {
   route: string;
 
   @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
     example: { id: '12' },
     description: 'Record ids from the path',
   })

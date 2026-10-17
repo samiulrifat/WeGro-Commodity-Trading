@@ -75,6 +75,7 @@ export class InactivityLimitDto {
     maximum: 3650,
     description:
       'Days without activity before the voucher is flagged; null removes the limit',
+    type: Number,
   })
   @IsOptional()
   @IsInt()
@@ -161,6 +162,7 @@ export class RegisterBatchDto {
   @ApiPropertyOptional({
     example: 2000,
     description: 'Batch size in the input unit',
+    type: Number,
   })
   @IsOptional()
   @IsInt()
@@ -168,7 +170,7 @@ export class RegisterBatchDto {
   @Max(MAX_QUANTITY)
   quantity?: number | null;
 
-  @ApiPropertyOptional({ example: 'Karnaphuli Fertilizer' })
+  @ApiPropertyOptional({ example: 'Karnaphuli Fertilizer', type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -185,12 +187,13 @@ export class RegisterBatchDto {
   @ApiPropertyOptional({
     example: '2028-08-31',
     description: 'Usable through this day',
+    type: String,
   })
   @IsOptional()
   @IsDateString({ strict: true })
   expiresOn?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ maxLength: 500, type: String })
   @IsOptional()
   @Text()
   @IsString()

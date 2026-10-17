@@ -302,6 +302,13 @@ describe('Projects (node + database)', () => {
       expect(JSON.stringify(row)).not.toContain(RUN);
       const mine = await as(investor).get(`/reservations/${first}`).expect(200);
       expect(mine.body.data).not.toHaveProperty('paymentReference');
+      const listed = await as(investor)
+        .get(`/reservations?projectId=${projectId}&status=confirmed`)
+        .expect(200);
+      expect(listed.body.data.map((r: { id: number }) => r.id)).toContain(
+        first,
+      );
+      expect(listed.body.meta).toMatchObject({ page: 1, total: 1 });
       await as(investor)
         .post(`/reservations/${first}/confirm`, { paymentReference: 'X' })
         .expect(403);

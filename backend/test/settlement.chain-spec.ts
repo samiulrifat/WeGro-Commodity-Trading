@@ -245,6 +245,23 @@ describe('Settlement (node + database)', () => {
       await as(t.super_admin)
         .post(`/participants/${investor2.id}/bank-account/verify`)
         .expect(200);
+      // A later change can be turned down, keeping the verified account.
+      await as(t.admin)
+        .put(`/participants/${investor2.id}/bank-account`, bank('55443322110'))
+        .expect(200);
+      const turnedDown = await as(t.super_admin)
+        .post(`/participants/${investor2.id}/bank-account/reject`, {
+          reason: 'Account holder name does not match',
+        })
+        .expect(200);
+      expect(turnedDown.body.data).toMatchObject({
+        verified: { status: 'verified' },
+        pending: null,
+      });
+      expect(turnedDown.body.data.history[0]).toMatchObject({
+        status: 'rejected',
+        rejectionReason: 'Account holder name does not match',
+      });
     });
 
     it('keep the verified account while a change waits, and keep history', async () => {
@@ -315,6 +332,10 @@ describe('Settlement (node + database)', () => {
       const onChain = await settlement().getCost(res.body.data.costId);
       expect(onChain.detailsHash).toBe(res.body.data.detailsHash);
       expect(onChain.amount).toBe(150_000n);
+      const one = await as(t.accounts)
+        .get(`/settlement/costs/${res.body.data.id}`)
+        .expect(200);
+      expect(one.body.data).toEqual(res.body.data);
     });
 
     it('are voided, not edited, when wrong', async () => {
@@ -525,6 +546,16 @@ describe('Settlement (node + database)', () => {
         status: 'paid',
         paidCount: 3,
       });
+      const again = await as(t.accounts)
+        .get(`/settlement/rounds/${staged}`)
+        .expect(200);
+      expect(again.body.data).toMatchObject({ id: staged, status: 'paid' });
+      const listed = await as(t.accounts)
+        .get(`/settlement/rounds?projectId=${project}&status=paid`)
+        .expect(200);
+      expect(listed.body.data.map((r: { id: number }) => r.id)).toEqual([
+        staged,
+      ]);
       const summary = await as(t.farmer)
         .get(`/settlement/projects/${project}`)
         .expect(200);
@@ -750,6 +781,15 @@ describe('Settlement (node + database)', () => {
           [staged],
         ),
       ).rejects.toThrow(/ck_settlement_rounds_split/);
+    });
+  });
+
+  describe('after the payout', () => {
+    it('lets an admin close the paid-out project', async () => {
+      const res = await as(t.admin)
+        .post(`/projects/${project}/close`)
+        .expect(200);
+      expect(res.body.data.stage).toBe('closed');
     });
   });
 });

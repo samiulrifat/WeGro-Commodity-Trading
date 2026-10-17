@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -16,7 +17,6 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -67,6 +67,7 @@ export class InsuranceController {
   // --- Cover ---
 
   @Get('projects')
+  @ApiPaged()
   @Roles(...STAFF, Role.Insurer)
   @ApiOkResponse({
     type: [InsuredProjectDto],
@@ -106,6 +107,7 @@ export class InsuranceController {
   // --- Weather events ---
 
   @Get('weather-events')
+  @ApiPaged()
   @Roles(...READERS)
   @ApiOkResponse({ type: [WeatherEventDto], description: 'Newest first' })
   listWeatherEvents(
@@ -148,6 +150,7 @@ export class InsuranceController {
   }
 
   @Get('claims')
+  @ApiPaged()
   @Roles(...READERS)
   @ApiOkResponse({ type: [ClaimDto] })
   listClaims(
@@ -207,7 +210,7 @@ export class InsuranceController {
 
   @Get('claims/:id/photos/:n')
   @Roles(...READERS)
-  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
   async claimPhoto(
     @CurrentUser() actor: AuthUser,
     @Param('id', uuid) id: string,
@@ -219,7 +222,7 @@ export class InsuranceController {
 
   @Get('claims/:id/assessment/photo')
   @Roles(...READERS)
-  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
   async assessmentPhoto(
     @CurrentUser() actor: AuthUser,
     @Param('id', uuid) id: string,

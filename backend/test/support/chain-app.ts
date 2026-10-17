@@ -1,15 +1,16 @@
 import { randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { parseEnv } from 'node:util';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import { configureApp } from '../../src/app.setup';
+import { buildOpenApiDocument, configureApp } from '../../src/app.setup';
 import { KEY_INDEX_SEQUENCE } from '../../src/blockchain/keys/key.service';
 import { SnakeNamingStrategy } from '../../src/database/snake-naming.strategy';
 import { indexFromHere } from './chain-head';
+import { installContractCheck } from './contract';
 
 /**
  * Boots the real AppModule against the local chain and a throwaway database
@@ -67,6 +68,8 @@ export async function startChainApp(
     logger: ['error'],
   });
   configureApp(app);
+  // Every JSON response is checked against the OpenAPI document.
+  const contract = installContractCheck(app, () => buildOpenApiDocument(app));
   // Listening once: supertest otherwise starts a listener per request.
   await app.listen(0, '127.0.0.1');
 
@@ -74,11 +77,18 @@ export async function startChainApp(
     app,
     schema,
     async close() {
+      const file = basename(expect.getState().testPath ?? schema);
+      contract.save(file);
       await app.close();
       const teardown = new DataSource({ type: 'postgres', url });
       await teardown.initialize();
       await teardown.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await teardown.destroy();
+      if (contract.failures.length > 0) {
+        throw new Error(
+          `Responses that do not match the OpenAPI document (${file}):\n${[...new Set(contract.failures)].join('\n')}`,
+        );
+      }
     },
   };
 }

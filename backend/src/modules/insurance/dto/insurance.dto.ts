@@ -1,3 +1,4 @@
+import { PlaceDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -62,6 +63,7 @@ export class SetCoverageDto {
   @ApiPropertyOptional({
     maxLength: 2000,
     description: 'What is covered and on what terms',
+    type: String,
   })
   @IsOptional()
   @Text()
@@ -93,6 +95,7 @@ export class RecordWeatherEventDto {
   @ApiPropertyOptional({
     maxLength: 2000,
     example: 'River above danger level for 4 days',
+    type: String,
   })
   @IsOptional()
   @Text()
@@ -124,6 +127,7 @@ export class OpenClaimDto {
   @ApiProperty({
     example: '40.5',
     description: 'Estimated share of the crop damaged, one decimal place',
+    oneOf: [{ type: 'string' }, { type: 'number' }],
   })
   @Percent()
   damagePercent: string | number;
@@ -152,6 +156,7 @@ export class AssessmentDto {
   @ApiPropertyOptional({
     example: '35.0',
     description: 'Damage the insurer found, one decimal place',
+    oneOf: [{ type: 'string' }, { type: 'number' }],
   })
   @IsOptional()
   @Percent()
@@ -164,7 +169,11 @@ export class AssessmentDto {
   @MaxLength(2000)
   notes: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'From POST /photos' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'From POST /photos',
+    type: String,
+  })
   @IsOptional()
   @IsUUID('4')
   photoId?: string | null;
@@ -275,7 +284,7 @@ export class InsuredProjectDto {
   @ApiProperty({ type: PartyDto })
   project: PartyDto;
 
-  @ApiProperty({ example: { code: 'BOGURA', name: 'Bogura' } })
+  @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };
 
   @ApiProperty({ example: 'MAIZE' })
@@ -299,7 +308,7 @@ export class WeatherEventDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty({ example: { code: 'BOGURA', name: 'Bogura' } })
+  @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };
 
   @ApiProperty({ type: EventTypeRefDto })

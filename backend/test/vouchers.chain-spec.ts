@@ -220,6 +220,24 @@ describe('Vouchers (node + database)', () => {
       expect(project.body.data.stage).toBe('active');
       await as(t.accounts).post(`/vouchers/${voucherId}/approve`).expect(409);
     });
+
+    it('lets Accounts turn a proposal down', async () => {
+      const proposed = await as(t.operations)
+        .post(`/projects/${projectId}/vouchers`, {
+          inputTypeCode: 'UREA',
+          quantity: 5,
+          unitPrice: '27.50',
+          supplierIds: [id.supplier],
+        })
+        .expect(201);
+      const res = await as(t.accounts)
+        .post(`/vouchers/${proposed.body.data.id}/reject`)
+        .expect(200);
+      expect(res.body.data.status).toBe('rejected');
+      await as(t.accounts)
+        .post(`/vouchers/${proposed.body.data.id}/reject`)
+        .expect(409);
+    });
   });
 
   describe('batches and QR codes', () => {
@@ -239,6 +257,8 @@ describe('Vouchers (node + database)', () => {
         status: 'registered',
         verifyUrl: `http://localhost:5173/verify/batch/${batchId}`,
       });
+      const one = await as(t.supplier).get(`/batches/${batchId}`).expect(200);
+      expect(one.body.data).toEqual(res.body.data);
 
       const check = await http
         .get(`/api/verify/batches/${batchId}`)

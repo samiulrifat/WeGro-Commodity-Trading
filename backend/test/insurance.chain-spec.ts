@@ -188,6 +188,10 @@ describe('Insurance (node + database)', () => {
         [event.flood],
       );
       expect(onChain.detailsHash).toBe(row.details_hash);
+      const one = await as(t.farmer)
+        .get(`/insurance/weather-events/${event.flood}`)
+        .expect(200);
+      expect(one.body.data).toEqual(res.body.data);
 
       for (const [key, districtCode, eventTypeCode] of [
         ['drought', 'BOGURA', 'DROUGHT'],
@@ -559,6 +563,13 @@ describe('Insurance (node + database)', () => {
         floodClaim,
       ]);
       await as(t.buyer).get('/insurance/claims').expect(403);
+      const one = await as(t.farmer)
+        .get(`/insurance/claims/${floodClaim}`)
+        .expect(200);
+      expect(one.body.data).toMatchObject({
+        id: floodClaim,
+        status: 'approved',
+      });
     });
   });
 

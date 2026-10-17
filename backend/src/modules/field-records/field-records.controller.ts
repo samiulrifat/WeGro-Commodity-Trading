@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   BadRequestException,
   Body,
@@ -20,7 +21,6 @@ import {
   ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -107,6 +107,7 @@ export class FieldRecordsController {
   }
 
   @Get('projects/:projectId/field-records')
+  @ApiPaged()
   @ApiOkResponse({
     type: [FieldRecordDto],
     description: 'Newest observation first',
@@ -129,7 +130,7 @@ export class FieldRecordsController {
   }
 
   @Get('field-records/:id/photo')
-  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
   @ApiOkResponse({ description: 'The photo, as fingerprinted on the ledger' })
   async photo(
     @CurrentUser() actor: AuthUser,

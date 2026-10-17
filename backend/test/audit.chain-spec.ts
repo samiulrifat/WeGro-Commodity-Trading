@@ -298,6 +298,8 @@ describe('Audit (node + database)', () => {
       await chain.app.get(SweepService).idle();
 
       const run = await as(t.auditor).get(`/audit/sweeps/${id}`).expect(200);
+      const runs = await as(t.auditor).get('/audit/sweeps').expect(200);
+      expect(runs.body.data[0]).toMatchObject({ id, status: 'done' });
       expect(run.body.data.status).toBe('done');
       expect(run.body.data.checked).toBeGreaterThan(3);
       const findings = await as(t.auditor)

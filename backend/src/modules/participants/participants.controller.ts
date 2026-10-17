@@ -1,3 +1,4 @@
+import { ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -59,6 +60,7 @@ export class ParticipantsController {
   }
 
   @Get()
+  @ApiPaged()
   @Roles(Role.SuperAdmin, Role.Admin, Role.FieldOfficer, Role.Auditor)
   @ApiOkResponse({ type: [ParticipantSummaryDto] })
   list(

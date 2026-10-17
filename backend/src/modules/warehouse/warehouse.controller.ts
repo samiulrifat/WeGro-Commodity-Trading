@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -17,7 +18,6 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiProduces,
   ApiProperty,
   ApiTags,
 } from '@nestjs/swagger';
@@ -55,6 +55,7 @@ const receiptId = new ReceiptIdPipe();
 
 class AssignOperatorDto {
   @ApiProperty({
+    type: String,
     format: 'uuid',
     nullable: true,
     description: 'null removes them from their site',
@@ -141,6 +142,7 @@ export class WarehouseController {
   }
 
   @Get('warehouse-receipts')
+  @ApiPaged()
   @Roles(...RECEIPT_READERS)
   @ApiOkResponse({ type: [ReceiptDto] })
   list(
@@ -243,7 +245,7 @@ export class ReceiptVerifyController {
   @RawResponse()
   @Header('Content-Type', 'image/svg+xml')
   @Header('Cache-Control', 'public, max-age=86400, immutable')
-  @ApiProduces('image/svg+xml')
+  @ApiFile('image/svg+xml')
   @ApiOkResponse({ description: 'Print-ready QR linking to the verify page' })
   qr(@Param('id', receiptId) id: string): Promise<string> {
     return qrSvg(this.warehouse.verifyUrl(id));

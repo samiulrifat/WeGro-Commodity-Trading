@@ -259,6 +259,8 @@ describe('Track record and bank permission (node + database)', () => {
       expect(await consent().bankDetails(uuidToBytes32(bankA))).toBe(
         res.body.data.detailsHash,
       );
+      const one = await as(t.admin).get(`/banks/${bankA}`).expect(200);
+      expect(one.body.data).toEqual(res.body.data);
       await as(t.admin)
         .post('/banks', {
           name: `KRISHI BANK ${RUN}`,
@@ -306,6 +308,11 @@ describe('Track record and bank permission (node + database)', () => {
 
   describe('track record', () => {
     it("is built from the farmer's finished projects", async () => {
+      // Nothing imported from WeGro's records for this farmer.
+      const imported = await as(t.field_officer)
+        .get(`${farmerPath()}/history`)
+        .expect(200);
+      expect(imported.body.data).toEqual([]);
       const res = await as(t.field_officer)
         .get(`${farmerPath()}/track-record/preview`)
         .expect(200);

@@ -295,6 +295,17 @@ describe('Marketplace (node + database)', () => {
           })
           .expect(201)
       ).body.data.id;
+      // A buyer can take back an offer nobody has answered yet.
+      const second = await as(t.buyer)
+        .post(`/listings/${receiptListing}/offers`, {
+          quantity: 10,
+          unitPrice: '29',
+        })
+        .expect(201);
+      const withdrawn = await as(t.buyer)
+        .post(`/offers/${second.body.data.id}/withdraw`)
+        .expect(200);
+      expect(withdrawn.body.data.status).toBe('withdrawn');
     });
 
     it('holds the quantity once an admin approves, with a payment deadline', async () => {

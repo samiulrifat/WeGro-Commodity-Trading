@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -18,7 +19,6 @@ import {
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
-  ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -115,6 +115,7 @@ export class VouchersController {
   }
 
   @Get('vouchers')
+  @ApiPaged()
   @Roles(...VOUCHER_READERS)
   @ApiOkResponse({ type: [VoucherDto] })
   list(
@@ -139,7 +140,7 @@ export class VouchersController {
   @RawResponse()
   @Header('Content-Type', 'image/svg+xml')
   @Header('Cache-Control', 'private, max-age=86400')
-  @ApiProduces('image/svg+xml')
+  @ApiFile('image/svg+xml')
   @ApiOkResponse({
     description:
       "QR for the farmer's voucher: suppliers scan it to open the voucher",
@@ -227,6 +228,7 @@ export class VouchersController {
   }
 
   @Get('voucher-sales')
+  @ApiPaged()
   @Roles(...VOUCHER_READERS)
   @ApiOkResponse({ type: [VoucherSaleDto] })
   listSales(
@@ -277,6 +279,7 @@ export class BatchesController {
   }
 
   @Get()
+  @ApiPaged()
   @Roles(Role.Supplier, Role.FieldOfficer, ...STAFF)
   @ApiOkResponse({ type: [BatchDto] })
   list(
@@ -314,7 +317,7 @@ export class VerifyController {
   @RawResponse()
   @Header('Content-Type', 'image/svg+xml')
   @Header('Cache-Control', 'public, max-age=86400, immutable')
-  @ApiProduces('image/svg+xml')
+  @ApiFile('image/svg+xml')
   @ApiOkResponse({
     description: 'Print-ready QR code linking to the verify page',
   })

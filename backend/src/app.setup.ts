@@ -1,11 +1,16 @@
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import {
+  DocumentBuilder,
+  type OpenAPIObject,
+  SwaggerModule,
+} from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { requestLogger } from './common/middleware/request-logger.middleware';
+import { describeEnvelopes, PageMetaDto } from './common/swagger/envelope';
 import type { EnvironmentVariables } from './config/env.validation';
 
 export const API_PREFIX = 'api';
@@ -58,7 +63,18 @@ export function configureApp(app: INestApplication): void {
   app.enableShutdownHooks();
 
   if (swaggerEnabled) {
-    const document = SwaggerModule.createDocument(
+    SwaggerModule.setup(DOCS_PATH, app, buildOpenApiDocument(app));
+  }
+}
+
+/**
+ * The OpenAPI document, describing responses exactly as sent (envelope and
+ * page meta included). Served at /docs; the frontend's API client and the
+ * chain tests' response check are built from it.
+ */
+export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
+  return describeEnvelopes(
+    SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
         .setTitle('WeGro Commodity Trading Platform API')
@@ -69,7 +85,13 @@ export function configureApp(app: INestApplication): void {
         .setVersion('0.1.0')
         .addBearerAuth()
         .build(),
-    );
-    SwaggerModule.setup(DOCS_PATH, app, document);
-  }
+      {
+        extraModels: [PageMetaDto],
+        // "Projects_list" rather than "ProjectsController_list": the names
+        // generated clients use for their calls.
+        operationIdFactory: (controller: string, method: string) =>
+          `${controller.replace(/Controller$/, '')}_${method}`,
+      },
+    ),
+  );
 }

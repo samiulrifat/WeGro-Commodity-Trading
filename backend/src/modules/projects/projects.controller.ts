@@ -1,3 +1,4 @@
+import { ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -73,6 +74,7 @@ export class ProjectsController {
   }
 
   @Get()
+  @ApiPaged()
   @ApiOkResponse({ type: [ProjectDto] })
   list(
     @CurrentUser() actor: AuthUser,
@@ -248,6 +250,7 @@ export class ReservationsController {
   constructor(private readonly reservations: ReservationsService) {}
 
   @Get()
+  @ApiPaged()
   @Roles(
     Role.Investor,
     Role.Accounts,

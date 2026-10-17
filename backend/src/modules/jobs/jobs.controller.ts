@@ -1,3 +1,4 @@
+import { ApiPaged } from '../../common/swagger/envelope';
 import {
   Controller,
   Get,
@@ -32,6 +33,7 @@ export class JobsController {
   }
 
   @Get(':name/runs')
+  @ApiPaged()
   @Roles(...READERS)
   @ApiOkResponse({
     type: [JobRunDto],

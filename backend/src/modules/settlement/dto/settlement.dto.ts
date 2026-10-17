@@ -58,6 +58,7 @@ export class AddCostDto {
   @ApiPropertyOptional({
     format: 'uuid',
     description: 'The bill, from POST /photos',
+    type: String,
   })
   @IsOptional()
   @IsUUID('4')

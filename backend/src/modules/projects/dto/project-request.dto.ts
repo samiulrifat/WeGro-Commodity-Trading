@@ -46,7 +46,7 @@ export class CreateProjectDto {
   @MaxLength(120)
   title: string;
 
-  @ApiPropertyOptional({ maxLength: 2000 })
+  @ApiPropertyOptional({ maxLength: 2000, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -150,7 +150,7 @@ export class CreateProjectDto {
   @Max(10000)
   estimatedReturnMaxBps: number;
 
-  @ApiPropertyOptional({ example: '2026-11-15' })
+  @ApiPropertyOptional({ example: '2026-11-15', type: String })
   @IsOptional()
   @IsDateString({ strict: true })
   plannedStartDate?: string | null;
@@ -166,7 +166,7 @@ export class UpdateProjectDto {
   @MaxLength(120)
   title?: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -265,7 +265,7 @@ export class UpdateProjectDto {
   @Max(10000)
   estimatedReturnMaxBps?: number;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsDateString({ strict: true })
   plannedStartDate?: string | null;

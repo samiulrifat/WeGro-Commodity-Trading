@@ -1,3 +1,4 @@
+import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
   Body,
   Controller,
@@ -15,7 +16,6 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -74,6 +74,7 @@ export class TradeController {
   // --- Listings ---
 
   @Get('listings')
+  @ApiPaged()
   @ApiOkResponse({
     type: [ListingDto],
     description: 'Open listings by default',
@@ -147,6 +148,7 @@ export class TradeController {
   // --- Offers and deals ---
 
   @Get('offers')
+  @ApiPaged()
   @Roles(...OFFER_READERS)
   @ApiOkResponse({ type: [OfferDto] })
   listOffers(
@@ -248,7 +250,7 @@ export class TradeController {
 
   @Get('offers/:id/deliveries/:side/photo')
   @Roles(...OFFER_READERS)
-  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
   async deliveryPhoto(
     @CurrentUser() actor: AuthUser,
     @Param('id', ledgerId) id: number,
@@ -262,6 +264,7 @@ export class TradeController {
   // --- Buyer requests ---
 
   @Get('buyer-requests')
+  @ApiPaged()
   @Roles(Role.Buyer, Role.FieldOfficer, ...STAFF)
   @ApiOkResponse({
     type: [BuyerRequestDto],

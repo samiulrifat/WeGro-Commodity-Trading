@@ -1,5 +1,6 @@
 import { CalendarDays, Filter, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useHealthCheckQuery } from '@/api/generated/health';
 import { Logo } from '@/components/logo';
 import { PageHeader } from '@/components/page-header';
 import { PersonCell } from '@/components/person-cell';
@@ -280,10 +281,22 @@ export function DesignPreview() {
         </div>
       </section>
 
-      <footer className="flex items-center gap-3 rounded-lg bg-brand p-4 text-brand-foreground">
+      <footer className="flex flex-wrap items-center gap-3 rounded-lg bg-brand p-4 text-brand-foreground">
         <Logo onDark className="h-6" />
         <span className="text-sm">The wordmark on brand green.</span>
+        <BackendStatus />
       </footer>
     </div>
   );
+}
+
+/** Live check of the API layer: GET /api/health through RTK Query. */
+function BackendStatus() {
+  const { data, isLoading, isError } = useHealthCheckQuery();
+  const label = isLoading
+    ? 'Checking backend…'
+    : isError || !data
+      ? 'Backend unreachable'
+      : `Backend ${data.data.status}: database ${data.data.database}, chain ${data.data.chain.status}`;
+  return <span className="ml-auto text-sm">{label}</span>;
 }

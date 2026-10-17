@@ -174,7 +174,8 @@ export class QueueDto {
   count: number;
 
   @ApiPropertyOptional({
-    type: Object,
+    type: 'object',
+    additionalProperties: { type: 'number' },
     example: { overdue: 2 },
     description: 'Urgent subsets: overdue, expiringSoon (24 h)',
   })
@@ -204,6 +205,8 @@ export class FiguresDto {
   payoutsPaid: string;
 
   @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'number' },
     example: { farmer: 120, investor: 340 },
     description: 'Verified participants by role',
   })
@@ -244,8 +247,10 @@ export class DashboardDto {
   funding: FundingDto;
 
   @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'number' },
     example: { draft: 2, open_for_funding: 3, active: 5 },
-    description: 'Projects by stage; draft = not yet published',
+    description: 'Projects by stage',
   })
   stages: Record<string, number>;
 

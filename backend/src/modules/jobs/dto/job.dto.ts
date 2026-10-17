@@ -1,3 +1,4 @@
+import { PersonNameDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 
@@ -6,8 +7,8 @@ export class JobRunDto {
   trigger: 'schedule' | 'manual';
 
   @ApiPropertyOptional({
+    type: PersonNameDto,
     nullable: true,
-    type: Object,
     description: 'Who ran it by hand',
   })
   triggeredBy: { id: string; name: string } | null;

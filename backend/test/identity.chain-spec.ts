@@ -385,6 +385,15 @@ describe('Identity (node + database)', () => {
         .expect(200);
       expect(res.body.data).toMatchObject({ matches: true, mismatches: [] });
       expect(res.body.data.computedHash).toBe(res.body.data.ledger.detailsHash);
+      // Syncing a person the ledger already agrees with changes nothing.
+      const synced = await http
+        .post(`/api/participants/${farmer.id}/sync`)
+        .auth(admin.token, { type: 'bearer' })
+        .expect(200);
+      expect(synced.body.data).toMatchObject({
+        id: farmer.id,
+        chainState: 'confirmed',
+      });
     });
 
     it('detects tampered details and refuses to verify them', async () => {

@@ -1,3 +1,4 @@
+import { PersonNameDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -36,7 +37,7 @@ export class FieldRecordDraftDto {
   @Matches(CODE_PATTERN)
   entryTypeCode: string;
 
-  @ApiPropertyOptional({ maxLength: 2000 })
+  @ApiPropertyOptional({ type: String, maxLength: 2000 })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.normalize('NFC').trim() || null : value,
@@ -46,6 +47,8 @@ export class FieldRecordDraftDto {
   notes?: string | null;
 
   @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }] },
     example: { plant_height: '42', crop_cover: 80 },
     description: 'Readings by key, as the record type defines them',
   })
@@ -56,22 +59,34 @@ export class FieldRecordDraftDto {
   @ApiPropertyOptional({
     example: '24.846512',
     description: 'Decimal degrees, up to 6 places',
+    oneOf: [{ type: 'string' }, { type: 'number' }],
   })
   @IsOptional()
   latitude?: string | number;
 
-  @ApiPropertyOptional({ example: '89.377621' })
+  @ApiPropertyOptional({
+    example: '89.377621',
+    oneOf: [{ type: 'string' }, { type: 'number' }],
+  })
   @IsOptional()
   longitude?: string | number;
 
-  @ApiPropertyOptional({ example: 8, description: 'GPS accuracy in metres' })
+  @ApiPropertyOptional({
+    example: 8,
+    description: 'GPS accuracy in metres',
+    type: Number,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(100000)
   accuracyMeters?: number | null;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'From POST /photos' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'From POST /photos',
+    type: String,
+  })
   @IsOptional()
   @IsUUID('4')
   photoId?: string | null;
@@ -79,6 +94,7 @@ export class FieldRecordDraftDto {
   @ApiPropertyOptional({
     format: 'uuid',
     description: 'The record this one corrects',
+    type: String,
   })
   @IsOptional()
   @IsUUID('4')
@@ -190,7 +206,7 @@ export class FieldRecordDto {
   })
   correctedBy: string[];
 
-  @ApiProperty()
+  @ApiProperty({ type: PersonNameDto })
   recordedBy: { id: string; name: string };
 
   @ApiProperty()

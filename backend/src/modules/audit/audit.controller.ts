@@ -1,3 +1,4 @@
+import { ApiPaged } from '../../common/swagger/envelope';
 import {
   Controller,
   Get,
@@ -78,6 +79,7 @@ export class AuditController {
   ) {}
 
   @Get('history/:type/:id')
+  @ApiPaged()
   @Roles(...STAFF)
   @ApiParam({ name: 'type', enum: HISTORY_TYPE_NAMES })
   @ApiOkResponse({
@@ -145,6 +147,7 @@ export class AuditController {
   }
 
   @Get('sweeps/:id/findings')
+  @ApiPaged()
   @Roles(...AUDITORS)
   @ApiOkResponse({
     type: [SweepFindingDto],
@@ -158,6 +161,7 @@ export class AuditController {
   }
 
   @Get('log')
+  @ApiPaged()
   @Roles(Role.SuperAdmin, Role.Auditor)
   @ApiOkResponse({
     type: [AuditLogEntryDto],

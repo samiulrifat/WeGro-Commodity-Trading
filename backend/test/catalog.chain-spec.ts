@@ -295,6 +295,28 @@ describe('Catalog (database)', () => {
       ).rejects.toThrow(/ck_produce_types_category/);
     });
 
+    it('edits inputs, farm-record types and weather events', async () => {
+      const input = await post(admin, 'input-types', {
+        code: 'NEEM_OIL',
+        name: 'Neem oil',
+        nameBn: 'নিম তেল',
+        kind: 'pesticide',
+        unitCode: 'LITRE',
+      }).expect(201);
+      expect(input.body.data).toMatchObject({ code: 'NEEM_OIL', active: true });
+      await patch(admin, 'input-types/NEEM_OIL', {
+        description: 'Organic',
+      }).expect(200);
+      const record = await patch(admin, 'field-record-types/LAND_PREPARATION', {
+        requiresPhoto: true,
+      }).expect(200);
+      expect(record.body.data.requiresPhoto).toBe(true);
+      const weather = await patch(admin, 'weather-event-types/COLD_WAVE', {
+        description: 'Below 10 °C for three days',
+      }).expect(200);
+      expect(weather.body.data.description).toBe('Below 10 °C for three days');
+    });
+
     it('shows deactivated entries only on request', async () => {
       await patch(admin, 'produce-types/OKRA', { active: false }).expect(200);
       const active = (await get(investor).expect(200)).body.data.produceTypes;

@@ -140,6 +140,10 @@ describe('Warehouse (node + database)', () => {
       ]);
       const mine = await as(t.warehouse).get('/warehouse-sites').expect(200);
       expect(mine.body.data.map((s: { id: string }) => s.id)).toEqual([siteId]);
+      const one = await as(t.warehouse)
+        .get(`/warehouse-sites/${siteId}`)
+        .expect(200);
+      expect(one.body.data).toMatchObject({ id: siteId, status: 'registered' });
     });
 
     it('refuses duplicate names and non-operators', async () => {
@@ -261,6 +265,13 @@ describe('Warehouse (node + database)', () => {
       }
       await as(t.buyer).get(`/warehouse-receipts/${receiptA}`).expect(404);
       await as(t.investor).get(`/warehouse-receipts/${receiptA}`).expect(403);
+      const atSite = await as(t.warehouse)
+        .get(`/warehouse-receipts?siteId=${siteId}`)
+        .expect(200);
+      expect(atSite.body.data.map((r: { id: string }) => r.id)).toEqual(
+        expect.arrayContaining([receiptA, receiptB]),
+      );
+      expect(atSite.body.meta.total).toBeGreaterThanOrEqual(2);
     });
   });
 

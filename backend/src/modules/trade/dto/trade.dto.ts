@@ -1,3 +1,4 @@
+import { PlaceDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -141,7 +142,11 @@ export class ConfirmDeliveryDto {
   @Max(MAX_QTY)
   quantity: number;
 
-  @ApiPropertyOptional({ maxLength: 1000, description: 'Condition on arrival' })
+  @ApiPropertyOptional({
+    type: String,
+    maxLength: 1000,
+    description: 'Condition on arrival',
+  })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.normalize('NFC').trim() || null : value,
@@ -150,7 +155,11 @@ export class ConfirmDeliveryDto {
   @MaxLength(1000)
   notes?: string | null;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'From POST /photos' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'From POST /photos',
+    type: String,
+  })
   @IsOptional()
   @IsUUID('4')
   photoId?: string | null;
@@ -228,7 +237,7 @@ export class ListingDto {
   @ApiProperty({ type: TradePartyDto })
   project: TradePartyDto;
 
-  @ApiProperty({ example: { code: 'BOGURA', name: 'Bogura' } })
+  @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };
 
   @ApiProperty({ type: ProduceRefDto })

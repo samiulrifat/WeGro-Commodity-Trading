@@ -1,3 +1,4 @@
+import { RecordLinkDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
@@ -21,7 +22,7 @@ export class ListNotificationsQueryDto {
   @Min(1)
   before?: number;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -47,10 +48,9 @@ export class NotificationDto {
   body: string | null;
 
   @ApiPropertyOptional({
+    type: RecordLinkDto,
     nullable: true,
-    type: Object,
-    example: { type: 'reservation', id: '12' },
-    description: 'What it is about, for linking',
+    description: 'What it is about',
   })
   subject: { type: string; id: string } | null;
 

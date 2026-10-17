@@ -1,3 +1,4 @@
+import { ProduceRefDto } from '../../projects/dto/project-response.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -49,7 +50,11 @@ export class CreateSiteDto {
   @IsEnum(StorageType)
   storageType: StorageType;
 
-  @ApiPropertyOptional({ example: 500000, description: 'Capacity in kg' })
+  @ApiPropertyOptional({
+    example: 500000,
+    description: 'Capacity in kg',
+    type: Number,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -59,7 +64,7 @@ export class CreateSiteDto {
 
 /** The intake record shared by issuing and re-checking. */
 class IntakeFieldsDto {
-  @ApiPropertyOptional({ example: 100 })
+  @ApiPropertyOptional({ example: 100, type: Number })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -69,18 +74,19 @@ class IntakeFieldsDto {
   @ApiPropertyOptional({
     example: '13.5',
     description: 'Moisture %, one decimal place',
+    oneOf: [{ type: 'string' }, { type: 'number' }],
   })
   @IsOptional()
   moisturePercent?: string | number | null;
 
-  @ApiPropertyOptional({ example: 'Bay C-4' })
+  @ApiPropertyOptional({ example: 'Bay C-4', type: String })
   @IsOptional()
   @Text()
   @IsString()
   @MaxLength(40)
   storageBay?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 1000 })
+  @ApiPropertyOptional({ maxLength: 1000, type: String })
   @IsOptional()
   @Text()
   @IsString()
@@ -250,7 +256,7 @@ export class ReceiptDto {
   @ApiProperty({ type: OwnerDto })
   owner: OwnerDto;
 
-  @ApiProperty()
+  @ApiProperty({ type: ProduceRefDto })
   produce: { code: string; name: string; unit: string };
 
   @ApiProperty({ description: 'Still held under this receipt' })
@@ -303,19 +309,28 @@ export class ReceiptDetailDto extends ReceiptDto {
 }
 
 /** What anyone scanning a receipt QR sees. Never the owner. */
+/** The site that holds a receipt, as the public check shows it. */
+export class ReceiptSiteDto {
+  @ApiProperty({ example: 'Bogura Central' })
+  name: string;
+
+  @ApiProperty({ example: 'Bogura' })
+  district: string;
+}
+
 export class ReceiptVerificationDto {
   @ApiProperty({
     description: 'On the ledger, and its intake record here still matches',
   })
   genuine: boolean;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: ProduceRefDto, nullable: true })
   produce: { code: string; name: string; nameBn: string; unit: string } | null;
 
   @ApiPropertyOptional({ nullable: true, type: Number })
   quantity: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: ReceiptSiteDto, nullable: true })
   site: { name: string; district: string } | null;
 
   @ApiPropertyOptional({ nullable: true, enum: ReceiptStatus })
