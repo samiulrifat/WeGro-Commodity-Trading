@@ -50,7 +50,7 @@ export function AppShell() {
         <OfflineBanner />
         <main
           id="main"
-          className="mx-auto w-full max-w-7xl flex-1 p-4 pb-24 sm:p-6 lg:pb-6"
+          className="w-full max-w-7xl flex-1 p-4 pb-24 sm:p-6 lg:pb-6"
         >
           {access(session, area) === 'ok' ? <Outlet /> : <NoAccessPage />}
         </main>

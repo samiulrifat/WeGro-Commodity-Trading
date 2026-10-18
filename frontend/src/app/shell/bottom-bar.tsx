@@ -17,7 +17,7 @@ import { NavEntry } from './nav-entry';
 const BAR_SLOTS = 5;
 
 const slot =
-  'flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-xs font-semibold text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-[status=active]:text-brand';
+  'flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-xs font-semibold text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-[status=active]:text-nav-active-foreground [&[data-status=active]_svg]:rounded-full [&[data-status=active]_svg]:bg-nav-active [&[data-status=active]_svg]:box-content [&[data-status=active]_svg]:px-3 [&[data-status=active]_svg]:py-0.5';
 
 /** Phone menu: fixed at the bottom, within thumb reach. */
 export function BottomBar({ items }: { items: readonly NavItem[] }) {

@@ -27,6 +27,7 @@
   /* Leaf green (main actions) */
   --wegro-leaf-50: #f1f8e6;
   --wegro-leaf-100: #ddefc2;
+  --wegro-leaf-200: #addb90; /* the product's current-page fill; dark text on it */
   --wegro-leaf-500: #64a30c; /* product button colour: decoration only, 3.1:1 */
   --wegro-leaf-600: #51840a; /* buttons with white text, 4.5:1 */
   --wegro-leaf-700: #436d08; /* button hover */
@@ -103,6 +104,10 @@
   --sidebar-accent-foreground: var(--wegro-green-800);
   --sidebar-border: var(--wegro-grey-200);
   --sidebar-ring: var(--wegro-leaf-500);
+
+  /* The page you are on, in the menus: as in WeGro's admin product. */
+  --nav-active: var(--wegro-leaf-200);
+  --nav-active-foreground: var(--wegro-navy-900);
 }
 
 @theme inline {
@@ -125,6 +130,8 @@
   --color-danger-on-soft: var(--danger-on-soft);
   --color-neutral: var(--neutral);
   --color-wegro-leaf: var(--wegro-leaf-500);
+  --color-nav-active: var(--nav-active);
+  --color-nav-active-foreground: var(--nav-active-foreground);
   --color-wegro-amber: var(--wegro-amber-500);
   --color-wegro-orange: var(--wegro-orange-500);
   --color-sidebar-ring: var(--sidebar-ring);

@@ -20,7 +20,7 @@ export function NavEntry({
       to={to}
       onClick={onClick}
       className={cn(
-        'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[status=active]:bg-brand/10 data-[status=active]:text-brand',
+        'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[status=active]:bg-nav-active data-[status=active]:text-nav-active-foreground',
         className,
       )}
     >

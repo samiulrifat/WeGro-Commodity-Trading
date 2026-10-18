@@ -29,6 +29,20 @@ Requirements that shape every screen:
 - **Language**: English and Bengali on every Must and Should screen, taka amounts and local dates (FR-32, NFR-8).
 - **Speed**: pages open in under 2 seconds (NFR-4).
 - **Phones**: field officers, farmers and warehouse operators work on phones; office staff mostly on desktops.
+- **Section menus** (agreed 2026-10-18, built with each section's item): a section with several pages opens like a dropdown in the sidebar (one section open at a time, the current page's section open); on phones its pages are tabs under the page title. The page you are on is filled green (`nav-active`, #ADDB90, as in WeGro's admin product). Each role sees only the pages it can use:
+  - Projects: All projects, Drafts, Payment confirmations, Refunds
+  - People / Farmers: All people, Waiting for verification, Register new, Bank details to verify
+  - Farm updates: New update, Drafts on this phone, Sent
+  - Vouchers: All vouchers, Waiting for approval, Input sales, Batches
+  - Warehouse: Receipts, Handovers, Sites
+  - Marketplace: Listings, Offers & deals, Deliveries, Buyer requests
+  - Insurance: Insured projects, Claims, Weather events
+  - Payouts: Payout rounds, Costs, Reports
+  - Track records: Farmers, Banks, Bank permissions
+  - Catalog: Units, Produce, Inputs, Farm-update types, Weather events
+  - History & audit: Record history, Ledger checks, Request log
+  - System: Status, Scheduled jobs
+  - Single links (no dropdown): Dashboard, My holdings, Statement, My offers, Requests, a supplier's Batches, a bank's Farmers
 
 Build in order: each phase depends on the ones above it.
 
