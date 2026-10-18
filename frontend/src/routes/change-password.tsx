@@ -12,7 +12,7 @@ export const Route = createFileRoute('/change-password')({
   beforeLoad: async ({ context }) => {
     await ensureSession(context.store);
     const session = context.store.getState().session;
-    if (session.status !== 'signedIn') throw redirect({ to: '/sign-in' });
+    if (!session.user) throw redirect({ to: '/sign-in' });
     if (!session.mustChangePassword) throw redirect({ to: '/' });
   },
   component: ChangePasswordPage,

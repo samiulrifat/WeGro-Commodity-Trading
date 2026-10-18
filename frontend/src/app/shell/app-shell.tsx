@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { access, navFor } from '../navigation';
 import { NoAccessPage } from '../pages';
+import { OfflineBanner } from '../pwa/offline-banner';
 import { BottomBar } from './bottom-bar';
 import { Sidebar } from './sidebar';
 import { TopBar } from './top-bar';
@@ -46,6 +47,7 @@ export function AppShell() {
       <Sidebar items={items} />
       <div className="flex min-w-0 flex-col">
         <TopBar />
+        <OfflineBanner />
         <main
           id="main"
           className="mx-auto w-full max-w-7xl flex-1 p-4 pb-24 sm:p-6 lg:pb-6"

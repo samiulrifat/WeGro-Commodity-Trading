@@ -119,6 +119,18 @@ describe('access', () => {
     );
   });
 
+  it('treats an offline session like a signed-in one', () => {
+    expect(
+      access(session({ status: 'offline', accessToken: null }), 'farm-updates'),
+    ).toBe('no-access');
+    const officer = session({
+      status: 'offline',
+      accessToken: null,
+      user: user('field_officer'),
+    });
+    expect(access(officer, 'farm-updates')).toBe('ok');
+  });
+
   it('opens a role’s own areas and pages for everyone, and nothing else', () => {
     const investor = session({ user: user('investor') });
     expect(access(investor, 'holdings')).toBe('ok');

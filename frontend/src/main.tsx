@@ -1,9 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@/app/App';
+import { captureInstallOffer } from '@/app/pwa/install';
+import { watchConnection } from '@/app/session';
 import { initI18n } from '@/i18n';
 import { store } from '@/store/store';
 import './index.css';
+
+// Before anything renders: the browser makes its install offer only once.
+captureInstallOffer();
+watchConnection(store);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('index.html has no #root element');

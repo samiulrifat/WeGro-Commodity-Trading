@@ -75,6 +75,16 @@ Routes are files under [src/routes](src/routes): one per page, and each page's c
 - States for any page: `LoadingState`, `EmptyState`, `ErrorState` (worded in the reader's language, with the reference to quote) in [src/components/states.tsx](src/components/states.tsx); the router shows them while a page loads or if it fails, and not-found for unknown addresses.
 - `/sign-in` offers the demo accounts when the backend runs in demo mode (`DEMO_MODE=true`); sign-in with phone and password comes in item 7. `/design` shows the design system, in development only.
 
+## Installable and offline
+
+The production build is an installable app (`vite-plugin-pwa`, config in [vite.config.ts](vite.config.ts)). `npm run dev` leaves the offline worker out, so development never serves stale files; check these features with `npm run build && npm run preview` (http://localhost:4173, same `/api` proxy).
+
+- Without internet the app still opens: its own files are kept on the device, and so is the catalog (needed to fill in farm updates). Nothing else from the API is cached, so people's and money data never stay on a shared phone; those pages say the device is offline.
+- Opening offline enters the account of the person last signed in on this device (only their id, role and status are remembered, no token); it reconnects when online and signs out properly if the server refuses. A sign-out made offline is finished first the next time the device is online.
+- Drafts: [src/lib/drafts.ts](src/lib/drafts.ts) keeps unsent work in IndexedDB (photos included), per person, until it is sent or deleted, and asks the browser to keep its storage. `useDrafts(kind)` lists the signed-in person's drafts and stays current, across tabs too.
+- A new version shows "A new version of WeGro is ready" with Reload; open apps check hourly. "Install app" appears in the account menu and on the sign-in page where the device allows it (on iPhone, the Add to Home Screen steps).
+- Icons in `public/` are made from the WeGro mark: 192 and 512, maskable 512 (the mark inside the safe zone), Apple touch 180.
+
 ## Layout
 
 ```

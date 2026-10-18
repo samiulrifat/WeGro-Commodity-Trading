@@ -691,6 +691,17 @@ export const en = {
     title: 'Change your temporary password',
     hint: 'You signed in with a temporary password. The form to change it is coming soon.',
   },
+  pwa: {
+    updateReady: 'A new version of WeGro is ready.',
+    reload: 'Reload',
+    offline:
+      'You are offline. Drafts stay on this device and can be sent when you are back online.',
+    install: 'Install app',
+    installTitle: 'Install WeGro',
+    appleIntro: 'Add WeGro to your home screen to open it like an app:',
+    appleShare: 'In Safari, tap the Share button.',
+    appleAdd: 'Choose “Add to Home Screen”.',
+  },
   formats: {
     title: 'Language and formats',
     amount: 'Amount',

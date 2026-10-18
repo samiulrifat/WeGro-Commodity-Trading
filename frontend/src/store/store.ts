@@ -4,6 +4,7 @@ import { baseApi } from '@/api/base-api';
 import { connectSession } from '@/api/http';
 import { languageListener } from './language-listener';
 import { languageSlice } from './language-slice';
+import { sessionListener } from './session-listener';
 import { sessionEnded, sessionSlice, sessionStarted } from './session-slice';
 
 export const store = configureStore({
@@ -14,7 +15,7 @@ export const store = configureStore({
   },
   middleware: (getDefault) =>
     getDefault()
-      .prepend(languageListener.middleware)
+      .prepend(languageListener.middleware, sessionListener.middleware)
       .concat(baseApi.middleware),
 });
 

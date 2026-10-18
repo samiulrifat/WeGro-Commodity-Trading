@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppSelector } from '@/store/hooks';
+import { InstallApp, InstallIcon } from '../pwa/install-app';
 import { store } from '@/store/store';
 import { signOut } from '../session';
 
@@ -60,6 +61,13 @@ export function AccountMenu() {
         <DropdownMenuItem onClick={() => void navigate({ to: '/account' })}>
           <UserRound /> {t('nav.account')}
         </DropdownMenuItem>
+        <InstallApp
+          render={(open) => (
+            <DropdownMenuItem onClick={open}>
+              <InstallIcon /> {t('pwa.install')}
+            </DropdownMenuItem>
+          )}
+        />
         <DropdownMenuItem
           onClick={() =>
             void signOut(store).then(() => navigate({ to: '/sign-in' }))

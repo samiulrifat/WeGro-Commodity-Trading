@@ -8,6 +8,8 @@ import {
   useAuthDemoLoginMutation,
 } from '@/api/generated/auth';
 import { landingFor, type Role } from '@/app/navigation';
+import { InstallApp, InstallIcon } from '@/app/pwa/install-app';
+import { OfflineBanner } from '@/app/pwa/offline-banner';
 import { ensureSession, SessionUnknownError } from '@/app/session';
 import { LanguageSwitch } from '@/components/language-switch';
 import { Logo } from '@/components/logo';
@@ -44,19 +46,29 @@ export const Route = createFileRoute('/sign-in')({
 function SignInPage() {
   const { t } = useTranslation();
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-8 p-4 sm:p-6">
-      <div className="flex items-center justify-between">
-        <Logo className="h-9" />
-        <LanguageSwitch />
+    <>
+      <OfflineBanner />
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-8 p-4 sm:p-6">
+        <div className="flex items-center justify-between">
+          <Logo className="h-9" />
+          <LanguageSwitch />
+        </div>
+        <div className="grid gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t('signIn.title')}
+          </h1>
+          <p className="text-muted-foreground">{t('signIn.passwordComing')}</p>
+        </div>
+        <DemoRoles />
+        <InstallApp
+          render={(open) => (
+            <Button variant="outline" className="self-start" onClick={open}>
+              <InstallIcon /> {t('pwa.install')}
+            </Button>
+          )}
+        />
       </div>
-      <div className="grid gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t('signIn.title')}
-        </h1>
-        <p className="text-muted-foreground">{t('signIn.passwordComing')}</p>
-      </div>
-      <DemoRoles />
-    </div>
+    </>
   );
 }
 

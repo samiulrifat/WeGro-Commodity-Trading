@@ -202,7 +202,8 @@ export type Access = 'ok' | 'sign-in' | 'change-password' | 'no-access';
  */
 export function access(session: SessionState, area?: Area): Access {
   const { user } = session;
-  if (session.status !== 'signedIn' || !user) return 'sign-in';
+  const open = session.status === 'signedIn' || session.status === 'offline';
+  if (!open || !user) return 'sign-in';
   if (session.mustChangePassword) return 'change-password';
   if (!area) return 'ok';
   return navFor(user).some((n) => n.area === area) ? 'ok' : 'no-access';

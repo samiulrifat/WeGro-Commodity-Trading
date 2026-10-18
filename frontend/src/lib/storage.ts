@@ -17,4 +17,11 @@ export const storage = {
       // Not remembered; the app still works.
     }
   },
+  remove(key: string): void {
+    try {
+      globalThis.localStorage.removeItem(key);
+    } catch {
+      // Nothing was stored.
+    }
+  },
 };
