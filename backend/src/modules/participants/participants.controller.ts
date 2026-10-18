@@ -50,7 +50,7 @@ export class ParticipantsController {
   constructor(private readonly participants: ParticipantsService) {}
 
   @Post()
-  @Roles(Role.SuperAdmin, Role.Admin, Role.FieldOfficer)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FIELD_OFFICER)
   @ApiCreatedResponse({ type: RegisteredParticipantDto })
   register(
     @CurrentUser() actor: AuthUser,
@@ -61,7 +61,7 @@ export class ParticipantsController {
 
   @Get()
   @ApiPaged()
-  @Roles(Role.SuperAdmin, Role.Admin, Role.FieldOfficer, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FIELD_OFFICER, Role.AUDITOR)
   @ApiOkResponse({ type: [ParticipantSummaryDto] })
   list(
     @CurrentUser() actor: AuthUser,
@@ -71,7 +71,7 @@ export class ParticipantsController {
   }
 
   @Get(':id')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.FieldOfficer, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FIELD_OFFICER, Role.AUDITOR)
   @ApiOkResponse({ type: ParticipantDetailDto })
   findOne(
     @CurrentUser() actor: AuthUser,
@@ -82,7 +82,7 @@ export class ParticipantsController {
 
   @Post(':id/verify')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiOkResponse({ type: ParticipantDetailDto })
   verify(
     @CurrentUser() actor: AuthUser,
@@ -94,7 +94,7 @@ export class ParticipantsController {
 
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiOkResponse({ type: ParticipantDetailDto })
   reject(
     @CurrentUser() actor: AuthUser,
@@ -105,7 +105,7 @@ export class ParticipantsController {
   }
 
   @Put(':id/field-officer')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiOkResponse({ type: ParticipantDetailDto })
   assignFieldOfficer(
     @CurrentUser() actor: AuthUser,
@@ -117,7 +117,7 @@ export class ParticipantsController {
 
   @Post(':id/replace-key')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiOkResponse({ type: ParticipantDetailDto })
   replaceKey(
     @CurrentUser() actor: AuthUser,
@@ -128,7 +128,7 @@ export class ParticipantsController {
 
   @Post(':id/reset-password')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiOkResponse({ type: TemporaryPasswordDto })
   resetPassword(
     @CurrentUser() actor: AuthUser,
@@ -139,7 +139,7 @@ export class ParticipantsController {
 
   @Post(':id/sync')
   @HttpCode(HttpStatus.OK)
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiOkResponse({ type: ParticipantDetailDto })
   sync(
     @CurrentUser() actor: AuthUser,
@@ -149,7 +149,7 @@ export class ParticipantsController {
   }
 
   @Get(':id/integrity')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR)
   @ApiOkResponse({ type: IntegrityReportDto })
   integrity(@Param('id', uuid) id: string): Promise<IntegrityReportDto> {
     return this.participants.integrity(id);

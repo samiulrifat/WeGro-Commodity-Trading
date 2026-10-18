@@ -57,11 +57,11 @@ import { ErrorCode } from '../../common/errors/error-code';
 import { type Problem, problem } from '../../common/errors/problem';
 
 const STAFF: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 
 /** Intake or re-check values as stored and fingerprinted. */
@@ -132,7 +132,7 @@ export class WarehouseService {
       ) {
         throw new ConflictException({
           message: 'A site with this name already exists',
-          code: ErrorCode.SiteNameExists,
+          code: ErrorCode.SITE_NAME_EXISTS,
         });
       }
       throw error;
@@ -154,7 +154,7 @@ export class WarehouseService {
 
   async listSites(actor: AuthUser): Promise<SiteDto[]> {
     const where =
-      actor.role === Role.Warehouse
+      actor.role === Role.WAREHOUSE
         ? { id: (await this.siteOf(actor.id)) ?? ZERO_UUID }
         : {};
     const rows = await this.sites.find({ where, order: { name: 'ASC' } });
@@ -165,11 +165,11 @@ export class WarehouseService {
     const site = await this.sites.findOneBy({ id });
     if (
       !site ||
-      (actor.role === Role.Warehouse && (await this.siteOf(actor.id)) !== id)
+      (actor.role === Role.WAREHOUSE && (await this.siteOf(actor.id)) !== id)
     ) {
       throw new NotFoundException({
         message: 'Site not found',
-        code: ErrorCode.SiteNotFound,
+        code: ErrorCode.SITE_NOT_FOUND,
       });
     }
     return (await this.siteDtos([site]))[0];
@@ -184,13 +184,13 @@ export class WarehouseService {
     const operator = await this.users.findOneBy({ id: operatorId });
     if (
       !operator ||
-      operator.role !== Role.Warehouse ||
-      operator.status !== ParticipantStatus.Verified ||
-      operator.chainState !== ChainState.Confirmed
+      operator.role !== Role.WAREHOUSE ||
+      operator.status !== ParticipantStatus.VERIFIED ||
+      operator.chainState !== ChainState.CONFIRMED
     ) {
       throw new UnprocessableEntityException({
         message: 'Only a verified warehouse operator can be assigned',
-        code: ErrorCode.WarehouseOperatorInvalid,
+        code: ErrorCode.WAREHOUSE_OPERATOR_INVALID,
       });
     }
     if (siteId) {
@@ -198,7 +198,7 @@ export class WarehouseService {
       if (!site || site.status !== 'registered')
         throw new NotFoundException({
           message: 'Site not found',
-          code: ErrorCode.SiteNotFound,
+          code: ErrorCode.SITE_NOT_FOUND,
         });
     }
     await this.send(actor, (c) =>
@@ -221,25 +221,25 @@ export class WarehouseService {
     if (!siteId) {
       throw new UnprocessableEntityException({
         message: 'You are not assigned to a warehouse site',
-        code: ErrorCode.NotSiteOperator,
+        code: ErrorCode.NOT_SITE_OPERATOR,
       });
     }
     const project = await this.projects.findOneBy({ id: dto.projectId });
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
-    if (project.stage !== ProjectStage.Active) {
+    if (project.stage !== ProjectStage.ACTIVE) {
       throw new UnprocessableEntityException({
         message: 'Receipts are issued only for active projects',
-        code: ErrorCode.ProjectNotActive,
+        code: ErrorCode.PROJECT_NOT_ACTIVE,
       });
     }
-    if (project.category === (ProduceCategory.Perishable as string)) {
+    if (project.category === (ProduceCategory.PERISHABLE as string)) {
       throw new UnprocessableEntityException({
         message: 'Fresh produce is sold directly, not stored',
-        code: ErrorCode.NotStorable,
+        code: ErrorCode.NOT_STORABLE,
       });
     }
 
@@ -247,18 +247,21 @@ export class WarehouseService {
     const problems: Problem[] = [];
     if (dto.intakeDate > today) {
       problems.push(
-        problem(ErrorCode.IntakeInFuture, 'intakeDate cannot be in the future'),
+        problem(
+          ErrorCode.INTAKE_IN_FUTURE,
+          'intakeDate cannot be in the future',
+        ),
       );
     }
     if (dto.expiresOn < today) {
       problems.push(
-        problem(ErrorCode.ExpiryInPast, 'expiresOn cannot be in the past'),
+        problem(ErrorCode.EXPIRY_IN_PAST, 'expiresOn cannot be in the past'),
       );
     }
     if (dto.expiresOn < dto.intakeDate) {
       problems.push(
         problem(
-          ErrorCode.ExpiresBeforeIntake,
+          ErrorCode.EXPIRES_BEFORE_INTAKE,
           'expiresOn cannot be before intakeDate',
         ),
       );
@@ -275,7 +278,7 @@ export class WarehouseService {
       produceCode: project.produceCode,
       quantity: dto.quantity,
       originalQuantity: dto.quantity,
-      status: ReceiptStatus.Submitted,
+      status: ReceiptStatus.SUBMITTED,
       ...intake,
       intakeDate: dto.intakeDate,
       expiresOn: dto.expiresOn,
@@ -312,14 +315,14 @@ export class WarehouseService {
     const receipt = await this.siteReceipt(actor, id);
     if (
       [
-        ReceiptStatus.Submitted,
-        ReceiptStatus.Collected,
-        ReceiptStatus.SoldOut,
+        ReceiptStatus.SUBMITTED,
+        ReceiptStatus.COLLECTED,
+        ReceiptStatus.SOLD_OUT,
       ].includes(receipt.status)
     ) {
       throw new ConflictException({
         message: `This receipt is ${receipt.status}`,
-        code: ErrorCode.ReceiptWrongStatus,
+        code: ErrorCode.RECEIPT_WRONG_STATUS,
         details: { status: receipt.status },
       });
     }
@@ -327,13 +330,13 @@ export class WarehouseService {
     const problems: Problem[] = [];
     if (dto.checkedOn > today) {
       problems.push(
-        problem(ErrorCode.CheckInFuture, 'checkedOn cannot be in the future'),
+        problem(ErrorCode.CHECK_IN_FUTURE, 'checkedOn cannot be in the future'),
       );
     }
     if (dto.newExpiresOn <= receipt.expiresOn) {
       problems.push(
         problem(
-          ErrorCode.NewExpiryNotLater,
+          ErrorCode.NEW_EXPIRY_NOT_LATER,
           'newExpiresOn must be later than the current expiry',
           { current: receipt.expiresOn },
         ),
@@ -341,7 +344,7 @@ export class WarehouseService {
     }
     if (dto.newExpiresOn < today) {
       problems.push(
-        problem(ErrorCode.ExpiryInPast, 'newExpiresOn cannot be in the past'),
+        problem(ErrorCode.EXPIRY_IN_PAST, 'newExpiresOn cannot be in the past'),
       );
     }
     const values = this.intake(dto, problems);
@@ -376,10 +379,10 @@ export class WarehouseService {
   /** Unsold goods left the warehouse. Final. */
   async collect(actor: AuthUser, id: string): Promise<ReceiptDetailDto> {
     const receipt = await this.siteReceipt(actor, id);
-    if (receipt.status !== ReceiptStatus.Issued) {
+    if (receipt.status !== ReceiptStatus.ISSUED) {
       throw new ConflictException({
         message: `Only an issued receipt can be collected; this one is ${receipt.status}`,
-        code: ErrorCode.ReceiptNotIssued,
+        code: ErrorCode.RECEIPT_NOT_ISSUED,
         details: { status: receipt.status },
       });
     }
@@ -398,13 +401,13 @@ export class WarehouseService {
       throw new ForbiddenException({
         message:
           "Only the farmer's own field officer can offer the farmer's receipt",
-        code: ErrorCode.NotFarmersOfficer,
+        code: ErrorCode.NOT_FARMERS_OFFICER,
       });
     }
-    if (receipt.status !== ReceiptStatus.Issued) {
+    if (receipt.status !== ReceiptStatus.ISSUED) {
       throw new ConflictException({
         message: `Only an issued receipt can be handed over; this one is ${receipt.status}`,
-        code: ErrorCode.ReceiptNotIssued,
+        code: ErrorCode.RECEIPT_NOT_ISSUED,
         details: { status: receipt.status },
       });
     }
@@ -412,7 +415,7 @@ export class WarehouseService {
       throw new ConflictException({
         message:
           'This receipt has expired; the site must re-check and extend it first',
-        code: ErrorCode.ReceiptExpired,
+        code: ErrorCode.RECEIPT_EXPIRED,
       });
     }
     await this.send(actor, (c) =>
@@ -431,12 +434,12 @@ export class WarehouseService {
   async cancelHandover(actor: AuthUser, id: string): Promise<ReceiptDetailDto> {
     const receipt = await this.pendingHandover(id);
     if (
-      actor.role !== Role.Admin &&
+      actor.role !== Role.ADMIN &&
       !(receipt.ownerId && (await this.isOfficerOf(actor, receipt.ownerId)))
     ) {
       throw new ForbiddenException({
         message: 'You cannot cancel this handover',
-        code: ErrorCode.HandoverCancelNotAllowed,
+        code: ErrorCode.HANDOVER_CANCEL_NOT_ALLOWED,
       });
     }
     await this.send(actor, (c) => c.cancelHandover.populateTransaction(id));
@@ -472,7 +475,7 @@ export class WarehouseService {
     if (!receipt)
       throw new NotFoundException({
         message: 'Receipt not found',
-        code: ErrorCode.ReceiptNotFound,
+        code: ErrorCode.RECEIPT_NOT_FOUND,
       });
     const [[dto], rechecks, children] = await Promise.all([
       this.dtos([receipt]),
@@ -603,7 +606,7 @@ export class WarehouseService {
     if ((await this.siteOf(actor.id)) !== receipt.siteId) {
       throw new ForbiddenException({
         message: 'Only an operator of the issuing site can do this',
-        code: ErrorCode.NotIssuingSiteOperator,
+        code: ErrorCode.NOT_ISSUING_SITE_OPERATOR,
       });
     }
     return receipt;
@@ -611,10 +614,10 @@ export class WarehouseService {
 
   private async pendingHandover(id: string): Promise<WarehouseReceipt> {
     const receipt = await this.load(id);
-    if (receipt.status !== ReceiptStatus.PendingHandover) {
+    if (receipt.status !== ReceiptStatus.PENDING_HANDOVER) {
       throw new ConflictException({
         message: 'No handover is waiting on this receipt',
-        code: ErrorCode.NoHandoverWaiting,
+        code: ErrorCode.NO_HANDOVER_WAITING,
       });
     }
     return receipt;
@@ -624,10 +627,10 @@ export class WarehouseService {
     const receipt = RECEIPT_ID.test(id)
       ? await this.receipts.findOneBy({ id })
       : null;
-    if (!receipt || receipt.status === ReceiptStatus.Submitted) {
+    if (!receipt || receipt.status === ReceiptStatus.SUBMITTED) {
       throw new NotFoundException({
         message: 'Receipt not found',
-        code: ErrorCode.ReceiptNotFound,
+        code: ErrorCode.RECEIPT_NOT_FOUND,
       });
     }
     return receipt;
@@ -637,7 +640,7 @@ export class WarehouseService {
     actor: AuthUser,
     farmerId: string,
   ): Promise<boolean> {
-    if (actor.role !== Role.FieldOfficer) return false;
+    if (actor.role !== Role.FIELD_OFFICER) return false;
     return this.users.exists({
       where: { id: farmerId, fieldOfficerId: actor.id },
     });
@@ -653,12 +656,12 @@ export class WarehouseService {
   ): Promise<void> {
     if (STAFF.has(actor.role)) return;
     switch (actor.role) {
-      case Role.Warehouse:
+      case Role.WAREHOUSE:
         qb.andWhere('r.site_id = :site', {
           site: (await this.siteOf(actor.id)) ?? ZERO_UUID,
         });
         return;
-      case Role.Farmer:
+      case Role.FARMER:
         qb.andWhere(
           'EXISTS (SELECT 1 FROM projects p WHERE p.id = r.project_id AND p.farmer_id = :me)',
           {
@@ -666,14 +669,14 @@ export class WarehouseService {
           },
         );
         return;
-      case Role.FieldOfficer:
+      case Role.FIELD_OFFICER:
         qb.andWhere(
           `EXISTS (SELECT 1 FROM projects p JOIN users f ON f.id = p.farmer_id
                     WHERE p.id = r.project_id AND f.field_officer_id = :me)`,
           { me: actor.id },
         );
         return;
-      case Role.Buyer:
+      case Role.BUYER:
         qb.andWhere('r.owner_id = :me', { me: actor.id });
         return;
       default:
@@ -798,7 +801,7 @@ function districtName(code: string): string {
 function invalid(problems: Problem[]) {
   return new UnprocessableEntityException({
     message: 'Some details are not valid',
-    code: ErrorCode.InvalidDetails,
+    code: ErrorCode.INVALID_DETAILS,
     details: { problems },
   });
 }

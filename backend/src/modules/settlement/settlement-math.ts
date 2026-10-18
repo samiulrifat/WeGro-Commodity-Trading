@@ -105,7 +105,7 @@ export function splitRound(
   if (f.farmerShare !== 0n) {
     lines.push({
       payeeId: farmerId,
-      role: PayeeRole.Farmer,
+      role: PayeeRole.FARMER,
       slots: null,
       amount: f.farmerShare,
     });
@@ -122,7 +122,7 @@ export function splitRound(
       paidOut += amount;
       lines.push({
         payeeId: h.investorId,
-        role: PayeeRole.Investor,
+        role: PayeeRole.INVESTOR,
         slots: h.slots,
         amount,
       });

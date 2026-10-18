@@ -43,13 +43,13 @@ describe('settlement maths', () => {
     expect(lines).toEqual([
       {
         payeeId: FARMER,
-        role: PayeeRole.Farmer,
+        role: PayeeRole.FARMER,
         slots: null,
         amount: 1_540_400n,
       },
       // 1_540_400 * 4 / 7 = 880_228.57… and * 3 / 7 = 660_171.42…
-      { payeeId: A, role: PayeeRole.Investor, slots: 4, amount: 880_228n },
-      { payeeId: B, role: PayeeRole.Investor, slots: 3, amount: 660_171n },
+      { payeeId: A, role: PayeeRole.INVESTOR, slots: 4, amount: 880_228n },
+      { payeeId: B, role: PayeeRole.INVESTOR, slots: 3, amount: 660_171n },
     ]);
     expect(figures.leftover).toBe(1n);
   });

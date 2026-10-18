@@ -26,7 +26,7 @@ const round = (over: Partial<SettlementRound> = {}) =>
     id: 5,
     projectId: PROJECT,
     isFinal: true,
-    status: RoundStatus.Approved,
+    status: RoundStatus.APPROVED,
     income: 10_000_000n,
     costs: 3_000_000n,
     profit: 7_000_000n,
@@ -49,7 +49,7 @@ const line = (payeeId: string, over: Partial<PayoutLine> = {}) =>
   ({
     roundId: 5,
     payeeId,
-    payeeRole: PayeeRole.Investor,
+    payeeRole: PayeeRole.INVESTOR,
     slots: 2,
     amount: 1_234_550n,
     verified: true,
@@ -138,7 +138,7 @@ describe('SettlementReportsService', () => {
         findOne: jest.fn(() =>
           Promise.resolve(
             opts.user === undefined
-              ? { id: A, role: Role.Investor }
+              ? { id: A, role: Role.INVESTOR }
               : opts.user,
           ),
         ),
@@ -172,7 +172,7 @@ describe('SettlementReportsService', () => {
           paymentRefEnc: `enc[${lineContext(5, A)}]NPSB-1`,
         }),
         line(B),
-        line(C, { payeeRole: PayeeRole.Farmer, slots: null }),
+        line(C, { payeeRole: PayeeRole.FARMER, slots: null }),
       ];
       const { name, csv } = await build({ lines }).service.payoutSheet(5);
       expect(name).toBe('payout-round-5');
@@ -337,7 +337,7 @@ describe('SettlementReportsService', () => {
 
     it('exists only for investors and farmers, and refuses a backwards range', async () => {
       await expect(
-        build({ user: { id: A, role: Role.Buyer } }).service.statement(
+        build({ user: { id: A, role: Role.BUYER } }).service.statement(
           A,
           {} as never,
         ),

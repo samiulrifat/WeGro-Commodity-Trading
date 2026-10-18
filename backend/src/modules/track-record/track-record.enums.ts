@@ -1,12 +1,12 @@
 export enum ConsentStatus {
   /** Sent, not yet on the ledger. */
-  Submitted = 'submitted',
+  SUBMITTED = 'submitted',
   /** The bank's current permission (it may still have expired: see expiresAt). */
-  Active = 'active',
+  ACTIVE = 'active',
   /** Renewed: a later grant for the same bank took its place. */
-  Replaced = 'replaced',
+  REPLACED = 'replaced',
   /** Withdrawn by the farmer. */
-  Revoked = 'revoked',
+  REVOKED = 'revoked',
 }
 
 /** ProjectLedger stages that count as finished for a track record. */

@@ -44,7 +44,7 @@ export class VoucherLedgerSync implements OnModuleInit {
         .createQueryBuilder()
         .update(Voucher)
         .set({
-          status: VoucherStatus.Submitted,
+          status: VoucherStatus.SUBMITTED,
           spentQuantity: 0,
           heldQuantity: 0,
           voidedAmount: null,
@@ -60,7 +60,7 @@ export class VoucherLedgerSync implements OnModuleInit {
       await m
         .createQueryBuilder()
         .update(InputBatch)
-        .set({ status: BatchStatus.Submitted, registeredAt: null })
+        .set({ status: BatchStatus.SUBMITTED, registeredAt: null })
         .execute();
     });
   }
@@ -70,18 +70,18 @@ export class VoucherLedgerSync implements OnModuleInit {
     const when = event.blockTime ?? new Date();
     switch (event.eventName) {
       case 'VoucherProposed':
-        return this.setStatus(m, event, VoucherStatus.Proposed, {
+        return this.setStatus(m, event, VoucherStatus.PROPOSED, {
           proposedAt: when,
           lastActivityAt: when,
         });
       case 'VoucherApproved':
-        return this.setStatus(m, event, VoucherStatus.Active, {
+        return this.setStatus(m, event, VoucherStatus.ACTIVE, {
           lastActivityAt: when,
         });
       case 'VoucherRejected':
-        return this.setStatus(m, event, VoucherStatus.Rejected, {});
+        return this.setStatus(m, event, VoucherStatus.REJECTED, {});
       case 'VoucherCancelled':
-        return this.setStatus(m, event, VoucherStatus.Cancelled, {
+        return this.setStatus(m, event, VoucherStatus.CANCELLED, {
           voidedAmount: BigInt(String(a.voidedAmount)),
         });
 
@@ -90,8 +90,8 @@ export class VoucherLedgerSync implements OnModuleInit {
         if (id) {
           await m.update(
             InputBatch,
-            { id, status: BatchStatus.Submitted },
-            { status: BatchStatus.Registered, registeredAt: when },
+            { id, status: BatchStatus.SUBMITTED },
+            { status: BatchStatus.REGISTERED, registeredAt: when },
           );
         }
         return;
@@ -147,7 +147,7 @@ export class VoucherLedgerSync implements OnModuleInit {
         const closed = await this.closeSale(
           m,
           Number(a.saleId),
-          SaleStatus.Confirmed,
+          SaleStatus.CONFIRMED,
           when,
           toUuid(a.confirmedBy),
         );
@@ -168,8 +168,8 @@ export class VoucherLedgerSync implements OnModuleInit {
       case 'SaleExpired': {
         const status =
           event.eventName === 'SaleExpired'
-            ? SaleStatus.Expired
-            : SaleStatus.Cancelled;
+            ? SaleStatus.EXPIRED
+            : SaleStatus.CANCELLED;
         const closed = await this.closeSale(m, Number(a.saleId), status, when);
         if (closed) {
           // A released hold on a cancelled voucher is voided, as on the ledger.

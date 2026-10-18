@@ -9,20 +9,20 @@ import type { User } from '../users/entities/user.entity';
 import { DemoAccountsService } from './demo-accounts.service';
 
 const STAFF = [
-  Role.Admin,
-  Role.FieldOfficer,
-  Role.Accounts,
-  Role.Operations,
-  Role.Auditor,
+  Role.ADMIN,
+  Role.FIELD_OFFICER,
+  Role.ACCOUNTS,
+  Role.OPERATIONS,
+  Role.AUDITOR,
 ];
 const OTHERS = [
-  Role.Farmer,
-  Role.Investor,
-  Role.Warehouse,
-  Role.Bank,
-  Role.Supplier,
-  Role.Buyer,
-  Role.Insurer,
+  Role.FARMER,
+  Role.INVESTOR,
+  Role.WAREHOUSE,
+  Role.BANK,
+  Role.SUPPLIER,
+  Role.BUYER,
+  Role.INSURER,
 ];
 
 /** Users in memory; registering adds a pending one, verifying verifies it. */
@@ -32,8 +32,8 @@ function world(existing: Partial<User>[] = []) {
       ({
         id: `existing-${i}`,
         isDemo: true,
-        status: ParticipantStatus.Verified,
-        chainState: ChainState.Confirmed,
+        status: ParticipantStatus.VERIFIED,
+        chainState: ChainState.CONFIRMED,
         keyIndex: i + 1,
         ...u,
       }) as User,
@@ -74,15 +74,15 @@ function world(existing: Partial<User>[] = []) {
       users.push({
         id,
         role: dto.role,
-        status: ParticipantStatus.Pending,
-        chainState: ChainState.Confirmed,
+        status: ParticipantStatus.PENDING,
+        chainState: ChainState.CONFIRMED,
         keyIndex: users.length + 10,
       } as User);
       registered.push({ role: dto.role, by: by.role });
       return Promise.resolve({ participant: { id } });
     }),
     verify: jest.fn((_by: unknown, id: string) => {
-      find({ id })!.status = ParticipantStatus.Verified;
+      find({ id })!.status = ParticipantStatus.VERIFIED;
       return Promise.resolve();
     }),
     syncWithLedger: jest.fn(() => Promise.resolve()),
@@ -112,29 +112,29 @@ describe('DemoAccountsService', () => {
     expect(w.registered.map((r) => r.role)).toEqual([...STAFF, ...OTHERS]);
     for (const r of w.registered) {
       const expected = STAFF.includes(r.role)
-        ? Role.SuperAdmin
-        : r.role === Role.Farmer
-          ? Role.FieldOfficer
-          : Role.Admin;
+        ? Role.SUPER_ADMIN
+        : r.role === Role.FARMER
+          ? Role.FIELD_OFFICER
+          : Role.ADMIN;
       expect(r.by).toBe(expected);
     }
-    const accounts = w.users.filter((u) => u.role !== Role.SuperAdmin);
-    expect(accounts.every((u) => u.status === ParticipantStatus.Verified)).toBe(
+    const accounts = w.users.filter((u) => u.role !== Role.SUPER_ADMIN);
+    expect(accounts.every((u) => u.status === ParticipantStatus.VERIFIED)).toBe(
       true,
     );
     expect(accounts.every((u) => u.isDemo && !u.mustChangePassword)).toBe(true);
     // A demo super admin only because none existed.
-    expect(w.users.find((u) => u.role === Role.SuperAdmin)).toMatchObject({
+    expect(w.users.find((u) => u.role === Role.SUPER_ADMIN)).toMatchObject({
       isDemo: true,
-      chainState: ChainState.Operator,
+      chainState: ChainState.OPERATOR,
       keyIndex: 0,
     });
   });
 
   it('keeps a real super admin and brings existing demo accounts back onto the ledger', async () => {
-    const all = [Role.SuperAdmin, ...STAFF, ...OTHERS].map((role) => ({
+    const all = [Role.SUPER_ADMIN, ...STAFF, ...OTHERS].map((role) => ({
       role,
-      isDemo: role !== Role.SuperAdmin,
+      isDemo: role !== Role.SUPER_ADMIN,
     }));
     const w = world(all);
     await build(w).ensureAll();
@@ -147,13 +147,13 @@ describe('DemoAccountsService', () => {
   });
 
   it('verifies an existing demo account left unverified', async () => {
-    const all = [Role.SuperAdmin, ...STAFF, ...OTHERS].map((role) => ({
+    const all = [Role.SUPER_ADMIN, ...STAFF, ...OTHERS].map((role) => ({
       role,
       isDemo: true,
       status:
-        role === Role.Buyer
-          ? ParticipantStatus.Pending
-          : ParticipantStatus.Verified,
+        role === Role.BUYER
+          ? ParticipantStatus.PENDING
+          : ParticipantStatus.VERIFIED,
     }));
     const w = world(all);
     await build(w).ensureAll();

@@ -43,7 +43,7 @@ describe('batch dates (Bangladesh calendar days)', () => {
 describe('inactiveSince', () => {
   const last = new Date('2026-10-01T00:00:00Z');
   const v = (over = {}) => ({
-    status: VoucherStatus.Active,
+    status: VoucherStatus.ACTIVE,
     inactivityLimitDays: 10 as number | null,
     lastActivityAt: last as Date | null,
     ...over,
@@ -60,10 +60,10 @@ describe('inactiveSince', () => {
     const late = new Date('2027-01-01Z');
     expect(inactiveSince(v({ inactivityLimitDays: null }), late)).toBeNull();
     expect(
-      inactiveSince(v({ status: VoucherStatus.Proposed }), late),
+      inactiveSince(v({ status: VoucherStatus.PROPOSED }), late),
     ).toBeNull();
     expect(
-      inactiveSince(v({ status: VoucherStatus.Cancelled }), late),
+      inactiveSince(v({ status: VoucherStatus.CANCELLED }), late),
     ).toBeNull();
     expect(inactiveSince(v({ lastActivityAt: null }), late)).toBeNull();
   });

@@ -2,11 +2,11 @@ import { Role, STAFF_ROLES } from '../users/roles';
 
 /** Roles with a dashboard. */
 export const DASHBOARD_ROLES = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ] as const;
 
 /**
@@ -29,9 +29,9 @@ export interface QueueDef {
   urgent?: Record<string, string>;
 }
 
-const ADMIN = [Role.Admin];
-const ACCOUNTS = [Role.Accounts, Role.Admin];
-const INPUTS = [Role.Operations, Role.Admin];
+const ADMIN = [Role.ADMIN];
+const ACCOUNTS = [Role.ACCOUNTS, Role.ADMIN];
+const INPUTS = [Role.OPERATIONS, Role.ADMIN];
 
 const staffRoles = [...STAFF_ROLES].map((r) => `'${r}'`).join(', ');
 
@@ -56,9 +56,9 @@ function participants(onlyNonStaff: boolean): QueueDef {
 }
 
 export function queuesFor(role: Role): QueueDef[] {
-  const all = role === Role.SuperAdmin || role === Role.Auditor;
+  const all = role === Role.SUPER_ADMIN || role === Role.AUDITOR;
   const list: QueueDef[] = [
-    ...(all || role === Role.Admin ? [participants(!all)] : []),
+    ...(all || role === Role.ADMIN ? [participants(!all)] : []),
     ...QUEUES,
   ];
   return list.filter(
@@ -100,7 +100,7 @@ const QUEUES: QueueDef[] = [
     key: 'vouchers.proposed',
     title: 'Vouchers awaiting approval',
     actionBy: 'accounts',
-    roles: [Role.Accounts, Role.Operations, Role.Admin],
+    roles: [Role.ACCOUNTS, Role.OPERATIONS, Role.ADMIN],
     count: `SELECT COUNT(*) AS n FROM vouchers WHERE status = 'proposed'`,
     items: `SELECT v.id::text AS id, 'Voucher: ' || v.quantity || ' ' || v.input_type_code AS title,
                    'value ' || (v.value / 100) || '.' || lpad((v.value % 100)::text, 2, '0') AS detail,

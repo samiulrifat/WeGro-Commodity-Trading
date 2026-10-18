@@ -61,7 +61,7 @@ export class ProjectsController {
   ) {}
 
   @Post()
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiCreatedResponse({
     type: ProjectDto,
     description: 'A draft, editable until published',
@@ -93,7 +93,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiOkResponse({ type: ProjectDto, description: 'Drafts only' })
   update(
     @Param('id', uuid) id: string,
@@ -103,7 +103,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Drafts only' })
   remove(@Param('id', uuid) id: string): Promise<void> {
@@ -111,7 +111,7 @@ export class ProjectsController {
   }
 
   @Post(':id/publish')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -125,7 +125,7 @@ export class ProjectsController {
   }
 
   @Post(':id/activate')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -140,7 +140,7 @@ export class ProjectsController {
   }
 
   @Post(':id/ready-for-sale')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ProjectDto })
   readyForSale(
@@ -151,7 +151,7 @@ export class ProjectsController {
   }
 
   @Post(':id/close')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ProjectDto })
   close(
@@ -162,7 +162,7 @@ export class ProjectsController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -185,14 +185,14 @@ export class ProjectsController {
   }
 
   @Get(':id/integrity')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR)
   @ApiOkResponse({ type: ProjectIntegrityDto })
   integrity(@Param('id', uuid) id: string): Promise<ProjectIntegrityDto> {
     return this.projects.integrity(id);
   }
 
   @Post(':id/reservations')
-  @Roles(Role.Investor)
+  @Roles(Role.INVESTOR)
   @ApiCreatedResponse({
     type: ReservationDto,
     description: 'Expires if unpaid',
@@ -206,7 +206,7 @@ export class ProjectsController {
   }
 
   @Get(':id/holders')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Accounts, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTS, Role.AUDITOR)
   @ApiOkResponse({ type: [HoldingDto] })
   holders(
     @CurrentUser() actor: AuthUser,
@@ -216,7 +216,7 @@ export class ProjectsController {
   }
 
   @Get(':id/refunds')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Accounts, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTS, Role.AUDITOR)
   @ApiOkResponse({ type: [RefundLineDto] })
   refunds(
     @CurrentUser() actor: AuthUser,
@@ -226,7 +226,7 @@ export class ProjectsController {
   }
 
   @Post(':id/refunds')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @ApiCreatedResponse({ type: [RefundLineDto] })
   recordRefund(
     @CurrentUser() actor: AuthUser,
@@ -252,11 +252,11 @@ export class ReservationsController {
   @Get()
   @ApiPaged()
   @Roles(
-    Role.Investor,
-    Role.Accounts,
-    Role.Admin,
-    Role.SuperAdmin,
-    Role.Auditor,
+    Role.INVESTOR,
+    Role.ACCOUNTS,
+    Role.ADMIN,
+    Role.SUPER_ADMIN,
+    Role.AUDITOR,
   )
   @ApiOkResponse({ type: [ReservationDto] })
   list(
@@ -268,11 +268,11 @@ export class ReservationsController {
 
   @Get(':id')
   @Roles(
-    Role.Investor,
-    Role.Accounts,
-    Role.Admin,
-    Role.SuperAdmin,
-    Role.Auditor,
+    Role.INVESTOR,
+    Role.ACCOUNTS,
+    Role.ADMIN,
+    Role.SUPER_ADMIN,
+    Role.AUDITOR,
   )
   @ApiOkResponse({ type: ReservationDto })
   findOne(
@@ -283,7 +283,7 @@ export class ReservationsController {
   }
 
   @Post(':id/confirm')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ReservationDto, description: 'Issues the slots' })
   confirm(
@@ -295,7 +295,7 @@ export class ReservationsController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.Investor, Role.Admin)
+  @Roles(Role.INVESTOR, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ReservationDto })
   cancel(
@@ -313,7 +313,7 @@ export class InvestmentsController {
   constructor(private readonly reservations: ReservationsService) {}
 
   @Get()
-  @Roles(Role.Investor)
+  @Roles(Role.INVESTOR)
   @ApiOkResponse({
     type: [InvestmentDto],
     description: 'Your holdings, with the estimated return range',

@@ -31,9 +31,9 @@ describe('AuthService', () => {
         ? null
         : ({
             id: 'u1',
-            role: Role.Farmer,
-            status: ParticipantStatus.Verified,
-            chainState: ChainState.Confirmed,
+            role: Role.FARMER,
+            status: ParticipantStatus.VERIFIED,
+            chainState: ChainState.CONFIRMED,
             passwordHash: 'hash:right',
             tokenVersion: 0,
             lockedUntil: null,
@@ -149,7 +149,7 @@ describe('AuthService', () => {
     });
 
     it('only says why an account cannot sign in once the password is right', async () => {
-      const rejected = build({ user: { status: ParticipantStatus.Rejected } });
+      const rejected = build({ user: { status: ParticipantStatus.REJECTED } });
       await expect(rejected.service.login(PHONE, 'wrong')).rejects.toThrow(
         UnauthorizedException,
       );
@@ -157,7 +157,7 @@ describe('AuthService', () => {
         new ForbiddenException('This account was not approved'),
       );
       const unconfirmed = build({
-        user: { chainState: ChainState.Submitted },
+        user: { chainState: ChainState.SUBMITTED },
       });
       await expect(unconfirmed.service.login(PHONE, 'right')).rejects.toThrow(
         ForbiddenException,
@@ -166,7 +166,7 @@ describe('AuthService', () => {
 
     it('lets a pending participant sign in to see their status', async () => {
       const { service } = build({
-        user: { status: ParticipantStatus.Pending },
+        user: { status: ParticipantStatus.PENDING },
       });
       await expect(service.login(PHONE, 'right')).resolves.toBeDefined();
     });
@@ -184,7 +184,7 @@ describe('AuthService', () => {
   describe('demo sign-in', () => {
     it('does not exist outside demo mode', async () => {
       const { service } = build({ demo: false });
-      await expect(service.demoLogin(Role.Admin)).rejects.toThrow(
+      await expect(service.demoLogin(Role.ADMIN)).rejects.toThrow(
         NotFoundException,
       );
       await expect(service.demoAccounts()).rejects.toThrow(NotFoundException);
@@ -192,9 +192,9 @@ describe('AuthService', () => {
 
     it('signs in as the ready-made account for a role', async () => {
       const { service, users } = build({ demo: true });
-      await service.demoLogin(Role.Farmer);
+      await service.demoLogin(Role.FARMER);
       expect(users.findOne).toHaveBeenCalledWith({
-        where: { role: Role.Farmer, isDemo: true },
+        where: { role: Role.FARMER, isDemo: true },
       });
     });
   });
@@ -242,16 +242,16 @@ describe('AuthService', () => {
       const { service, users } = build();
       users.findOneOrFail.mockResolvedValueOnce({
         id: 'u1',
-        role: Role.Farmer,
-        status: ParticipantStatus.Verified,
-        language: Language.Bengali,
+        role: Role.FARMER,
+        status: ParticipantStatus.VERIFIED,
+        language: Language.BENGALI,
       });
       const me = await service.updateMe({ id: 'u1' } as never, {
-        language: Language.Bengali,
+        language: Language.BENGALI,
       });
       expect(users.update).toHaveBeenCalledWith(
         { id: 'u1' },
-        { language: Language.Bengali },
+        { language: Language.BENGALI },
       );
       expect(me).toMatchObject({
         id: 'u1',

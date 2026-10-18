@@ -138,14 +138,14 @@ describe('Insurance (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.Admin,
-      Role.Accounts,
-      Role.Investor,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Insurer,
-      Role.Buyer,
-      Role.Auditor,
+      Role.ADMIN,
+      Role.ACCOUNTS,
+      Role.INVESTOR,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.INSURER,
+      Role.BUYER,
+      Role.AUDITOR,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db

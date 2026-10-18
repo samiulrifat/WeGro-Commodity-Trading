@@ -1,27 +1,27 @@
 /** Mirrors VoucherRegistry.VoucherStatus; `submitted` = sent, not yet on the ledger. */
 export enum VoucherStatus {
-  Submitted = 'submitted',
-  Proposed = 'proposed',
-  Active = 'active',
-  Rejected = 'rejected',
-  Cancelled = 'cancelled',
+  SUBMITTED = 'submitted',
+  PROPOSED = 'proposed',
+  ACTIVE = 'active',
+  REJECTED = 'rejected',
+  CANCELLED = 'cancelled',
 }
 
 /** Mirrors VoucherRegistry.SaleStatus. */
 export enum SaleStatus {
-  Pending = 'pending',
-  Confirmed = 'confirmed',
-  Cancelled = 'cancelled',
-  Expired = 'expired',
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  CANCELLED = 'cancelled',
+  EXPIRED = 'expired',
 }
 
 export enum BatchStatus {
-  Submitted = 'submitted',
-  Registered = 'registered',
+  SUBMITTED = 'submitted',
+  REGISTERED = 'registered',
 }
 
 /** Open vouchers: their limits and balances still matter. */
 export const OPEN_VOUCHER: readonly VoucherStatus[] = [
-  VoucherStatus.Proposed,
-  VoucherStatus.Active,
+  VoucherStatus.PROPOSED,
+  VoucherStatus.ACTIVE,
 ];

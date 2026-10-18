@@ -19,36 +19,36 @@ import { ParticipantsService } from './participants.service';
 
 /** Staff first (the super admin registers them), then everyone the demo admin or officer registers. */
 const STAFF: ParticipantRole[] = [
-  Role.Admin,
-  Role.FieldOfficer,
-  Role.Accounts,
-  Role.Operations,
-  Role.Auditor,
+  Role.ADMIN,
+  Role.FIELD_OFFICER,
+  Role.ACCOUNTS,
+  Role.OPERATIONS,
+  Role.AUDITOR,
 ];
 const OTHERS: ParticipantRole[] = [
-  Role.Farmer,
-  Role.Investor,
-  Role.Warehouse,
-  Role.Bank,
-  Role.Supplier,
-  Role.Buyer,
-  Role.Insurer,
+  Role.FARMER,
+  Role.INVESTOR,
+  Role.WAREHOUSE,
+  Role.BANK,
+  Role.SUPPLIER,
+  Role.BUYER,
+  Role.INSURER,
 ];
 
 const LABEL: Record<Role, string> = {
-  [Role.SuperAdmin]: 'Super Admin',
-  [Role.Investor]: 'Investor',
-  [Role.Farmer]: 'Farmer',
-  [Role.FieldOfficer]: 'Field Officer',
-  [Role.Admin]: 'Admin',
-  [Role.Accounts]: 'Accounts',
-  [Role.Operations]: 'Operations',
-  [Role.Warehouse]: 'Warehouse Operator',
-  [Role.Bank]: 'Bank Officer',
-  [Role.Supplier]: 'Supplier',
-  [Role.Buyer]: 'Buyer',
-  [Role.Insurer]: 'Insurer',
-  [Role.Auditor]: 'Auditor',
+  [Role.SUPER_ADMIN]: 'Super Admin',
+  [Role.INVESTOR]: 'Investor',
+  [Role.FARMER]: 'Farmer',
+  [Role.FIELD_OFFICER]: 'Field Officer',
+  [Role.ADMIN]: 'Admin',
+  [Role.ACCOUNTS]: 'Accounts',
+  [Role.OPERATIONS]: 'Operations',
+  [Role.WAREHOUSE]: 'Warehouse Operator',
+  [Role.BANK]: 'Bank Officer',
+  [Role.SUPPLIER]: 'Supplier',
+  [Role.BUYER]: 'Buyer',
+  [Role.INSURER]: 'Insurer',
+  [Role.AUDITOR]: 'Auditor',
 };
 
 /**
@@ -87,11 +87,11 @@ export class DemoAccountsService implements OnApplicationBootstrap {
     const operator = asActor(await this.ensureSuperAdmin());
     for (const role of STAFF) await this.ensure(role, operator, operator);
 
-    const admin = asActor(await this.demoUser(Role.Admin));
-    const officer = asActor(await this.demoUser(Role.FieldOfficer));
+    const admin = asActor(await this.demoUser(Role.ADMIN));
+    const officer = asActor(await this.demoUser(Role.FIELD_OFFICER));
     for (const role of OTHERS) {
       // The officer registers the farmer, so the ledger assigns them to each other.
-      await this.ensure(role, role === Role.Farmer ? officer : admin, admin);
+      await this.ensure(role, role === Role.FARMER ? officer : admin, admin);
     }
     this.logger.log('Demo accounts ready');
   }
@@ -99,14 +99,14 @@ export class DemoAccountsService implements OnApplicationBootstrap {
   /** The existing super admin, or a demo one if none has been created. */
   private async ensureSuperAdmin(): Promise<User> {
     const existing = await this.users.findOne({
-      where: { role: Role.SuperAdmin },
+      where: { role: Role.SUPER_ADMIN },
     });
     if (existing) return existing;
     const phone = demoPhone(0);
     const user = this.users.create({
-      role: Role.SuperAdmin,
-      status: ParticipantStatus.Verified,
-      chainState: ChainState.Operator,
+      role: Role.SUPER_ADMIN,
+      status: ParticipantStatus.VERIFIED,
+      chainState: ChainState.OPERATOR,
       phoneIndex: this.codec.phoneIndex(phone),
       passwordHash: await this.unusablePassword(),
       keyIndex: KeyService.OPERATOR_INDEX,
@@ -119,7 +119,7 @@ export class DemoAccountsService implements OnApplicationBootstrap {
         PersonalDetails,
         this.codec.sealOperator(
           user.id,
-          `Demo ${LABEL[Role.SuperAdmin]}`,
+          `Demo ${LABEL[Role.SUPER_ADMIN]}`,
           phone,
         ),
       );
@@ -157,7 +157,7 @@ export class DemoAccountsService implements OnApplicationBootstrap {
       await this.participants.syncWithLedger(manager, user.id);
       user = await this.users.findOneByOrFail({ id: user.id });
     }
-    if (user.status !== ParticipantStatus.Verified) {
+    if (user.status !== ParticipantStatus.VERIFIED) {
       await this.participants.verify(manager, user.id, true);
     }
   }

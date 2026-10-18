@@ -8,65 +8,65 @@ import { ErrorCode } from './error-code';
 
 /** What an input check found wrong with one field, for the app to word. */
 export enum ValidationRule {
-  Required = 'required',
-  NotAllowed = 'notAllowed',
-  Text = 'text',
-  WholeNumber = 'wholeNumber',
-  Number = 'number',
-  YesNo = 'yesNo',
-  Date = 'date',
-  Id = 'id',
-  OneOf = 'oneOf',
-  Min = 'min',
-  Max = 'max',
-  MinLength = 'minLength',
-  MaxLength = 'maxLength',
-  Format = 'format',
-  Url = 'url',
-  List = 'list',
-  ListMin = 'listMin',
-  ListMax = 'listMax',
-  Unique = 'unique',
-  Object = 'object',
+  REQUIRED = 'required',
+  NOT_ALLOWED = 'notAllowed',
+  TEXT = 'text',
+  WHOLE_NUMBER = 'wholeNumber',
+  NUMBER = 'number',
+  YES_NO = 'yesNo',
+  DATE = 'date',
+  ID = 'id',
+  ONE_OF = 'oneOf',
+  MIN = 'min',
+  MAX = 'max',
+  MIN_LENGTH = 'minLength',
+  MAX_LENGTH = 'maxLength',
+  FORMAT = 'format',
+  URL = 'url',
+  LIST = 'list',
+  LIST_MIN = 'listMin',
+  LIST_MAX = 'listMax',
+  UNIQUE = 'unique',
+  OBJECT = 'object',
   /** Any other check. */
-  Invalid = 'invalid',
+  INVALID = 'invalid',
 }
 
 /** class-validator's check names -> the rule the app words. */
 const RULES: Record<string, ValidationRule> = {
-  isDefined: ValidationRule.Required,
-  whitelistValidation: ValidationRule.NotAllowed,
-  isString: ValidationRule.Text,
-  isInt: ValidationRule.WholeNumber,
-  isNumber: ValidationRule.Number,
-  isBoolean: ValidationRule.YesNo,
-  isDateString: ValidationRule.Date,
-  isIso8601: ValidationRule.Date,
-  isUuid: ValidationRule.Id,
-  isEnum: ValidationRule.OneOf,
-  isIn: ValidationRule.OneOf,
-  min: ValidationRule.Min,
-  max: ValidationRule.Max,
-  minLength: ValidationRule.MinLength,
-  maxLength: ValidationRule.MaxLength,
-  matches: ValidationRule.Format,
-  isUrl: ValidationRule.Url,
-  isArray: ValidationRule.List,
-  arrayMinSize: ValidationRule.ListMin,
-  arrayMaxSize: ValidationRule.ListMax,
-  arrayUnique: ValidationRule.Unique,
-  isObject: ValidationRule.Object,
-  nestedValidation: ValidationRule.Object,
+  isDefined: ValidationRule.REQUIRED,
+  whitelistValidation: ValidationRule.NOT_ALLOWED,
+  isString: ValidationRule.TEXT,
+  isInt: ValidationRule.WHOLE_NUMBER,
+  isNumber: ValidationRule.NUMBER,
+  isBoolean: ValidationRule.YES_NO,
+  isDateString: ValidationRule.DATE,
+  isIso8601: ValidationRule.DATE,
+  isUuid: ValidationRule.ID,
+  isEnum: ValidationRule.ONE_OF,
+  isIn: ValidationRule.ONE_OF,
+  min: ValidationRule.MIN,
+  max: ValidationRule.MAX,
+  minLength: ValidationRule.MIN_LENGTH,
+  maxLength: ValidationRule.MAX_LENGTH,
+  matches: ValidationRule.FORMAT,
+  isUrl: ValidationRule.URL,
+  isArray: ValidationRule.LIST,
+  arrayMinSize: ValidationRule.LIST_MIN,
+  arrayMaxSize: ValidationRule.LIST_MAX,
+  arrayUnique: ValidationRule.UNIQUE,
+  isObject: ValidationRule.OBJECT,
+  nestedValidation: ValidationRule.OBJECT,
 };
 
 /** Rules whose first argument is the limit to show (at least 1, at most 200 ...). */
 const WITH_LIMIT = new Set([
-  ValidationRule.Min,
-  ValidationRule.Max,
-  ValidationRule.MinLength,
-  ValidationRule.MaxLength,
-  ValidationRule.ListMin,
-  ValidationRule.ListMax,
+  ValidationRule.MIN,
+  ValidationRule.MAX,
+  ValidationRule.MIN_LENGTH,
+  ValidationRule.MAX_LENGTH,
+  ValidationRule.LIST_MIN,
+  ValidationRule.LIST_MAX,
 ]);
 
 export interface FieldError {
@@ -87,7 +87,7 @@ export class InputValidationPipe extends ValidationPipe {
     this.exceptionFactory = (errors) =>
       new BadRequestException({
         message: this.flattenValidationErrors(errors),
-        code: ErrorCode.InvalidInput,
+        code: ErrorCode.INVALID_INPUT,
         details: { fields: fieldErrors(errors) },
       });
   }
@@ -107,10 +107,10 @@ export function fieldErrors(
       !checks.includes('whitelistValidation')
     ) {
       // Missing altogether: one entry says so, whatever else it would fail.
-      out.push({ field, rule: ValidationRule.Required });
+      out.push({ field, rule: ValidationRule.REQUIRED });
     } else {
       for (const check of checks) {
-        const rule = RULES[check] ?? ValidationRule.Invalid;
+        const rule = RULES[check] ?? ValidationRule.INVALID;
         const limit = WITH_LIMIT.has(rule) ? limitOf(error, check) : undefined;
         out.push(
           limit === undefined ? { field, rule } : { field, rule, limit },

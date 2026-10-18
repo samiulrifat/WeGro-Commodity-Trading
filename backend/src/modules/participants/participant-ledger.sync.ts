@@ -64,13 +64,13 @@ export class ParticipantLedgerSync implements OnModuleInit {
         .createQueryBuilder()
         .update(User)
         .set({
-          chainState: ChainState.Submitted,
-          status: ParticipantStatus.Pending,
+          chainState: ChainState.SUBMITTED,
+          status: ParticipantStatus.PENDING,
           fieldOfficerId: null,
           chainEventBlock: -1,
           chainEventLog: -1,
         })
-        .where('role <> :operator', { operator: Role.SuperAdmin })
+        .where('role <> :operator', { operator: Role.SUPER_ADMIN })
         .execute();
     });
   }
@@ -98,7 +98,7 @@ export class ParticipantLedgerSync implements OnModuleInit {
         chainEventLog: event.logIndex,
       })
       .where('id = :id', { id: userId })
-      .andWhere('role <> :operator', { operator: Role.SuperAdmin })
+      .andWhere('role <> :operator', { operator: Role.SUPER_ADMIN })
       // Not older than what is already applied.
       .andWhere('(chain_event_block, chain_event_log) <= (:block, :log)', {
         block: event.blockNumber,
@@ -127,7 +127,7 @@ export class ParticipantLedgerSync implements OnModuleInit {
       case 'ParticipantRegistered': {
         await this.checkRegistration(event, userId, manager);
         return {
-          chainState: ChainState.Confirmed,
+          chainState: ChainState.CONFIRMED,
           account: getAddress(String(a.account)),
           registrationTx: event.txHash,
         };

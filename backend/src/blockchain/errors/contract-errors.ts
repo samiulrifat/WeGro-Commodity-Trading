@@ -241,12 +241,12 @@ export class ContractErrorDecoder {
     if (isNodeUnavailable(error)) {
       return new ServiceUnavailableException({
         message: 'Blockchain node unavailable',
-        code: ErrorCode.LedgerUnavailable,
+        code: ErrorCode.LEDGER_UNAVAILABLE,
       });
     }
     return new InternalServerErrorException({
       message: 'Blockchain transaction failed',
-      code: ErrorCode.LedgerFailed,
+      code: ErrorCode.LEDGER_FAILED,
     });
   }
 }

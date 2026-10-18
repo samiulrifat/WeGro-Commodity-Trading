@@ -31,8 +31,8 @@ const PROJECT = randomUUID();
 const EVENT = randomUUID();
 
 describe('ClaimsService', () => {
-  const officer = actor(Role.FieldOfficer);
-  const insurer = actor(Role.Insurer);
+  const officer = actor(Role.FIELD_OFFICER);
+  const insurer = actor(Role.INSURER);
 
   const build = (
     opts: {
@@ -51,7 +51,7 @@ describe('ClaimsService', () => {
             projectId: PROJECT,
             eventId: EVENT,
             photoIds: [],
-            status: ClaimStatus.Triggered,
+            status: ClaimStatus.TRIGGERED,
             assessmentNotes: null,
             approvedAmount: null,
             ...opts.claim,
@@ -211,7 +211,7 @@ describe('ClaimsService', () => {
         ),
       ).rejects.toThrow(ForbiddenException);
       await expect(
-        build({ officerOf: false }).service.open(actor(Role.Admin), PROJECT, {
+        build({ officerOf: false }).service.open(actor(Role.ADMIN), PROJECT, {
           ...openDto,
           photoIds: [],
         } as never),
@@ -232,7 +232,7 @@ describe('ClaimsService', () => {
       ],
       [
         'a second claim for the same event',
-        { claim: { status: ClaimStatus.Approved } },
+        { claim: { status: ClaimStatus.APPROVED } },
         'ALREADY_CLAIMED',
       ],
     ])('refuses %s', async (_label, opts, code) => {
@@ -265,7 +265,7 @@ describe('ClaimsService', () => {
     });
 
     it('replaces an attempt that never reached the ledger, and removes one the ledger refuses', async () => {
-      const retry = build({ claim: { status: ClaimStatus.Submitted } });
+      const retry = build({ claim: { status: ClaimStatus.SUBMITTED } });
       const stale = retry.claims[0].id;
       await retry.service.open(officer, PROJECT, openDto as never);
       expect(retry.claims.map((c) => c.id)).not.toContain(stale);
@@ -285,7 +285,7 @@ describe('ClaimsService', () => {
       const triggered = build({ claim: {} });
       const id = triggered.claims[0].id;
       await expect(
-        triggered.service.approve(actor(Role.Insurer), id, {
+        triggered.service.approve(actor(Role.INSURER), id, {
           amount: '1',
           notes: 'x',
         } as never),
@@ -300,7 +300,7 @@ describe('ClaimsService', () => {
 
     it('approves within the cover still remaining, with a fingerprinted assessment', async () => {
       const { service, claims, chain } = build({
-        claim: { status: ClaimStatus.UnderReview },
+        claim: { status: ClaimStatus.UNDER_REVIEW },
         approved: 4_000_000n,
       });
       const c = claims[0];
@@ -333,7 +333,7 @@ describe('ClaimsService', () => {
 
     it('clears the saved assessment when the ledger refuses the decision', async () => {
       const { service, claims, chain } = build({
-        claim: { status: ClaimStatus.UnderReview },
+        claim: { status: ClaimStatus.UNDER_REVIEW },
       });
       chain.fail(revert('WrongClaimStatus'));
       await expect(
@@ -349,7 +349,7 @@ describe('ClaimsService', () => {
 
     it('refuses a decision when the claim changed meanwhile', async () => {
       const { service, claims, repo } = build({
-        claim: { status: ClaimStatus.UnderReview },
+        claim: { status: ClaimStatus.UNDER_REVIEW },
       });
       repo.update.mockResolvedValueOnce({ affected: 0 });
       await expect(
@@ -359,7 +359,7 @@ describe('ClaimsService', () => {
 
     it('hides claims that never reached the ledger', async () => {
       const { service, claims } = build({
-        claim: { status: ClaimStatus.Submitted },
+        claim: { status: ClaimStatus.SUBMITTED },
       });
       await expect(service.startReview(insurer, claims[0].id)).rejects.toThrow(
         NotFoundException,
@@ -369,11 +369,11 @@ describe('ClaimsService', () => {
 
   it('shows the assessment only once the claim is decided', async () => {
     const { service, claims } = build({
-      claim: { status: ClaimStatus.UnderReview, assessmentNotes: 'in flight' },
+      claim: { status: ClaimStatus.UNDER_REVIEW, assessmentNotes: 'in flight' },
     });
     const pending = await service.findOne(insurer, claims[0].id);
     expect(pending.assessment).toBeNull();
-    claims[0].status = ClaimStatus.Rejected;
+    claims[0].status = ClaimStatus.REJECTED;
     const decided = await service.findOne(insurer, claims[0].id);
     expect(decided.assessment).toMatchObject({ notes: 'in flight' });
   });

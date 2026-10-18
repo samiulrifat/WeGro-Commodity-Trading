@@ -73,13 +73,13 @@ export class BatchesService {
     if (dto.producedOn > today) {
       throw new UnprocessableEntityException({
         message: 'producedOn cannot be in the future',
-        code: ErrorCode.ProducedInFuture,
+        code: ErrorCode.PRODUCED_IN_FUTURE,
       });
     }
     if (dto.expiresOn && dto.expiresOn < dto.producedOn) {
       throw new UnprocessableEntityException({
         message: 'expiresOn cannot be before producedOn',
-        code: ErrorCode.ExpiresBeforeProduced,
+        code: ErrorCode.EXPIRES_BEFORE_PRODUCED,
       });
     }
 
@@ -93,7 +93,7 @@ export class BatchesService {
       producedOn: dto.producedOn,
       expiresOn: dto.expiresOn ?? null,
       notes: dto.notes ?? null,
-      status: BatchStatus.Submitted,
+      status: BatchStatus.SUBMITTED,
       registeredAt: null,
     });
     batch.detailsHash = batchFingerprint(batch);
@@ -106,7 +106,7 @@ export class BatchesService {
       ) {
         throw new ConflictException({
           message: 'You already registered this lot number for this input',
-          code: ErrorCode.LotAlreadyRegistered,
+          code: ErrorCode.LOT_ALREADY_REGISTERED,
         });
       }
       throw error;
@@ -139,7 +139,7 @@ export class BatchesService {
     q: ListBatchesQueryDto,
   ): Promise<Paginated<BatchDto>> {
     const qb = this.batches.createQueryBuilder('b');
-    if (actor.role === Role.Supplier)
+    if (actor.role === Role.SUPPLIER)
       qb.where('b.supplier_id = :me', { me: actor.id });
     if (q.inputTypeCode)
       qb.andWhere('b.input_type_code = :c', { c: q.inputTypeCode });
@@ -156,11 +156,11 @@ export class BatchesService {
     const batch = await this.batches.findOneBy({ id });
     if (
       !batch ||
-      (actor.role === Role.Supplier && batch.supplierId !== actor.id)
+      (actor.role === Role.SUPPLIER && batch.supplierId !== actor.id)
     ) {
       throw new NotFoundException({
         message: 'Batch not found',
-        code: ErrorCode.BatchNotFound,
+        code: ErrorCode.BATCH_NOT_FOUND,
       });
     }
     return (await this.dtos([batch]))[0];

@@ -87,7 +87,7 @@ describe('Track record and bank permission (node + database)', () => {
     const phone = `0196${String(randomInt(1e6, 1e7))}`;
     const reg = await as(t.super_admin)
       .post('/participants', {
-        role: Role.Accounts,
+        role: Role.ACCOUNTS,
         fullName: 'Second Accounts',
         phone,
         nid: `${randomInt(2, 9)}${randomInt(1e8, 1e9)}`,
@@ -120,15 +120,15 @@ describe('Track record and bank permission (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.SuperAdmin,
-      Role.Admin,
-      Role.Accounts,
-      Role.Investor,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Buyer,
-      Role.Bank,
-      Role.Auditor,
+      Role.SUPER_ADMIN,
+      Role.ADMIN,
+      Role.ACCOUNTS,
+      Role.INVESTOR,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.BUYER,
+      Role.BANK,
+      Role.AUDITOR,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db

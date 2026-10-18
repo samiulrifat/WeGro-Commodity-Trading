@@ -33,9 +33,9 @@ import { ErrorCode } from '../../common/errors/error-code';
 
 /** See which officers work for each bank. */
 const SEES_OFFICERS: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.AUDITOR,
 ]);
 
 /** Banks (ConsentRegistry): registered by an admin, with their officers. */
@@ -71,7 +71,7 @@ export class BanksService {
       ) {
         throw new ConflictException({
           message: 'This bank branch is already registered',
-          code: ErrorCode.BankExists,
+          code: ErrorCode.BANK_EXISTS,
         });
       }
       throw error;
@@ -107,7 +107,7 @@ export class BanksService {
     if (!bank)
       throw new NotFoundException({
         message: 'Bank not found',
-        code: ErrorCode.BankNotFound,
+        code: ErrorCode.BANK_NOT_FOUND,
       });
     return (await this.dtos(actor, [bank]))[0];
   }
@@ -121,13 +121,13 @@ export class BanksService {
     const officer = await this.users.findOneBy({ id: officerId });
     if (
       !officer ||
-      officer.role !== Role.Bank ||
-      officer.status !== ParticipantStatus.Verified ||
-      officer.chainState !== ChainState.Confirmed
+      officer.role !== Role.BANK ||
+      officer.status !== ParticipantStatus.VERIFIED ||
+      officer.chainState !== ChainState.CONFIRMED
     ) {
       throw new UnprocessableEntityException({
         message: 'Only a verified bank officer can be assigned',
-        code: ErrorCode.BankOfficerInvalid,
+        code: ErrorCode.BANK_OFFICER_INVALID,
       });
     }
     if (bankId) {
@@ -135,7 +135,7 @@ export class BanksService {
       if (!bank || bank.status !== 'registered')
         throw new NotFoundException({
           message: 'Bank not found',
-          code: ErrorCode.BankNotFound,
+          code: ErrorCode.BANK_NOT_FOUND,
         });
     }
     await this.send(actor, (c) =>

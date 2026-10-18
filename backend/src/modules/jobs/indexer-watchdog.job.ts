@@ -22,9 +22,9 @@ const FAILING_PASSES = 3;
 type Problem = 'node-unreachable' | 'indexer-behind' | 'indexer-failing';
 
 const KINDS: Record<Problem, NotificationKind> = {
-  'node-unreachable': NotificationKind.SystemNodeUnreachable,
-  'indexer-behind': NotificationKind.SystemIndexerBehind,
-  'indexer-failing': NotificationKind.SystemIndexerFailing,
+  'node-unreachable': NotificationKind.SYSTEM_NODE_UNREACHABLE,
+  'indexer-behind': NotificationKind.SYSTEM_INDEXER_BEHIND,
+  'indexer-failing': NotificationKind.SYSTEM_INDEXER_FAILING,
 };
 
 const TITLES: Record<Problem, string> = {
@@ -94,8 +94,8 @@ export class IndexerWatchdogJob implements ScheduledJobRunner {
     if (this.incident && this.incident.problem !== problem) {
       sent += await this.notify(
         `resolved:${this.incident.problem}:${this.incident.since.getTime()}`,
-        NotificationCategory.Outcome,
-        NotificationKind.SystemResolved,
+        NotificationCategory.OUTCOME,
+        NotificationKind.SYSTEM_RESOLVED,
         `Resolved: ${TITLES[this.incident.problem].toLowerCase()}`,
         `Since ${this.incident.since.toISOString()}`,
         {
@@ -110,7 +110,7 @@ export class IndexerWatchdogJob implements ScheduledJobRunner {
       this.logger.error(`${TITLES[problem]}: ${detail}`);
       sent += await this.notify(
         `${problem}:${this.incident.since.getTime()}`,
-        NotificationCategory.Action,
+        NotificationCategory.ACTION,
         KINDS[problem],
         TITLES[problem],
         detail,
@@ -131,7 +131,7 @@ export class IndexerWatchdogJob implements ScheduledJobRunner {
     const m = this.dataSource.manager;
     return this.writer.send(
       m,
-      await this.writer.withRole(m, [Role.SuperAdmin, Role.Admin]),
+      await this.writer.withRole(m, [Role.SUPER_ADMIN, Role.ADMIN]),
       { category, kind, title, body, params, key: `watchdog:${key}` },
     );
   }

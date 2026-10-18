@@ -4,7 +4,7 @@ import { deliveryFingerprint } from './trade.service';
 describe('deliveryFingerprint', () => {
   const d = {
     offerId: 7,
-    side: DeliverySide.Buyer,
+    side: DeliverySide.BUYER,
     quantity: 2000,
     notes: 'Dry, no damage',
     photoHash: `0x${'ab'.repeat(32)}`,
@@ -15,7 +15,7 @@ describe('deliveryFingerprint', () => {
     expect(deliveryFingerprint({ ...d })).toBe(h);
     for (const change of [
       { offerId: 8 },
-      { side: DeliverySide.Handler },
+      { side: DeliverySide.HANDLER },
       { quantity: 1999 },
       { notes: null },
       { photoHash: null },

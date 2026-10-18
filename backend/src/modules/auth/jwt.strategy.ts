@@ -49,11 +49,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       !user ||
       user.tokenVersion !== claims.tv ||
       user.role !== claims.role ||
-      user.chainState === ChainState.Submitted
+      user.chainState === ChainState.SUBMITTED
     ) {
       throw new UnauthorizedException({
         message: 'Session is no longer valid',
-        code: ErrorCode.SessionEnded,
+        code: ErrorCode.SESSION_ENDED,
       });
     }
     return {

@@ -18,7 +18,7 @@ const terms = (over: Partial<ProjectTerms> = {}): ProjectTerms => ({
   districtCode: 'BOGURA',
   location: 'Shibganj',
   farmerId: '11111111-2222-4333-8444-555555555555',
-  durationType: DurationType.LongTerm,
+  durationType: DurationType.LONG_TERM,
   durationMonths: 8,
   payoutIntervalMonths: 4,
   fundingTarget: 2_000_000_00n,
@@ -72,7 +72,7 @@ describe('checkTerms', () => {
     const short = (over: Partial<ProjectTerms>) =>
       checkTerms(
         terms({
-          durationType: DurationType.ShortTerm,
+          durationType: DurationType.SHORT_TERM,
           payoutIntervalMonths: 0,
           ...over,
         }),

@@ -89,7 +89,7 @@ describe('insurance fingerprints', () => {
       districtCode: 'BOGURA',
       eventTypeCode: 'FLOOD',
       occurredOn: '2026-07-14',
-      severity: Severity.Severe,
+      severity: Severity.SEVERE,
       notes: null,
     });
     const assessment = assessmentFingerprint({

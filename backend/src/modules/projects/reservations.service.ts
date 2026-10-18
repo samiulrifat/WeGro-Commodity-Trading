@@ -40,10 +40,10 @@ import { ErrorCode } from '../../common/errors/error-code';
 
 /** Who may read payment references. */
 const SEES_PAYMENTS: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 
 /**
@@ -84,10 +84,10 @@ export class ReservationsService {
     slots: number,
   ): Promise<ReservationDto> {
     const project = await this.projects.visible(actor, projectId);
-    if (project.stage !== ProjectStage.OpenForFunding) {
+    if (project.stage !== ProjectStage.OPEN_FOR_FUNDING) {
       throw new ConflictException({
         message: 'This project is not open for funding',
-        code: ErrorCode.ProjectNotOpen,
+        code: ErrorCode.PROJECT_NOT_OPEN,
       });
     }
     const available =
@@ -95,7 +95,7 @@ export class ReservationsService {
     if (slots > available) {
       throw new ConflictException({
         message: `Only ${available} slot${available === 1 ? ' is' : 's are'} available`,
-        code: ErrorCode.NotEnoughSlots,
+        code: ErrorCode.NOT_ENOUGH_SLOTS,
         details: { available },
       });
     }
@@ -110,16 +110,16 @@ export class ReservationsService {
   /** The investor's own pending reservation, or any for an admin. */
   async cancel(actor: AuthUser, id: number): Promise<ReservationDto> {
     const reservation = await this.load(id);
-    if (actor.role === Role.Investor && reservation.investorId !== actor.id) {
+    if (actor.role === Role.INVESTOR && reservation.investorId !== actor.id) {
       throw new NotFoundException({
         message: 'Reservation not found',
-        code: ErrorCode.ReservationNotFound,
+        code: ErrorCode.RESERVATION_NOT_FOUND,
       });
     }
-    if (reservation.status !== ReservationStatus.Pending) {
+    if (reservation.status !== ReservationStatus.PENDING) {
       throw new ConflictException({
         message: `This reservation is ${reservation.status ?? 'not active'}`,
-        code: ErrorCode.ReservationWrongStatus,
+        code: ErrorCode.RESERVATION_WRONG_STATUS,
         details: { status: reservation.status ?? null },
       });
     }
@@ -176,10 +176,10 @@ export class ReservationsService {
     const ref = normalise(paymentReference);
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const reservation = await this.load(id);
-    if (reservation.status !== ReservationStatus.Pending) {
+    if (reservation.status !== ReservationStatus.PENDING) {
       throw new ConflictException({
         message: `This reservation is ${reservation.status ?? 'not active'}`,
-        code: ErrorCode.ReservationWrongStatus,
+        code: ErrorCode.RESERVATION_WRONG_STATUS,
         details: { status: reservation.status ?? null },
       });
     }
@@ -195,7 +195,7 @@ export class ReservationsService {
         })
         .where('id = :id AND status = :pending', {
           id,
-          pending: ReservationStatus.Pending,
+          pending: ReservationStatus.PENDING,
         })
         .andWhere('(payment_ref_hash IS NULL OR payment_ref_hash = :hash)', {
           hash,
@@ -204,7 +204,7 @@ export class ReservationsService {
       if (saved.affected !== 1) {
         throw new ConflictException({
           message: 'This reservation is already being confirmed',
-          code: ErrorCode.ReservationConfirming,
+          code: ErrorCode.RESERVATION_CONFIRMING,
         });
       }
     } catch (error) {
@@ -218,7 +218,7 @@ export class ReservationsService {
     } catch (error) {
       if (error instanceof ContractRevertException) {
         await this.reservations.update(
-          { id, paymentRefHash: hash, status: ReservationStatus.Pending },
+          { id, paymentRefHash: hash, status: ReservationStatus.PENDING },
           { paymentRefEnc: null, paymentRefHash: null, confirmedById: null },
         );
       }
@@ -235,10 +235,10 @@ export class ReservationsService {
     paymentReference: string,
   ): Promise<RefundLineDto[]> {
     const project = await this.projects.visible(actor, projectId);
-    if (project.stage !== ProjectStage.Cancelled) {
+    if (project.stage !== ProjectStage.CANCELLED) {
       throw new ConflictException({
         message: 'Refunds are recorded only for cancelled projects',
-        code: ErrorCode.RefundProjectNotCancelled,
+        code: ErrorCode.REFUND_PROJECT_NOT_CANCELLED,
       });
     }
     const due = (await this.holdings(projectId)).find(
@@ -247,7 +247,7 @@ export class ReservationsService {
     if (!due)
       throw new UnprocessableEntityException({
         message: 'This investor holds no slots in the project',
-        code: ErrorCode.NoSlotsHeld,
+        code: ErrorCode.NO_SLOTS_HELD,
       });
 
     const ref = normalise(paymentReference);
@@ -256,12 +256,12 @@ export class ReservationsService {
     if (existing?.confirmed)
       throw new ConflictException({
         message: 'Already refunded',
-        code: ErrorCode.AlreadyRefunded,
+        code: ErrorCode.ALREADY_REFUNDED,
       });
     if (existing && existing.paymentRefHash !== hash) {
       throw new ConflictException({
         message: 'A different refund for this investor is being recorded',
-        code: ErrorCode.RefundInProgress,
+        code: ErrorCode.REFUND_IN_PROGRESS,
       });
     }
     if (!existing) {
@@ -311,7 +311,7 @@ export class ReservationsService {
       .createQueryBuilder('r')
       .innerJoinAndSelect('r.project', 'p')
       .where('r.status IS NOT NULL');
-    if (actor.role === Role.Investor)
+    if (actor.role === Role.INVESTOR)
       qb.andWhere('r.investor_id = :me', { me: actor.id });
     if (q.status) qb.andWhere('r.status = :status', { status: q.status });
     if (q.projectId) qb.andWhere('r.project_id = :pid', { pid: q.projectId });
@@ -331,11 +331,11 @@ export class ReservationsService {
     if (
       !row ||
       row.status === null ||
-      (actor.role === Role.Investor && row.investorId !== actor.id)
+      (actor.role === Role.INVESTOR && row.investorId !== actor.id)
     ) {
       throw new NotFoundException({
         message: 'Reservation not found',
-        code: ErrorCode.ReservationNotFound,
+        code: ErrorCode.RESERVATION_NOT_FOUND,
       });
     }
     return (await this.reservationViews(actor, [row]))[0];
@@ -434,7 +434,7 @@ export class ReservationsService {
     if (!row || row.status === null)
       throw new NotFoundException({
         message: 'Reservation not found',
-        code: ErrorCode.ReservationNotFound,
+        code: ErrorCode.RESERVATION_NOT_FOUND,
       });
     return row;
   }
@@ -458,7 +458,7 @@ function normalise(ref: string): string {
   } catch (error) {
     throw new UnprocessableEntityException({
       message: (error as Error).message,
-      code: ErrorCode.PaymentRefInvalid,
+      code: ErrorCode.PAYMENT_REF_INVALID,
     });
   }
 }
@@ -470,7 +470,7 @@ function duplicateRef(error: unknown): unknown {
   ) {
     return new ConflictException({
       message: 'This payment reference was already used',
-      code: ErrorCode.PaymentRefAlreadyUsed,
+      code: ErrorCode.PAYMENT_REF_ALREADY_USED,
     });
   }
   return error;

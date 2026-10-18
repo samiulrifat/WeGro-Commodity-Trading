@@ -114,16 +114,16 @@ describe('Dashboard (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.SuperAdmin,
-      Role.Admin,
-      Role.Operations,
-      Role.Accounts,
-      Role.Auditor,
-      Role.Investor,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Buyer,
-      Role.Warehouse,
+      Role.SUPER_ADMIN,
+      Role.ADMIN,
+      Role.OPERATIONS,
+      Role.ACCOUNTS,
+      Role.AUDITOR,
+      Role.INVESTOR,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.BUYER,
+      Role.WAREHOUSE,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db

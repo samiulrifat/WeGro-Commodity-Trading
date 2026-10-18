@@ -30,7 +30,7 @@ const PROJECT = randomUUID();
 const FARMER = randomUUID();
 
 describe('InsuranceService', () => {
-  const insurer = actor(Role.Insurer);
+  const insurer = actor(Role.INSURER);
 
   const build = (
     opts: {
@@ -47,7 +47,7 @@ describe('InsuranceService', () => {
             id: PROJECT,
             farmerId: FARMER,
             insured: true,
-            stage: ProjectStage.Active,
+            stage: ProjectStage.ACTIVE,
             ...opts.project,
           } as Project);
     const terms: CoverageTerms[] = opts.cover
@@ -188,7 +188,7 @@ describe('InsuranceService', () => {
       ).rejects.toThrow('These are already the current terms');
       await expect(
         build({ cover: {} }).service.setCoverage(
-          actor(Role.Insurer),
+          actor(Role.INSURER),
           PROJECT,
           dto as never,
         ),
@@ -212,7 +212,7 @@ describe('InsuranceService', () => {
       ).rejects.toThrow('This project is not insured');
       await expect(
         build({
-          project: { stage: ProjectStage.ReadyForSale },
+          project: { stage: ProjectStage.READY_FOR_SALE },
         }).service.setCoverage(insurer, PROJECT, dto as never),
       ).rejects.toThrow(ConflictException);
       await expect(
@@ -247,23 +247,23 @@ describe('InsuranceService', () => {
     it('staff, the project’s insurer, the farmer and their officer only', async () => {
       const covered = build({ cover: {} });
       await expect(
-        covered.service.coverage(actor(Role.Admin), PROJECT),
+        covered.service.coverage(actor(Role.ADMIN), PROJECT),
       ).resolves.toBeDefined();
       await expect(
         covered.service.coverage(insurer, PROJECT),
       ).resolves.toBeDefined();
       await expect(
-        covered.service.coverage(actor(Role.Farmer, { id: FARMER }), PROJECT),
+        covered.service.coverage(actor(Role.FARMER, { id: FARMER }), PROJECT),
       ).resolves.toBeDefined();
       await expect(
-        covered.service.coverage(actor(Role.Insurer), PROJECT),
+        covered.service.coverage(actor(Role.INSURER), PROJECT),
       ).rejects.toThrow(NotFoundException);
       await expect(
-        covered.service.coverage(actor(Role.Investor), PROJECT),
+        covered.service.coverage(actor(Role.INVESTOR), PROJECT),
       ).rejects.toThrow(NotFoundException);
       await expect(
         build({ cover: {}, officerOf: true }).service.coverage(
-          actor(Role.FieldOfficer),
+          actor(Role.FIELD_OFFICER),
           PROJECT,
         ),
       ).resolves.toBeDefined();

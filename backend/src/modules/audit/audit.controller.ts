@@ -47,13 +47,13 @@ import {
 import { ErrorCode } from '../../common/errors/error-code';
 
 const STAFF = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ];
-const AUDITORS = [Role.SuperAdmin, Role.Admin, Role.Auditor];
+const AUDITORS = [Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR];
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
 
 /** An unknown record type is a missing page, not a bad request. */
@@ -64,7 +64,7 @@ const oneOf = <T extends string>(
     if (!(allowed as readonly string[]).includes(value))
       throw new NotFoundException({
         message: 'Unknown record type',
-        code: ErrorCode.UnknownRecordType,
+        code: ErrorCode.UNKNOWN_RECORD_TYPE,
       });
     return value as T;
   },
@@ -122,7 +122,7 @@ export class AuditController {
   }
 
   @Post('sweeps')
-  @Roles(Role.SuperAdmin, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.AUDITOR)
   @AuditAction()
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiAcceptedResponse({
@@ -166,7 +166,7 @@ export class AuditController {
 
   @Get('log')
   @ApiPaged()
-  @Roles(Role.SuperAdmin, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.AUDITOR)
   @ApiOkResponse({
     type: [AuditLogEntryDto],
     description: 'Write requests, newest first',

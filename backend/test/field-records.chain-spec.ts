@@ -93,20 +93,20 @@ describe('Field records (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.SuperAdmin,
-      Role.Admin,
-      Role.Investor,
-      Role.Accounts,
-      Role.FieldOfficer,
-      Role.Auditor,
-      Role.Farmer,
+      Role.SUPER_ADMIN,
+      Role.ADMIN,
+      Role.INVESTOR,
+      Role.ACCOUNTS,
+      Role.FIELD_OFFICER,
+      Role.AUDITOR,
+      Role.FARMER,
     ]) {
       t[r] = await demoToken(http, r);
     }
     farmerId = (
       await db
         .getRepository(User)
-        .findOneByOrFail({ role: Role.Farmer, isDemo: true })
+        .findOneByOrFail({ role: Role.FARMER, isDemo: true })
     ).id;
     const now = await chain.app.get(ChainClock).now();
     observed = new Date(now.getTime() - 3_600_000).toISOString();

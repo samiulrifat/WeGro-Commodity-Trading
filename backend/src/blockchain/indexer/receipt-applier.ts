@@ -43,7 +43,7 @@ export class ReceiptApplier {
         throw new InternalServerErrorException({
           message:
             'Saved on the ledger, but the database copy could not be updated yet; it will be retried automatically. Do not repeat the action.',
-          code: ErrorCode.ReadModelUpdateFailed,
+          code: ErrorCode.READ_MODEL_UPDATE_FAILED,
           details: { txHash: result.hash },
         });
       }

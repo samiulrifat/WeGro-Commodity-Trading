@@ -16,11 +16,11 @@ import { PersonalDetails } from './personal-details.entity';
 /** Where a person's registration stands on the ledger. */
 export enum ChainState {
   /** Saved here; the registration transaction is not yet confirmed on-chain. */
-  Submitted = 'submitted',
+  SUBMITTED = 'submitted',
   /** Seen on-chain. */
-  Confirmed = 'confirmed',
+  CONFIRMED = 'confirmed',
   /** The super admin: the contracts' operator key, not a registered participant. */
-  Operator = 'operator',
+  OPERATOR = 'operator',
 }
 
 /**

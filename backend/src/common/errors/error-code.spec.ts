@@ -85,10 +85,7 @@ describe('error codes', () => {
     expect(unused).toEqual([]);
     for (const [name, value] of Object.entries(ErrorCode)) {
       expect(value).toMatch(/^[A-Z][A-Z0-9_]*$/);
-      const pascal = value
-        .toLowerCase()
-        .replace(/(^|_)([a-z0-9])/g, (_, __, c: string) => c.toUpperCase());
-      expect({ name, value }).toEqual({ name: pascal, value });
+      expect({ name, value }).toEqual({ name: value, value });
     }
   });
 });

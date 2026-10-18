@@ -23,13 +23,13 @@ import { ErrorCode } from '../../../common/errors/error-code';
 
 /** Why a round cannot be prepared now: the error codes a prepare would get. */
 export const ROUND_BLOCKS = [
-  ErrorCode.RoundOpen,
-  ErrorCode.AlreadySettled,
-  ErrorCode.RoundWrongStage,
-  ErrorCode.NotStaged,
-  ErrorCode.TooEarly,
-  ErrorCode.NothingToDistribute,
-  ErrorCode.StillOutstanding,
+  ErrorCode.ROUND_OPEN,
+  ErrorCode.ALREADY_SETTLED,
+  ErrorCode.ROUND_WRONG_STAGE,
+  ErrorCode.NOT_STAGED,
+  ErrorCode.TOO_EARLY,
+  ErrorCode.NOTHING_TO_DISTRIBUTE,
+  ErrorCode.STILL_OUTSTANDING,
 ] as const;
 export type RoundBlock = (typeof ROUND_BLOCKS)[number];
 
@@ -239,7 +239,7 @@ export class RoundEligibilityDto {
     nullable: true,
     enum: ROUND_BLOCKS,
     enumName: 'RoundBlock',
-    example: ErrorCode.TooEarly,
+    example: ErrorCode.TOO_EARLY,
     description: 'Why not, when not allowed: an error code',
   })
   reason: RoundBlock | null;

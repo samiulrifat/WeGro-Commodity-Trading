@@ -22,8 +22,8 @@ export interface AccessTokenClaims {
 /** Verified participant (or the super admin): may act in their role. */
 export function canAct(user: AuthUser): boolean {
   return (
-    user.role === Role.SuperAdmin ||
-    (user.status === ParticipantStatus.Verified &&
-      user.chainState === ChainState.Confirmed)
+    user.role === Role.SUPER_ADMIN ||
+    (user.status === ParticipantStatus.VERIFIED &&
+      user.chainState === ChainState.CONFIRMED)
   );
 }

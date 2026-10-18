@@ -104,7 +104,7 @@ describe('readable event arguments', () => {
   it('names roles, claim statuses, WeGro, codes and empty ids', () => {
     expect(
       readableArgs('AccessRegistry', {
-        role: CHAIN_ROLE[Role.Farmer],
+        role: CHAIN_ROLE[Role.FARMER],
         newStatus: '2',
       }),
     ).toEqual({ role: 'farmer', newStatus: 'verified' });
@@ -128,9 +128,9 @@ describe('auditors only read', () => {
   const guard = new RolesGuard(new Reflector());
   const auditor = {
     id: 'a',
-    role: Role.Auditor,
-    status: ParticipantStatus.Verified,
-    chainState: ChainState.Confirmed,
+    role: Role.AUDITOR,
+    status: ParticipantStatus.VERIFIED,
+    chainState: ChainState.CONFIRMED,
     keyIndex: 1,
     mustChangePassword: false,
   };
@@ -155,7 +155,7 @@ describe('auditors only read', () => {
   };
 
   it('refuses an auditor any write, even where the role is listed', () => {
-    const listed = route(Roles(Role.Admin, Role.Auditor));
+    const listed = route(Roles(Role.ADMIN, Role.AUDITOR));
     expect(guard.canActivate(context('GET', listed))).toBe(true);
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
       expect(() => guard.canActivate(context(method, listed))).toThrow(
@@ -165,7 +165,7 @@ describe('auditors only read', () => {
   });
 
   it('allows the writes marked as audit actions', () => {
-    const sweep = route(Roles(Role.Auditor), AuditAction());
+    const sweep = route(Roles(Role.AUDITOR), AuditAction());
     expect(guard.canActivate(context('POST', sweep))).toBe(true);
   });
 });

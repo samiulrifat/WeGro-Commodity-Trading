@@ -54,11 +54,11 @@ export class FieldRecordsController {
 
   @Post('photos')
   @Roles(
-    Role.FieldOfficer,
-    Role.Buyer,
-    Role.Warehouse,
-    Role.Insurer,
-    Role.Accounts,
+    Role.FIELD_OFFICER,
+    Role.BUYER,
+    Role.WAREHOUSE,
+    Role.INSURER,
+    Role.ACCOUNTS,
   )
   @UseInterceptors(
     FileInterceptor('file', {
@@ -84,7 +84,7 @@ export class FieldRecordsController {
     if (!file)
       throw new BadRequestException({
         message: 'Send the photo as the "file" field',
-        code: ErrorCode.PhotoFieldMissing,
+        code: ErrorCode.PHOTO_FIELD_MISSING,
       });
     const photo = await this.photos.store(file.buffer, actor.id);
     return {
@@ -96,7 +96,7 @@ export class FieldRecordsController {
   }
 
   @Post('field-records/sync')
-  @Roles(Role.FieldOfficer)
+  @Roles(Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: [SyncResultDto],
@@ -146,7 +146,7 @@ export class FieldRecordsController {
   }
 
   @Get('field-records/:id/verify')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR)
   @ApiOkResponse({ type: FieldRecordVerificationDto })
   verify(@Param('id', uuid) id: string): Promise<FieldRecordVerificationDto> {
     return this.records.verify(id);

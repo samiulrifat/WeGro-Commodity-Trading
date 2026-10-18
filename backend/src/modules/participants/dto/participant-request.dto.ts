@@ -100,9 +100,9 @@ export class ListParticipantsQueryDto extends PaginationQueryDto {
   @IsEnum(ParticipantStatus)
   status?: ParticipantStatus;
 
-  @ApiPropertyOptional({ enum: [ChainState.Submitted, ChainState.Confirmed] })
+  @ApiPropertyOptional({ enum: [ChainState.SUBMITTED, ChainState.CONFIRMED] })
   @IsOptional()
-  @IsIn([ChainState.Submitted, ChainState.Confirmed])
+  @IsIn([ChainState.SUBMITTED, ChainState.CONFIRMED])
   chainState?: ChainState;
 
   @ApiPropertyOptional({ enum: DISTRICT_CODES })

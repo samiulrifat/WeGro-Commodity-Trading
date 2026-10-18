@@ -53,14 +53,14 @@ class CodePipe implements PipeTransform<string, string> {
     if (!CODE_PATTERN.test(value))
       throw new NotFoundException({
         message: 'Not found',
-        code: ErrorCode.CatalogEntryNotFound,
+        code: ErrorCode.CATALOG_ENTRY_NOT_FOUND,
         details: { code: value },
       });
     return value;
   }
 }
 
-const EDITORS = [Role.SuperAdmin, Role.Admin, Role.Operations];
+const EDITORS = [Role.SUPER_ADMIN, Role.ADMIN, Role.OPERATIONS];
 
 @ApiTags('Catalog')
 @ApiBearerAuth()

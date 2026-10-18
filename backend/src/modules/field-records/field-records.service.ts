@@ -46,18 +46,18 @@ import { type Problem, problem } from '../../common/errors/problem';
 
 /** Stages in which the ledger accepts farm updates. */
 const OPEN_STAGES: readonly ProjectStage[] = [
-  ProjectStage.Funded,
-  ProjectStage.Active,
-  ProjectStage.ReadyForSale,
+  ProjectStage.FUNDED,
+  ProjectStage.ACTIVE,
+  ProjectStage.READY_FOR_SALE,
 ];
 
 /** Staff see exact locations; so do the farmer and their own officer. */
 const EXACT_LOCATION: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 
 /** A draft checked and turned into exactly what is stored and fingerprinted. */
@@ -111,7 +111,7 @@ export class FieldRecordsService {
           `${d.id}#dup`,
           rejected(
             d.id,
-            ErrorCode.DuplicateInBatch,
+            ErrorCode.DUPLICATE_IN_BATCH,
             'The same id appears twice in this batch',
           ),
         );
@@ -143,7 +143,7 @@ export class FieldRecordsService {
           d.id,
           rejected(
             d.id,
-            ErrorCode.CorrectionCycle,
+            ErrorCode.CORRECTION_CYCLE,
             'Corrections in this batch refer to each other in a circle',
           ),
         );
@@ -189,7 +189,7 @@ export class FieldRecordsService {
       ) {
         return rejected(
           r.id,
-          ErrorCode.EntryIdReused,
+          ErrorCode.ENTRY_ID_REUSED,
           'This id was already used for a different record',
         );
       }
@@ -240,7 +240,7 @@ export class FieldRecordsService {
       return {
         id: r.id,
         outcome: 'pending',
-        code: ErrorCode.NotConfirmed,
+        code: ErrorCode.NOT_CONFIRMED,
         message:
           'Not confirmed by the ledger yet; keep the draft and send it again later',
       };
@@ -269,7 +269,7 @@ export class FieldRecordsService {
       throw new UnprocessableEntityException({
         message:
           'Farm updates are recorded from funding until the produce is ready for sale',
-        code: ErrorCode.FarmUpdateWrongStage,
+        code: ErrorCode.FARM_UPDATE_WRONG_STAGE,
       });
     }
     const farmer = await this.users.findOne({
@@ -279,7 +279,7 @@ export class FieldRecordsService {
     if (farmer?.fieldOfficerId !== actor.id) {
       throw new UnprocessableEntityException({
         message: "Only the farmer's own field officer records farm updates",
-        code: ErrorCode.NotFarmersOfficer,
+        code: ErrorCode.NOT_FARMERS_OFFICER,
       });
     }
 
@@ -299,7 +299,7 @@ export class FieldRecordsService {
     if (hasLat !== hasLng) {
       problems.push(
         problem(
-          ErrorCode.LocationIncomplete,
+          ErrorCode.LOCATION_INCOMPLETE,
           'Give both latitude and longitude, or neither',
         ),
       );
@@ -310,7 +310,7 @@ export class FieldRecordsService {
     } else if (type.requiresLocation) {
       problems.push(
         problem(
-          ErrorCode.LocationRequired,
+          ErrorCode.LOCATION_REQUIRED,
           `A ${type.name.toLowerCase()} needs the location`,
           recordType,
         ),
@@ -323,7 +323,7 @@ export class FieldRecordsService {
       if (!photo || photo.uploadedById !== actor.id) {
         problems.push(
           problem(
-            ErrorCode.PhotoNotYours,
+            ErrorCode.PHOTO_NOT_YOURS,
             'photoId must be a photo you uploaded',
           ),
         );
@@ -332,7 +332,7 @@ export class FieldRecordsService {
     } else if (type.requiresPhoto) {
       problems.push(
         problem(
-          ErrorCode.PhotoRequired,
+          ErrorCode.PHOTO_REQUIRED,
           `A ${type.name.toLowerCase()} needs a photo`,
           recordType,
         ),
@@ -347,7 +347,7 @@ export class FieldRecordsService {
       if (!original || original.projectId !== d.projectId) {
         problems.push(
           problem(
-            ErrorCode.CorrectionOtherProject,
+            ErrorCode.CORRECTION_OTHER_PROJECT,
             'correctsEntryId must be a record of the same project',
           ),
         );
@@ -360,12 +360,15 @@ export class FieldRecordsService {
     );
     if (observedAt.getTime() <= 0) {
       problems.push(
-        problem(ErrorCode.ObservedAtInvalid, 'observedAt is not a valid time'),
+        problem(
+          ErrorCode.OBSERVED_AT_INVALID,
+          'observedAt is not a valid time',
+        ),
       );
     } else if (observedAt > chainNow) {
       problems.push(
         problem(
-          ErrorCode.ObservedAtFuture,
+          ErrorCode.OBSERVED_AT_FUTURE,
           "observedAt is in the future: check the phone's clock",
         ),
       );
@@ -374,7 +377,7 @@ export class FieldRecordsService {
     if (problems.length > 0) {
       throw new UnprocessableEntityException({
         message: 'The record is not valid',
-        code: ErrorCode.InvalidRecord,
+        code: ErrorCode.INVALID_RECORD,
         details: { problems },
       });
     }
@@ -432,7 +435,7 @@ export class FieldRecordsService {
     if (!record.photoId)
       throw new NotFoundException({
         message: 'This record has no photo',
-        code: ErrorCode.RecordHasNoPhoto,
+        code: ErrorCode.RECORD_HAS_NO_PHOTO,
       });
     return this.photos.find(record.photoId);
   }
@@ -446,7 +449,7 @@ export class FieldRecordsService {
     if (!record)
       throw new NotFoundException({
         message: 'Field record not found',
-        code: ErrorCode.FieldRecordNotFound,
+        code: ErrorCode.FIELD_RECORD_NOT_FOUND,
       });
     const dataHash = recordFingerprint(record);
     const photo = record.photoId
@@ -481,7 +484,7 @@ export class FieldRecordsService {
   // --- Helpers ---
 
   private seesDrafts(actor: AuthUser): boolean {
-    return EXACT_LOCATION.has(actor.role) || actor.role === Role.FieldOfficer;
+    return EXACT_LOCATION.has(actor.role) || actor.role === Role.FIELD_OFFICER;
   }
 
   private async projectFor(id: string): Promise<Project> {
@@ -489,7 +492,7 @@ export class FieldRecordsService {
     if (!project) {
       throw new UnprocessableEntityException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     }
     return project;
@@ -503,13 +506,13 @@ export class FieldRecordsService {
     if (!record)
       throw new NotFoundException({
         message: 'Field record not found',
-        code: ErrorCode.FieldRecordNotFound,
+        code: ErrorCode.FIELD_RECORD_NOT_FOUND,
       });
     await this.projects.visible(actor, record.projectId);
     if (record.status !== 'recorded' && !this.seesDrafts(actor)) {
       throw new NotFoundException({
         message: 'Field record not found',
-        code: ErrorCode.FieldRecordNotFound,
+        code: ErrorCode.FIELD_RECORD_NOT_FOUND,
       });
     }
     return record;
@@ -607,8 +610,8 @@ export class FieldRecordsService {
     project: Project,
   ): Promise<boolean> {
     if (EXACT_LOCATION.has(actor.role)) return true;
-    if (actor.role === Role.Farmer) return project.farmerId === actor.id;
-    if (actor.role === Role.FieldOfficer) {
+    if (actor.role === Role.FARMER) return project.farmerId === actor.id;
+    if (actor.role === Role.FIELD_OFFICER) {
       return this.users.exists({
         where: { id: project.farmerId, fieldOfficerId: actor.id },
       });

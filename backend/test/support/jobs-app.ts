@@ -16,18 +16,18 @@ export async function boot(env: Record<string, string>) {
   await waitForDemoAccounts(chain);
   const t: Record<string, string> = {};
   for (const r of [
-    Role.SuperAdmin,
-    Role.Admin,
-    Role.Accounts,
-    Role.Auditor,
-    Role.Investor,
+    Role.SUPER_ADMIN,
+    Role.ADMIN,
+    Role.ACCOUNTS,
+    Role.AUDITOR,
+    Role.INVESTOR,
   ]) {
     t[r] = await demoToken(http, r);
   }
   const farmer = await chain.app
     .get(DataSource)
     .getRepository(User)
-    .findOneByOrFail({ role: Role.Farmer, isDemo: true });
+    .findOneByOrFail({ role: Role.FARMER, isDemo: true });
   const as = (token: string) => ({
     get: (path: string) =>
       http.get(`/api${path}`).auth(token, { type: 'bearer' }),

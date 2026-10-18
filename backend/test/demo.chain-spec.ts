@@ -69,11 +69,11 @@ describe('Demo mode (node + database)', () => {
       ).resolves.toBe(true);
     }
     const farmer = await users.findOneByOrFail({
-      role: Role.Farmer,
+      role: Role.FARMER,
       isDemo: true,
     });
     const officer = await users.findOneByOrFail({
-      role: Role.FieldOfficer,
+      role: Role.FIELD_OFFICER,
       isDemo: true,
     });
     expect(farmer.fieldOfficerId).toBe(officer.id);

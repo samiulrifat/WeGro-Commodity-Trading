@@ -67,7 +67,7 @@ describe('TokenService', () => {
       .mockImplementation(() => undefined);
     return { service, ...store };
   };
-  const user = { id: 'u1', role: Role.Investor, tokenVersion: 3 } as User;
+  const user = { id: 'u1', role: Role.INVESTOR, tokenVersion: 3 } as User;
   const loadUser = () => Promise.resolve(user);
 
   it('signs a short-lived access token with role and token version', async () => {
@@ -78,7 +78,7 @@ describe('TokenService', () => {
       t.accessToken,
       { issuer: JWT_ISSUER, audience: JWT_AUDIENCE },
     );
-    expect(claims).toMatchObject({ sub: 'u1', role: Role.Investor, tv: 3 });
+    expect(claims).toMatchObject({ sub: 'u1', role: Role.INVESTOR, tv: 3 });
     // Only a hash of the refresh token is stored.
     expect(t.refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(rows).toHaveLength(1);

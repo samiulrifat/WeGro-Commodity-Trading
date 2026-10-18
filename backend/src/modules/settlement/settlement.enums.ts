@@ -1,11 +1,11 @@
 /** Costs Accounts enters; inputs come from voucher spending. On the ledger as upper-case codes. */
 export enum CostCategory {
-  Transport = 'transport',
-  Labour = 'labour',
-  Irrigation = 'irrigation',
-  Storage = 'storage',
-  Services = 'services',
-  Other = 'other',
+  TRANSPORT = 'transport',
+  LABOUR = 'labour',
+  IRRIGATION = 'irrigation',
+  STORAGE = 'storage',
+  SERVICES = 'services',
+  OTHER = 'other',
 }
 
 export const COST_CATEGORIES = Object.values(CostCategory);
@@ -14,26 +14,26 @@ export const CATEGORY_CODE = (c: CostCategory) => c.toUpperCase();
 
 export enum CostStatus {
   /** Sent, not yet on the ledger. */
-  Submitted = 'submitted',
-  Recorded = 'recorded',
-  Voided = 'voided',
+  SUBMITTED = 'submitted',
+  RECORDED = 'recorded',
+  VOIDED = 'voided',
 }
 
 /** Mirrors SettlementLedger.RoundStatus. */
 export enum RoundStatus {
-  Prepared = 'prepared',
-  Approved = 'approved',
-  Rejected = 'rejected',
-  Paid = 'paid',
+  PREPARED = 'prepared',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  PAID = 'paid',
 }
 
 export enum PayeeRole {
-  Farmer = 'farmer',
-  Investor = 'investor',
+  FARMER = 'farmer',
+  INVESTOR = 'investor',
 }
 
 /** Rounds still in progress: payees see only approved and paid ones. */
 export const DECIDED_ROUND: readonly RoundStatus[] = [
-  RoundStatus.Approved,
-  RoundStatus.Paid,
+  RoundStatus.APPROVED,
+  RoundStatus.PAID,
 ];

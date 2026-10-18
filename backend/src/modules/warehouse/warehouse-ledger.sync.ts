@@ -113,7 +113,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
           );
         }
         return this.patch(m, event, {
-          status: ReceiptStatus.Issued,
+          status: ReceiptStatus.ISSUED,
           ...owner(String(a.owner)),
           quantity: Number(a.quantity),
           expiresOn: bdLastDay(Number(a.expiresAt)),
@@ -124,14 +124,14 @@ export class WarehouseLedgerSync implements OnModuleInit {
 
       case 'HandoverOffered':
         return this.patch(m, event, {
-          status: ReceiptStatus.PendingHandover,
+          status: ReceiptStatus.PENDING_HANDOVER,
           pendingToWegro: true,
           handoverOfferedAt: event.blockTime ?? new Date(),
         });
 
       case 'HandoverCancelled':
         return this.patch(m, event, {
-          status: ReceiptStatus.Issued,
+          status: ReceiptStatus.ISSUED,
           pendingToWegro: false,
           handoverOfferedAt: null,
         });
@@ -148,8 +148,8 @@ export class WarehouseLedgerSync implements OnModuleInit {
           ...owner(String(a.to)),
           pendingToWegro: false,
           handoverOfferedAt: null,
-          ...(row.status === ReceiptStatus.PendingHandover && {
-            status: ReceiptStatus.Issued,
+          ...(row.status === ReceiptStatus.PENDING_HANDOVER && {
+            status: ReceiptStatus.ISSUED,
           }),
         });
       }
@@ -166,7 +166,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
 
       case 'ReceiptListed':
         return this.patch(m, event, {
-          status: a.listed ? ReceiptStatus.Listed : ReceiptStatus.Issued,
+          status: a.listed ? ReceiptStatus.LISTED : ReceiptStatus.ISSUED,
         });
 
       case 'ReceiptSplit': {
@@ -198,12 +198,19 @@ export class WarehouseLedgerSync implements OnModuleInit {
           ],
         );
         if (inserted.length === 1) {
+          // Once, with the buyer's receipt. The parent also records this
+          // event's position (only ever moving forward), so an older event
+          // replayed later, such as its listing, cannot undo the sale.
           await m.query(
             `UPDATE "warehouse_receipts"
                 SET "quantity" = "quantity" - $2,
-                    "status" = CASE WHEN "quantity" - $2 = 0 THEN 'sold_out' ELSE "status" END
+                    "status" = CASE WHEN "quantity" - $2 = 0 THEN 'sold_out' ELSE "status" END,
+                    "chain_event_block" = CASE WHEN ("chain_event_block", "chain_event_log") < ($3, $4)
+                                               THEN $3 ELSE "chain_event_block" END,
+                    "chain_event_log" = CASE WHEN ("chain_event_block", "chain_event_log") < ($3, $4)
+                                             THEN $4 ELSE "chain_event_log" END
               WHERE "id" = $1`,
-            [String(a.parentId), quantity],
+            [String(a.parentId), quantity, event.blockNumber, event.logIndex],
           );
         }
         return;
@@ -211,7 +218,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
 
       case 'ReceiptCollected':
         return this.patch(m, event, {
-          status: ReceiptStatus.Collected,
+          status: ReceiptStatus.COLLECTED,
           collectedAt: when,
         });
     }

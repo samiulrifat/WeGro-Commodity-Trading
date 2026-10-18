@@ -33,7 +33,7 @@ export class DealExpiryJob extends ExpiryJob<number> {
   protected async dueIds(chainNow: Date, limit: number): Promise<number[]> {
     const rows = await this.offers.find({
       where: {
-        status: OfferStatus.Approved,
+        status: OfferStatus.APPROVED,
         paymentDueAt: LessThanOrEqual(chainNow),
       },
       select: { id: true },

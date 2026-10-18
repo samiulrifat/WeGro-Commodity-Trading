@@ -22,7 +22,7 @@ import type { InputBatch } from './entities/input-batch.entity';
 const NOW = new Date('2026-10-14T06:00:00Z');
 
 describe('BatchesService', () => {
-  const supplier = actor(Role.Supplier);
+  const supplier = actor(Role.SUPPLIER);
   const dto = {
     inputTypeCode: 'UREA',
     lotNumber: 'LOT-1',
@@ -181,7 +181,7 @@ describe('BatchesService', () => {
       [
         'another supplier’s registration',
         batch.id,
-        ledger({ supplierId: uuidToBytes32(actor(Role.Supplier).id) }),
+        ledger({ supplierId: uuidToBytes32(actor(Role.SUPPLIER).id) }),
       ],
     ])(
       'says not genuine for %s, revealing nothing',

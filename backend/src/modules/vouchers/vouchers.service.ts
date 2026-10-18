@@ -60,11 +60,11 @@ import { type Problem, problem } from '../../common/errors/problem';
 
 /** Staff see every voucher; others see only their own part. */
 const VOUCHER_STAFF: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 
 const DAY_MS = 86_400_000;
@@ -104,15 +104,15 @@ export class VouchersService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     if (
-      project.stage !== ProjectStage.Funded &&
-      project.stage !== ProjectStage.Active
+      project.stage !== ProjectStage.FUNDED &&
+      project.stage !== ProjectStage.ACTIVE
     ) {
       throw new ConflictException({
         message: 'Vouchers are issued only for funded or active projects',
-        code: ErrorCode.VoucherProjectStage,
+        code: ErrorCode.VOUCHER_PROJECT_STAGE,
       });
     }
     this.catalog.inputTypes.requireActive(dto.inputTypeCode);
@@ -127,7 +127,7 @@ export class VouchersService {
     if (value > room) {
       throw new UnprocessableEntityException({
         message: 'The voucher is worth more than the funding left for inputs',
-        code: ErrorCode.ExceedsFundingTarget,
+        code: ErrorCode.EXCEEDS_FUNDING_TARGET,
         details: { value: poishaToTaka(value), room: poishaToTaka(room) },
       });
     }
@@ -142,7 +142,7 @@ export class VouchersService {
         quantity: dto.quantity,
         unitPrice,
         value,
-        status: VoucherStatus.Submitted,
+        status: VoucherStatus.SUBMITTED,
         proposedById: actor.id,
       });
       await m.insert(
@@ -174,7 +174,7 @@ export class VouchersService {
   }
 
   async approve(actor: AuthUser, id: string): Promise<VoucherDto> {
-    await this.requireStatus(id, [VoucherStatus.Proposed]);
+    await this.requireStatus(id, [VoucherStatus.PROPOSED]);
     await this.send(actor, (c) =>
       c.approveVoucher.populateTransaction(uuidToBytes32(id)),
     );
@@ -182,7 +182,7 @@ export class VouchersService {
   }
 
   async reject(actor: AuthUser, id: string): Promise<VoucherDto> {
-    await this.requireStatus(id, [VoucherStatus.Proposed]);
+    await this.requireStatus(id, [VoucherStatus.PROPOSED]);
     await this.send(actor, (c) =>
       c.rejectVoucher.populateTransaction(uuidToBytes32(id)),
     );
@@ -212,7 +212,7 @@ export class VouchersService {
       await this.load(id);
       throw new ConflictException({
         message: 'Limits apply only to proposed or active vouchers',
-        code: ErrorCode.VoucherLimitsNotApplicable,
+        code: ErrorCode.VOUCHER_LIMITS_NOT_APPLICABLE,
       });
     }
     return this.findOne(actor, id);
@@ -221,17 +221,17 @@ export class VouchersService {
   /** Removes a proposal that never reached the ledger (e.g. the node was down). */
   async discard(id: string): Promise<void> {
     const voucher = await this.load(id);
-    if (voucher.status !== VoucherStatus.Submitted) {
+    if (voucher.status !== VoucherStatus.SUBMITTED) {
       throw new ConflictException({
         message: 'Only unconfirmed proposals can be discarded',
-        code: ErrorCode.VoucherNotDiscardable,
+        code: ErrorCode.VOUCHER_NOT_DISCARDABLE,
       });
     }
     const onChain = await this.registry().getVoucher(uuidToBytes32(id));
     if (onChain.status !== 0n) {
       throw new ConflictException({
         message: 'The ledger has this voucher; it will appear shortly',
-        code: ErrorCode.VoucherOnLedger,
+        code: ErrorCode.VOUCHER_ON_LEDGER,
       });
     }
     await this.removeLocal(id);
@@ -242,7 +242,7 @@ export class VouchersService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     const key = uuidToBytes32(projectId);
     const r = this.registry();
@@ -308,7 +308,7 @@ export class VouchersService {
     if (!voucher)
       throw new NotFoundException({
         message: 'Voucher not found',
-        code: ErrorCode.VoucherNotFound,
+        code: ErrorCode.VOUCHER_NOT_FOUND,
       });
     return voucher;
   }
@@ -322,19 +322,19 @@ export class VouchersService {
     dto: RecordSaleDto,
   ): Promise<VoucherSaleDto> {
     const voucher = await this.visible(actor, voucherId);
-    if (voucher.status !== VoucherStatus.Active) {
+    if (voucher.status !== VoucherStatus.ACTIVE) {
       throw new ConflictException({
         message: 'This voucher is not active',
-        code: ErrorCode.VoucherNotActive,
+        code: ErrorCode.VOUCHER_NOT_ACTIVE,
       });
     }
     const project = await this.projects.findOneByOrFail({
       id: voucher.projectId,
     });
-    if (project.stage !== ProjectStage.Active) {
+    if (project.stage !== ProjectStage.ACTIVE) {
       throw new ConflictException({
         message: 'Sales are recorded only while the project is active',
-        code: ErrorCode.ProjectNotActive,
+        code: ErrorCode.PROJECT_NOT_ACTIVE,
       });
     }
     const available =
@@ -342,7 +342,7 @@ export class VouchersService {
     if (dto.quantity > available) {
       throw new ConflictException({
         message: `Only ${available} left on this voucher`,
-        code: ErrorCode.ExceedsVoucherQuantity,
+        code: ErrorCode.EXCEEDS_VOUCHER_QUANTITY,
         details: { available },
       });
     }
@@ -369,7 +369,7 @@ export class VouchersService {
     if (!(await this.isFarmersOfficer(actor, voucher.farmerId))) {
       throw new ForbiddenException({
         message: "Only the farmer's own field officer can confirm",
-        code: ErrorCode.NotFarmersOfficer,
+        code: ErrorCode.NOT_FARMERS_OFFICER,
       });
     }
     await this.send(actor, (c) => c.confirmSale.populateTransaction(saleId));
@@ -381,15 +381,15 @@ export class VouchersService {
     const sale = await this.pendingSale(saleId);
     const voucher = await this.vouchers.findOneByOrFail({ id: sale.voucherId });
     const allowed =
-      actor.role === Role.Admin ||
-      (actor.role === Role.Supplier && sale.supplierId === actor.id) ||
-      (actor.role === Role.Farmer && voucher.farmerId === actor.id) ||
-      (actor.role === Role.FieldOfficer &&
+      actor.role === Role.ADMIN ||
+      (actor.role === Role.SUPPLIER && sale.supplierId === actor.id) ||
+      (actor.role === Role.FARMER && voucher.farmerId === actor.id) ||
+      (actor.role === Role.FIELD_OFFICER &&
         (await this.isFarmersOfficer(actor, voucher.farmerId)));
     if (!allowed)
       throw new ForbiddenException({
         message: 'You cannot cancel this sale',
-        code: ErrorCode.SaleCancelNotAllowed,
+        code: ErrorCode.SALE_CANCEL_NOT_ALLOWED,
       });
     await this.send(actor, (c) => c.cancelSale.populateTransaction(saleId));
     return this.saleOne(saleId);
@@ -404,13 +404,13 @@ export class VouchersService {
       .innerJoin(Voucher, 'v', 'v.id = s.voucher_id')
       .where('s.status IS NOT NULL');
     switch (actor.role) {
-      case Role.Supplier:
+      case Role.SUPPLIER:
         qb.andWhere('s.supplier_id = :me', { me: actor.id });
         break;
-      case Role.Farmer:
+      case Role.FARMER:
         qb.andWhere('v.farmer_id = :me', { me: actor.id });
         break;
-      case Role.FieldOfficer:
+      case Role.FIELD_OFFICER:
         qb.innerJoin(User, 'f', 'f.id = v.farmer_id').andWhere(
           'f.field_officer_id = :me',
           {
@@ -440,9 +440,9 @@ export class VouchersService {
       found
         .filter(
           (u) =>
-            u.role === Role.Supplier &&
-            u.status === ParticipantStatus.Verified &&
-            u.chainState === ChainState.Confirmed,
+            u.role === Role.SUPPLIER &&
+            u.status === ParticipantStatus.VERIFIED &&
+            u.chainState === ChainState.CONFIRMED,
         )
         .map((u) => u.id),
     );
@@ -450,7 +450,7 @@ export class VouchersService {
     if (bad.length > 0) {
       throw new UnprocessableEntityException({
         message: 'Every supplier must be a verified supplier',
-        code: ErrorCode.SupplierNotVerified,
+        code: ErrorCode.SUPPLIER_NOT_VERIFIED,
         details: { supplierIds: bad },
       });
     }
@@ -475,15 +475,15 @@ export class VouchersService {
       if (!b || b.supplierId !== actor.id) {
         problems.push(
           problem(
-            ErrorCode.BatchNotYours,
+            ErrorCode.BATCH_NOT_YOURS,
             `${id}: not one of your batches`,
             batch,
           ),
         );
-      } else if (b.status !== BatchStatus.Registered) {
+      } else if (b.status !== BatchStatus.REGISTERED) {
         problems.push(
           problem(
-            ErrorCode.BatchNotRegistered,
+            ErrorCode.BATCH_NOT_REGISTERED,
             `${id}: not registered yet`,
             batch,
           ),
@@ -491,7 +491,7 @@ export class VouchersService {
       } else if (b.inputTypeCode !== voucher.inputTypeCode) {
         problems.push(
           problem(
-            ErrorCode.BatchWrongInput,
+            ErrorCode.BATCH_WRONG_INPUT,
             `${id}: a batch of ${b.inputTypeCode}, not ${voucher.inputTypeCode}`,
             {
               ...batch,
@@ -501,13 +501,15 @@ export class VouchersService {
           ),
         );
       } else if (isExpired(b.expiresOn, now)) {
-        problems.push(problem(ErrorCode.BatchExpired, `${id}: expired`, batch));
+        problems.push(
+          problem(ErrorCode.BATCH_EXPIRED, `${id}: expired`, batch),
+        );
       }
     }
     if (problems.length > 0) {
       throw new UnprocessableEntityException({
         message: 'Some batches cannot be used for this sale',
-        code: ErrorCode.InvalidBatches,
+        code: ErrorCode.INVALID_BATCHES,
         details: { problems },
       });
     }
@@ -520,7 +522,7 @@ export class VouchersService {
   private scope(actor: AuthUser, qb: SelectQueryBuilder<Voucher>): void {
     if (VOUCHER_STAFF.has(actor.role)) return;
     switch (actor.role) {
-      case Role.Supplier:
+      case Role.SUPPLIER:
         qb.andWhere(
           'EXISTS (SELECT 1 FROM voucher_suppliers vs WHERE vs.voucher_id = v.id AND vs.supplier_id = :me)',
           { me: actor.id },
@@ -528,10 +530,10 @@ export class VouchersService {
         // A supplier sees nothing until Accounts approved the proposal.
         qb.andWhere("v.status <> 'submitted'");
         return;
-      case Role.Farmer:
+      case Role.FARMER:
         qb.andWhere('v.farmer_id = :me', { me: actor.id });
         return;
-      case Role.FieldOfficer:
+      case Role.FIELD_OFFICER:
         qb.andWhere(
           'EXISTS (SELECT 1 FROM users f WHERE f.id = v.farmer_id AND f.field_officer_id = :me)',
           { me: actor.id },
@@ -546,7 +548,7 @@ export class VouchersService {
     actor: AuthUser,
     farmerId: string,
   ): Promise<boolean> {
-    if (actor.role !== Role.FieldOfficer) return false;
+    if (actor.role !== Role.FIELD_OFFICER) return false;
     return this.users.exists({
       where: { id: farmerId, fieldOfficerId: actor.id },
     });
@@ -560,7 +562,7 @@ export class VouchersService {
     if (!allowed.includes(voucher.status)) {
       throw new ConflictException({
         message: `This voucher is ${voucher.status}`,
-        code: ErrorCode.VoucherWrongStatus,
+        code: ErrorCode.VOUCHER_WRONG_STATUS,
         details: { status: voucher.status },
       });
     }
@@ -572,7 +574,7 @@ export class VouchersService {
     if (!voucher)
       throw new NotFoundException({
         message: 'Voucher not found',
-        code: ErrorCode.VoucherNotFound,
+        code: ErrorCode.VOUCHER_NOT_FOUND,
       });
     return voucher;
   }
@@ -582,12 +584,12 @@ export class VouchersService {
     if (!sale || sale.status === null)
       throw new NotFoundException({
         message: 'Sale not found',
-        code: ErrorCode.SaleNotFound,
+        code: ErrorCode.SALE_NOT_FOUND,
       });
-    if (sale.status !== SaleStatus.Pending) {
+    if (sale.status !== SaleStatus.PENDING) {
       throw new ConflictException({
         message: `This sale is ${sale.status}`,
-        code: ErrorCode.SaleWrongStatus,
+        code: ErrorCode.SALE_WRONG_STATUS,
         details: { status: sale.status },
       });
     }
@@ -642,7 +644,7 @@ export class VouchersService {
     }
     return rows.map((v) => {
       const available =
-        v.status === VoucherStatus.Active
+        v.status === VoucherStatus.ACTIVE
           ? v.quantity - v.spentQuantity - v.heldQuantity
           : 0;
       return {
@@ -720,7 +722,7 @@ export function inactiveSince(
   now: Date,
 ): Date | null {
   if (
-    v.status !== VoucherStatus.Active ||
+    v.status !== VoucherStatus.ACTIVE ||
     !v.inactivityLimitDays ||
     !v.lastActivityAt
   ) {

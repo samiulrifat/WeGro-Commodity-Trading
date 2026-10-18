@@ -42,20 +42,20 @@ describe('Projects (node + database)', () => {
     [admin, accounts, investor, auditor, farmerToken, buyer] =
       await Promise.all(
         [
-          Role.Admin,
-          Role.Accounts,
-          Role.Investor,
-          Role.Auditor,
-          Role.Farmer,
-          Role.Buyer,
+          Role.ADMIN,
+          Role.ACCOUNTS,
+          Role.INVESTOR,
+          Role.AUDITOR,
+          Role.FARMER,
+          Role.BUYER,
         ].map((r) => demoToken(http, r)),
       );
     const users = db.getRepository(User);
     farmerId = (
-      await users.findOneByOrFail({ role: Role.Farmer, isDemo: true })
+      await users.findOneByOrFail({ role: Role.FARMER, isDemo: true })
     ).id;
     investorId = (
-      await users.findOneByOrFail({ role: Role.Investor, isDemo: true })
+      await users.findOneByOrFail({ role: Role.INVESTOR, isDemo: true })
     ).id;
   });
 

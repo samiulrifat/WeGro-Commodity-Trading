@@ -24,7 +24,7 @@ import { SnakeNamingStrategy } from './snake-naming.strategy';
         // uuid defaults via gen_random_uuid(), built into PostgreSQL 13+: no extension to install.
         uuidExtension: 'pgcrypto' as const,
         logging:
-          config.get('NODE_ENV', { infer: true }) === NodeEnv.Development
+          config.get('NODE_ENV', { infer: true }) === NodeEnv.DEVELOPMENT
             ? ['error' as const, 'warn' as const, 'migration' as const]
             : ['error' as const],
       }),

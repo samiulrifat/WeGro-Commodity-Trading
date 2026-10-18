@@ -25,8 +25,17 @@ import { fail } from './app-context';
 import { loadEnv } from './local-only';
 import { readPassword } from './super-admin';
 
+/** `--seed` on its own means the showcase size; parseArgs needs it spelled out. */
+function withSeedSize(args: string[]): string[] {
+  const i = args.indexOf('--seed');
+  const next = args[i + 1];
+  if (i < 0 || (next !== undefined && !next.startsWith('--'))) return args;
+  return [...args.slice(0, i + 1), 'showcase', ...args.slice(i + 1)];
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
+    args: withSeedSize(process.argv.slice(2)),
     options: {
       yes: { type: 'boolean', default: false },
       name: { type: 'string' },

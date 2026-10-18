@@ -31,7 +31,7 @@ export class HealthController {
     if (result.database === 'down')
       throw new ServiceUnavailableException({
         message: 'Database unavailable',
-        code: ErrorCode.DatabaseUnavailable,
+        code: ErrorCode.DATABASE_UNAVAILABLE,
       });
     return result;
   }

@@ -64,11 +64,11 @@ import { ErrorCode } from '../../common/errors/error-code';
 /** Which unique index a duplicate hit, and what to tell the caller. */
 const DUPLICATES: Record<string, { code: ErrorCode; message: string }> = {
   uq_users_phone_index: {
-    code: ErrorCode.PhoneAlreadyRegistered,
+    code: ErrorCode.PHONE_ALREADY_REGISTERED,
     message: 'This phone number is already registered',
   },
   uq_personal_details_nid_index: {
-    code: ErrorCode.NidAlreadyRegistered,
+    code: ErrorCode.NID_ALREADY_REGISTERED,
     message: 'A person with this NID is already registered',
   },
 };
@@ -110,7 +110,7 @@ export class ParticipantsService {
     if (report.outcome === 'failed' || !report.details) {
       throw new UnprocessableEntityException({
         message: 'The ID check failed',
-        code: ErrorCode.IdCheckFailed,
+        code: ErrorCode.ID_CHECK_FAILED,
         details: { checks: report.checks.filter((c) => c.result === 'fail') },
       });
     }
@@ -139,14 +139,14 @@ export class ParticipantsService {
         await m.insert(User, {
           id,
           role: dto.role,
-          status: ParticipantStatus.Pending,
-          chainState: ChainState.Submitted,
+          status: ParticipantStatus.PENDING,
+          chainState: ChainState.SUBMITTED,
           phoneIndex,
           passwordHash,
           mustChangePassword: true,
           keyIndex,
           account,
-          registeredById: actor.role === Role.SuperAdmin ? null : actor.id,
+          registeredById: actor.role === Role.SUPER_ADMIN ? null : actor.id,
         });
         await m.insert(PersonalDetails, {
           ...this.codec.seal(id, d),
@@ -213,7 +213,7 @@ export class ParticipantsService {
         {
           message:
             'Saved, but the ledger has not confirmed the registration yet. It will be confirmed automatically, or use sync.',
-          code: ErrorCode.RegistrationUnconfirmed,
+          code: ErrorCode.REGISTRATION_UNCONFIRMED,
           details: { participantId: id },
         },
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -232,10 +232,10 @@ export class ParticipantsService {
     const { user, details } = await this.loadParticipant(id);
     assertCanManage(actor, user.role);
     assertConfirmed(user);
-    if (user.status === ParticipantStatus.Verified) {
+    if (user.status === ParticipantStatus.VERIFIED) {
       throw new ConflictException({
         message: 'Already verified',
-        code: ErrorCode.AlreadyVerified,
+        code: ErrorCode.ALREADY_VERIFIED,
       });
     }
     const flagged =
@@ -244,7 +244,7 @@ export class ParticipantsService {
       throw new UnprocessableEntityException({
         message:
           'The ID check flagged this person; review the flags and confirm with acknowledgeFlags',
-        code: ErrorCode.IdCheckFlagsNotAcknowledged,
+        code: ErrorCode.ID_CHECK_FLAGS_NOT_ACKNOWLEDGED,
         details: { checks: flagged },
       });
     }
@@ -254,7 +254,7 @@ export class ParticipantsService {
     if (!integrity.matches) {
       throw new ConflictException({
         message: 'Stored details do not match the ledger; cannot verify',
-        code: ErrorCode.DetailsMismatch,
+        code: ErrorCode.DETAILS_MISMATCH,
         details: { mismatches: integrity.mismatches },
       });
     }
@@ -277,10 +277,10 @@ export class ParticipantsService {
     const { user } = await this.loadParticipant(id);
     assertCanManage(actor, user.role);
     assertConfirmed(user);
-    if (user.status === ParticipantStatus.Rejected) {
+    if (user.status === ParticipantStatus.REJECTED) {
       throw new ConflictException({
         message: 'Already rejected',
-        code: ErrorCode.AlreadyRejected,
+        code: ErrorCode.ALREADY_REJECTED,
       });
     }
     const result = await this.tx.send(actor.keyIndex, 'AccessRegistry', (c) =>
@@ -305,28 +305,28 @@ export class ParticipantsService {
       this.loadParticipant(farmerId),
       this.users.findOne({ where: { id: officerId } }),
     ]);
-    if (farmer.role !== Role.Farmer) {
+    if (farmer.role !== Role.FARMER) {
       throw new BadRequestException({
         message: 'Only farmers have a field officer',
-        code: ErrorCode.NotAFarmer,
+        code: ErrorCode.NOT_A_FARMER,
       });
     }
     assertConfirmed(farmer);
     if (
       !officer ||
-      officer.role !== Role.FieldOfficer ||
-      officer.status !== ParticipantStatus.Verified ||
-      officer.chainState !== ChainState.Confirmed
+      officer.role !== Role.FIELD_OFFICER ||
+      officer.status !== ParticipantStatus.VERIFIED ||
+      officer.chainState !== ChainState.CONFIRMED
     ) {
       throw new BadRequestException({
         message: 'officerId must be a verified field officer',
-        code: ErrorCode.FieldOfficerInvalid,
+        code: ErrorCode.FIELD_OFFICER_INVALID,
       });
     }
     if (farmer.fieldOfficerId === officerId) {
       throw new ConflictException({
         message: 'Already assigned to this field officer',
-        code: ErrorCode.AlreadyAssigned,
+        code: ErrorCode.ALREADY_ASSIGNED,
       });
     }
     await this.applyReceipt(
@@ -353,7 +353,7 @@ export class ParticipantsService {
     if (user.pendingKeyIndex !== null) {
       throw new ConflictException({
         message: 'A key replacement is already in progress',
-        code: ErrorCode.KeyReplacementPending,
+        code: ErrorCode.KEY_REPLACEMENT_PENDING,
       });
     }
     const newIndex = await this.keys.allocateIndex();
@@ -420,9 +420,9 @@ export class ParticipantsService {
       if (!details.detailsHash)
         throw new ConflictException({
           message: 'No fingerprint stored',
-          code: ErrorCode.NoFingerprint,
+          code: ErrorCode.NO_FINGERPRINT,
         });
-      if (user.chainState === ChainState.Confirmed) {
+      if (user.chainState === ChainState.CONFIRMED) {
         this.logger.warn(
           `Participant ${id} is missing from the ledger; registering again`,
         );
@@ -444,13 +444,13 @@ export class ParticipantsService {
     ) {
       throw new ConflictException({
         message: 'The ledger record does not match this person',
-        code: ErrorCode.LedgerMismatch,
+        code: ErrorCode.LEDGER_MISMATCH,
       });
     }
     await this.users.update(
       { id },
       {
-        chainState: ChainState.Confirmed,
+        chainState: ChainState.CONFIRMED,
         status: ledger.status,
         account: ledger.account!,
       },
@@ -472,9 +472,9 @@ export class ParticipantsService {
     const qb = this.users
       .createQueryBuilder('u')
       .innerJoinAndSelect('u.details', 'd')
-      .where('u.role <> :operator', { operator: Role.SuperAdmin });
+      .where('u.role <> :operator', { operator: Role.SUPER_ADMIN });
 
-    if (actor.role === Role.FieldOfficer) {
+    if (actor.role === Role.FIELD_OFFICER) {
       qb.andWhere('(u.field_officer_id = :me OR u.registered_by_id = :me)', {
         me: actor.id,
       });
@@ -520,17 +520,17 @@ export class ParticipantsService {
   async findOne(actor: AuthUser, id: string): Promise<ParticipantDetailDto> {
     const { user, details } = await this.loadParticipant(id);
     if (
-      actor.role === Role.FieldOfficer &&
+      actor.role === Role.FIELD_OFFICER &&
       user.fieldOfficerId !== actor.id &&
       user.registeredById !== actor.id
     ) {
       throw new NotFoundException({
         message: 'Participant not found',
-        code: ErrorCode.ParticipantNotFound,
+        code: ErrorCode.PARTICIPANT_NOT_FOUND,
       });
     }
     const visibility: Visibility =
-      actor.role === Role.Auditor ? 'masked' : 'full';
+      actor.role === Role.AUDITOR ? 'masked' : 'full';
     const plain = this.codec.open(details);
     return Object.assign(this.summary(user, details, plain), {
       phone: visibility === 'full' ? plain.phone : maskPhone(plain.phone),
@@ -577,10 +577,10 @@ export class ParticipantsService {
       where: { id },
       relations: { details: true },
     });
-    if (!user || user.role === Role.SuperAdmin || !user.details) {
+    if (!user || user.role === Role.SUPER_ADMIN || !user.details) {
       throw new NotFoundException({
         message: 'Participant not found',
-        code: ErrorCode.ParticipantNotFound,
+        code: ErrorCode.PARTICIPANT_NOT_FOUND,
       });
     }
     return { user, details: user.details };
@@ -644,41 +644,41 @@ export class ParticipantsService {
 
 function assertCanRegister(actor: AuthUser, role: ParticipantRole): void {
   if (isStaffRole(role)) {
-    if (actor.role !== Role.SuperAdmin) {
+    if (actor.role !== Role.SUPER_ADMIN) {
       throw new ForbiddenException({
         message: 'Only the super admin registers staff',
-        code: ErrorCode.StaffRegisteredBySuperAdmin,
+        code: ErrorCode.STAFF_REGISTERED_BY_SUPER_ADMIN,
       });
     }
-  } else if (actor.role !== Role.Admin && actor.role !== Role.FieldOfficer) {
+  } else if (actor.role !== Role.ADMIN && actor.role !== Role.FIELD_OFFICER) {
     throw new ForbiddenException({
       message: 'Only admins and field officers register non-staff participants',
-      code: ErrorCode.RegistrationNotAllowed,
+      code: ErrorCode.REGISTRATION_NOT_ALLOWED,
     });
   }
 }
 
 function assertCanManage(actor: AuthUser, role: Role): void {
   if (isStaffRole(role)) {
-    if (actor.role !== Role.SuperAdmin) {
+    if (actor.role !== Role.SUPER_ADMIN) {
       throw new ForbiddenException({
         message: 'Only the super admin manages staff',
-        code: ErrorCode.StaffManagedBySuperAdmin,
+        code: ErrorCode.STAFF_MANAGED_BY_SUPER_ADMIN,
       });
     }
-  } else if (actor.role !== Role.Admin) {
+  } else if (actor.role !== Role.ADMIN) {
     throw new ForbiddenException({
       message: 'Only admins manage participants',
-      code: ErrorCode.ParticipantsManagedByAdmins,
+      code: ErrorCode.PARTICIPANTS_MANAGED_BY_ADMINS,
     });
   }
 }
 
 function assertConfirmed(user: User): void {
-  if (user.chainState !== ChainState.Confirmed) {
+  if (user.chainState !== ChainState.CONFIRMED) {
     throw new ConflictException({
       message: 'The registration is not confirmed on the ledger yet',
-      code: ErrorCode.ParticipantUnconfirmed,
+      code: ErrorCode.PARTICIPANT_UNCONFIRMED,
     });
   }
 }

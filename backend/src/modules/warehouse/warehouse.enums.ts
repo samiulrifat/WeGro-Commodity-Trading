@@ -2,18 +2,18 @@ import { id } from 'ethers';
 
 /** Mirrors WarehouseReceipt.Status; `submitted` = sent, not yet on the ledger. */
 export enum ReceiptStatus {
-  Submitted = 'submitted',
-  Issued = 'issued',
-  PendingHandover = 'pending_handover',
-  Listed = 'listed',
-  Sold = 'sold',
-  Collected = 'collected',
-  SoldOut = 'sold_out',
+  SUBMITTED = 'submitted',
+  ISSUED = 'issued',
+  PENDING_HANDOVER = 'pending_handover',
+  LISTED = 'listed',
+  SOLD = 'sold',
+  COLLECTED = 'collected',
+  SOLD_OUT = 'sold_out',
 }
 
 export enum StorageType {
-  Warehouse = 'warehouse',
-  ColdStorage = 'cold_storage',
+  WAREHOUSE = 'warehouse',
+  COLD_STORAGE = 'cold_storage',
 }
 
 /** WarehouseReceipt.WEGRO: the owner id WeGro holds receipts under after a buy-back. */

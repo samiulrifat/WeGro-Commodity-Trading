@@ -5,52 +5,52 @@ import { id } from 'ethers';
  * contracts' DEFAULT_ADMIN_ROLE); the other twelve are AccessRegistry roles.
  */
 export enum Role {
-  SuperAdmin = 'super_admin',
-  Investor = 'investor',
-  Farmer = 'farmer',
-  FieldOfficer = 'field_officer',
-  Admin = 'admin',
-  Accounts = 'accounts',
-  Operations = 'operations',
-  Warehouse = 'warehouse',
-  Bank = 'bank',
-  Supplier = 'supplier',
-  Buyer = 'buyer',
-  Insurer = 'insurer',
-  Auditor = 'auditor',
+  SUPER_ADMIN = 'super_admin',
+  INVESTOR = 'investor',
+  FARMER = 'farmer',
+  FIELD_OFFICER = 'field_officer',
+  ADMIN = 'admin',
+  ACCOUNTS = 'accounts',
+  OPERATIONS = 'operations',
+  WAREHOUSE = 'warehouse',
+  BANK = 'bank',
+  SUPPLIER = 'supplier',
+  BUYER = 'buyer',
+  INSURER = 'insurer',
+  AUDITOR = 'auditor',
 }
 
-export type ParticipantRole = Exclude<Role, Role.SuperAdmin>;
+export type ParticipantRole = Exclude<Role, Role.SUPER_ADMIN>;
 
 export const PARTICIPANT_ROLES = Object.values(Role).filter(
-  (r): r is ParticipantRole => r !== Role.SuperAdmin,
+  (r): r is ParticipantRole => r !== Role.SUPER_ADMIN,
 );
 
 /** Staff roles: only the super admin registers, verifies or rejects them (as on-chain). */
 export const STAFF_ROLES: ReadonlySet<Role> = new Set([
-  Role.Admin,
-  Role.Accounts,
-  Role.FieldOfficer,
-  Role.Auditor,
-  Role.Operations,
+  Role.ADMIN,
+  Role.ACCOUNTS,
+  Role.FIELD_OFFICER,
+  Role.AUDITOR,
+  Role.OPERATIONS,
 ]);
 
 export const isStaffRole = (role: Role) => STAFF_ROLES.has(role);
 
 /** On-chain role id: keccak256 of the Solidity constant's name, as in Roles.sol. */
 export const CHAIN_ROLE: Readonly<Record<ParticipantRole, string>> = {
-  [Role.Investor]: id('INVESTOR_ROLE'),
-  [Role.Farmer]: id('FARMER_ROLE'),
-  [Role.FieldOfficer]: id('FIELD_OFFICER_ROLE'),
-  [Role.Admin]: id('ADMIN_ROLE'),
-  [Role.Accounts]: id('ACCOUNTS_ROLE'),
-  [Role.Operations]: id('OPERATIONS_ROLE'),
-  [Role.Warehouse]: id('WAREHOUSE_ROLE'),
-  [Role.Bank]: id('BANK_ROLE'),
-  [Role.Supplier]: id('SUPPLIER_ROLE'),
-  [Role.Buyer]: id('BUYER_ROLE'),
-  [Role.Insurer]: id('INSURER_ROLE'),
-  [Role.Auditor]: id('AUDITOR_ROLE'),
+  [Role.INVESTOR]: id('INVESTOR_ROLE'),
+  [Role.FARMER]: id('FARMER_ROLE'),
+  [Role.FIELD_OFFICER]: id('FIELD_OFFICER_ROLE'),
+  [Role.ADMIN]: id('ADMIN_ROLE'),
+  [Role.ACCOUNTS]: id('ACCOUNTS_ROLE'),
+  [Role.OPERATIONS]: id('OPERATIONS_ROLE'),
+  [Role.WAREHOUSE]: id('WAREHOUSE_ROLE'),
+  [Role.BANK]: id('BANK_ROLE'),
+  [Role.SUPPLIER]: id('SUPPLIER_ROLE'),
+  [Role.BUYER]: id('BUYER_ROLE'),
+  [Role.INSURER]: id('INSURER_ROLE'),
+  [Role.AUDITOR]: id('AUDITOR_ROLE'),
 };
 
 /** On-chain role id -> role, for decoding events in O(1). */
@@ -60,13 +60,13 @@ export const ROLE_BY_CHAIN_ID: ReadonlyMap<string, ParticipantRole> = new Map(
 
 /** Mirrors AccessRegistry.Status (None is never stored: no row means none). */
 export enum ParticipantStatus {
-  Pending = 'pending',
-  Verified = 'verified',
-  Rejected = 'rejected',
+  PENDING = 'pending',
+  VERIFIED = 'verified',
+  REJECTED = 'rejected',
 }
 
 export const STATUS_BY_CHAIN: Readonly<Record<number, ParticipantStatus>> = {
-  1: ParticipantStatus.Pending,
-  2: ParticipantStatus.Verified,
-  3: ParticipantStatus.Rejected,
+  1: ParticipantStatus.PENDING,
+  2: ParticipantStatus.VERIFIED,
+  3: ParticipantStatus.REJECTED,
 };

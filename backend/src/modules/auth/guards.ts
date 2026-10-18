@@ -41,7 +41,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     ) {
       throw new ForbiddenException({
         message: 'Change your temporary password first',
-        code: ErrorCode.PasswordChangeRequired,
+        code: ErrorCode.PASSWORD_CHANGE_REQUIRED,
       });
     }
     return true;
@@ -54,7 +54,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         ? error
         : new UnauthorizedException({
             message: 'Sign in required',
-            code: ErrorCode.SignInRequired,
+            code: ErrorCode.SIGN_IN_REQUIRED,
           });
     }
     return user;
@@ -91,18 +91,18 @@ export class RolesGuard {
     if (!user || !roles.includes(user.role)) {
       throw new ForbiddenException({
         message: 'Your role cannot do this',
-        code: ErrorCode.RoleNotAllowed,
+        code: ErrorCode.ROLE_NOT_ALLOWED,
       });
     }
     if (!canAct(user)) {
       throw new ForbiddenException({
         message: 'Your account is not verified',
-        code: ErrorCode.AccountNotVerified,
+        code: ErrorCode.ACCOUNT_NOT_VERIFIED,
       });
     }
     const request = context.switchToHttp().getRequest<Request>();
     if (
-      user.role === Role.Auditor &&
+      user.role === Role.AUDITOR &&
       !READS.has(request.method) &&
       this.reflector.getAllAndOverride<boolean>(AUDIT_ACTION, [
         context.getHandler(),
@@ -111,7 +111,7 @@ export class RolesGuard {
     ) {
       throw new ForbiddenException({
         message: 'Auditors have read-only access',
-        code: ErrorCode.AuditorReadOnly,
+        code: ErrorCode.AUDITOR_READ_ONLY,
       });
     }
     return true;

@@ -35,7 +35,7 @@ export class ReservationExpiryJob extends ExpiryJob<number> {
   protected async dueIds(chainNow: Date, limit: number): Promise<number[]> {
     const rows = await this.reservations.find({
       where: {
-        status: ReservationStatus.Pending,
+        status: ReservationStatus.PENDING,
         expiresAt: LessThanOrEqual(chainNow),
       },
       select: { id: true },

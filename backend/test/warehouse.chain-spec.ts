@@ -94,13 +94,13 @@ describe('Warehouse (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.Admin,
-      Role.Accounts,
-      Role.Investor,
-      Role.Warehouse,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Buyer,
+      Role.ADMIN,
+      Role.ACCOUNTS,
+      Role.INVESTOR,
+      Role.WAREHOUSE,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.BUYER,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db
@@ -364,26 +364,26 @@ describe('Warehouse (node + database)', () => {
         return result;
       };
       const listed = await apply(
-        await tx.send(as_(Role.Admin), 'TradeLedger', (c) =>
+        await tx.send(as_(Role.ADMIN), 'TradeLedger', (c) =>
           c.listReceipt.populateTransaction(receiptA, 3000n),
         ),
       );
       const listingId = listed.events.find((e) => e.name === 'ListingCreated')!
         .args.listingId as bigint;
       const offer = await apply(
-        await tx.send(as_(Role.Buyer), 'TradeLedger', (c) =>
+        await tx.send(as_(Role.BUYER), 'TradeLedger', (c) =>
           c.makeOffer.populateTransaction(listingId, 2000n, 3100n),
         ),
       );
       const offerId = offer.events.find((e) => e.name === 'OfferMade')!.args
         .offerId as bigint;
       await apply(
-        await tx.send(as_(Role.Admin), 'TradeLedger', (c) =>
+        await tx.send(as_(Role.ADMIN), 'TradeLedger', (c) =>
           c.approveOffer.populateTransaction(offerId),
         ),
       );
       const paid = await apply(
-        await tx.send(as_(Role.Accounts), 'TradeLedger', (c) =>
+        await tx.send(as_(Role.ACCOUNTS), 'TradeLedger', (c) =>
           c.confirmBuyerPayment.populateTransaction(
             offerId,
             hashPaymentRef(`SALE-${RUN}`, 'p'.repeat(32)),
@@ -421,6 +421,45 @@ describe('Warehouse (node + database)', () => {
         quantity: 2000,
         status: 'sold',
       });
+    });
+
+    it('stays sold out when the ledger is replayed over it', async () => {
+      // The rest sells too: a split empties the receipt after it was listed.
+      const tx = chain.app.get(TransactionService);
+      const applier = chain.app.get(ReceiptApplier);
+      const [{ id: listingId }] = (await db.query(
+        'SELECT id FROM listings WHERE receipt_id = $1',
+        [receiptA],
+      )) as Array<{ id: string }>;
+      const offer = await tx.send(
+        user[Role.BUYER].keyIndex,
+        'TradeLedger',
+        (c) => c.makeOffer.populateTransaction(BigInt(listingId), 3000n, 3100n),
+      );
+      await applier.apply(offer);
+      const offerId = offer.events.find((e) => e.name === 'OfferMade')!.args
+        .offerId as bigint;
+      await applier.apply(
+        await tx.send(user[Role.ADMIN].keyIndex, 'TradeLedger', (c) =>
+          c.approveOffer.populateTransaction(offerId),
+        ),
+      );
+      await applier.apply(
+        await tx.send(user[Role.ACCOUNTS].keyIndex, 'TradeLedger', (c) =>
+          c.confirmBuyerPayment.populateTransaction(
+            offerId,
+            hashPaymentRef(`SALE-REST-${RUN}`, 'p'.repeat(32)),
+          ),
+        ),
+      );
+      const parent = async () =>
+        (await as(t.admin).get(`/warehouse-receipts/${receiptA}`).expect(200))
+          .body.data as { status: string; quantity: number };
+      expect(await parent()).toMatchObject({ status: 'sold_out', quantity: 0 });
+
+      // The indexer then meets the older listing event: it must not undo the sale.
+      await chain.app.get(EventIndexerService).catchUp();
+      expect(await parent()).toMatchObject({ status: 'sold_out', quantity: 0 });
     });
 
     it('refuses a handover once the receipt has expired by the chain clock', async () => {

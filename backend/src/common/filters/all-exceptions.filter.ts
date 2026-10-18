@@ -88,21 +88,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
 }
 
 const FALLBACK: Partial<Record<number, ErrorCode>> = {
-  400: ErrorCode.InvalidRequest,
-  401: ErrorCode.SignInRequired,
-  403: ErrorCode.Forbidden,
-  404: ErrorCode.NotFound,
-  409: ErrorCode.Conflict,
-  413: ErrorCode.RequestTooLarge,
-  415: ErrorCode.UnsupportedMediaType,
-  422: ErrorCode.InvalidRequest,
-  429: ErrorCode.TooManyRequests,
-  503: ErrorCode.ServiceUnavailable,
+  400: ErrorCode.INVALID_REQUEST,
+  401: ErrorCode.SIGN_IN_REQUIRED,
+  403: ErrorCode.FORBIDDEN,
+  404: ErrorCode.NOT_FOUND,
+  409: ErrorCode.CONFLICT,
+  413: ErrorCode.REQUEST_TOO_LARGE,
+  415: ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+  422: ErrorCode.INVALID_REQUEST,
+  429: ErrorCode.TOO_MANY_REQUESTS,
+  503: ErrorCode.SERVICE_UNAVAILABLE,
 };
 
 function fallbackCode(status: number): ErrorCode {
   return (
     FALLBACK[status] ??
-    (status >= 500 ? ErrorCode.ServerError : ErrorCode.InvalidRequest)
+    (status >= 500 ? ErrorCode.SERVER_ERROR : ErrorCode.INVALID_REQUEST)
   );
 }

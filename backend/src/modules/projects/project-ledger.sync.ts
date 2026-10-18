@@ -62,8 +62,8 @@ export class ProjectLedgerSync implements OnModuleInit {
         .createQueryBuilder()
         .update(Project)
         .set({
-          chainState: ProjectChainState.Submitted,
-          stage: ProjectStage.Draft,
+          chainState: ProjectChainState.SUBMITTED,
+          stage: ProjectStage.DRAFT,
           issuedSlots: 0,
           reservedSlots: 0,
           refundTotal: null,
@@ -72,7 +72,7 @@ export class ProjectLedgerSync implements OnModuleInit {
           chainEventBlock: -1,
           chainEventLog: -1,
         })
-        .where('chain_state <> :local', { local: ProjectChainState.Local })
+        .where('chain_state <> :local', { local: ProjectChainState.LOCAL })
         .execute();
       await m
         .createQueryBuilder()
@@ -110,7 +110,7 @@ export class ProjectLedgerSync implements OnModuleInit {
         await m.update(
           Project,
           { id },
-          { chainState: ProjectChainState.Confirmed },
+          { chainState: ProjectChainState.CONFIRMED },
         );
         return;
       }
@@ -127,15 +127,15 @@ export class ProjectLedgerSync implements OnModuleInit {
             ...patch,
             chainEventBlock: event.blockNumber,
             chainEventLog: event.logIndex,
-            ...(stage === ProjectStage.OpenForFunding && {
+            ...(stage === ProjectStage.OPEN_FOR_FUNDING && {
               publishedAt: () => 'COALESCE("published_at", :at)',
             }),
-            ...(stage === ProjectStage.Active && {
+            ...(stage === ProjectStage.ACTIVE && {
               activatedAt: () => 'COALESCE("activated_at", :at)',
             }),
             // The first finishing stage wins: paid out, then perhaps closed.
-            ...((stage === ProjectStage.PaidOut ||
-              stage === ProjectStage.Closed) && {
+            ...((stage === ProjectStage.PAID_OUT ||
+              stage === ProjectStage.CLOSED) && {
               finishedAt: () => 'COALESCE("finished_at", :at)',
             }),
           })
@@ -179,7 +179,7 @@ export class ProjectLedgerSync implements OnModuleInit {
         const slots = await this.close(
           m,
           id,
-          ReservationStatus.Confirmed,
+          ReservationStatus.CONFIRMED,
           when,
           {
             paymentRefHash: String(a.paymentRefHash),
@@ -203,8 +203,8 @@ export class ProjectLedgerSync implements OnModuleInit {
       case 'ReservationCancelled': {
         const status =
           event.eventName === 'ReservationExpired'
-            ? ReservationStatus.Expired
-            : ReservationStatus.Cancelled;
+            ? ReservationStatus.EXPIRED
+            : ReservationStatus.CANCELLED;
         const slots = await this.close(
           m,
           Number(a.reservationId),
@@ -294,7 +294,7 @@ export class ProjectLedgerSync implements OnModuleInit {
       .set({ status, closedAt: when, ...extra })
       .where('id = :id AND status = :pending', {
         id,
-        pending: ReservationStatus.Pending,
+        pending: ReservationStatus.PENDING,
       })
       .returning(['slots'])
       .execute();

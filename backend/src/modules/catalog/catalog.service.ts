@@ -156,7 +156,7 @@ export class CatalogService implements OnModuleInit {
       if (users.length > 0) {
         throw new ConflictException({
           message: `Unit ${code} is used by active entries: ${users.join(', ')}`,
-          code: ErrorCode.UnitInUse,
+          code: ErrorCode.UNIT_IN_USE,
           details: { unit: code, entries: users.join(', ') },
         });
       }
@@ -306,7 +306,7 @@ export class CatalogService implements OnModuleInit {
     if (list.has(code)) {
       throw new ConflictException({
         message: `The ${list.label} code ${code} already exists`,
-        code: ErrorCode.CatalogCodeExists,
+        code: ErrorCode.CATALOG_CODE_EXISTS,
         details: { code },
       });
     }
@@ -430,7 +430,7 @@ export function checkMeasurements(
     if (seen.has(m.key)) {
       throw new UnprocessableEntityException({
         message: `Measurement key ${m.key} is used twice`,
-        code: ErrorCode.MeasurementKeyRepeated,
+        code: ErrorCode.MEASUREMENT_KEY_REPEATED,
         details: { key: m.key },
       });
     }
@@ -440,7 +440,7 @@ export function checkMeasurements(
     if (min !== null && max !== null && min > max) {
       throw new UnprocessableEntityException({
         message: `Measurement ${m.key}: min is above max`,
-        code: ErrorCode.MeasurementRangeInvalid,
+        code: ErrorCode.MEASUREMENT_RANGE_INVALID,
         details: { key: m.key },
       });
     }
@@ -448,7 +448,7 @@ export function checkMeasurements(
       if (bound !== null && decimalPlaces(bound) > m.decimals) {
         throw new UnprocessableEntityException({
           message: `Measurement ${m.key}: bound ${bound} has more than ${m.decimals} decimal places`,
-          code: ErrorCode.MeasurementBoundDecimals,
+          code: ErrorCode.MEASUREMENT_BOUND_DECIMALS,
           details: { key: m.key, bound, decimals: m.decimals },
         });
       }
@@ -481,18 +481,18 @@ function mapUniqueViolation(error: unknown): unknown {
         driver.constraint && NAME_INDEXES.has(driver.constraint)
           ? {
               message: 'An entry with this name already exists',
-              code: ErrorCode.CatalogNameExists,
+              code: ErrorCode.CATALOG_NAME_EXISTS,
             }
           : {
               message: 'An entry with this code already exists',
-              code: ErrorCode.CatalogCodeExists,
+              code: ErrorCode.CATALOG_CODE_EXISTS,
             },
       );
     }
     if (driver.code === '23503') {
       return new UnprocessableEntityException({
         message: 'A referenced code does not exist',
-        code: ErrorCode.CatalogReferenceUnknown,
+        code: ErrorCode.CATALOG_REFERENCE_UNKNOWN,
       });
     }
   }

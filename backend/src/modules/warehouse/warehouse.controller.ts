@@ -51,7 +51,7 @@ class ReceiptIdPipe implements PipeTransform<string, string> {
     if (!RECEIPT_ID.test(id))
       throw new NotFoundException({
         message: 'Receipt not found',
-        code: ErrorCode.ReceiptNotFound,
+        code: ErrorCode.RECEIPT_NOT_FOUND,
       });
     return id;
   }
@@ -71,18 +71,18 @@ class AssignOperatorDto {
 }
 
 const STAFF = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ];
 const RECEIPT_READERS = [
   ...STAFF,
-  Role.Warehouse,
-  Role.Farmer,
-  Role.FieldOfficer,
-  Role.Buyer,
+  Role.WAREHOUSE,
+  Role.FARMER,
+  Role.FIELD_OFFICER,
+  Role.BUYER,
 ];
 
 /** Warehouse sites, operators and receipts (WarehouseReceipt). */
@@ -93,7 +93,7 @@ export class WarehouseController {
   constructor(private readonly warehouse: WarehouseService) {}
 
   @Post('warehouse-sites')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiCreatedResponse({ type: SiteDto })
   createSite(
     @CurrentUser() actor: AuthUser,
@@ -103,14 +103,14 @@ export class WarehouseController {
   }
 
   @Get('warehouse-sites')
-  @Roles(...STAFF, Role.Warehouse, Role.FieldOfficer)
+  @Roles(...STAFF, Role.WAREHOUSE, Role.FIELD_OFFICER)
   @ApiOkResponse({ type: [SiteDto] })
   listSites(@CurrentUser() actor: AuthUser): Promise<SiteDto[]> {
     return this.warehouse.listSites(actor);
   }
 
   @Get('warehouse-sites/:id')
-  @Roles(...STAFF, Role.Warehouse, Role.FieldOfficer)
+  @Roles(...STAFF, Role.WAREHOUSE, Role.FIELD_OFFICER)
   @ApiOkResponse({ type: SiteDto })
   site(
     @CurrentUser() actor: AuthUser,
@@ -120,7 +120,7 @@ export class WarehouseController {
   }
 
   @Put('warehouse-operators/:operatorId')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiOkResponse({
     type: SiteDto,
     description: 'The site they now work at, or null',
@@ -134,7 +134,7 @@ export class WarehouseController {
   }
 
   @Post('warehouse-receipts')
-  @Roles(Role.Warehouse)
+  @Roles(Role.WAREHOUSE)
   @ApiCreatedResponse({
     type: ReceiptDetailDto,
     description: "Issued to the project's farmer",
@@ -168,7 +168,7 @@ export class WarehouseController {
   }
 
   @Post('warehouse-receipts/:id/extend')
-  @Roles(Role.Warehouse)
+  @Roles(Role.WAREHOUSE)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ReceiptDetailDto,
@@ -183,7 +183,7 @@ export class WarehouseController {
   }
 
   @Post('warehouse-receipts/:id/collect')
-  @Roles(Role.Warehouse)
+  @Roles(Role.WAREHOUSE)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ReceiptDetailDto,
@@ -197,7 +197,7 @@ export class WarehouseController {
   }
 
   @Post('warehouse-receipts/:id/handover')
-  @Roles(Role.FieldOfficer)
+  @Roles(Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ReceiptDetailDto,
@@ -211,7 +211,7 @@ export class WarehouseController {
   }
 
   @Post('warehouse-receipts/:id/handover/accept')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ReceiptDetailDto })
   acceptHandover(
@@ -222,7 +222,7 @@ export class WarehouseController {
   }
 
   @Post('warehouse-receipts/:id/handover/cancel')
-  @Roles(Role.Admin, Role.FieldOfficer)
+  @Roles(Role.ADMIN, Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ReceiptDetailDto })
   cancelHandover(

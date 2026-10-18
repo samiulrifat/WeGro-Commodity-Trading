@@ -258,7 +258,7 @@ export class Importer {
     const produce = this.produceCategories();
     for (const row of byKind('project')) {
       const p = row.data as unknown as ProjectRow;
-      ref(row, 'farmer_id', 'person', [Role.Farmer]);
+      ref(row, 'farmer_id', 'person', [Role.FARMER]);
       const category = produce.get(p.produceCode);
       if (!category)
         add(
@@ -278,7 +278,7 @@ export class Importer {
     await this.checkInvestments(byKind('investment'), projects, add, ref);
     for (const row of byKind('history')) {
       const h = row.data as unknown as HistoryRow;
-      ref(row, 'farmer_id', 'person', [Role.Farmer]);
+      ref(row, 'farmer_id', 'person', [Role.FARMER]);
       if (!produce.has(h.produceCode))
         add(
           row.spec.file,
@@ -347,7 +347,7 @@ export class Importer {
     for (const row of rows) {
       const p = row.data as unknown as PersonRow;
       const file = row.spec.file;
-      if (String(p.role) === Role.SuperAdmin) {
+      if (String(p.role) === Role.SUPER_ADMIN) {
         add(
           file,
           row.line,
@@ -357,9 +357,9 @@ export class Importer {
         continue;
       }
       if (p.fieldOfficerId) {
-        if (p.role !== Role.Farmer)
+        if (p.role !== Role.FARMER)
           add(file, row.line, row.id, 'only farmers have a field officer');
-        else ref(row, 'field_officer_id', 'person', [Role.FieldOfficer]);
+        else ref(row, 'field_officer_id', 'person', [Role.FIELD_OFFICER]);
       }
       const report = runIdCheck({
         fullName: String(p.fullName ?? ''),
@@ -479,7 +479,7 @@ export class Importer {
     for (const row of rows) {
       const inv = row.data as unknown as InvestmentRow;
       ref(row, 'project_id', 'project');
-      ref(row, 'investor_id', 'person', [Role.Investor]);
+      ref(row, 'investor_id', 'person', [Role.INVESTOR]);
       if (this.done.get('investment')?.has(row.id)) continue;
       const p = projects.get(inv.projectId);
       if (p && (p.stage ?? 'open_for_funding') === 'draft')
@@ -593,7 +593,7 @@ export class Importer {
       !!(await this.findStaff(role, phone, false));
     if (
       (nonStaff || kinds.has('project')) &&
-      !(await has(Role.Admin, this.opts.adminPhone))
+      !(await has(Role.ADMIN, this.opts.adminPhone))
     ) {
       add(
         'people.csv',
@@ -604,7 +604,7 @@ export class Importer {
     }
     if (
       kinds.has('investment') &&
-      !(await has(Role.Accounts, this.opts.accountsPhone))
+      !(await has(Role.ACCOUNTS, this.opts.accountsPhone))
     ) {
       add(
         'people.csv',
@@ -794,7 +794,7 @@ export class Importer {
     // Investments: reserved by the investor, confirmed by Accounts.
     const reservations = this.app.get(ReservationsService, { strict: false });
     const accounts = rowsOf('investment').length
-      ? await this.staffActor(Role.Accounts, this.opts.accountsPhone)
+      ? await this.staffActor(Role.ACCOUNTS, this.opts.accountsPhone)
       : null;
     for (const row of rowsOf('investment')) {
       await run(row, async () => {
@@ -817,7 +817,7 @@ export class Importer {
       const project = await this.ds
         .getRepository(Project)
         .findOneBy({ id: projectId });
-      if (project?.stage === ProjectStage.Funded) {
+      if (project?.stage === ProjectStage.FUNDED) {
         await projectsService
           .advance(admin!, projectId, 'activate')
           .catch((error: unknown) => {
@@ -918,13 +918,13 @@ export class Importer {
   private async superAdmin(required: boolean): Promise<AuthUser | null> {
     const u = await this.ds
       .getRepository(User)
-      .findOneBy({ role: Role.SuperAdmin });
+      .findOneBy({ role: Role.SUPER_ADMIN });
     if (!u && required) throw new Error('No super admin');
     return u ? toActor(u) : null;
   }
 
   private async adminActor(): Promise<AuthUser> {
-    return this.staffActor(Role.Admin, this.opts.adminPhone);
+    return this.staffActor(Role.ADMIN, this.opts.adminPhone);
   }
 
   private async staffActor(role: Role, phone?: string): Promise<AuthUser> {
@@ -943,7 +943,7 @@ export class Importer {
     const u = await repo.findOne({
       where: {
         role,
-        status: ParticipantStatus.Verified,
+        status: ParticipantStatus.VERIFIED,
         ...(normalised && { phoneIndex: this.codec.phoneIndex(normalised) }),
       },
       order: { createdAt: 'ASC' },

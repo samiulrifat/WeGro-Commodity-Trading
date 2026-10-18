@@ -75,10 +75,10 @@ function store() {
 }
 
 describe('BankAccountsService', () => {
-  const admin = actor(Role.Admin);
-  const otherAdmin = actor(Role.Admin);
+  const admin = actor(Role.ADMIN);
+  const otherAdmin = actor(Role.ADMIN);
 
-  const build = (payeeRole: Role | null = Role.Farmer) => {
+  const build = (payeeRole: Role | null = Role.FARMER) => {
     const s = store();
     const users = fakeRepo({
       findOne: jest.fn(() =>
@@ -125,7 +125,7 @@ describe('BankAccountsService', () => {
     // Other admins are asked to verify.
     expect(writer.withRole).toHaveBeenCalledWith(
       expect.anything(),
-      [Role.Admin],
+      [Role.ADMIN],
       [admin.id],
     );
     await expect(service.verify(admin, PAYEE)).rejects.toThrow(
@@ -149,15 +149,15 @@ describe('BankAccountsService', () => {
       accountNumber: '2',
     } as never);
     expect(rows.map((r) => r.status)).toEqual([
-      BankAccountStatus.Verified,
-      BankAccountStatus.Superseded,
-      BankAccountStatus.Pending,
+      BankAccountStatus.VERIFIED,
+      BankAccountStatus.SUPERSEDED,
+      BankAccountStatus.PENDING,
     ]);
     await service.verify(otherAdmin, PAYEE);
     expect(rows.map((r) => r.status)).toEqual([
-      BankAccountStatus.Superseded,
-      BankAccountStatus.Superseded,
-      BankAccountStatus.Verified,
+      BankAccountStatus.SUPERSEDED,
+      BankAccountStatus.SUPERSEDED,
+      BankAccountStatus.VERIFIED,
     ]);
   });
 
@@ -175,7 +175,7 @@ describe('BankAccountsService', () => {
     await service.submit(admin, PAYEE, DETAILS as never);
     const res = await service.reject(otherAdmin, PAYEE, 'Name does not match');
     expect(rows[0]).toMatchObject({
-      status: BankAccountStatus.Rejected,
+      status: BankAccountStatus.REJECTED,
       rejectionReason: 'Name does not match',
     });
     expect(res.history).toHaveLength(1);
@@ -187,15 +187,15 @@ describe('BankAccountsService', () => {
   it('shows full numbers to admins and the payee, and the last four to others', async () => {
     const { service } = build();
     await service.submit(admin, PAYEE, DETAILS as never);
-    const own = await service.forUser(actor(Role.Farmer, { id: PAYEE }), PAYEE);
+    const own = await service.forUser(actor(Role.FARMER, { id: PAYEE }), PAYEE);
     expect(own.pending?.accountNumber).toBe('0012345678');
-    const officer = await service.forUser(actor(Role.FieldOfficer), PAYEE);
+    const officer = await service.forUser(actor(Role.FIELD_OFFICER), PAYEE);
     expect(officer.pending?.accountNumber).toBe('••••••5678');
   });
 
   it('only farmers and investors have accounts', async () => {
     await expect(
-      build(Role.Buyer).service.submit(admin, PAYEE, DETAILS as never),
+      build(Role.BUYER).service.submit(admin, PAYEE, DETAILS as never),
     ).rejects.toThrow(UnprocessableEntityException);
     await expect(build(null).service.forUser(admin, PAYEE)).rejects.toThrow(
       NotFoundException,

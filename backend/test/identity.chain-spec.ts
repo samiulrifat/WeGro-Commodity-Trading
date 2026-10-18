@@ -114,9 +114,9 @@ describe('Identity (node + database)', () => {
     await db.transaction(async (m) => {
       const user = await m.save(
         m.create(User, {
-          role: Role.SuperAdmin,
-          status: ParticipantStatus.Verified,
-          chainState: ChainState.Operator,
+          role: Role.SUPER_ADMIN,
+          status: ParticipantStatus.VERIFIED,
+          chainState: ChainState.OPERATOR,
           phoneIndex: codec.phoneIndex('+8801811000000'),
           passwordHash: await hasher.hash(SUPER_PASSWORD),
           keyIndex: 0,
@@ -186,7 +186,7 @@ describe('Identity (node + database)', () => {
 
   describe('registering staff', () => {
     it('lets the super admin register an admin, on-chain and encrypted', async () => {
-      const body = person(Role.Admin);
+      const body = person(Role.ADMIN);
       const res = await register(superToken, body).expect(201);
       const { participant, temporaryPassword } = res.body.data;
       expect(participant).toMatchObject({
@@ -204,7 +204,7 @@ describe('Identity (node + database)', () => {
         .get('AccessRegistry')
         .getParticipant(uuidToBytes32(participant.id));
       expect(onChain.status).toBe(1n);
-      expect(onChain.role).toBe(CHAIN_ROLE[Role.Admin]);
+      expect(onChain.role).toBe(CHAIN_ROLE[Role.ADMIN]);
       expect(onChain.account).toBe(participant.account);
 
       const token = await activate(body.phone, temporaryPassword);
@@ -225,11 +225,11 @@ describe('Identity (node + database)', () => {
     });
 
     it('stops anyone but the super admin from registering staff', async () => {
-      await register(admin.token, person(Role.Accounts)).expect(403);
+      await register(admin.token, person(Role.ACCOUNTS)).expect(403);
     });
 
     it('does not let an unverified admin act', async () => {
-      const res = await register(admin.token, person(Role.Investor)).expect(
+      const res = await register(admin.token, person(Role.INVESTOR)).expect(
         403,
       );
       expect(res.body.message).toBe('Your account is not verified');
@@ -241,13 +241,13 @@ describe('Identity (node + database)', () => {
       await expect(
         contracts
           .get('AccessRegistry')
-          .isVerifiedAs(uuidToBytes32(admin.id), CHAIN_ROLE[Role.Admin]),
+          .isVerifiedAs(uuidToBytes32(admin.id), CHAIN_ROLE[Role.ADMIN]),
       ).resolves.toBe(true);
       await verify(superToken, admin.id).expect(409);
     });
 
     it('registers and verifies a field officer', async () => {
-      const body = person(Role.FieldOfficer);
+      const body = person(Role.FIELD_OFFICER);
       const res = await register(superToken, body).expect(201);
       const id = res.body.data.participant.id;
       await verify(superToken, id).expect(200);
@@ -261,7 +261,7 @@ describe('Identity (node + database)', () => {
 
   describe('temporary passwords', () => {
     it('allows only change-password, me and logout until changed', async () => {
-      const body = person(Role.Investor);
+      const body = person(Role.INVESTOR);
       const res = await register(admin.token, body).expect(201);
       const { token } = await login(
         body.phone,
@@ -287,7 +287,7 @@ describe('Identity (node + database)', () => {
     });
 
     it('saves the language, even before the password is changed, and signs in with it', async () => {
-      const body = person(Role.Farmer);
+      const body = person(Role.FARMER);
       const res = await register(admin.token, body).expect(201);
       const password = res.body.data.temporaryPassword as string;
       const { token } = await login(body.phone, password);
@@ -319,7 +319,7 @@ describe('Identity (node + database)', () => {
     });
 
     it('voids every older token when the password changes', async () => {
-      const body = person(Role.Buyer);
+      const body = person(Role.BUYER);
       const res = await register(admin.token, body).expect(201);
       const first = await login(body.phone, res.body.data.temporaryPassword);
       await http
@@ -356,7 +356,7 @@ describe('Identity (node + database)', () => {
     it('lets a field officer register a farmer, who is assigned to them on-chain', async () => {
       // Old 17-digit NID issued in Dhaka (26), farmer lives in Bogura: flagged.
       const nid = `1988${'26'}${String(randomInt(1e10, 1e11))}`;
-      const body = person(Role.Farmer, { nid });
+      const body = person(Role.FARMER, { nid });
       const res = await register(officer.token, body).expect(201);
       const p = res.body.data.participant;
       expect(p.idCheckOutcome).toBe('flagged');
@@ -375,7 +375,7 @@ describe('Identity (node + database)', () => {
     it('refuses the same NID again, even in its 13-digit form', async () => {
       const res = await register(
         admin.token,
-        person(Role.Investor, { nid: farmer.nid.slice(4) }),
+        person(Role.INVESTOR, { nid: farmer.nid.slice(4) }),
       ).expect(409);
       expect(res.body.code).toBe('NID_ALREADY_REGISTERED');
     });
@@ -383,7 +383,7 @@ describe('Identity (node + database)', () => {
     it('refuses a phone number already in use, however it is written', async () => {
       const res = await register(
         admin.token,
-        person(Role.Investor, { phone: `+88 ${farmer.phone}` }),
+        person(Role.INVESTOR, { phone: `+88 ${farmer.phone}` }),
       ).expect(409);
       expect(res.body.code).toBe('PHONE_ALREADY_REGISTERED');
     });
@@ -391,7 +391,7 @@ describe('Identity (node + database)', () => {
     it('lists every failed rule, without echoing the details', async () => {
       const res = await register(
         admin.token,
-        person(Role.Investor, {
+        person(Role.INVESTOR, {
           nid: '19991012345678901',
           dateOfBirth: '2015-01-01',
         }),
@@ -406,7 +406,7 @@ describe('Identity (node + database)', () => {
 
     it('rejects unknown fields and bad roles', async () => {
       await register(admin.token, {
-        ...person(Role.Investor),
+        ...person(Role.INVESTOR),
         isAdmin: true,
       } as never).expect(400);
       await register(admin.token, person('super_admin' as Role)).expect(400);
@@ -439,7 +439,7 @@ describe('Identity (node + database)', () => {
     });
 
     it('detects tampered details and refuses to verify them', async () => {
-      const body = person(Role.Supplier);
+      const body = person(Role.SUPPLIER);
       const res = await register(admin.token, body).expect(201);
       const id = res.body.data.participant.id;
       // Swap in another person's (validly encrypted) address.
@@ -463,7 +463,7 @@ describe('Identity (node + database)', () => {
 
     beforeAll(async () => {
       if (!http) return; // setup failed; its error is reported instead
-      const body = person(Role.Auditor);
+      const body = person(Role.AUDITOR);
       const res = await register(superToken, body).expect(201);
       await verify(superToken, res.body.data.participant.id).expect(200);
       auditorToken = await activate(
@@ -569,7 +569,7 @@ describe('Identity (node + database)', () => {
     });
 
     it('counts wrong current passwords on change-password towards the lockout', async () => {
-      const body = person(Role.Bank);
+      const body = person(Role.BANK);
       const res = await register(admin.token, body).expect(201);
       const token = await activate(body.phone, res.body.data.temporaryPassword);
       for (let i = 0; i < 5; i++) {
@@ -633,15 +633,15 @@ describe('Identity (node + database)', () => {
         uuidToBytes32(farmer.id),
       );
       await expect(
-        access.hasRole(CHAIN_ROLE[Role.Farmer], before.account),
+        access.hasRole(CHAIN_ROLE[Role.FARMER], before.account),
       ).resolves.toBe(false);
       await expect(
-        access.hasRole(CHAIN_ROLE[Role.Farmer], after.account),
+        access.hasRole(CHAIN_ROLE[Role.FARMER], after.account),
       ).resolves.toBe(true);
     });
 
     it('reassigns a farmer to another verified field officer', async () => {
-      const body = person(Role.FieldOfficer);
+      const body = person(Role.FIELD_OFFICER);
       const res = await register(superToken, body).expect(201);
       const second = res.body.data.participant.id;
       await http
@@ -659,7 +659,7 @@ describe('Identity (node + database)', () => {
     });
 
     it('rejects with a reason, revokes the role and signs the person out', async () => {
-      const body = person(Role.Insurer);
+      const body = person(Role.INSURER);
       const res = await register(admin.token, body).expect(201);
       const id = res.body.data.participant.id;
       await verify(admin.token, id).expect(200);
@@ -726,7 +726,7 @@ describe('Identity (node + database)', () => {
       await indexer.reindex();
       const midway = await db
         .getRepository(User)
-        .countBy({ chainState: ChainState.Confirmed });
+        .countBy({ chainState: ChainState.CONFIRMED });
       expect(midway).toBe(0);
       await indexer.catchUp();
 
@@ -735,12 +735,12 @@ describe('Identity (node + database)', () => {
 
     it('agrees with the contracts on every role id', async () => {
       const access = contracts.get('AccessRegistry');
-      await expect(access.FARMER_ROLE()).resolves.toBe(CHAIN_ROLE[Role.Farmer]);
+      await expect(access.FARMER_ROLE()).resolves.toBe(CHAIN_ROLE[Role.FARMER]);
       await expect(access.OPERATIONS_ROLE()).resolves.toBe(
-        CHAIN_ROLE[Role.Operations],
+        CHAIN_ROLE[Role.OPERATIONS],
       );
       await expect(access.AUDITOR_ROLE()).resolves.toBe(
-        CHAIN_ROLE[Role.Auditor],
+        CHAIN_ROLE[Role.AUDITOR],
       );
     });
   });

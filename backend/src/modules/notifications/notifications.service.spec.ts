@@ -31,7 +31,7 @@ function builder(rows: Notification[]) {
 }
 
 describe('NotificationsService', () => {
-  const me = actor(Role.Investor, { id: 'u' });
+  const me = actor(Role.INVESTOR, { id: 'u' });
 
   it('pages newest first by id, handing back where the next page starts', async () => {
     const { qb, clauses, calls } = builder([note(9), note(8), note(7)]);

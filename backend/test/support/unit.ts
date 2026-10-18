@@ -21,8 +21,8 @@ export function actor(role: Role, over: Partial<AuthUser> = {}): AuthUser {
   return {
     id: randomUUID(),
     role,
-    status: ParticipantStatus.Verified,
-    chainState: ChainState.Confirmed,
+    status: ParticipantStatus.VERIFIED,
+    chainState: ChainState.CONFIRMED,
     keyIndex: 1000 + Math.floor(Math.random() * 1000),
     mustChangePassword: false,
     ...over,

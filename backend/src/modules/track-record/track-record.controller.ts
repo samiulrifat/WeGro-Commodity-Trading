@@ -52,11 +52,11 @@ const uuid = new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
 const version = new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
 /** Each sees only their own (farmer) or their farmers' (officer) records. */
 const FARMER_READERS = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Auditor,
-  Role.FieldOfficer,
-  Role.Farmer,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.AUDITOR,
+  Role.FIELD_OFFICER,
+  Role.FARMER,
 ];
 
 /** Farmer track records and bank permission (ConsentRegistry). */
@@ -73,7 +73,7 @@ export class TrackRecordController {
   // --- Banks ---
 
   @Post('banks')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiCreatedResponse({ type: BankDto })
   registerBank(
     @CurrentUser() actor: AuthUser,
@@ -103,7 +103,7 @@ export class TrackRecordController {
   }
 
   @Put('bank-officers/:officerId')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiExtraModels(BankDto)
   @ApiOkResponse({
     description: 'The bank now, or null when removed',
@@ -130,7 +130,7 @@ export class TrackRecordController {
   }
 
   @Post('farmers/:farmerId/track-records')
-  @Roles(Role.FieldOfficer)
+  @Roles(Role.FIELD_OFFICER)
   @ApiCreatedResponse({
     type: TrackRecordDto,
     description:
@@ -194,7 +194,7 @@ export class TrackRecordController {
   }
 
   @Post('farmers/:farmerId/consents')
-  @Roles(Role.FieldOfficer)
+  @Roles(Role.FIELD_OFFICER)
   @ApiCreatedResponse({
     type: ConsentDto,
     description:
@@ -209,7 +209,7 @@ export class TrackRecordController {
   }
 
   @Post('farmers/:farmerId/consents/:bankId/revoke')
-  @Roles(Role.FieldOfficer)
+  @Roles(Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ConsentDto,
@@ -252,7 +252,7 @@ export class TrackRecordController {
   // --- Bank officers ---
 
   @Get('bank/me')
-  @Roles(Role.Bank)
+  @Roles(Role.BANK)
   @ApiOkResponse({ type: MyBankDto })
   async myBank(@CurrentUser() actor: AuthUser): Promise<MyBankDto> {
     const bankId = await this.banks.bankOf(actor.id);
@@ -261,7 +261,7 @@ export class TrackRecordController {
 
   @Get('bank/farmers')
   @ApiPaged()
-  @Roles(Role.Bank)
+  @Roles(Role.BANK)
   @ApiOkResponse({
     type: [BankFarmerDto],
     description: 'Farmers whose permission for your bank is current',
@@ -274,7 +274,7 @@ export class TrackRecordController {
   }
 
   @Post('bank/farmers/:farmerId/track-record/view')
-  @Roles(Role.Bank)
+  @Roles(Role.BANK)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: BankViewDto,

@@ -54,21 +54,21 @@ const saleId = new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
 
 /** Everyone with a part in vouchers; each sees only their own part. */
 const VOUCHER_READERS = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
-  Role.Supplier,
-  Role.Farmer,
-  Role.FieldOfficer,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
+  Role.SUPPLIER,
+  Role.FARMER,
+  Role.FIELD_OFFICER,
 ];
 const STAFF = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ];
 
 /** Input vouchers (VoucherRegistry): Operations proposes, Accounts approves, suppliers sell. */
@@ -88,7 +88,7 @@ export class VouchersController {
   }
 
   @Post('projects/:projectId/vouchers')
-  @Roles(Role.Operations)
+  @Roles(Role.OPERATIONS)
   @ApiCreatedResponse({
     type: VoucherDetailDto,
     description: 'Proposed; usable once Accounts approves',
@@ -154,7 +154,7 @@ export class VouchersController {
   }
 
   @Post('vouchers/:id/approve')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: VoucherDetailDto,
@@ -168,7 +168,7 @@ export class VouchersController {
   }
 
   @Post('vouchers/:id/reject')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: VoucherDetailDto })
   reject(
@@ -179,7 +179,7 @@ export class VouchersController {
   }
 
   @Post('vouchers/:id/cancel')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: VoucherDetailDto,
@@ -193,7 +193,7 @@ export class VouchersController {
   }
 
   @Put('vouchers/:id/inactivity-limit')
-  @Roles(Role.SuperAdmin)
+  @Roles(Role.SUPER_ADMIN)
   @ApiOkResponse({ type: VoucherDetailDto })
   setInactivityLimit(
     @CurrentUser() actor: AuthUser,
@@ -204,7 +204,7 @@ export class VouchersController {
   }
 
   @Delete('vouchers/:id')
-  @Roles(Role.Operations, Role.Admin)
+  @Roles(Role.OPERATIONS, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({
     description: 'Only a proposal the ledger never received',
@@ -214,7 +214,7 @@ export class VouchersController {
   }
 
   @Post('vouchers/:id/sales')
-  @Roles(Role.Supplier)
+  @Roles(Role.SUPPLIER)
   @ApiCreatedResponse({
     type: VoucherSaleDto,
     description: "Held until the farmer's field officer confirms",
@@ -239,7 +239,7 @@ export class VouchersController {
   }
 
   @Post('voucher-sales/:id/confirm')
-  @Roles(Role.FieldOfficer)
+  @Roles(Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: VoucherSaleDto })
   confirmSale(
@@ -250,7 +250,7 @@ export class VouchersController {
   }
 
   @Post('voucher-sales/:id/cancel')
-  @Roles(Role.Supplier, Role.Farmer, Role.FieldOfficer, Role.Admin)
+  @Roles(Role.SUPPLIER, Role.FARMER, Role.FIELD_OFFICER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: VoucherSaleDto })
   cancelSale(
@@ -269,7 +269,7 @@ export class BatchesController {
   constructor(private readonly batches: BatchesService) {}
 
   @Post()
-  @Roles(Role.Supplier)
+  @Roles(Role.SUPPLIER)
   @ApiCreatedResponse({ type: BatchDto })
   register(
     @CurrentUser() actor: AuthUser,
@@ -280,7 +280,7 @@ export class BatchesController {
 
   @Get()
   @ApiPaged()
-  @Roles(Role.Supplier, Role.FieldOfficer, ...STAFF)
+  @Roles(Role.SUPPLIER, Role.FIELD_OFFICER, ...STAFF)
   @ApiOkResponse({ type: [BatchDto] })
   list(
     @CurrentUser() actor: AuthUser,
@@ -290,7 +290,7 @@ export class BatchesController {
   }
 
   @Get(':id')
-  @Roles(Role.Supplier, Role.FieldOfficer, ...STAFF)
+  @Roles(Role.SUPPLIER, Role.FIELD_OFFICER, ...STAFF)
   @ApiOkResponse({ type: BatchDto })
   findOne(
     @CurrentUser() actor: AuthUser,

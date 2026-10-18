@@ -48,7 +48,7 @@ export class CodeList<T extends ListEntry> {
     if (!entry)
       throw new NotFoundException({
         message: `No ${this.label} ${code}`,
-        code: ErrorCode.CatalogEntryNotFound,
+        code: ErrorCode.CATALOG_ENTRY_NOT_FOUND,
         details: { code },
       });
     return entry;
@@ -60,13 +60,13 @@ export class CodeList<T extends ListEntry> {
     if (!entry)
       throw new UnprocessableEntityException({
         message: `Unknown ${this.label} ${code}`,
-        code: ErrorCode.CatalogCodeUnknown,
+        code: ErrorCode.CATALOG_CODE_UNKNOWN,
         details: { code },
       });
     if (!entry.active) {
       throw new UnprocessableEntityException({
         message: `The ${this.label} ${code} is no longer in use`,
-        code: ErrorCode.CatalogCodeRetired,
+        code: ErrorCode.CATALOG_CODE_RETIRED,
         details: { code },
       });
     }

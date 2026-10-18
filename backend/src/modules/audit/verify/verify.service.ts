@@ -335,10 +335,10 @@ export class VerifyService {
     m.check('unitPrice', o.unitPrice, c.unitPrice);
     m.check('paymentRef', o.paymentRefHash ?? ZERO_BYTES32, c.paymentRefHash);
     m.check('receiptPartId', o.receiptPartId ?? ZERO_BYTES32, c.receiptPartId);
-    for (const side of [DeliverySide.Buyer, DeliverySide.Handler]) {
+    for (const side of [DeliverySide.BUYER, DeliverySide.HANDLER]) {
       const row = deliveries.find((x) => x.side === side);
       const [ledgerQty, ledgerHash] =
-        side === DeliverySide.Buyer
+        side === DeliverySide.BUYER
           ? [d.buyerQuantity, d.buyerQualityHash]
           : [d.handlerQuantity, d.handlerQualityHash];
       if (!row) {
@@ -373,7 +373,7 @@ export class VerifyService {
     m.check('quantity', BigInt(r.quantity), c.quantity);
     m.check('maxUnitPrice', r.maxUnitPrice, c.maxUnitPrice);
     m.check('validUntil', BigInt(r.validUntil.getTime() / 1000), c.validUntil);
-    m.check('cancelled', r.status === RequestStatus.Cancelled, c.cancelled);
+    m.check('cancelled', r.status === RequestStatus.CANCELLED, c.cancelled);
     return m.done();
   }
 
@@ -388,7 +388,7 @@ export class VerifyService {
     if (!t)
       throw new NotFoundException({
         message: 'No cover for this project',
-        code: ErrorCode.NoCoverage,
+        code: ErrorCode.NO_COVERAGE,
       });
     const c = await this.c('InsuranceRegistry').getCoverage(
       uuidToBytes32(projectId),
@@ -438,7 +438,7 @@ export class VerifyService {
     m.check('status', k.status, CLAIM_STATUS_BY_CHAIN[Number(c.status)]);
     m.check('approvedAmount', k.approvedAmount ?? 0n, c.approvedAmount);
     const decided =
-      k.status === ClaimStatus.Approved || k.status === ClaimStatus.Rejected;
+      k.status === ClaimStatus.APPROVED || k.status === ClaimStatus.REJECTED;
     if (decided) {
       const photo = k.assessmentPhotoId
         ? await this.diskPhotoHash(k.assessmentPhotoId)
@@ -446,7 +446,7 @@ export class VerifyService {
       m.fingerprint(
         assessmentFingerprint({
           claimId: k.id,
-          decision: k.status === ClaimStatus.Approved ? 'approved' : 'rejected',
+          decision: k.status === ClaimStatus.APPROVED ? 'approved' : 'rejected',
           approvedAmount: k.approvedAmount,
           damagePercent: k.assessedDamagePercent,
           notes: k.assessmentNotes ?? '',
@@ -476,7 +476,7 @@ export class VerifyService {
       c.detailsHash,
     );
     m.check('amount', k.amount, c.amount);
-    m.check('voided', k.status === CostStatus.Voided, c.voided);
+    m.check('voided', k.status === CostStatus.VOIDED, c.voided);
     return m.done();
   }
 
@@ -571,7 +571,7 @@ export class VerifyService {
    */
   private async consent(id: string): Promise<Verification> {
     const k = await this.row(BankConsent, { id });
-    if (k.status === ConsentStatus.Submitted) return missing();
+    if (k.status === ConsentStatus.SUBMITTED) return missing();
     const photo = await this.diskPhotoHash(k.evidencePhotoId);
     const m = new Mismatches();
     if (!photo) m.add('photoMissing');
@@ -602,13 +602,13 @@ export class VerifyService {
         BigInt(k.expiresAt.getTime() / 1000),
         own.args.expiresAt,
       );
-      m.check('superseded', k.status !== ConsentStatus.Active, true);
+      m.check('superseded', k.status !== ConsentStatus.ACTIVE, true);
       return m.done();
     }
     m.fingerprint(computed, k.evidenceHash, c.evidenceHash);
     m.check('expiresAt', BigInt(k.expiresAt.getTime() / 1000), c.expiresAt);
-    m.check('revoked', k.status === ConsentStatus.Revoked, c.revoked);
-    m.check('replaced', k.status === ConsentStatus.Replaced, false);
+    m.check('revoked', k.status === ConsentStatus.REVOKED, c.revoked);
+    m.check('replaced', k.status === ConsentStatus.REPLACED, false);
     return m.done();
   }
 
@@ -628,7 +628,7 @@ export class VerifyService {
     if (!row)
       throw new NotFoundException({
         message: 'Record not found',
-        code: ErrorCode.RecordNotFound,
+        code: ErrorCode.RECORD_NOT_FOUND,
       });
     return row;
   }
@@ -713,7 +713,7 @@ function uuid(id: string): string {
   if (!UUID.test(id))
     throw new NotFoundException({
       message: 'Record not found',
-      code: ErrorCode.RecordNotFound,
+      code: ErrorCode.RECORD_NOT_FOUND,
     });
   return id.toLowerCase();
 }
@@ -722,7 +722,7 @@ function num(id: string): number {
   if (!NUMBER.test(id))
     throw new NotFoundException({
       message: 'Record not found',
-      code: ErrorCode.RecordNotFound,
+      code: ErrorCode.RECORD_NOT_FOUND,
     });
   return Number(id);
 }
@@ -731,7 +731,7 @@ function bytes32(id: string): string {
   if (!BYTES32.test(id))
     throw new NotFoundException({
       message: 'Record not found',
-      code: ErrorCode.RecordNotFound,
+      code: ErrorCode.RECORD_NOT_FOUND,
     });
   return id.toLowerCase();
 }

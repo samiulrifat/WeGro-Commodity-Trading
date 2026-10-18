@@ -45,13 +45,13 @@ import { InsuranceService } from './insurance.service';
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
 const index = new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
 const STAFF = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ];
-const READERS = [...STAFF, Role.Insurer, Role.FieldOfficer, Role.Farmer];
+const READERS = [...STAFF, Role.INSURER, Role.FIELD_OFFICER, Role.FARMER];
 
 /** Crop insurance (InsuranceRegistry): cover, weather events and claims. */
 @ApiTags('Insurance')
@@ -68,7 +68,7 @@ export class InsuranceController {
 
   @Get('projects')
   @ApiPaged()
-  @Roles(...STAFF, Role.Insurer)
+  @Roles(...STAFF, Role.INSURER)
   @ApiOkResponse({
     type: [InsuredProjectDto],
     description: 'Insured projects in the field, with who covers each',
@@ -90,7 +90,7 @@ export class InsuranceController {
   }
 
   @Put('projects/:projectId/coverage')
-  @Roles(Role.Insurer)
+  @Roles(Role.INSURER)
   @ApiOkResponse({
     type: CoverageDto,
     description:
@@ -124,7 +124,7 @@ export class InsuranceController {
   }
 
   @Post('weather-events')
-  @Roles(Role.Admin, Role.Insurer)
+  @Roles(Role.ADMIN, Role.INSURER)
   @ApiCreatedResponse({ type: WeatherEventDto })
   recordWeatherEvent(
     @CurrentUser() actor: AuthUser,
@@ -136,7 +136,7 @@ export class InsuranceController {
   // --- Claims ---
 
   @Post('projects/:projectId/claims')
-  @Roles(Role.FieldOfficer, Role.Admin)
+  @Roles(Role.FIELD_OFFICER, Role.ADMIN)
   @ApiCreatedResponse({
     type: ClaimDto,
     description: "By the farmer's field officer or an admin, citing an event",
@@ -171,7 +171,7 @@ export class InsuranceController {
   }
 
   @Post('claims/:id/review')
-  @Roles(Role.Insurer)
+  @Roles(Role.INSURER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ClaimDto, description: "The project's insurer" })
   startReview(
@@ -182,7 +182,7 @@ export class InsuranceController {
   }
 
   @Post('claims/:id/approve')
-  @Roles(Role.Insurer)
+  @Roles(Role.INSURER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ClaimDto,
@@ -197,7 +197,7 @@ export class InsuranceController {
   }
 
   @Post('claims/:id/reject')
-  @Roles(Role.Insurer)
+  @Roles(Role.INSURER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ClaimDto, description: 'With an assessment' })
   reject(

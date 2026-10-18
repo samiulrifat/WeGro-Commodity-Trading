@@ -69,12 +69,12 @@ export class ClaimsService {
   ): Promise<ClaimDto> {
     const project = await this.insurance.requireInsurable(projectId);
     if (
-      actor.role !== Role.Admin &&
+      actor.role !== Role.ADMIN &&
       !(await this.insurance.isOfficerOf(actor, project.farmerId))
     ) {
       throw new ForbiddenException({
         message: "Only the farmer's field officer or an admin can claim",
-        code: ErrorCode.ClaimNotAllowed,
+        code: ErrorCode.CLAIM_NOT_ALLOWED,
       });
     }
     const [cover, event, existing] = await Promise.all([
@@ -88,19 +88,19 @@ export class ClaimsService {
     if (!cover) {
       throw new ConflictException({
         message: 'No insurer covers this project yet',
-        code: ErrorCode.NoCoverage,
+        code: ErrorCode.NO_COVERAGE,
       });
     }
     if (!event || event.status !== 'recorded') {
       throw new UnprocessableEntityException({
         message: 'eventId must be a recorded weather event',
-        code: ErrorCode.WeatherEventInvalid,
+        code: ErrorCode.WEATHER_EVENT_INVALID,
       });
     }
     if (event.districtCode !== project.districtCode) {
       throw new UnprocessableEntityException({
         message: `The event was in ${event.districtCode}; the project is in ${project.districtCode}`,
-        code: ErrorCode.RegionMismatch,
+        code: ErrorCode.REGION_MISMATCH,
         details: {
           eventDistrict: event.districtCode,
           projectDistrict: project.districtCode,
@@ -110,14 +110,14 @@ export class ClaimsService {
     if (!cover.coveredEventTypes.includes(event.eventTypeCode)) {
       throw new UnprocessableEntityException({
         message: `The cover does not include ${event.eventTypeCode}`,
-        code: ErrorCode.EventNotCovered,
+        code: ErrorCode.EVENT_NOT_COVERED,
         details: { coveredEventTypes: cover.coveredEventTypes },
       });
     }
-    if (existing && existing.status !== ClaimStatus.Submitted) {
+    if (existing && existing.status !== ClaimStatus.SUBMITTED) {
       throw new ConflictException({
         message: 'This project has already claimed for this event',
-        code: ErrorCode.AlreadyClaimed,
+        code: ErrorCode.ALREADY_CLAIMED,
         details: { claimId: existing.id },
       });
     }
@@ -125,7 +125,7 @@ export class ClaimsService {
     if (damagePercent === '0.0') {
       throw new UnprocessableEntityException({
         message: 'damagePercent must be above 0',
-        code: ErrorCode.DamageNotPositive,
+        code: ErrorCode.DAMAGE_NOT_POSITIVE,
       });
     }
     const photos = await this.ownPhotos(actor, dto.photoIds ?? []);
@@ -138,7 +138,7 @@ export class ClaimsService {
       notes: dto.notes,
       photoIds: photos.map((p) => p.id),
       openedById: actor.id,
-      status: ClaimStatus.Submitted,
+      status: ClaimStatus.SUBMITTED,
       openedAt: null,
     });
     claim.claimHash = claimFingerprint({
@@ -153,7 +153,7 @@ export class ClaimsService {
     if (existing) {
       await this.claims.delete({
         id: existing.id,
-        status: ClaimStatus.Submitted,
+        status: ClaimStatus.SUBMITTED,
       });
     }
     await this.claims.insert(claim);
@@ -170,7 +170,7 @@ export class ClaimsService {
       if (error instanceof ContractRevertException) {
         await this.claims.delete({
           id: claim.id,
-          status: ClaimStatus.Submitted,
+          status: ClaimStatus.SUBMITTED,
         });
       }
       throw error;
@@ -180,7 +180,7 @@ export class ClaimsService {
 
   /** The project's insurer takes the claim up. */
   async startReview(actor: AuthUser, id: string): Promise<ClaimDto> {
-    const claim = await this.forInsurer(actor, id, [ClaimStatus.Triggered]);
+    const claim = await this.forInsurer(actor, id, [ClaimStatus.TRIGGERED]);
     await this.insurance.send(actor, (c) =>
       c.startReview.populateTransaction(uuidToBytes32(claim.id)),
     );
@@ -193,12 +193,12 @@ export class ClaimsService {
     id: string,
     dto: ApproveClaimDto,
   ): Promise<ClaimDto> {
-    const claim = await this.forInsurer(actor, id, [ClaimStatus.UnderReview]);
+    const claim = await this.forInsurer(actor, id, [ClaimStatus.UNDER_REVIEW]);
     const amount = takaToPoisha(dto.amount);
     if (amount <= 0n)
       throw new UnprocessableEntityException({
         message: 'amount must be above zero',
-        code: ErrorCode.AmountNotPositive,
+        code: ErrorCode.AMOUNT_NOT_POSITIVE,
       });
     const key = uuidToBytes32(claim.projectId);
     const registry = this.insurance.registry();
@@ -210,7 +210,7 @@ export class ClaimsService {
     if (amount > remaining) {
       throw new ConflictException({
         message: `Only ${poishaToTaka(remaining)} taka of the cover remains`,
-        code: ErrorCode.ExceedsCoverage,
+        code: ErrorCode.EXCEEDS_COVERAGE,
         details: { remaining: poishaToTaka(remaining) },
       });
     }
@@ -225,8 +225,8 @@ export class ClaimsService {
     dto: AssessmentDto,
   ): Promise<ClaimDto> {
     const claim = await this.forInsurer(actor, id, [
-      ClaimStatus.Triggered,
-      ClaimStatus.UnderReview,
+      ClaimStatus.TRIGGERED,
+      ClaimStatus.UNDER_REVIEW,
     ]);
     await this.decide(actor, claim, 'rejected', null, dto);
     return this.findOne(actor, id);
@@ -239,7 +239,7 @@ export class ClaimsService {
     const qb = this.claims
       .createQueryBuilder('c')
       .innerJoin(Project, 'p', 'p.id = c.project_id')
-      .where('c.status <> :sub', { sub: ClaimStatus.Submitted });
+      .where('c.status <> :sub', { sub: ClaimStatus.SUBMITTED });
     this.scope(actor, qb);
     if (q.projectId) qb.andWhere('c.project_id = :pid', { pid: q.projectId });
     if (q.status) qb.andWhere('c.status = :st', { st: q.status });
@@ -263,7 +263,7 @@ export class ClaimsService {
     if (!photoId)
       throw new NotFoundException({
         message: 'No such photo on this claim',
-        code: ErrorCode.ClaimPhotoNotFound,
+        code: ErrorCode.CLAIM_PHOTO_NOT_FOUND,
       });
     return this.photos.find(photoId);
   }
@@ -273,7 +273,7 @@ export class ClaimsService {
     if (!claim.assessmentPhotoId || !claim.decidedAt) {
       throw new NotFoundException({
         message: 'No assessment photo for this claim',
-        code: ErrorCode.ClaimHasNoPhoto,
+        code: ErrorCode.CLAIM_HAS_NO_PHOTO,
       });
     }
     return this.photos.find(claim.assessmentPhotoId);
@@ -323,7 +323,7 @@ export class ClaimsService {
     if (saved.affected === 0) {
       throw new ConflictException({
         message: 'The claim changed meanwhile; try again',
-        code: ErrorCode.ChangedMeanwhile,
+        code: ErrorCode.CHANGED_MEANWHILE,
       });
     }
     try {
@@ -357,26 +357,26 @@ export class ClaimsService {
     allowed: ClaimStatus[],
   ): Promise<InsuranceClaim> {
     const claim = await this.claims.findOneBy({ id });
-    if (!claim || claim.status === ClaimStatus.Submitted) {
+    if (!claim || claim.status === ClaimStatus.SUBMITTED) {
       throw new NotFoundException({
         message: 'Claim not found',
-        code: ErrorCode.ClaimNotFound,
+        code: ErrorCode.CLAIM_NOT_FOUND,
       });
     }
     const cover = await this.insurance.currentCover(claim.projectId);
     if (cover?.insurerId !== actor.id) {
       throw new ForbiddenException({
         message: "Only the project's insurer can review this claim",
-        code: ErrorCode.NotProjectInsurer,
+        code: ErrorCode.NOT_PROJECT_INSURER,
       });
     }
     if (!allowed.includes(claim.status)) {
       throw new ConflictException({
         message: `This claim is ${claim.status}`,
         code:
-          claim.status === ClaimStatus.Triggered
-            ? ErrorCode.ReviewNotStarted
-            : ErrorCode.ClaimWrongStatus,
+          claim.status === ClaimStatus.TRIGGERED
+            ? ErrorCode.REVIEW_NOT_STARTED
+            : ErrorCode.CLAIM_WRONG_STATUS,
         details: { status: claim.status },
       });
     }
@@ -389,14 +389,14 @@ export class ClaimsService {
       .innerJoin(Project, 'p', 'p.id = c.project_id')
       .where('c.id = :id AND c.status <> :sub', {
         id,
-        sub: ClaimStatus.Submitted,
+        sub: ClaimStatus.SUBMITTED,
       });
     this.scope(actor, qb);
     const claim = await qb.getOne();
     if (!claim)
       throw new NotFoundException({
         message: 'Claim not found',
-        code: ErrorCode.ClaimNotFound,
+        code: ErrorCode.CLAIM_NOT_FOUND,
       });
     return claim;
   }
@@ -408,20 +408,20 @@ export class ClaimsService {
   private scope(actor: AuthUser, qb: SelectQueryBuilder<InsuranceClaim>): void {
     if (STAFF.has(actor.role)) return;
     switch (actor.role) {
-      case Role.Insurer:
+      case Role.INSURER:
         qb.andWhere(
           `EXISTS (SELECT 1 FROM coverage_terms t
                     WHERE t.project_id = c.project_id AND t.insurer_id = :me AND t.status = 'recorded')`,
           { me: actor.id },
         );
         return;
-      case Role.FieldOfficer:
+      case Role.FIELD_OFFICER:
         qb.andWhere(
           'EXISTS (SELECT 1 FROM users f WHERE f.id = p.farmer_id AND f.field_officer_id = :me)',
           { me: actor.id },
         );
         return;
-      case Role.Farmer:
+      case Role.FARMER:
         qb.andWhere('p.farmer_id = :me', { me: actor.id });
         return;
       default:
@@ -435,7 +435,7 @@ export class ClaimsService {
     if (ids.length > MAX_PHOTOS) {
       throw new UnprocessableEntityException({
         message: `At most ${MAX_PHOTOS} photos`,
-        code: ErrorCode.TooManyPhotos,
+        code: ErrorCode.TOO_MANY_PHOTOS,
         details: { max: MAX_PHOTOS },
       });
     }
@@ -449,7 +449,7 @@ export class ClaimsService {
       if (!photo) {
         throw new UnprocessableEntityException({
           message: `Photo ${id} must be one you uploaded`,
-          code: ErrorCode.PhotoNotYours,
+          code: ErrorCode.PHOTO_NOT_YOURS,
           details: { photo: id },
         });
       }
@@ -476,7 +476,7 @@ export class ClaimsService {
     const names = await this.views.names(rows.map((c) => c.openedById));
     return rows.map((c) => {
       const decided =
-        c.status === ClaimStatus.Approved || c.status === ClaimStatus.Rejected;
+        c.status === ClaimStatus.APPROVED || c.status === ClaimStatus.REJECTED;
       return {
         id: c.id,
         project: { id: c.projectId, name: titles.get(c.projectId) ?? '' },

@@ -128,22 +128,22 @@ describe('Settlement (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.SuperAdmin,
-      Role.Admin,
-      Role.Accounts,
-      Role.Investor,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Buyer,
-      Role.Auditor,
+      Role.SUPER_ADMIN,
+      Role.ADMIN,
+      Role.ACCOUNTS,
+      Role.INVESTOR,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.BUYER,
+      Role.AUDITOR,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db
         .getRepository(User)
         .findOneByOrFail({ role: r, isDemo: true });
     }
-    investor2 = await register(t.admin, Role.Investor, 'Second Investor');
-    accounts2 = await register(t.super_admin, Role.Accounts, 'Second Accounts');
+    investor2 = await register(t.admin, Role.INVESTOR, 'Second Investor');
+    accounts2 = await register(t.super_admin, Role.ACCOUNTS, 'Second Accounts');
 
     // A 12-month tomato project paying out every 3 months: 7 slots, held 4 and 3.
     project = (
@@ -391,7 +391,7 @@ describe('Settlement (node + database)', () => {
         .get(`/settlement/projects/${project}/costs?includeVoided=true`)
         .expect(200);
       expect(all.body.data).toHaveLength(2);
-      const outsider = await register(t.admin, Role.Investor, 'Outsider');
+      const outsider = await register(t.admin, Role.INVESTOR, 'Outsider');
       await as(outsider.token)
         .get(`/settlement/projects/${project}/costs`)
         .expect(404);

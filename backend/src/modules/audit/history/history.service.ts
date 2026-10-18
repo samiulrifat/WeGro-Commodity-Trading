@@ -206,21 +206,21 @@ function ledgerValue(kind: 'uuid' | 'number' | 'bytes32', id: string): string {
       if (!UUID.test(id))
         throw new NotFoundException({
           message: 'Record not found',
-          code: ErrorCode.RecordNotFound,
+          code: ErrorCode.RECORD_NOT_FOUND,
         });
       return uuidToBytes32(id);
     case 'number':
       if (!NUMBER.test(id))
         throw new NotFoundException({
           message: 'Record not found',
-          code: ErrorCode.RecordNotFound,
+          code: ErrorCode.RECORD_NOT_FOUND,
         });
       return BigInt(id).toString();
     case 'bytes32':
       if (!BYTES32.test(id))
         throw new NotFoundException({
           message: 'Record not found',
-          code: ErrorCode.RecordNotFound,
+          code: ErrorCode.RECORD_NOT_FOUND,
         });
       return id.toLowerCase();
   }

@@ -22,7 +22,7 @@ const OFFICER = '7c2d2f0e-5b0a-4c39-9a51-2a1f5c0f9e11';
 const BANK = '0b8a3f1e-1c2d-4e5f-8a9b-0c1d2e3f4a5b';
 
 describe('BanksService', () => {
-  const admin = actor(Role.Admin);
+  const admin = actor(Role.ADMIN);
   const dto = {
     name: 'Krishi Bank',
     branchName: 'Bogura',
@@ -117,24 +117,24 @@ describe('BanksService', () => {
   it('shows officers only to staff who manage banks', async () => {
     const { service } = build();
     const created = await service.register(admin, dto as never);
-    const seen = await service.one(actor(Role.Bank), created.id);
+    const seen = await service.one(actor(Role.BANK), created.id);
     expect(seen.officers).toBeUndefined();
   });
 
   describe('assigning officers', () => {
     const officer = (over: object = {}) => ({
       id: OFFICER,
-      role: Role.Bank,
-      status: ParticipantStatus.Verified,
-      chainState: ChainState.Confirmed,
+      role: Role.BANK,
+      status: ParticipantStatus.VERIFIED,
+      chainState: ChainState.CONFIRMED,
       ...over,
     });
 
     it.each([
       ['an unknown person', null],
-      ['a farmer', officer({ role: Role.Farmer })],
-      ['an unverified officer', officer({ status: ParticipantStatus.Pending })],
-      ['an unconfirmed officer', officer({ chainState: ChainState.Submitted })],
+      ['a farmer', officer({ role: Role.FARMER })],
+      ['an unverified officer', officer({ status: ParticipantStatus.PENDING })],
+      ['an unconfirmed officer', officer({ chainState: ChainState.SUBMITTED })],
     ])('refuses %s', async (_label, person) => {
       const { service, chain } = build({
         users: { findOneBy: jest.fn(() => Promise.resolve(person)) },

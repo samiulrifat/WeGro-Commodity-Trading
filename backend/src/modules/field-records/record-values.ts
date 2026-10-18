@@ -71,7 +71,7 @@ export function normaliseMeasurements(
     if (!known.has(key)) {
       problems.push(
         problem(
-          ErrorCode.MeasurementUnknown,
+          ErrorCode.MEASUREMENT_UNKNOWN,
           `${key}: not a measurement of this record type`,
           { key },
         ),
@@ -84,7 +84,7 @@ export function normaliseMeasurements(
     if (raw === undefined || raw === null || raw === '') {
       if (d.required) {
         problems.push(
-          problem(ErrorCode.MeasurementRequired, `${d.key}: required`, named),
+          problem(ErrorCode.MEASUREMENT_REQUIRED, `${d.key}: required`, named),
         );
       }
       continue;
@@ -94,7 +94,7 @@ export function normaliseMeasurements(
     if (fixed === null) {
       problems.push(
         problem(
-          ErrorCode.MeasurementNotANumber,
+          ErrorCode.MEASUREMENT_NOT_A_NUMBER,
           `${d.key}: must be a number with at most ${d.decimals} decimal places`,
           { ...named, decimals: d.decimals },
         ),
@@ -107,7 +107,7 @@ export function normaliseMeasurements(
     ) {
       problems.push(
         problem(
-          ErrorCode.MeasurementBelowMin,
+          ErrorCode.MEASUREMENT_BELOW_MIN,
           `${d.key}: below the minimum ${d.min}`,
           { ...named, min: d.min },
         ),
@@ -118,7 +118,7 @@ export function normaliseMeasurements(
     ) {
       problems.push(
         problem(
-          ErrorCode.MeasurementAboveMax,
+          ErrorCode.MEASUREMENT_ABOVE_MAX,
           `${d.key}: above the maximum ${d.max}`,
           { ...named, max: d.max },
         ),
@@ -145,7 +145,7 @@ export function normaliseLocation(
   if (latFixed === null || lngFixed === null) {
     return {
       problem: problem(
-        ErrorCode.CoordinatesInvalid,
+        ErrorCode.COORDINATES_INVALID,
         'Coordinates must be decimal degrees with at most 6 decimal places',
       ),
     };
@@ -160,7 +160,7 @@ export function normaliseLocation(
   ) {
     return {
       problem: problem(
-        ErrorCode.LocationOutsideBangladesh,
+        ErrorCode.LOCATION_OUTSIDE_BANGLADESH,
         'The location is outside Bangladesh',
       ),
     };

@@ -24,7 +24,7 @@ const PROJECT = randomUUID();
 const FARMER = randomUUID();
 
 describe('FieldRecordsService', () => {
-  const officer = actor(Role.FieldOfficer);
+  const officer = actor(Role.FIELD_OFFICER);
 
   const build = (
     opts: {
@@ -55,7 +55,7 @@ describe('FieldRecordsService', () => {
     const project = {
       id: PROJECT,
       farmerId: FARMER,
-      stage: opts.stage ?? ProjectStage.Active,
+      stage: opts.stage ?? ProjectStage.ACTIVE,
     } as Project;
     const users = fakeRepo({
       findOne: jest.fn(() =>
@@ -247,7 +247,7 @@ describe('FieldRecordsService', () => {
     }).service.sync(officer, [draft()] as never);
     expect(notMine.code).toBe('NOT_FARMERS_OFFICER');
     const [tooEarly] = await build({
-      stage: ProjectStage.OpenForFunding,
+      stage: ProjectStage.OPEN_FOR_FUNDING,
     }).service.sync(officer, [draft()] as never);
     expect(tooEarly.code).toBe('FARM_UPDATE_WRONG_STAGE');
   });
@@ -317,10 +317,10 @@ describe('FieldRecordsService', () => {
   it('rounds the location for people outside staff, the farmer and their officer', async () => {
     const { service, rows } = build();
     await service.sync(officer, [draft()] as never);
-    const seen = await service.findOne(actor(Role.Investor), rows[0].id);
+    const seen = await service.findOne(actor(Role.INVESTOR), rows[0].id);
     expect(seen.location).toMatchObject({ exact: false, accuracyMeters: null });
     expect(seen.location!.latitude).not.toBe('24.846512');
-    const staff = await service.findOne(actor(Role.Admin), rows[0].id);
+    const staff = await service.findOne(actor(Role.ADMIN), rows[0].id);
     expect(staff.location).toMatchObject({
       exact: true,
       latitude: '24.846512',

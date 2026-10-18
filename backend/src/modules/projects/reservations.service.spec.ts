@@ -27,8 +27,8 @@ const PROJECT = '3f0c2a7e-8d4b-4e1a-9c6f-1b2d3e4f5a6b';
 const INVESTOR = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
 
 describe('ReservationsService', () => {
-  const investor = actor(Role.Investor, { id: INVESTOR });
-  const accounts = actor(Role.Accounts);
+  const investor = actor(Role.INVESTOR, { id: INVESTOR });
+  const accounts = actor(Role.ACCOUNTS);
 
   const build = (
     opts: {
@@ -43,7 +43,7 @@ describe('ReservationsService', () => {
     const project = {
       id: PROJECT,
       title: 'Maize',
-      stage: ProjectStage.OpenForFunding,
+      stage: ProjectStage.OPEN_FOR_FUNDING,
       totalSlots: 10,
       issuedSlots: 4,
       reservedSlots: 3,
@@ -58,7 +58,7 @@ describe('ReservationsService', () => {
             projectId: PROJECT,
             investorId: INVESTOR,
             slots: 2,
-            status: ReservationStatus.Pending,
+            status: ReservationStatus.PENDING,
             project,
             paymentRefEnc: null,
             ...opts.reservation,
@@ -146,7 +146,7 @@ describe('ReservationsService', () => {
     });
 
     it('refuses a project that is not open', async () => {
-      const { service } = build({ project: { stage: ProjectStage.Funded } });
+      const { service } = build({ project: { stage: ProjectStage.FUNDED } });
       await expect(service.reserve(investor, PROJECT, 1)).rejects.toThrow(
         'This project is not open for funding',
       );
@@ -155,11 +155,11 @@ describe('ReservationsService', () => {
 
   it('lets an investor cancel only their own pending reservation', async () => {
     await expect(
-      build().service.cancel(actor(Role.Investor), 12),
+      build().service.cancel(actor(Role.INVESTOR), 12),
     ).rejects.toThrow(NotFoundException);
     await expect(
       build({
-        reservation: { status: ReservationStatus.Confirmed },
+        reservation: { status: ReservationStatus.CONFIRMED },
       }).service.cancel(investor, 12),
     ).rejects.toThrow('This reservation is confirmed');
     const { service, chain } = build();
@@ -214,7 +214,7 @@ describe('ReservationsService', () => {
       chain.fail(revert('PaymentRefAlreadyUsed'));
       await expect(service.confirm(accounts, 12, 'REF-1')).rejects.toThrow();
       expect(reservations.update).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 12, status: ReservationStatus.Pending }),
+        expect.objectContaining({ id: 12, status: ReservationStatus.PENDING }),
         { paymentRefEnc: null, paymentRefHash: null, confirmedById: null },
       );
     });
@@ -234,7 +234,7 @@ describe('ReservationsService', () => {
   });
 
   describe('refunds', () => {
-    const cancelled = { project: { stage: ProjectStage.Cancelled } };
+    const cancelled = { project: { stage: ProjectStage.CANCELLED } };
 
     it('records what the investor paid, then sends the hash', async () => {
       const { service, refundRows, chain } = build(cancelled);

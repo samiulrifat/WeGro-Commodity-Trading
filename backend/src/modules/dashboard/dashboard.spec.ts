@@ -34,13 +34,13 @@ describe('queues by role', () => {
   const keys = (role: Role) => queuesFor(role).map((q) => q.key);
 
   it('gives the super admin and the auditor every queue', () => {
-    const all = keys(Role.SuperAdmin);
+    const all = keys(Role.SUPER_ADMIN);
     expect(all).toHaveLength(14);
-    expect(keys(Role.Auditor)).toEqual(all);
+    expect(keys(Role.AUDITOR)).toEqual(all);
   });
 
   it('gives Accounts the money queues', () => {
-    expect(keys(Role.Accounts)).toEqual([
+    expect(keys(Role.ACCOUNTS)).toEqual([
       'reservations.pending',
       'vouchers.proposed',
       'deals.awaiting-payment',
@@ -51,7 +51,7 @@ describe('queues by role', () => {
   });
 
   it('gives Operations the input queues', () => {
-    expect(keys(Role.Operations)).toEqual([
+    expect(keys(Role.OPERATIONS)).toEqual([
       'vouchers.proposed',
       'voucher-sales.pending',
       'vouchers.inactive',
@@ -59,10 +59,10 @@ describe('queues by role', () => {
   });
 
   it('shows an admin only the non-staff registrations they can verify', () => {
-    const [participants] = queuesFor(Role.Admin);
+    const [participants] = queuesFor(Role.ADMIN);
     expect(participants.key).toBe('participants.pending');
     expect(participants.count).toContain('NOT IN');
-    expect(queuesFor(Role.SuperAdmin)[0].count).not.toContain('NOT IN');
-    expect(keys(Role.Admin)).toHaveLength(14);
+    expect(queuesFor(Role.SUPER_ADMIN)[0].count).not.toContain('NOT IN');
+    expect(keys(Role.ADMIN)).toHaveLength(14);
   });
 });

@@ -49,20 +49,20 @@ const ledgerId = new ParseIntPipe({
   errorHttpStatusCode: HttpStatus.NOT_FOUND,
 });
 const STAFF = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ];
 /** Staff and the project's own people; each sees only their projects. */
 const PROJECT_READERS = [
   ...STAFF,
-  Role.Farmer,
-  Role.FieldOfficer,
-  Role.Investor,
+  Role.FARMER,
+  Role.FIELD_OFFICER,
+  Role.INVESTOR,
 ];
-const BOOKS = [Role.SuperAdmin, Role.Admin, Role.Accounts, Role.Auditor];
+const BOOKS = [Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTS, Role.AUDITOR];
 
 /** Settlement (SettlementLedger): costs, payout rounds, payments and reports. */
 @ApiTags('Settlement')
@@ -119,7 +119,7 @@ export class SettlementController {
   }
 
   @Post('settlement/projects/:projectId/costs')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @ApiCreatedResponse({
     type: CostDto,
     description: 'Until a final round is prepared',
@@ -143,7 +143,7 @@ export class SettlementController {
   }
 
   @Post('settlement/costs/:id/void')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: CostDto, description: 'Corrections are new entries' })
   voidCost(
@@ -167,7 +167,7 @@ export class SettlementController {
   // --- Rounds ---
 
   @Post('settlement/projects/:projectId/rounds')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @ApiCreatedResponse({
     type: RoundDto,
     description:
@@ -202,7 +202,7 @@ export class SettlementController {
   }
 
   @Post('settlement/rounds/:id/approve')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: RoundDto, description: 'Not by who prepared it' })
   approve(
@@ -213,7 +213,7 @@ export class SettlementController {
   }
 
   @Post('settlement/rounds/:id/reject')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: RoundDto,
@@ -228,7 +228,7 @@ export class SettlementController {
   }
 
   @Post('settlement/rounds/:id/payments')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: RoundDto,
@@ -243,7 +243,7 @@ export class SettlementController {
   }
 
   @Get('settlement/rounds/:id/payout-sheet.csv')
-  @Roles(Role.SuperAdmin, Role.Accounts)
+  @Roles(Role.SUPER_ADMIN, Role.ACCOUNTS)
   @RawResponse()
   @ApiFile('text/csv')
   @ApiOkResponse({
@@ -271,7 +271,7 @@ export class SettlementController {
   // --- Statements ---
 
   @Get('me/statement')
-  @Roles(Role.Investor, Role.Farmer)
+  @Roles(Role.INVESTOR, Role.FARMER)
   @ApiOkResponse({ type: StatementDto })
   myStatement(
     @CurrentUser() actor: AuthUser,
@@ -281,7 +281,7 @@ export class SettlementController {
   }
 
   @Get('me/statement.csv')
-  @Roles(Role.Investor, Role.Farmer)
+  @Roles(Role.INVESTOR, Role.FARMER)
   @RawResponse()
   @ApiFile('text/csv')
   async myStatementCsv(

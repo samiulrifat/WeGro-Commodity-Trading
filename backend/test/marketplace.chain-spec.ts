@@ -99,13 +99,13 @@ describe('Marketplace (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.Admin,
-      Role.Accounts,
-      Role.Investor,
-      Role.Warehouse,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Buyer,
+      Role.ADMIN,
+      Role.ACCOUNTS,
+      Role.INVESTOR,
+      Role.WAREHOUSE,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.BUYER,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db

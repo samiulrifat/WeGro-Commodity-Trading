@@ -31,8 +31,8 @@ const P2 = randomUUID();
 const PX = randomUUID();
 
 describe('TrackRecordsService', () => {
-  const officer = actor(Role.FieldOfficer);
-  const bankOfficer = actor(Role.Bank);
+  const officer = actor(Role.FIELD_OFFICER);
+  const bankOfficer = actor(Role.BANK);
 
   const summary = (projects: string[]) =>
     ({
@@ -58,7 +58,7 @@ describe('TrackRecordsService', () => {
       opts.farmer === undefined
         ? {
             id: FARMER,
-            role: Role.Farmer,
+            role: Role.FARMER,
             fieldOfficerId: opts.officerOf === false ? 'other' : officer.id,
           }
         : opts.farmer;
@@ -91,7 +91,7 @@ describe('TrackRecordsService', () => {
             id: 'c1',
             farmerId: FARMER,
             bankId: BANK,
-            status: ConsentStatus.Active,
+            status: ConsentStatus.ACTIVE,
             expiresAt: new Date('2027-01-31T17:59:59Z'),
             ...opts.consent,
           } as BankConsent);
@@ -186,10 +186,10 @@ describe('TrackRecordsService', () => {
   describe('who sees a farmer', () => {
     it('staff, the farmer and their own officer', async () => {
       await expect(
-        build().service.versions(actor(Role.Auditor), FARMER),
+        build().service.versions(actor(Role.AUDITOR), FARMER),
       ).resolves.toEqual([]);
       await expect(
-        build().service.versions(actor(Role.Farmer, { id: FARMER }), FARMER),
+        build().service.versions(actor(Role.FARMER, { id: FARMER }), FARMER),
       ).resolves.toEqual([]);
       await expect(build().service.versions(officer, FARMER)).resolves.toEqual(
         [],
@@ -198,11 +198,11 @@ describe('TrackRecordsService', () => {
         build({ officerOf: false }).service.versions(officer, FARMER),
       ).rejects.toThrow(NotFoundException);
       await expect(
-        build().service.versions(actor(Role.Investor), FARMER),
+        build().service.versions(actor(Role.INVESTOR), FARMER),
       ).rejects.toThrow(NotFoundException);
       await expect(
-        build({ farmer: { id: FARMER, role: Role.Investor } }).service.versions(
-          actor(Role.Admin),
+        build({ farmer: { id: FARMER, role: Role.INVESTOR } }).service.versions(
+          actor(Role.ADMIN),
           FARMER,
         ),
       ).rejects.toThrow(NotFoundException);
@@ -234,7 +234,7 @@ describe('TrackRecordsService', () => {
 
     it('needs the farmer’s own officer, finished projects, and something new', async () => {
       await expect(
-        build().service.publish(actor(Role.Admin), FARMER),
+        build().service.publish(actor(Role.ADMIN), FARMER),
       ).rejects.toThrow(ForbiddenException);
       const none = await build({ projects: [] })
         .service.publish(officer, FARMER)

@@ -63,13 +63,13 @@ describe('Notifications (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     for (const r of [
-      Role.SuperAdmin,
-      Role.Admin,
-      Role.Accounts,
-      Role.Operations,
-      Role.Investor,
-      Role.Farmer,
-      Role.Auditor,
+      Role.SUPER_ADMIN,
+      Role.ADMIN,
+      Role.ACCOUNTS,
+      Role.OPERATIONS,
+      Role.INVESTOR,
+      Role.FARMER,
+      Role.AUDITOR,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db

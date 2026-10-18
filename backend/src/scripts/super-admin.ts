@@ -33,15 +33,15 @@ export async function ensureSuperAdmin(
 
   const id = await dataSource.transaction(async (m) => {
     const existing = await m.findOne(User, {
-      where: { role: Role.SuperAdmin },
+      where: { role: Role.SUPER_ADMIN },
     });
     if (existing && !existing.isDemo) {
       throw new Error('A super admin already exists');
     }
     const fields = {
-      role: Role.SuperAdmin,
-      status: ParticipantStatus.Verified,
-      chainState: ChainState.Operator,
+      role: Role.SUPER_ADMIN,
+      status: ParticipantStatus.VERIFIED,
+      chainState: ChainState.OPERATOR,
       phoneIndex: codec.phoneIndex(phone),
       passwordHash,
       mustChangePassword: false,

@@ -73,7 +73,7 @@ export class ListProduceDto {
 }
 
 export class ListListingsQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: ListingStatus, default: ListingStatus.Open })
+  @ApiPropertyOptional({ enum: ListingStatus, default: ListingStatus.OPEN })
   @IsOptional()
   @IsEnum(ListingStatus)
   status?: ListingStatus;

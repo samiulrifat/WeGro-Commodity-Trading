@@ -60,7 +60,7 @@ export class AuthController {
     // the auth endpoints that need it.
     this.cookie = {
       httpOnly: true,
-      secure: config.get('NODE_ENV', { infer: true }) === NodeEnv.Production,
+      secure: config.get('NODE_ENV', { infer: true }) === NodeEnv.PRODUCTION,
       sameSite: 'strict',
       path: `/${API_PREFIX}/auth`,
     };
@@ -92,7 +92,7 @@ export class AuthController {
     if (!token) {
       throw new UnauthorizedException({
         message: 'Sign in required',
-        code: ErrorCode.SignInRequired,
+        code: ErrorCode.SIGN_IN_REQUIRED,
       });
     }
     try {

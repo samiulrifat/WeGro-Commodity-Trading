@@ -54,20 +54,20 @@ describe('Vouchers (node + database)', () => {
     db = chain.app.get(DataSource);
     await waitForDemoAccounts(chain);
     const roles = [
-      Role.SuperAdmin,
-      Role.Admin,
-      Role.Operations,
-      Role.Accounts,
-      Role.Investor,
-      Role.Supplier,
-      Role.Farmer,
-      Role.FieldOfficer,
-      Role.Buyer,
+      Role.SUPER_ADMIN,
+      Role.ADMIN,
+      Role.OPERATIONS,
+      Role.ACCOUNTS,
+      Role.INVESTOR,
+      Role.SUPPLIER,
+      Role.FARMER,
+      Role.FIELD_OFFICER,
+      Role.BUYER,
     ];
     const tokens = await Promise.all(roles.map((r) => demoToken(http, r)));
     roles.forEach((r, i) => (t[r] = tokens[i]));
     const users = db.getRepository(User);
-    for (const r of [Role.Farmer, Role.Supplier, Role.FieldOfficer]) {
+    for (const r of [Role.FARMER, Role.SUPPLIER, Role.FIELD_OFFICER]) {
       id[r] = (await users.findOneByOrFail({ role: r, isDemo: true })).id;
     }
 

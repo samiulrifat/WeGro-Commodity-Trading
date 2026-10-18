@@ -31,9 +31,9 @@ const FARMER = randomUUID();
 const VOUCHER = randomUUID();
 
 describe('VouchersService', () => {
-  const operations = actor(Role.Operations);
-  const supplier = actor(Role.Supplier);
-  const officer = actor(Role.FieldOfficer);
+  const operations = actor(Role.OPERATIONS);
+  const supplier = actor(Role.SUPPLIER);
+  const officer = actor(Role.FIELD_OFFICER);
 
   const build = (
     opts: {
@@ -50,7 +50,7 @@ describe('VouchersService', () => {
     const project = {
       id: PROJECT,
       farmerId: FARMER,
-      stage: ProjectStage.Active,
+      stage: ProjectStage.ACTIVE,
       fundingTarget: 5_000_000n,
       title: 'Maize',
       ...opts.project,
@@ -65,7 +65,7 @@ describe('VouchersService', () => {
       heldQuantity: 20,
       unitPrice: 5000n,
       value: 500_000n,
-      status: VoucherStatus.Active,
+      status: VoucherStatus.ACTIVE,
       voidedAmount: null,
       ...opts.voucher,
     } as Voucher;
@@ -75,7 +75,7 @@ describe('VouchersService', () => {
       supplierId: supplier.id,
       quantity: 10,
       amount: 50_000n,
-      status: SaleStatus.Pending,
+      status: SaleStatus.PENDING,
       ...opts.sale,
     } as VoucherSale;
     const inserted: Array<[unknown, unknown]> = [];
@@ -145,9 +145,9 @@ describe('VouchersService', () => {
             opts.suppliers ?? [
               {
                 id: supplier.id,
-                role: Role.Supplier,
-                status: ParticipantStatus.Verified,
-                chainState: ChainState.Confirmed,
+                role: Role.SUPPLIER,
+                status: ParticipantStatus.VERIFIED,
+                chainState: ChainState.CONFIRMED,
               },
             ],
           ),
@@ -184,7 +184,7 @@ describe('VouchersService', () => {
         farmerId: FARMER,
         unitPrice: 5000n,
         value: 500_000n,
-        status: VoucherStatus.Submitted,
+        status: VoucherStatus.SUBMITTED,
       });
       expect(links).toEqual([
         { voucherId: voucher.id, supplierId: supplier.id, position: 0 },
@@ -215,7 +215,7 @@ describe('VouchersService', () => {
     it('needs a funded or active project and verified suppliers', async () => {
       await expect(
         build({
-          project: { stage: ProjectStage.OpenForFunding },
+          project: { stage: ProjectStage.OPEN_FOR_FUNDING },
         }).service.propose(operations, PROJECT, dto as never),
       ).rejects.toThrow(ConflictException);
       const err = await build({ suppliers: [] })
@@ -239,18 +239,18 @@ describe('VouchersService', () => {
 
   it('discards an unconfirmed proposal only when the ledger never got it', async () => {
     await expect(
-      build({ voucher: { status: VoucherStatus.Active } }).service.discard(
+      build({ voucher: { status: VoucherStatus.ACTIVE } }).service.discard(
         VOUCHER,
       ),
     ).rejects.toThrow('Only unconfirmed proposals can be discarded');
     await expect(
       build({
-        voucher: { status: VoucherStatus.Submitted },
+        voucher: { status: VoucherStatus.SUBMITTED },
         onLedger: 1n,
       }).service.discard(VOUCHER),
     ).rejects.toThrow('The ledger has this voucher; it will appear shortly');
     const { service, deleted } = build({
-      voucher: { status: VoucherStatus.Submitted },
+      voucher: { status: VoucherStatus.SUBMITTED },
     });
     await service.discard(VOUCHER);
     expect(deleted).toEqual([VoucherSupplier, Voucher]);
@@ -277,14 +277,14 @@ describe('VouchersService', () => {
       const mine = (over: object) => ({
         id: randomUUID(),
         supplierId: supplier.id,
-        status: BatchStatus.Registered,
+        status: BatchStatus.REGISTERED,
         inputTypeCode: 'UREA',
         expiresOn: null,
         ...over,
       });
       const batches = [
         mine({ supplierId: 'someone-else' }),
-        mine({ status: BatchStatus.Submitted }),
+        mine({ status: BatchStatus.SUBMITTED }),
         mine({ inputTypeCode: 'SEED_MAIZE' }),
         mine({ expiresOn: '2026-10-13' }),
         mine({}),
@@ -326,13 +326,13 @@ describe('VouchersService', () => {
     it('needs an active voucher on an active project', async () => {
       await expect(
         build({
-          voucher: { status: VoucherStatus.Cancelled },
+          voucher: { status: VoucherStatus.CANCELLED },
         }).service.recordSale(supplier, VOUCHER, {
           quantity: 1,
         } as never),
       ).rejects.toThrow('This voucher is not active');
       await expect(
-        build({ project: { stage: ProjectStage.Funded } }).service.recordSale(
+        build({ project: { stage: ProjectStage.FUNDED } }).service.recordSale(
           supplier,
           VOUCHER,
           {
@@ -356,16 +356,16 @@ describe('VouchersService', () => {
         build().service.cancelSale(supplier, 4),
       ).resolves.toBeDefined();
       await expect(
-        build().service.cancelSale(actor(Role.Farmer, { id: FARMER }), 4),
+        build().service.cancelSale(actor(Role.FARMER, { id: FARMER }), 4),
       ).resolves.toBeDefined();
       await expect(
-        build().service.cancelSale(actor(Role.Supplier), 4),
+        build().service.cancelSale(actor(Role.SUPPLIER), 4),
       ).rejects.toThrow(ForbiddenException);
       await expect(
-        build().service.cancelSale(actor(Role.Farmer), 4),
+        build().service.cancelSale(actor(Role.FARMER), 4),
       ).rejects.toThrow(ForbiddenException);
       await expect(
-        build({ sale: { status: SaleStatus.Confirmed } }).service.cancelSale(
+        build({ sale: { status: SaleStatus.CONFIRMED } }).service.cancelSale(
           supplier,
           4,
         ),
@@ -389,7 +389,7 @@ describe('VouchersService', () => {
 
   it('sets an inactivity limit only on proposed or active vouchers', async () => {
     const { service, vouchers } = build({
-      voucher: { status: VoucherStatus.Cancelled },
+      voucher: { status: VoucherStatus.CANCELLED },
     });
     vouchers.update.mockResolvedValueOnce({ affected: 0 });
     await expect(

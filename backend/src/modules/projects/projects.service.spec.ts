@@ -38,7 +38,7 @@ const dto = {
 };
 
 describe('ProjectsService', () => {
-  const admin = actor(Role.Admin);
+  const admin = actor(Role.ADMIN);
 
   /**
    * One project in memory; `ledger` is its stage number on the ledger
@@ -67,8 +67,8 @@ describe('ProjectsService', () => {
             wegroBps: 2000,
             insured: false,
             plannedStartDate: null,
-            stage: ProjectStage.Draft,
-            chainState: ProjectChainState.Local,
+            stage: ProjectStage.DRAFT,
+            chainState: ProjectChainState.LOCAL,
             termsHash: null,
             issuedSlots: 0,
             ...opts.project,
@@ -91,9 +91,9 @@ describe('ProjectsService', () => {
       opts.farmer === undefined
         ? {
             id: FARMER,
-            role: Role.Farmer,
-            status: ParticipantStatus.Verified,
-            chainState: ChainState.Confirmed,
+            role: Role.FARMER,
+            status: ParticipantStatus.VERIFIED,
+            chainState: ChainState.CONFIRMED,
           }
         : opts.farmer;
     const users = fakeRepo({ findOne: jest.fn(() => Promise.resolve(farmer)) });
@@ -139,7 +139,7 @@ describe('ProjectsService', () => {
         totalSlots: 5,
         farmerBps: 4000,
         category: 'grain',
-        chainState: ProjectChainState.Local,
+        chainState: ProjectChainState.LOCAL,
         createdById: admin.id,
       });
       expect(chain.sent).toEqual([]);
@@ -150,8 +150,8 @@ describe('ProjectsService', () => {
         project: null,
         farmer: {
           id: FARMER,
-          role: Role.Farmer,
-          status: ParticipantStatus.Pending,
+          role: Role.FARMER,
+          status: ParticipantStatus.PENDING,
         },
       });
       const err = await service
@@ -184,7 +184,7 @@ describe('ProjectsService', () => {
 
     it('refuses to change or delete a published project', async () => {
       const { service } = build({
-        project: { chainState: ProjectChainState.Confirmed },
+        project: { chainState: ProjectChainState.CONFIRMED },
       });
       await expect(service.update(ID, { title: 'x' } as never)).rejects.toThrow(
         ConflictException,
@@ -201,7 +201,7 @@ describe('ProjectsService', () => {
       await service.publish(admin, ID);
       const hash = termsHash(ID, termsOf(row()));
       expect(row()).toMatchObject({
-        chainState: ProjectChainState.Submitted,
+        chainState: ProjectChainState.SUBMITTED,
         termsHash: hash,
       });
       expect(chain.methods()).toEqual(['createProject', 'openForFunding']);
@@ -220,7 +220,7 @@ describe('ProjectsService', () => {
 
     it('picks up where it stopped: a project already created is only opened', async () => {
       const { service, chain } = build({
-        project: { chainState: ProjectChainState.Submitted, termsHash: '0x1' },
+        project: { chainState: ProjectChainState.SUBMITTED, termsHash: '0x1' },
         ledger: 1,
       });
       await service.publish(admin, ID);
@@ -229,7 +229,7 @@ describe('ProjectsService', () => {
 
     it('sends nothing for a project already open', async () => {
       const { service, chain } = build({
-        project: { chainState: ProjectChainState.Confirmed, termsHash: '0x1' },
+        project: { chainState: ProjectChainState.CONFIRMED, termsHash: '0x1' },
         ledger: 2,
       });
       await service.publish(admin, ID);
@@ -241,7 +241,7 @@ describe('ProjectsService', () => {
       chain.fail(revert('ProjectExists'));
       await expect(service.publish(admin, ID)).rejects.toThrow();
       expect(row()).toMatchObject({
-        chainState: ProjectChainState.Local,
+        chainState: ProjectChainState.LOCAL,
         termsHash: null,
       });
     });
@@ -250,7 +250,7 @@ describe('ProjectsService', () => {
       const { service, chain, row } = build();
       chain.fail(new Error('timeout'));
       await expect(service.publish(admin, ID)).rejects.toThrow('timeout');
-      expect(row().chainState).toBe(ProjectChainState.Submitted);
+      expect(row().chainState).toBe(ProjectChainState.SUBMITTED);
     });
 
     it('lets only one of two racing publishes through', async () => {
@@ -274,7 +274,7 @@ describe('ProjectsService', () => {
 
   it('sends a stage move as the admin', async () => {
     const { service, chain } = build({
-      project: { chainState: ProjectChainState.Confirmed },
+      project: { chainState: ProjectChainState.CONFIRMED },
     });
     await service.advance(admin, ID, 'markReadyForSale');
     expect(chain.sent[0]).toMatchObject({
@@ -293,15 +293,15 @@ describe('ProjectsService', () => {
     };
 
     it('shows staff everything, drafts included', async () => {
-      expect(await scoped(actor(Role.FieldOfficer))).toEqual(['p.id = :id']);
+      expect(await scoped(actor(Role.FIELD_OFFICER))).toEqual(['p.id = :id']);
     });
 
     it('shows investors published projects only, and farmers only their own', async () => {
-      expect(await scoped(actor(Role.Investor))).toEqual([
+      expect(await scoped(actor(Role.INVESTOR))).toEqual([
         'p.id = :id',
         'p.chain_state <> :local',
       ]);
-      expect(await scoped(actor(Role.Farmer))).toEqual([
+      expect(await scoped(actor(Role.FARMER))).toEqual([
         'p.id = :id',
         'p.chain_state <> :local',
         'p.farmer_id = :me',
@@ -313,8 +313,8 @@ describe('ProjectsService', () => {
     it('matches when the ledger holds the same terms, stage and slots', async () => {
       const { service, row } = build({
         project: {
-          chainState: ProjectChainState.Confirmed,
-          stage: ProjectStage.OpenForFunding,
+          chainState: ProjectChainState.CONFIRMED,
+          stage: ProjectStage.OPEN_FOR_FUNDING,
         },
         ledger: 2,
       });
@@ -328,8 +328,8 @@ describe('ProjectsService', () => {
     it('names each disagreement', async () => {
       const { service, row } = build({
         project: {
-          chainState: ProjectChainState.Confirmed,
-          stage: ProjectStage.Active,
+          chainState: ProjectChainState.CONFIRMED,
+          stage: ProjectStage.ACTIVE,
           termsHash: '0xedited',
         },
         ledger: 2,
@@ -345,7 +345,7 @@ describe('ProjectsService', () => {
       });
       await expect(
         build({
-          project: { chainState: ProjectChainState.Confirmed },
+          project: { chainState: ProjectChainState.CONFIRMED },
         }).service.integrity(ID),
       ).resolves.toMatchObject({
         mismatches: ['notOnLedger'],

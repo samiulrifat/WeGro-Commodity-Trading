@@ -112,7 +112,7 @@ function world() {
       for (const u of users) {
         const l = ledger.get(uuidToBytes32(u.id));
         if (!l) continue;
-        u.chainState = ChainState.Confirmed;
+        u.chainState = ChainState.CONFIRMED;
         u.status = (['', 'pending', 'verified', 'rejected'] as const)[
           l.status
         ] as ParticipantStatus;
@@ -166,35 +166,35 @@ function world() {
 }
 
 describe('ParticipantsService', () => {
-  const admin = actor(Role.Admin);
-  const superAdmin = actor(Role.SuperAdmin, { keyIndex: 0 });
-  const officer = actor(Role.FieldOfficer);
+  const admin = actor(Role.ADMIN);
+  const superAdmin = actor(Role.SUPER_ADMIN, { keyIndex: 0 });
+  const officer = actor(Role.FIELD_OFFICER);
 
   describe('registering', () => {
     it('saves encrypted details and registers the fingerprint and a fresh key on the ledger', async () => {
       const w = world();
       const res = await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
       const user = w.users[0];
       expect(user).toMatchObject({
-        role: Role.Farmer,
+        role: Role.FARMER,
         mustChangePassword: true,
         keyIndex: 101,
         registeredById: admin.id,
-        chainState: ChainState.Confirmed,
+        chainState: ChainState.CONFIRMED,
       });
       const stored = w.details[0];
       expect(JSON.stringify(stored)).not.toContain('Rahim');
       expect(stored.detailsHash).toBe(
-        codec.fingerprint(user.id, Role.Farmer, codec.open(stored) as never),
+        codec.fingerprint(user.id, Role.FARMER, codec.open(stored) as never),
       );
       expect(w.chain.sent[0]).toMatchObject({
         method: 'registerParticipant',
         args: [
           uuidToBytes32(user.id),
-          CHAIN_ROLE[Role.Farmer],
+          CHAIN_ROLE[Role.FARMER],
           user.account,
           stored.detailsHash,
         ],
@@ -206,23 +206,23 @@ describe('ParticipantsService', () => {
     it('lets only the super admin register staff, and admins or officers everyone else', async () => {
       const w = world();
       await expect(
-        w.service.register(admin, { role: Role.Accounts, ...person } as never),
+        w.service.register(admin, { role: Role.ACCOUNTS, ...person } as never),
       ).rejects.toThrow(ForbiddenException);
       await expect(
-        w.service.register(actor(Role.Investor), {
-          role: Role.Farmer,
+        w.service.register(actor(Role.INVESTOR), {
+          role: Role.FARMER,
           ...person,
         } as never),
       ).rejects.toThrow(ForbiddenException);
       await expect(
-        w.service.register(officer, { role: Role.Farmer, ...person } as never),
+        w.service.register(officer, { role: Role.FARMER, ...person } as never),
       ).resolves.toBeDefined();
     });
 
     it('stops at a failed ID check, listing only the failures', async () => {
       const err = await world()
         .service.register(admin, {
-          role: Role.Farmer,
+          role: Role.FARMER,
           ...person,
           phone: '12345',
         } as never)
@@ -239,12 +239,12 @@ describe('ParticipantsService', () => {
     it('refuses a phone or NID already registered', async () => {
       const w = world();
       await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
       const again = (over: object) =>
         w.service
-          .register(admin, { role: Role.Investor, ...person, ...over } as never)
+          .register(admin, { role: Role.INVESTOR, ...person, ...over } as never)
           .catch((e: ConflictException) => e.getResponse());
       await expect(again({ nid: '7192835460' })).resolves.toMatchObject({
         code: 'PHONE_ALREADY_REGISTERED',
@@ -258,7 +258,7 @@ describe('ParticipantsService', () => {
       const w = world();
       w.chain.fail(revert('AccountInUse'));
       await expect(
-        w.service.register(admin, { role: Role.Farmer, ...person } as never),
+        w.service.register(admin, { role: Role.FARMER, ...person } as never),
       ).rejects.toThrow();
       expect(w.users).toEqual([]);
     });
@@ -267,10 +267,10 @@ describe('ParticipantsService', () => {
       const w = world();
       w.chain.fail(new Error('timeout'));
       const err = await w.service
-        .register(admin, { role: Role.Farmer, ...person } as never)
+        .register(admin, { role: Role.FARMER, ...person } as never)
         .catch((e: unknown) => e);
       expect((err as HttpException).getStatus()).toBe(503);
-      expect(w.users[0].chainState).toBe(ChainState.Submitted);
+      expect(w.users[0].chainState).toBe(ChainState.SUBMITTED);
     });
   });
 
@@ -278,7 +278,7 @@ describe('ParticipantsService', () => {
     const registered = async () => {
       const w = world();
       const { participant } = await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
       return { ...w, id: participant.id };
@@ -287,7 +287,7 @@ describe('ParticipantsService', () => {
     it('verifies on the ledger once the stored details still match it', async () => {
       const w = await registered();
       const res = await w.service.verify(admin, w.id);
-      expect(res.status).toBe(ParticipantStatus.Verified);
+      expect(res.status).toBe(ParticipantStatus.VERIFIED);
       expect(w.chain.methods()).toEqual([
         'registerParticipant',
         'verifyParticipant',
@@ -333,12 +333,12 @@ describe('ParticipantsService', () => {
   it('rejects on the ledger and ends every session the person had', async () => {
     const w = world();
     const { participant } = await w.service.register(admin, {
-      role: Role.Investor,
+      role: Role.INVESTOR,
       ...person,
     } as never);
     await w.service.reject(admin, participant.id, 'Documents do not match');
     expect(w.users[0]).toMatchObject({
-      status: ParticipantStatus.Rejected,
+      status: ParticipantStatus.REJECTED,
       statusReason: 'Documents do not match',
     });
     expect(w.tokens.revokeAllForUser).toHaveBeenCalledWith(
@@ -350,7 +350,7 @@ describe('ParticipantsService', () => {
   it('only assigns a verified field officer to a farmer', async () => {
     const w = world();
     const { participant } = await w.service.register(admin, {
-      role: Role.Investor,
+      role: Role.INVESTOR,
       ...person,
     } as never);
     await expect(
@@ -363,7 +363,7 @@ describe('ParticipantsService', () => {
   it('marks the new key pending before replacing a key, and clears it if the ledger refuses', async () => {
     const w = world();
     const { participant } = await w.service.register(admin, {
-      role: Role.Farmer,
+      role: Role.FARMER,
       ...person,
     } as never);
     w.chain.fail(revert('AccountInUse'));
@@ -378,7 +378,7 @@ describe('ParticipantsService', () => {
     it('registers again someone the ledger has lost (a reset chain)', async () => {
       const w = world();
       const { participant } = await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
       w.ledger.clear();
@@ -392,7 +392,7 @@ describe('ParticipantsService', () => {
     it('refuses to copy a ledger record that belongs to a different person', async () => {
       const w = world();
       const { participant } = await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
       w.ledger.get(uuidToBytes32(participant.id))!.detailsHash =
@@ -407,10 +407,10 @@ describe('ParticipantsService', () => {
     it('masks phone, NID, birth date and address for auditors', async () => {
       const w = world();
       const { participant } = await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
-      const seen = await w.service.findOne(actor(Role.Auditor), participant.id);
+      const seen = await w.service.findOne(actor(Role.AUDITOR), participant.id);
       expect(seen).toMatchObject({
         masked: true,
         phone: '+88017•••••001',
@@ -425,7 +425,7 @@ describe('ParticipantsService', () => {
     it('shows field officers only the people they register or look after', async () => {
       const w = world();
       const { participant } = await w.service.register(admin, {
-        role: Role.Farmer,
+        role: Role.FARMER,
         ...person,
       } as never);
       await expect(w.service.findOne(officer, participant.id)).rejects.toThrow(
@@ -435,7 +435,7 @@ describe('ParticipantsService', () => {
 
     it('never shows the super admin as a participant', async () => {
       const w = world();
-      w.users.push({ id: 'sa', role: Role.SuperAdmin } as User);
+      w.users.push({ id: 'sa', role: Role.SUPER_ADMIN } as User);
       await expect(w.service.findOne(admin, 'sa')).rejects.toThrow(
         NotFoundException,
       );
@@ -445,10 +445,10 @@ describe('ParticipantsService', () => {
   it('reports every way stored details and the ledger disagree', async () => {
     const w = world();
     const { participant } = await w.service.register(admin, {
-      role: Role.Farmer,
+      role: Role.FARMER,
       ...person,
     } as never);
-    w.users[0].status = ParticipantStatus.Verified; // database says verified, ledger pending
+    w.users[0].status = ParticipantStatus.VERIFIED; // database says verified, ledger pending
     const res = await w.service.integrity(participant.id);
     expect(res).toMatchObject({ matches: false, mismatches: ['status'] });
   });
@@ -456,7 +456,7 @@ describe('ParticipantsService', () => {
   it('stops a second key replacement while one is in progress', async () => {
     const w = world();
     const { participant } = await w.service.register(admin, {
-      role: Role.Farmer,
+      role: Role.FARMER,
       ...person,
     } as never);
     w.users[0].pendingKeyIndex = 5;

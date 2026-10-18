@@ -50,16 +50,16 @@ import {
 import { ErrorCode } from '../../common/errors/error-code';
 
 export const STAFF: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 /** Stages in which the crop is in the field: cover can be set and claims opened. */
 const IN_FIELD: readonly ProjectStage[] = [
-  ProjectStage.Funded,
-  ProjectStage.Active,
+  ProjectStage.FUNDED,
+  ProjectStage.ACTIVE,
 ];
 
 /**
@@ -101,14 +101,14 @@ export class InsuranceService {
     if (current && current.insurerId !== actor.id) {
       throw new ForbiddenException({
         message: 'Another insurer covers this project',
-        code: ErrorCode.OtherInsurer,
+        code: ErrorCode.OTHER_INSURER,
       });
     }
     const maxAmount = takaToPoisha(dto.maxAmount);
     if (maxAmount <= 0n)
       throw new UnprocessableEntityException({
         message: 'maxAmount must be above zero',
-        code: ErrorCode.AmountNotPositive,
+        code: ErrorCode.AMOUNT_NOT_POSITIVE,
       });
     const approved = await this.registry().approvedTotal(
       uuidToBytes32(project.id),
@@ -116,7 +116,7 @@ export class InsuranceService {
     if (maxAmount < approved) {
       throw new ConflictException({
         message: `Claims of ${poishaToTaka(approved)} taka are already approved; the cover cannot be less`,
-        code: ErrorCode.CoverageBelowApproved,
+        code: ErrorCode.COVERAGE_BELOW_APPROVED,
         details: { approvedTotal: poishaToTaka(approved) },
       });
     }
@@ -143,7 +143,7 @@ export class InsuranceService {
     ) {
       throw new ConflictException({
         message: 'These are already the current terms',
-        code: ErrorCode.CoverUnchanged,
+        code: ErrorCode.COVER_UNCHANGED,
       });
     }
     version.termsHash = coverageFingerprint(version);
@@ -176,7 +176,7 @@ export class InsuranceService {
     if (!project || !(await this.canSeeProject(actor, project))) {
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     }
     const key = uuidToBytes32(projectId);
@@ -192,7 +192,7 @@ export class InsuranceService {
     if (!current)
       throw new NotFoundException({
         message: 'This project has no cover yet',
-        code: ErrorCode.NoCoverage,
+        code: ErrorCode.NO_COVERAGE,
       });
     const names = await this.views.names([current.insurerId]);
     const remaining = current.maxAmount - approvedTotal;
@@ -261,7 +261,7 @@ export class InsuranceService {
     if (dto.occurredOn > bdDate(await this.clock.now())) {
       throw new UnprocessableEntityException({
         message: 'occurredOn cannot be in the future',
-        code: ErrorCode.OccurredInFuture,
+        code: ErrorCode.OCCURRED_IN_FUTURE,
       });
     }
     const event = this.events.create({
@@ -318,7 +318,7 @@ export class InsuranceService {
     if (!event)
       throw new NotFoundException({
         message: 'Weather event not found',
-        code: ErrorCode.WeatherEventNotFound,
+        code: ErrorCode.WEATHER_EVENT_NOT_FOUND,
       });
     return (await this.weatherEventDtos([event]))[0];
   }
@@ -372,18 +372,18 @@ export class InsuranceService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     if (!project.insured) {
       throw new ConflictException({
         message: 'This project is not insured',
-        code: ErrorCode.NotInsured,
+        code: ErrorCode.NOT_INSURED,
       });
     }
     if (!IN_FIELD.includes(project.stage)) {
       throw new ConflictException({
         message: `Insurance applies while the crop is in the field (funded or active); this project is ${project.stage}`,
-        code: ErrorCode.InsuranceProjectStage,
+        code: ErrorCode.INSURANCE_PROJECT_STAGE,
         details: { stage: project.stage },
       });
     }
@@ -397,7 +397,7 @@ export class InsuranceService {
   async canSeeProject(actor: AuthUser, project: Project): Promise<boolean> {
     if (STAFF.has(actor.role)) return true;
     switch (actor.role) {
-      case Role.Insurer:
+      case Role.INSURER:
         return this.terms.exists({
           where: {
             projectId: project.id,
@@ -405,9 +405,9 @@ export class InsuranceService {
             status: 'recorded',
           },
         });
-      case Role.FieldOfficer:
+      case Role.FIELD_OFFICER:
         return this.isOfficerOf(actor, project.farmerId);
-      case Role.Farmer:
+      case Role.FARMER:
         return project.farmerId === actor.id;
       default:
         return false;
@@ -415,7 +415,7 @@ export class InsuranceService {
   }
 
   async isOfficerOf(actor: AuthUser, farmerId: string): Promise<boolean> {
-    if (actor.role !== Role.FieldOfficer) return false;
+    if (actor.role !== Role.FIELD_OFFICER) return false;
     return this.users.exists({
       where: { id: farmerId, fieldOfficerId: actor.id },
     });

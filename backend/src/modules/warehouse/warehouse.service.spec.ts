@@ -43,9 +43,9 @@ const SITE = randomUUID();
 const RECEIPT = '0x' + 'ab'.repeat(32);
 
 describe('WarehouseService', () => {
-  const operator = actor(Role.Warehouse);
-  const officer = actor(Role.FieldOfficer);
-  const admin = actor(Role.Admin);
+  const operator = actor(Role.WAREHOUSE);
+  const officer = actor(Role.FIELD_OFFICER);
+  const admin = actor(Role.ADMIN);
 
   const build = (
     opts: {
@@ -61,7 +61,7 @@ describe('WarehouseService', () => {
     const project = {
       id: PROJECT,
       farmerId: FARMER,
-      stage: ProjectStage.Active,
+      stage: ProjectStage.ACTIVE,
       category: 'grain',
       produceCode: 'MAIZE',
       ...opts.project,
@@ -76,7 +76,7 @@ describe('WarehouseService', () => {
         ownerIsWegro: false,
         produceCode: 'MAIZE',
         quantity: 500,
-        status: ReceiptStatus.Issued,
+        status: ReceiptStatus.ISSUED,
         intakeDate: '2026-10-01',
         expiresOn: '2026-12-31',
         bagCount: 10,
@@ -158,9 +158,9 @@ describe('WarehouseService', () => {
             opts.operatorUser === undefined
               ? {
                   id: operator.id,
-                  role: Role.Warehouse,
-                  status: ParticipantStatus.Verified,
-                  chainState: ChainState.Confirmed,
+                  role: Role.WAREHOUSE,
+                  status: ParticipantStatus.VERIFIED,
+                  chainState: ChainState.CONFIRMED,
                 }
               : opts.operatorUser,
           ),
@@ -215,7 +215,7 @@ describe('WarehouseService', () => {
 
     it('assigns only a verified operator, to a registered site or none', async () => {
       await expect(
-        build({ operatorUser: { role: Role.Farmer } }).service.assignOperator(
+        build({ operatorUser: { role: Role.FARMER } }).service.assignOperator(
           admin,
           operator.id,
           SITE,
@@ -300,7 +300,7 @@ describe('WarehouseService', () => {
       ['an operator without a site', { site: null }, 'NOT_SITE_OPERATOR'],
       [
         'a project not active',
-        { project: { stage: ProjectStage.Funded } },
+        { project: { stage: ProjectStage.FUNDED } },
         'PROJECT_NOT_ACTIVE',
       ],
       [
@@ -355,7 +355,7 @@ describe('WarehouseService', () => {
 
     it('collects only an issued receipt', async () => {
       await expect(
-        build({ receipt: { status: ReceiptStatus.Listed } }).service.collect(
+        build({ receipt: { status: ReceiptStatus.LISTED } }).service.collect(
           operator,
           RECEIPT,
         ),
@@ -388,7 +388,7 @@ describe('WarehouseService', () => {
       await expect(
         build({ receipt: {} }).service.acceptHandover(admin, RECEIPT),
       ).rejects.toThrow('No handover is waiting on this receipt');
-      const waiting = { receipt: { status: ReceiptStatus.PendingHandover } };
+      const waiting = { receipt: { status: ReceiptStatus.PENDING_HANDOVER } };
       await expect(
         build(waiting).service.cancelHandover(officer, RECEIPT),
       ).rejects.toThrow(ForbiddenException);

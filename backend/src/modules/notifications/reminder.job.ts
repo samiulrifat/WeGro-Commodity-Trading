@@ -11,7 +11,7 @@ import { Role } from '../users/roles';
 import { type Note, NotificationWriter } from './notification-writer';
 import { NotificationCategory, NotificationKind } from './notification.enums';
 
-const { Reminder } = NotificationCategory;
+const { REMINDER } = NotificationCategory;
 const DAY_MS = 86_400_000;
 /** Deadlines (reservation, deal payment, input sale): this long before. */
 const DEADLINE_LEAD = '24 hours';
@@ -59,7 +59,7 @@ export class ReminderJob implements ScheduledJobRunner {
     // Independent reads, each on its own pooled connection, then one insert
     // (atomic by itself; the dedupe key makes a repeat harmless).
     const m = this.dataSource.manager;
-    const admins = await this.writer.withRole(m, [Role.Admin]);
+    const admins = await this.writer.withRole(m, [Role.ADMIN]);
     const batches = await Promise.all([
       this.reservations(m, now),
       this.deals(m, now),
@@ -90,8 +90,8 @@ export class ReminderJob implements ScheduledJobRunner {
     return rows.map((r) => ({
       userId: r.investor_id,
       note: {
-        category: Reminder,
-        kind: NotificationKind.ReservationExpiring,
+        category: REMINDER,
+        kind: NotificationKind.RESERVATION_EXPIRING,
         title: `Your reservation of ${r.slots} slots expires soon`,
         body: `${r.title}: pay before ${utc(r.expires_at)} UTC or the slots are released`,
         params: {
@@ -120,8 +120,8 @@ export class ReminderJob implements ScheduledJobRunner {
     return rows.map((r) => ({
       userId: r.buyer_id,
       note: {
-        category: Reminder,
-        kind: NotificationKind.DealPaymentDue,
+        category: REMINDER,
+        kind: NotificationKind.DEAL_PAYMENT_DUE,
         title: `Payment for deal #${r.id} is due soon`,
         body: `${poishaToTaka(BigInt(r.amount))} taka by ${utc(r.payment_due_at)} UTC, or the deal lapses`,
         params: {
@@ -153,8 +153,8 @@ export class ReminderJob implements ScheduledJobRunner {
             {
               userId: r.officer_id,
               note: {
-                category: Reminder,
-                kind: NotificationKind.SaleConfirmDue,
+                category: REMINDER,
+                kind: NotificationKind.SALE_CONFIRM_DUE,
                 title: `Input sale #${r.id} lapses soon unless you confirm it`,
                 body: `Confirm before ${utc(r.expires_at)} UTC`,
                 params: { saleId: r.id, expiresAt: r.expires_at.toISOString() },
@@ -195,10 +195,10 @@ export class ReminderJob implements ScheduledJobRunner {
     return rows.flatMap((r) => {
       const passed = r.deadline.getTime() <= now.getTime();
       const note: Note = {
-        category: Reminder,
+        category: REMINDER,
         kind: passed
-          ? NotificationKind.VoucherInactive
-          : NotificationKind.VoucherInactiveSoon,
+          ? NotificationKind.VOUCHER_INACTIVE
+          : NotificationKind.VOUCHER_INACTIVE_SOON,
         title: passed
           ? `Voucher for ${r.input_type_code} has passed its inactivity limit`
           : `Voucher for ${r.input_type_code} nears its inactivity limit`,
@@ -251,8 +251,8 @@ export class ReminderJob implements ScheduledJobRunner {
     );
     return rows.flatMap((r) => {
       const note: Note = {
-        category: Reminder,
-        kind: NotificationKind.ReceiptExpiring,
+        category: REMINDER,
+        kind: NotificationKind.RECEIPT_EXPIRING,
         title: `Storage of ${r.quantity} ${r.produce_code} ends on ${r.expires_on}`,
         body: 'Re-check and extend the receipt, sell, or collect the goods',
         params: {
@@ -289,8 +289,8 @@ export class ReminderJob implements ScheduledJobRunner {
     );
     return rows.flatMap((r) => {
       const note: Note = {
-        category: Reminder,
-        kind: NotificationKind.ConsentExpiring,
+        category: REMINDER,
+        kind: NotificationKind.CONSENT_EXPIRING,
         title: `Permission for ${r.bank} ends soon`,
         body: `It ends at ${utc(r.expires_at)} UTC; renew it if the farmer agrees`,
         params: { bank: r.bank, expiresAt: r.expires_at.toISOString() },

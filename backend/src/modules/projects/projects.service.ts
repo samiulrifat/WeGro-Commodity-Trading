@@ -61,12 +61,12 @@ import { problem } from '../../common/errors/problem';
 
 /** Staff see every project, drafts included. */
 export const PROJECT_STAFF: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
-  Role.FieldOfficer,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
+  Role.FIELD_OFFICER,
 ]);
 
 type StageAction = 'activate' | 'markReadyForSale' | 'close' | 'cancelProject';
@@ -112,8 +112,8 @@ export class ProjectsService {
       this.projects.create({
         ...terms,
         totalSlots: totalSlots(terms),
-        stage: ProjectStage.Draft,
-        chainState: ProjectChainState.Local,
+        stage: ProjectStage.DRAFT,
+        chainState: ProjectChainState.LOCAL,
         createdById: actor.id,
       }),
     );
@@ -140,7 +140,7 @@ export class ProjectsService {
     });
     // Only while still local: a publish racing this edit wins, the edit fails.
     const res = await this.projects.update(
-      { id, chainState: ProjectChainState.Local },
+      { id, chainState: ProjectChainState.LOCAL },
       { ...merged, totalSlots: totalSlots(merged) },
     );
     if (res.affected !== 1) throw publishedConflict();
@@ -151,7 +151,7 @@ export class ProjectsService {
     await this.findDraft(id);
     const res = await this.projects.delete({
       id,
-      chainState: ProjectChainState.Local,
+      chainState: ProjectChainState.LOCAL,
     });
     if (res.affected !== 1) throw publishedConflict();
   }
@@ -165,17 +165,17 @@ export class ProjectsService {
    */
   async publish(actor: AuthUser, id: string): Promise<ProjectDto> {
     let project = await this.findOrFail(id);
-    if (project.chainState === ProjectChainState.Local) {
+    if (project.chainState === ProjectChainState.LOCAL) {
       const terms = await this.checkedTerms(termsOf(project));
       const hash = termsHash(id, terms);
       const res = await this.projects.update(
-        { id, chainState: ProjectChainState.Local },
-        { chainState: ProjectChainState.Submitted, termsHash: hash },
+        { id, chainState: ProjectChainState.LOCAL },
+        { chainState: ProjectChainState.SUBMITTED, termsHash: hash },
       );
       if (res.affected !== 1)
         throw new ConflictException({
           message: 'Already being published',
-          code: ErrorCode.AlreadyPublishing,
+          code: ErrorCode.ALREADY_PUBLISHING,
         });
       project = await this.projects.findOneByOrFail({ id });
     }
@@ -193,15 +193,15 @@ export class ProjectsService {
         if (error instanceof ContractRevertException) {
           // Refused before broadcast: back to an editable draft.
           await this.projects.update(
-            { id, chainState: ProjectChainState.Submitted },
-            { chainState: ProjectChainState.Local, termsHash: null },
+            { id, chainState: ProjectChainState.SUBMITTED },
+            { chainState: ProjectChainState.LOCAL, termsHash: null },
           );
         }
         throw error;
       }
-      chainStage = ProjectStage.Draft;
+      chainStage = ProjectStage.DRAFT;
     }
-    if (chainStage === ProjectStage.Draft) {
+    if (chainStage === ProjectStage.DRAFT) {
       await this.send(actor, (c) =>
         c.openForFunding.populateTransaction(uuidToBytes32(id)),
       );
@@ -216,16 +216,16 @@ export class ProjectsService {
     action: StageAction,
   ): Promise<ProjectDto> {
     const project = await this.findOrFail(id);
-    if (project.chainState === ProjectChainState.Local) {
+    if (project.chainState === ProjectChainState.LOCAL) {
       throw new ConflictException(
         action === 'cancelProject'
           ? {
               message: 'This draft was never published: delete it instead',
-              code: ErrorCode.DraftNeverPublished,
+              code: ErrorCode.DRAFT_NEVER_PUBLISHED,
             }
           : {
               message: 'Publish the project first',
-              code: ErrorCode.ProjectNotPublished,
+              code: ErrorCode.PROJECT_NOT_PUBLISHED,
             },
       );
     }
@@ -276,7 +276,7 @@ export class ProjectsService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     return project;
   }
@@ -342,7 +342,7 @@ export class ProjectsService {
     const ledgerStage = STAGE_BY_CHAIN[Number(onChain.stage)] ?? null;
     const ledgerHash = ledgerStage ? onChain.terms.termsHash : null;
     const mismatches: string[] = [];
-    if (project.chainState === ProjectChainState.Local) {
+    if (project.chainState === ProjectChainState.LOCAL) {
       mismatches.push('notPublished');
     } else if (!ledgerStage) {
       mismatches.push('notOnLedger');
@@ -373,8 +373,8 @@ export class ProjectsService {
     qb: ReturnType<Repository<Project>['createQueryBuilder']>,
   ): void {
     if (PROJECT_STAFF.has(actor.role)) return;
-    qb.andWhere('p.chain_state <> :local', { local: ProjectChainState.Local });
-    if (actor.role === Role.Farmer)
+    qb.andWhere('p.chain_state <> :local', { local: ProjectChainState.LOCAL });
+    if (actor.role === Role.FARMER)
       qb.andWhere('p.farmer_id = :me', { me: actor.id });
   }
 
@@ -383,14 +383,14 @@ export class ProjectsService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     return project;
   }
 
   private async findDraft(id: string): Promise<Project> {
     const project = await this.findOrFail(id);
-    if (project.chainState !== ProjectChainState.Local)
+    if (project.chainState !== ProjectChainState.LOCAL)
       throw publishedConflict();
     return project;
   }
@@ -406,13 +406,13 @@ export class ProjectsService {
     });
     if (
       !farmer ||
-      farmer.role !== Role.Farmer ||
-      farmer.status !== ParticipantStatus.Verified ||
-      farmer.chainState !== ChainState.Confirmed
+      farmer.role !== Role.FARMER ||
+      farmer.status !== ParticipantStatus.VERIFIED ||
+      farmer.chainState !== ChainState.CONFIRMED
     ) {
       problems.push(
         problem(
-          ErrorCode.TermsFarmerNotVerified,
+          ErrorCode.TERMS_FARMER_NOT_VERIFIED,
           'farmerId must be a verified farmer',
         ),
       );
@@ -420,7 +420,7 @@ export class ProjectsService {
     if (problems.length > 0) {
       throw new UnprocessableEntityException({
         message: 'The project terms are not valid',
-        code: ErrorCode.InvalidTerms,
+        code: ErrorCode.INVALID_TERMS,
         details: { problems },
       });
     }
@@ -499,6 +499,6 @@ function definedOnly<T extends object>(o: T): Partial<T> {
 function publishedConflict() {
   return new ConflictException({
     message: 'Published projects cannot be changed or deleted',
-    code: ErrorCode.ProjectPublishedLocked,
+    code: ErrorCode.PROJECT_PUBLISHED_LOCKED,
   });
 }

@@ -131,7 +131,7 @@ export class JobScheduler
     if (e.running) {
       throw new ConflictException({
         message: `${name} is running; try again when it finishes`,
-        code: ErrorCode.JobRunning,
+        code: ErrorCode.JOB_RUNNING,
         details: { job: name },
       });
     }
@@ -179,7 +179,7 @@ export class JobScheduler
     if (!e)
       throw new NotFoundException({
         message: `No job named ${name}`,
-        code: ErrorCode.JobNotFound,
+        code: ErrorCode.JOB_NOT_FOUND,
         details: { job: name },
       });
     return e;

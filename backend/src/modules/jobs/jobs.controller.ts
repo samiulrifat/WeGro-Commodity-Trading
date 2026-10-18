@@ -16,7 +16,7 @@ import { Role } from '../users/roles';
 import { JobHistoryQueryDto, JobRunDto, JobStatusDto } from './dto/job.dto';
 import { JobScheduler } from './job-scheduler';
 
-const READERS = [Role.SuperAdmin, Role.Admin, Role.Auditor];
+const READERS = [Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR];
 
 /** The scheduled jobs: their status, history, and running one now. */
 @ApiTags('Jobs')
@@ -48,7 +48,7 @@ export class JobsController {
   }
 
   @Post(':name/run')
-  @Roles(Role.SuperAdmin)
+  @Roles(Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: JobRunDto,

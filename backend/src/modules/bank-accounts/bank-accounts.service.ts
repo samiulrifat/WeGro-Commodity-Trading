@@ -34,12 +34,12 @@ import { BankAccount, BankAccountStatus } from './entities/bank-account.entity';
 import { ErrorCode } from '../../common/errors/error-code';
 
 /** Only payees have bank accounts. */
-const PAYEE_ROLES: ReadonlySet<Role> = new Set([Role.Farmer, Role.Investor]);
+const PAYEE_ROLES: ReadonlySet<Role> = new Set([Role.FARMER, Role.INVESTOR]);
 /** See full account numbers; others with access see the last four digits. */
 const SEES_FULL: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Accounts,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.ACCOUNTS,
 ]);
 
 export interface BankDetails {
@@ -84,12 +84,12 @@ export class BankAccountsService {
     };
     const current = await this.accounts.findOneBy({
       userId,
-      status: BankAccountStatus.Verified,
+      status: BankAccountStatus.VERIFIED,
     });
     if (current && sameDetails(this.open(current), details)) {
       throw new ConflictException({
         message: 'These details are already verified',
-        code: ErrorCode.BankDetailsAlreadyVerified,
+        code: ErrorCode.BANK_DETAILS_ALREADY_VERIFIED,
       });
     }
     const id = randomUUID();
@@ -97,14 +97,14 @@ export class BankAccountsService {
       .transaction(async (m) => {
         await m.update(
           BankAccount,
-          { userId, status: BankAccountStatus.Pending },
-          { status: BankAccountStatus.Superseded },
+          { userId, status: BankAccountStatus.PENDING },
+          { status: BankAccountStatus.SUPERSEDED },
         );
         await m.insert(BankAccount, {
           id,
           userId,
           detailsEnc: this.crypto.encrypt(JSON.stringify(details), context(id)),
-          status: BankAccountStatus.Pending,
+          status: BankAccountStatus.PENDING,
           enteredById: actor.id,
         });
       })
@@ -116,14 +116,14 @@ export class BankAccountsService {
         ) {
           throw new ConflictException({
             message: 'Other details were entered meanwhile; try again',
-            code: ErrorCode.ChangedMeanwhile,
+            code: ErrorCode.CHANGED_MEANWHILE,
           });
         }
         throw error;
       });
     await this.notify(await this.admins([actor.id]), {
-      category: NotificationCategory.Action,
-      kind: NotificationKind.BankAccountSubmitted,
+      category: NotificationCategory.ACTION,
+      kind: NotificationKind.BANK_ACCOUNT_SUBMITTED,
       title: 'Bank details awaiting verification',
       params: {},
       subject: { type: 'participant', id: userId },
@@ -139,20 +139,20 @@ export class BankAccountsService {
       throw new ForbiddenException({
         message:
           'Details must be verified by someone other than who entered them',
-        code: ErrorCode.SamePerson,
+        code: ErrorCode.SAME_PERSON,
       });
     }
     await this.dataSource.transaction(async (m) => {
       await m.update(
         BankAccount,
-        { userId, status: BankAccountStatus.Verified },
-        { status: BankAccountStatus.Superseded },
+        { userId, status: BankAccountStatus.VERIFIED },
+        { status: BankAccountStatus.SUPERSEDED },
       );
       const done = await m.update(
         BankAccount,
-        { id: pending.id, status: BankAccountStatus.Pending },
+        { id: pending.id, status: BankAccountStatus.PENDING },
         {
-          status: BankAccountStatus.Verified,
+          status: BankAccountStatus.VERIFIED,
           decidedById: actor.id,
           decidedAt: new Date(),
         },
@@ -160,13 +160,13 @@ export class BankAccountsService {
       if (done.affected !== 1) {
         throw new ConflictException({
           message: 'The details changed meanwhile; try again',
-          code: ErrorCode.ChangedMeanwhile,
+          code: ErrorCode.CHANGED_MEANWHILE,
         });
       }
     });
     await this.notify([userId], {
-      category: NotificationCategory.Outcome,
-      kind: NotificationKind.BankAccountVerified,
+      category: NotificationCategory.OUTCOME,
+      kind: NotificationKind.BANK_ACCOUNT_VERIFIED,
       title: 'Your bank details are verified: payouts will go there',
       params: {},
       subject: { type: 'participant', id: userId },
@@ -182,9 +182,9 @@ export class BankAccountsService {
   ): Promise<BankAccountsDto> {
     const pending = await this.pendingOf(userId);
     const done = await this.accounts.update(
-      { id: pending.id, status: BankAccountStatus.Pending },
+      { id: pending.id, status: BankAccountStatus.PENDING },
       {
-        status: BankAccountStatus.Rejected,
+        status: BankAccountStatus.REJECTED,
         decidedById: actor.id,
         decidedAt: new Date(),
         rejectionReason: reason,
@@ -193,12 +193,12 @@ export class BankAccountsService {
     if (done.affected !== 1) {
       throw new ConflictException({
         message: 'The details changed meanwhile; try again',
-        code: ErrorCode.ChangedMeanwhile,
+        code: ErrorCode.CHANGED_MEANWHILE,
       });
     }
     await this.notify([userId], {
-      category: NotificationCategory.Outcome,
-      kind: NotificationKind.BankAccountRejected,
+      category: NotificationCategory.OUTCOME,
+      kind: NotificationKind.BANK_ACCOUNT_REJECTED,
       title: 'Your new bank details were not accepted',
       body: reason,
       params: { reason },
@@ -218,13 +218,13 @@ export class BankAccountsService {
     const views = await this.dtos(actor, rows);
     return {
       verified:
-        views.find((v) => v.status === BankAccountStatus.Verified) ?? null,
+        views.find((v) => v.status === BankAccountStatus.VERIFIED) ?? null,
       pending:
-        views.find((v) => v.status === BankAccountStatus.Pending) ?? null,
+        views.find((v) => v.status === BankAccountStatus.PENDING) ?? null,
       history: views.filter(
         (v) =>
-          v.status !== BankAccountStatus.Verified &&
-          v.status !== BankAccountStatus.Pending,
+          v.status !== BankAccountStatus.VERIFIED &&
+          v.status !== BankAccountStatus.PENDING,
       ),
     };
   }
@@ -235,7 +235,7 @@ export class BankAccountsService {
     q: ListPendingQueryDto,
   ): Promise<Paginated<PendingBankAccountDto>> {
     const [rows, total] = await this.accounts.findAndCount({
-      where: { status: BankAccountStatus.Pending },
+      where: { status: BankAccountStatus.PENDING },
       order: { createdAt: 'ASC' },
       skip: q.skip,
       take: q.limit,
@@ -251,7 +251,7 @@ export class BankAccountsService {
         : [],
       userIds.length
         ? this.accounts.find({
-            where: { userId: In(userIds), status: BankAccountStatus.Verified },
+            where: { userId: In(userIds), status: BankAccountStatus.VERIFIED },
             select: { userId: true },
           })
         : [],
@@ -282,7 +282,7 @@ export class BankAccountsService {
     const rows = await this.accounts.find({
       where: {
         userId: In(ids),
-        status: In([BankAccountStatus.Verified, BankAccountStatus.Pending]),
+        status: In([BankAccountStatus.VERIFIED, BankAccountStatus.PENDING]),
       },
     });
     const verified = new Map<
@@ -291,7 +291,7 @@ export class BankAccountsService {
     >();
     const pendingChange = new Set<string>();
     for (const r of rows) {
-      if (r.status === BankAccountStatus.Pending) pendingChange.add(r.userId);
+      if (r.status === BankAccountStatus.PENDING) pendingChange.add(r.userId);
       else verified.set(r.userId, { ...this.open(r), verifiedAt: r.decidedAt });
     }
     return { verified, pendingChange };
@@ -311,7 +311,7 @@ export class BankAccountsService {
   }
 
   private admins(except: string[]): Promise<string[]> {
-    return this.writer.withRole(this.dataSource.manager, [Role.Admin], except);
+    return this.writer.withRole(this.dataSource.manager, [Role.ADMIN], except);
   }
 
   private async requirePayee(userId: string): Promise<void> {
@@ -322,12 +322,12 @@ export class BankAccountsService {
     if (!user)
       throw new NotFoundException({
         message: 'Participant not found',
-        code: ErrorCode.ParticipantNotFound,
+        code: ErrorCode.PARTICIPANT_NOT_FOUND,
       });
     if (!PAYEE_ROLES.has(user.role)) {
       throw new UnprocessableEntityException({
         message: 'Only farmers and investors receive payouts',
-        code: ErrorCode.NotAPayee,
+        code: ErrorCode.NOT_A_PAYEE,
       });
     }
   }
@@ -336,12 +336,12 @@ export class BankAccountsService {
     await this.requirePayee(userId);
     const pending = await this.accounts.findOneBy({
       userId,
-      status: BankAccountStatus.Pending,
+      status: BankAccountStatus.PENDING,
     });
     if (!pending)
       throw new NotFoundException({
         message: 'No details waiting',
-        code: ErrorCode.NoDetailsWaiting,
+        code: ErrorCode.NO_DETAILS_WAITING,
       });
     return pending;
   }

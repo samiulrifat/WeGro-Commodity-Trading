@@ -402,7 +402,7 @@ describe('VerifyService', () => {
       bankId: BANK,
       expiresAt: new Date('2027-01-31T17:59:59Z'),
       evidencePhotoId: 'p',
-      status: ConsentStatus.Replaced,
+      status: ConsentStatus.REPLACED,
       evidenceHash: '',
     };
     consent.evidenceHash = consentFingerprint({

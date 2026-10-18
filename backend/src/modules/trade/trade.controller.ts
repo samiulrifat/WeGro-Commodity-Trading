@@ -46,18 +46,18 @@ const ledgerId = new ParseIntPipe({
   errorHttpStatusCode: HttpStatus.NOT_FOUND,
 });
 const STAFF = [
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ];
 const OFFER_READERS = [
   ...STAFF,
-  Role.Buyer,
-  Role.Farmer,
-  Role.FieldOfficer,
-  Role.Warehouse,
+  Role.BUYER,
+  Role.FARMER,
+  Role.FIELD_OFFICER,
+  Role.WAREHOUSE,
 ];
 
 /** The marketplace (TradeLedger): listings, offers, deals, payment and delivery. */
@@ -92,7 +92,7 @@ export class TradeController {
   }
 
   @Post('listings/receipt')
-  @Roles(Role.Admin, Role.FieldOfficer)
+  @Roles(Role.ADMIN, Role.FIELD_OFFICER)
   @ApiCreatedResponse({
     type: ListingDto,
     description: 'List a warehouse receipt your side owns; locks it',
@@ -105,7 +105,7 @@ export class TradeController {
   }
 
   @Post('listings/produce')
-  @Roles(Role.Admin, Role.FieldOfficer)
+  @Roles(Role.ADMIN, Role.FIELD_OFFICER)
   @ApiCreatedResponse({
     type: ListingDto,
     description: 'Fresh produce straight from an active project',
@@ -118,7 +118,7 @@ export class TradeController {
   }
 
   @Post('listings/:id/cancel')
-  @Roles(Role.Admin, Role.FieldOfficer)
+  @Roles(Role.ADMIN, Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ListingDto,
@@ -132,7 +132,7 @@ export class TradeController {
   }
 
   @Post('listings/:id/offers')
-  @Roles(Role.Buyer)
+  @Roles(Role.BUYER)
   @ApiCreatedResponse({
     type: OfferDto,
     description: 'Your quantity at your price; an admin decides',
@@ -169,7 +169,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/withdraw')
-  @Roles(Role.Buyer)
+  @Roles(Role.BUYER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: OfferDto })
   withdraw(
@@ -180,7 +180,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/reject')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: OfferDto })
   reject(
@@ -191,7 +191,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/approve')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: OfferDto,
@@ -205,7 +205,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/cancel-deal')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: OfferDto,
@@ -219,7 +219,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/payment')
-  @Roles(Role.Accounts)
+  @Roles(Role.ACCOUNTS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: OfferDto,
@@ -234,7 +234,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/delivery')
-  @Roles(Role.Buyer, Role.Warehouse, Role.FieldOfficer)
+  @Roles(Role.BUYER, Role.WAREHOUSE, Role.FIELD_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: OfferDto,
@@ -265,7 +265,7 @@ export class TradeController {
 
   @Get('buyer-requests')
   @ApiPaged()
-  @Roles(Role.Buyer, Role.FieldOfficer, ...STAFF)
+  @Roles(Role.BUYER, Role.FIELD_OFFICER, ...STAFF)
   @ApiOkResponse({
     type: [BuyerRequestDto],
     description: 'Open requests by default, each with matching listings',
@@ -278,7 +278,7 @@ export class TradeController {
   }
 
   @Post('buyer-requests')
-  @Roles(Role.Buyer)
+  @Roles(Role.BUYER)
   @ApiCreatedResponse({ type: BuyerRequestDto })
   postRequest(
     @CurrentUser() actor: AuthUser,
@@ -288,7 +288,7 @@ export class TradeController {
   }
 
   @Post('buyer-requests/:id/cancel')
-  @Roles(Role.Buyer)
+  @Roles(Role.BUYER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: BuyerRequestDto })
   cancelRequest(

@@ -180,7 +180,7 @@ export class TradeLedgerSync implements OnModuleInit {
       }
 
       case 'DeliveryConfirmed': {
-        const side = a.isBuyer ? DeliverySide.Buyer : DeliverySide.Handler;
+        const side = a.isBuyer ? DeliverySide.BUYER : DeliverySide.HANDLER;
         // Ours (saved before sending, same fingerprint) becomes recorded; one
         // made outside this backend is kept without notes or photo.
         await m.query(

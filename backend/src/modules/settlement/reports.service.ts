@@ -65,7 +65,7 @@ export class SettlementReportsService {
     if (!round || round.status === null)
       throw new NotFoundException({
         message: 'Round not found',
-        code: ErrorCode.RoundNotFound,
+        code: ErrorCode.ROUND_NOT_FOUND,
       });
     const [project, lines] = await Promise.all([
       this.projects.findOne({
@@ -157,7 +157,7 @@ export class SettlementReportsService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     const key = uuidToBytes32(projectId);
     const c = this.contracts;
@@ -341,19 +341,19 @@ export class SettlementReportsService {
     if (end <= start)
       throw new UnprocessableEntityException({
         message: 'to must not be before from',
-        code: ErrorCode.PeriodReversed,
+        code: ErrorCode.PERIOD_REVERSED,
       });
     if (end - start > MAX_PERIOD_DAYS * 86_400) {
       throw new UnprocessableEntityException({
         message: `A period is at most ${MAX_PERIOD_DAYS} days`,
-        code: ErrorCode.PeriodTooLong,
+        code: ErrorCode.PERIOD_TOO_LONG,
         details: { maxDays: MAX_PERIOD_DAYS },
       });
     }
     const rounds = await this.rounds
       .createQueryBuilder('r')
       .where('r.status IN (:...st)', {
-        st: [RoundStatus.Approved, RoundStatus.Paid],
+        st: [RoundStatus.APPROVED, RoundStatus.PAID],
       })
       .andWhere('r.approved_at >= :start AND r.approved_at < :end', {
         start: new Date(start * 1000),
@@ -428,10 +428,10 @@ export class SettlementReportsService {
       where: { id: payeeId },
       select: { id: true, role: true },
     });
-    if (!user || (user.role !== Role.Investor && user.role !== Role.Farmer)) {
+    if (!user || (user.role !== Role.INVESTOR && user.role !== Role.FARMER)) {
       throw new NotFoundException({
         message: 'No statement for this participant',
-        code: ErrorCode.NoStatement,
+        code: ErrorCode.NO_STATEMENT,
       });
     }
     const start = q.from ? new Date(bdDayStart(q.from) * 1000) : null;
@@ -439,9 +439,9 @@ export class SettlementReportsService {
     if (start && end && end <= start)
       throw new UnprocessableEntityException({
         message: 'to must not be before from',
-        code: ErrorCode.PeriodReversed,
+        code: ErrorCode.PERIOD_REVERSED,
       });
-    const investor = user.role === Role.Investor;
+    const investor = user.role === Role.INVESTOR;
 
     const [payouts, stakes, people] = await Promise.all([
       this.dataSource.query<
@@ -530,7 +530,7 @@ export class SettlementReportsService {
         const dto: StatementProjectDto = {
           project: { id: p.id, name: p.title },
           stage: p.stage,
-          role: investor ? PayeeRole.Investor : PayeeRole.Farmer,
+          role: investor ? PayeeRole.INVESTOR : PayeeRole.FARMER,
           slots,
           invested: invested === null ? null : poishaToTaka(invested),
           payouts: mine.map((x) => ({

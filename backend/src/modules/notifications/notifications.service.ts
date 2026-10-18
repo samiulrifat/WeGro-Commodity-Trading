@@ -55,7 +55,7 @@ export class NotificationsService {
     if (!note)
       throw new NotFoundException({
         message: 'Notification not found',
-        code: ErrorCode.NotificationNotFound,
+        code: ErrorCode.NOTIFICATION_NOT_FOUND,
       });
     if (!note.readAt) {
       await this.notes.update(

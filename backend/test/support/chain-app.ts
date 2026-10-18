@@ -115,7 +115,7 @@ export async function waitForDemoAccounts(
   while (
     (await users.countBy({
       isDemo: true,
-      status: ParticipantStatus.Verified,
+      status: ParticipantStatus.VERIFIED,
     })) < expected
   ) {
     if (Date.now() > deadline)
@@ -149,7 +149,7 @@ export async function ledgerDisagreements(
   const sweeps = chain.app.get(SweepService);
   const run = await sweeps.start({
     id: '00000000-0000-4000-8000-000000000000',
-    role: Role.Auditor,
+    role: Role.AUDITOR,
   } as never);
   await sweeps.idle();
   const done = await sweeps.one(run.id);

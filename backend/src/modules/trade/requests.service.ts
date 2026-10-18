@@ -57,7 +57,7 @@ export class RequestsService {
     if (dto.validUntil < bdDate(await this.clock.now())) {
       throw new UnprocessableEntityException({
         message: 'validUntil cannot be in the past',
-        code: ErrorCode.ValidUntilInPast,
+        code: ErrorCode.VALID_UNTIL_IN_PAST,
       });
     }
     const result = await this.tx.send(actor.keyIndex, 'TradeLedger', (c) =>
@@ -81,13 +81,13 @@ export class RequestsService {
     if (!request || request.status === null || request.buyerId !== actor.id) {
       throw new NotFoundException({
         message: 'Request not found',
-        code: ErrorCode.RequestNotFound,
+        code: ErrorCode.REQUEST_NOT_FOUND,
       });
     }
-    if (request.status !== RequestStatus.Open)
+    if (request.status !== RequestStatus.OPEN)
       throw new ConflictException({
         message: 'This request is already cancelled',
-        code: ErrorCode.RequestAlreadyCancelled,
+        code: ErrorCode.REQUEST_ALREADY_CANCELLED,
       });
     const result = await this.tx.send(actor.keyIndex, 'TradeLedger', (c) =>
       c.cancelRequest.populateTransaction(id),
@@ -109,7 +109,7 @@ export class RequestsService {
     }
     if (q.produceCode)
       qb.andWhere('r.produce_code = :pc', { pc: q.produceCode });
-    if (q.mine && actor.role === Role.Buyer)
+    if (q.mine && actor.role === Role.BUYER)
       qb.andWhere('r.buyer_id = :me', { me: actor.id });
     const [rows, total] = await qb
       .orderBy('r.posted_at', 'DESC')
@@ -125,7 +125,7 @@ export class RequestsService {
     if (!request || request.status === null)
       throw new NotFoundException({
         message: 'Request not found',
-        code: ErrorCode.RequestNotFound,
+        code: ErrorCode.REQUEST_NOT_FOUND,
       });
     return (await this.dtos([request], await this.clock.now()))[0];
   }
@@ -145,7 +145,7 @@ export class RequestsService {
       .where(
         'l.status = :open AND l.available > 0 AND l.produce_code IN (:...codes)',
         {
-          open: ListingStatus.Open,
+          open: ListingStatus.OPEN,
           codes,
         },
       )
@@ -168,7 +168,7 @@ export class RequestsService {
     const names = await this.views.names(rows.map((r) => r.buyerId));
     return rows.map((r) => {
       const status =
-        r.status === RequestStatus.Cancelled
+        r.status === RequestStatus.CANCELLED
           ? 'cancelled'
           : r.validUntil <= now
             ? 'expired'

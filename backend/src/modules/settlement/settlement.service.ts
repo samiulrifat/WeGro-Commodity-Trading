@@ -69,24 +69,24 @@ import {
 import { ErrorCode } from '../../common/errors/error-code';
 
 export const SETTLEMENT_STAFF: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 /** See payment references. */
 const SEES_PAYMENTS: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 /** Stages in which costs can still be entered (until the final round). */
 const COSTS_OPEN: readonly ProjectStage[] = [
-  ProjectStage.Funded,
-  ProjectStage.Active,
-  ProjectStage.ReadyForSale,
+  ProjectStage.FUNDED,
+  ProjectStage.ACTIVE,
+  ProjectStage.READY_FOR_SALE,
 ];
 
 /** Everything the next round depends on, read from the ledgers at once. */
@@ -159,12 +159,12 @@ export class SettlementService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     if (!COSTS_OPEN.includes(project.stage)) {
       throw new ConflictException({
         message: `Costs are entered while a project is funded, active or ready for sale; this one is ${project.stage}`,
-        code: ErrorCode.CostProjectStage,
+        code: ErrorCode.COST_PROJECT_STAGE,
         details: { stage: project.stage },
       });
     }
@@ -172,14 +172,14 @@ export class SettlementService {
     if (dto.incurredOn > bdDate(await this.clock.now())) {
       throw new UnprocessableEntityException({
         message: 'incurredOn cannot be in the future',
-        code: ErrorCode.IncurredInFuture,
+        code: ErrorCode.INCURRED_IN_FUTURE,
       });
     }
     const amount = takaToPoisha(dto.amount);
     if (amount <= 0n)
       throw new UnprocessableEntityException({
         message: 'amount must be above zero',
-        code: ErrorCode.AmountNotPositive,
+        code: ErrorCode.AMOUNT_NOT_POSITIVE,
       });
     const photo = dto.photoId ? await this.ownPhoto(actor, dto.photoId) : null;
 
@@ -193,7 +193,7 @@ export class SettlementService {
       note: dto.note,
       photoId: photo?.id ?? null,
       enteredById: actor.id,
-      status: CostStatus.Submitted,
+      status: CostStatus.SUBMITTED,
       recordedAt: null,
     });
     cost.detailsHash = costFingerprint({
@@ -217,7 +217,7 @@ export class SettlementService {
       );
     } catch (error) {
       if (error instanceof ContractRevertException)
-        await this.costs.delete({ id: cost.id, status: CostStatus.Submitted });
+        await this.costs.delete({ id: cost.id, status: CostStatus.SUBMITTED });
       throw error;
     }
     return this.costOne(actor, cost.id);
@@ -226,27 +226,27 @@ export class SettlementService {
   /** Voids a wrongly entered cost; the correction is a new entry. */
   async voidCost(actor: AuthUser, id: string): Promise<CostDto> {
     const cost = await this.costs.findOneBy({ id });
-    if (!cost || cost.status === CostStatus.Submitted) {
+    if (!cost || cost.status === CostStatus.SUBMITTED) {
       throw new NotFoundException({
         message: 'Cost not found',
-        code: ErrorCode.CostNotFound,
+        code: ErrorCode.COST_NOT_FOUND,
       });
     }
-    if (cost.status !== CostStatus.Recorded) {
+    if (cost.status !== CostStatus.RECORDED) {
       throw new ConflictException({
         message: 'This cost is already voided',
-        code: ErrorCode.CostAlreadyVoided,
+        code: ErrorCode.COST_ALREADY_VOIDED,
       });
     }
     await this.requireCostsOpen(cost.projectId);
     const saved = await this.costs.update(
-      { id, status: CostStatus.Recorded },
+      { id, status: CostStatus.RECORDED },
       { voidedById: actor.id },
     );
     if (saved.affected !== 1)
       throw new ConflictException({
         message: 'The cost changed meanwhile; try again',
-        code: ErrorCode.ChangedMeanwhile,
+        code: ErrorCode.CHANGED_MEANWHILE,
       });
     try {
       await this.send(actor, (c) =>
@@ -255,7 +255,7 @@ export class SettlementService {
     } catch (error) {
       if (error instanceof ContractRevertException) {
         await this.costs.update(
-          { id, status: CostStatus.Recorded },
+          { id, status: CostStatus.RECORDED },
           { voidedById: null },
         );
       }
@@ -275,8 +275,8 @@ export class SettlementService {
         projectId,
         status: In(
           q.includeVoided
-            ? [CostStatus.Recorded, CostStatus.Voided]
-            : [CostStatus.Recorded],
+            ? [CostStatus.RECORDED, CostStatus.VOIDED]
+            : [CostStatus.RECORDED],
         ),
       },
       order: { incurredOn: 'DESC', createdAt: 'DESC' },
@@ -286,10 +286,10 @@ export class SettlementService {
 
   async costOne(actor: AuthUser, id: string): Promise<CostDto> {
     const cost = await this.costs.findOneBy({ id });
-    if (!cost || cost.status === CostStatus.Submitted) {
+    if (!cost || cost.status === CostStatus.SUBMITTED) {
       throw new NotFoundException({
         message: 'Cost not found',
-        code: ErrorCode.CostNotFound,
+        code: ErrorCode.COST_NOT_FOUND,
       });
     }
     await this.visibleProject(actor, cost.projectId);
@@ -298,10 +298,10 @@ export class SettlementService {
 
   async costPhoto(actor: AuthUser, id: string): Promise<Photo> {
     const cost = await this.costs.findOneBy({ id });
-    if (!cost || cost.status === CostStatus.Submitted || !cost.photoId) {
+    if (!cost || cost.status === CostStatus.SUBMITTED || !cost.photoId) {
       throw new NotFoundException({
         message: 'No bill photo for this cost',
-        code: ErrorCode.CostHasNoPhoto,
+        code: ErrorCode.COST_HAS_NO_PHOTO,
       });
     }
     await this.visibleProject(actor, cost.projectId);
@@ -402,7 +402,7 @@ export class SettlementService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     const state = await this.ledgerState(projectId);
     const check = isFinal ? this.finalCheck(state) : this.stagedCheck(state);
@@ -427,18 +427,18 @@ export class SettlementService {
 
   /** A second Accounts person approves; nothing can be marked paid before. */
   async approveRound(actor: AuthUser, id: number): Promise<RoundDto> {
-    const round = await this.roundIn(id, RoundStatus.Prepared);
+    const round = await this.roundIn(id, RoundStatus.PREPARED);
     if (round.preparedById === actor.id) {
       throw new ForbiddenException({
         message: 'A round is approved by someone other than who prepared it',
-        code: ErrorCode.SameAccountant,
+        code: ErrorCode.SAME_ACCOUNTANT,
       });
     }
     if (!round.verified) {
       throw new ConflictException({
         message:
           'The figures worked out here do not match the ledger; reject this round',
-        code: ErrorCode.RoundNotVerified,
+        code: ErrorCode.ROUND_NOT_VERIFIED,
       });
     }
     await this.send(actor, (c) => c.approveRound.populateTransaction(id));
@@ -451,16 +451,16 @@ export class SettlementService {
     id: number,
     reason: string,
   ): Promise<RoundDto> {
-    await this.roundIn(id, RoundStatus.Prepared);
+    await this.roundIn(id, RoundStatus.PREPARED);
     const hash = rejectFingerprint(id, reason);
     const saved = await this.rounds.update(
-      { id, status: RoundStatus.Prepared },
+      { id, status: RoundStatus.PREPARED },
       { rejectReason: reason, rejectReasonHash: hash, rejectedById: actor.id },
     );
     if (saved.affected !== 1)
       throw new ConflictException({
         message: 'The round changed meanwhile; try again',
-        code: ErrorCode.ChangedMeanwhile,
+        code: ErrorCode.CHANGED_MEANWHILE,
       });
     try {
       await this.send(actor, (c) =>
@@ -469,7 +469,7 @@ export class SettlementService {
     } catch (error) {
       if (error instanceof ContractRevertException) {
         await this.rounds.update(
-          { id, status: RoundStatus.Prepared, rejectReasonHash: hash },
+          { id, status: RoundStatus.PREPARED, rejectReasonHash: hash },
           { rejectReason: null, rejectReasonHash: null, rejectedById: null },
         );
       }
@@ -489,7 +489,7 @@ export class SettlementService {
     id: number,
     dto: RecordPayoutDto,
   ): Promise<RoundDto> {
-    await this.roundIn(id, RoundStatus.Approved);
+    await this.roundIn(id, RoundStatus.APPROVED);
     const line = await this.lines.findOneBy({
       roundId: id,
       payeeId: dto.payeeId,
@@ -497,18 +497,18 @@ export class SettlementService {
     if (!line)
       throw new NotFoundException({
         message: 'This person is not paid in this round',
-        code: ErrorCode.NotInRound,
+        code: ErrorCode.NOT_IN_ROUND,
       });
     if (line.paidAt) {
       throw new ConflictException({
         message: 'This line is already paid',
-        code: ErrorCode.AlreadyPaid,
+        code: ErrorCode.ALREADY_PAID,
       });
     }
     if (!line.verified || line.amount === null) {
       throw new ConflictException({
         message: 'The amount for this line does not match the ledger',
-        code: ErrorCode.LineNotVerified,
+        code: ErrorCode.LINE_NOT_VERIFIED,
       });
     }
     let ref: string;
@@ -517,7 +517,7 @@ export class SettlementService {
     } catch (error) {
       throw new UnprocessableEntityException({
         message: (error as Error).message,
-        code: ErrorCode.PaymentRefInvalid,
+        code: ErrorCode.PAYMENT_REF_INVALID,
       });
     }
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
@@ -541,7 +541,7 @@ export class SettlementService {
       if (saved.affected !== 1) {
         throw new ConflictException({
           message: 'A different payment for this line is being recorded',
-          code: ErrorCode.PaymentInProgress,
+          code: ErrorCode.PAYMENT_IN_PROGRESS,
         });
       }
     } catch (error) {
@@ -598,7 +598,7 @@ export class SettlementService {
     if (!round || round.status === null)
       throw new NotFoundException({
         message: 'Round not found',
-        code: ErrorCode.RoundNotFound,
+        code: ErrorCode.ROUND_NOT_FOUND,
       });
     const [[view], lines] = await Promise.all([
       this.roundDtos([round]),
@@ -638,17 +638,17 @@ export class SettlementService {
     const allowed =
       !!project &&
       (SETTLEMENT_STAFF.has(actor.role) ||
-        (actor.role === Role.Farmer && project.farmerId === actor.id) ||
-        (actor.role === Role.FieldOfficer &&
+        (actor.role === Role.FARMER && project.farmerId === actor.id) ||
+        (actor.role === Role.FIELD_OFFICER &&
           (await this.users.exists({
             where: { id: project.farmerId, fieldOfficerId: actor.id },
           }))) ||
-        (actor.role === Role.Investor &&
+        (actor.role === Role.INVESTOR &&
           (await this.holds(actor.id, projectId))));
     if (!allowed)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
     return project;
   }
@@ -669,9 +669,9 @@ export class SettlementService {
         projectId,
         isFinal: true,
         status: In([
-          RoundStatus.Prepared,
-          RoundStatus.Approved,
-          RoundStatus.Paid,
+          RoundStatus.PREPARED,
+          RoundStatus.APPROVED,
+          RoundStatus.PAID,
         ]),
       },
       select: { id: true, status: true },
@@ -679,13 +679,13 @@ export class SettlementService {
     if (blocking) {
       throw new ConflictException({
         message:
-          blocking.status === RoundStatus.Prepared
+          blocking.status === RoundStatus.PREPARED
             ? 'A final round is open; reject it to change costs'
             : 'This project is settled; costs are final',
         code:
-          blocking.status === RoundStatus.Prepared
-            ? ErrorCode.FinalRoundOpen
-            : ErrorCode.AlreadySettled,
+          blocking.status === RoundStatus.PREPARED
+            ? ErrorCode.FINAL_ROUND_OPEN
+            : ErrorCode.ALREADY_SETTLED,
       });
     }
   }
@@ -698,12 +698,12 @@ export class SettlementService {
     if (!round || round.status === null)
       throw new NotFoundException({
         message: 'Round not found',
-        code: ErrorCode.RoundNotFound,
+        code: ErrorCode.ROUND_NOT_FOUND,
       });
     if (round.status !== expected) {
       throw new ConflictException({
         message: `This round is ${round.status}`,
-        code: ErrorCode.RoundWrongStatus,
+        code: ErrorCode.ROUND_WRONG_STATUS,
         details: { status: round.status },
       });
     }
@@ -718,7 +718,7 @@ export class SettlementService {
     if (!photo) {
       throw new UnprocessableEntityException({
         message: 'photoId must be a photo you uploaded',
-        code: ErrorCode.PhotoNotYours,
+        code: ErrorCode.PHOTO_NOT_YOURS,
       });
     }
     return photo;
@@ -799,18 +799,18 @@ export class SettlementService {
       nextAllowedAt,
       outstanding: [],
     });
-    if (s.openRound) return no(ErrorCode.RoundOpen);
-    if (s.settled) return no(ErrorCode.AlreadySettled);
-    if (s.stage !== ProjectStage.Active) return no(ErrorCode.RoundWrongStage);
-    if (s.payoutIntervalMonths === 0) return no(ErrorCode.NotStaged);
+    if (s.openRound) return no(ErrorCode.ROUND_OPEN);
+    if (s.settled) return no(ErrorCode.ALREADY_SETTLED);
+    if (s.stage !== ProjectStage.ACTIVE) return no(ErrorCode.ROUND_WRONG_STAGE);
+    if (s.payoutIntervalMonths === 0) return no(ErrorCode.NOT_STAGED);
     const since = s.lastRoundAt || s.createdAt;
     const next = since + s.payoutIntervalMonths * MONTH_SECONDS;
     const nextAt = new Date(next * 1000);
     // The next block is at least a second later than the latest one.
-    if (s.now + 1 < next) return no(ErrorCode.TooEarly, nextAt);
+    if (s.now + 1 < next) return no(ErrorCode.TOO_EARLY, nextAt);
     const income = s.sales + s.insurance;
     if (income <= s.inputs + s.other + s.distributed)
-      return no(ErrorCode.NothingToDistribute, nextAt);
+      return no(ErrorCode.NOTHING_TO_DISTRIBUTE, nextAt);
     return {
       allowed: true,
       reason: null,
@@ -827,12 +827,12 @@ export class SettlementService {
       nextAllowedAt: null,
       outstanding: s.outstanding,
     });
-    if (s.openRound) return no(ErrorCode.RoundOpen);
-    if (s.settled) return no(ErrorCode.AlreadySettled);
-    if (s.stage !== ProjectStage.ReadyForSale) {
-      return no(ErrorCode.RoundWrongStage);
+    if (s.openRound) return no(ErrorCode.ROUND_OPEN);
+    if (s.settled) return no(ErrorCode.ALREADY_SETTLED);
+    if (s.stage !== ProjectStage.READY_FOR_SALE) {
+      return no(ErrorCode.ROUND_WRONG_STAGE);
     }
-    if (s.outstanding.length > 0) return no(ErrorCode.StillOutstanding);
+    if (s.outstanding.length > 0) return no(ErrorCode.STILL_OUTSTANDING);
     return {
       allowed: true,
       reason: null,
@@ -876,7 +876,7 @@ export class SettlementService {
       recordedAt: c.recordedAt,
       // Shown once the ledger has it: until then it may be an attempt in flight.
       voidedBy:
-        c.status === CostStatus.Voided && c.voidedById
+        c.status === CostStatus.VOIDED && c.voidedById
           ? { id: c.voidedById, name: names.get(c.voidedById) ?? '' }
           : null,
       voidedAt: c.voidedAt,
@@ -904,7 +904,7 @@ export class SettlementService {
     const party = (id: string | null) =>
       id ? { id, name: names.get(id) ?? '' } : null;
     return rows.map((r) => {
-      const rejected = r.status === RoundStatus.Rejected;
+      const rejected = r.status === RoundStatus.REJECTED;
       return {
         id: r.id,
         project: { id: r.projectId, name: titles.get(r.projectId) ?? '' },
@@ -944,14 +944,14 @@ export const lineContext = (roundId: number, payeeId: string) =>
 
 /** Why a round cannot be prepared now, as the ledger would refuse it. */
 const REASONS: Record<RoundBlock, string> = {
-  [ErrorCode.RoundOpen]: 'Another round for this project is still open',
-  [ErrorCode.AlreadySettled]: 'This project is already settled',
-  [ErrorCode.RoundWrongStage]:
+  [ErrorCode.ROUND_OPEN]: 'Another round for this project is still open',
+  [ErrorCode.ALREADY_SETTLED]: 'This project is already settled',
+  [ErrorCode.ROUND_WRONG_STAGE]:
     'Staged rounds are for active projects, the final round for projects ready for sale',
-  [ErrorCode.NotStaged]: 'This project pays out only once, at the end',
-  [ErrorCode.TooEarly]: 'The next staged round is not due yet',
-  [ErrorCode.NothingToDistribute]: 'There is no new profit to split',
-  [ErrorCode.StillOutstanding]:
+  [ErrorCode.NOT_STAGED]: 'This project pays out only once, at the end',
+  [ErrorCode.TOO_EARLY]: 'The next staged round is not due yet',
+  [ErrorCode.NOTHING_TO_DISTRIBUTE]: 'There is no new profit to split',
+  [ErrorCode.STILL_OUTSTANDING]:
     'Everything feeding the final figures must be finished first',
 };
 
@@ -962,7 +962,7 @@ function duplicateRef(error: unknown): unknown {
   ) {
     return new ConflictException({
       message: 'This payment reference was already used',
-      code: ErrorCode.PaymentRefAlreadyUsed,
+      code: ErrorCode.PAYMENT_REF_ALREADY_USED,
     });
   }
   return error;

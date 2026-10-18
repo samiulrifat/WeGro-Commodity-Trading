@@ -30,7 +30,7 @@ const MAX_LOCK_MINUTES = 60;
 
 const BAD_CREDENTIALS = {
   message: 'Phone number or password is incorrect',
-  code: ErrorCode.BadCredentials,
+  code: ErrorCode.BAD_CREDENTIALS,
 };
 
 export interface SignInResult {
@@ -98,13 +98,13 @@ export class AuthService {
     if (!this.demoMode)
       throw new NotFoundException({
         message: 'Not found',
-        code: ErrorCode.NotFound,
+        code: ErrorCode.NOT_FOUND,
       });
     const user = await this.users.findOne({ where: { role, isDemo: true } });
     if (!user) {
       throw new NotFoundException({
         message: `No demo account for role ${role} yet`,
-        code: ErrorCode.NoDemoAccount,
+        code: ErrorCode.NO_DEMO_ACCOUNT,
         details: { role },
       });
     }
@@ -117,7 +117,7 @@ export class AuthService {
     if (!this.demoMode)
       throw new NotFoundException({
         message: 'Not found',
-        code: ErrorCode.NotFound,
+        code: ErrorCode.NOT_FOUND,
       });
     const users = await this.users.find({
       where: { isDemo: true },
@@ -174,13 +174,13 @@ export class AuthService {
       await this.recordFailure(user.id);
       throw new BadRequestException({
         message: 'Current password is incorrect',
-        code: ErrorCode.WrongCurrentPassword,
+        code: ErrorCode.WRONG_CURRENT_PASSWORD,
       });
     }
     if (current.normalize('NFKC') === next.normalize('NFKC')) {
       throw new BadRequestException({
         message: 'New password must differ from the current one',
-        code: ErrorCode.PasswordUnchanged,
+        code: ErrorCode.PASSWORD_UNCHANGED,
       });
     }
     const passwordHash = await this.hasher.hash(next);
@@ -236,7 +236,7 @@ export class AuthService {
     throw new HttpException(
       {
         message: `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
-        code: ErrorCode.AccountLocked,
+        code: ErrorCode.ACCOUNT_LOCKED,
         details: { minutes },
       },
       HttpStatus.TOO_MANY_REQUESTS,
@@ -245,17 +245,17 @@ export class AuthService {
 
   /** Pending participants may sign in (to see their status); rejected or unconfirmed ones may not. */
   private assertMaySignIn(user: User): void {
-    if (user.chainState === ChainState.Submitted) {
+    if (user.chainState === ChainState.SUBMITTED) {
       throw new ForbiddenException({
         message:
           'Your registration is still being confirmed. Try again shortly.',
-        code: ErrorCode.RegistrationConfirming,
+        code: ErrorCode.REGISTRATION_CONFIRMING,
       });
     }
-    if (user.status === ParticipantStatus.Rejected) {
+    if (user.status === ParticipantStatus.REJECTED) {
       throw new ForbiddenException({
         message: 'This account was not approved',
-        code: ErrorCode.AccountRejected,
+        code: ErrorCode.ACCOUNT_REJECTED,
       });
     }
   }

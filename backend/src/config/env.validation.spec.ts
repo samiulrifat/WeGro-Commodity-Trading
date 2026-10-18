@@ -12,7 +12,7 @@ const base = {
 describe('validateEnv', () => {
   it('fills in defaults for everything optional', () => {
     const env = validateEnv(base);
-    expect(env.NODE_ENV).toBe(NodeEnv.Development);
+    expect(env.NODE_ENV).toBe(NodeEnv.DEVELOPMENT);
     expect(env.PORT).toBe(3000);
     expect(env.CHAIN_ID).toBe(31337);
     expect(env.SWAGGER_ENABLED).toBe(true);

@@ -37,11 +37,11 @@ const FARMER = randomUUID();
 const RECEIPT = '0x' + 'ab'.repeat(32);
 
 describe('TradeService', () => {
-  const admin = actor(Role.Admin);
-  const officer = actor(Role.FieldOfficer);
-  const buyer = actor(Role.Buyer);
-  const operator = actor(Role.Warehouse);
-  const accounts = actor(Role.Accounts);
+  const admin = actor(Role.ADMIN);
+  const officer = actor(Role.FIELD_OFFICER);
+  const buyer = actor(Role.BUYER);
+  const operator = actor(Role.WAREHOUSE);
+  const accounts = actor(Role.ACCOUNTS);
 
   const build = (
     opts: {
@@ -57,7 +57,7 @@ describe('TradeService', () => {
     const project = {
       id: PROJECT,
       farmerId: FARMER,
-      stage: ProjectStage.Active,
+      stage: ProjectStage.ACTIVE,
       category: 'perishable',
       title: 'Tomato',
       districtCode: 'BOGURA',
@@ -71,7 +71,7 @@ describe('TradeService', () => {
             projectId: PROJECT,
             ownerIsWegro: false,
             ownerId: FARMER,
-            status: ReceiptStatus.Issued,
+            status: ReceiptStatus.ISSUED,
             expiresOn: '2026-12-31',
             siteId: 'site-1',
             ...opts.receipt,
@@ -88,7 +88,7 @@ describe('TradeService', () => {
       available: 600,
       askingUnitPrice: 2500n,
       unpaidDeals: 0,
-      status: ListingStatus.Open,
+      status: ListingStatus.OPEN,
       ...opts.listing,
     } as Listing;
     const offer = {
@@ -97,7 +97,7 @@ describe('TradeService', () => {
       buyerId: buyer.id,
       quantity: 200,
       unitPrice: 2400n,
-      status: OfferStatus.Pending,
+      status: OfferStatus.PENDING,
       paymentDueAt: null,
       paymentRefEnc: null,
       ...opts.offer,
@@ -246,7 +246,7 @@ describe('TradeService', () => {
           askingUnitPrice: '25',
         } as never);
       await expect(
-        list({ receipt: { status: ReceiptStatus.Listed } }),
+        list({ receipt: { status: ReceiptStatus.LISTED } }),
       ).rejects.toThrow(
         'Only an issued receipt can be listed; this one is listed',
       );
@@ -254,10 +254,10 @@ describe('TradeService', () => {
         list({ receipt: { expiresOn: '2026-10-13' } }),
       ).rejects.toThrow('This receipt has expired');
       await expect(
-        list({ project: { stage: ProjectStage.ReadyForSale } }),
+        list({ project: { stage: ProjectStage.READY_FOR_SALE } }),
       ).rejects.toThrow('Produce is sold only while the project is active');
       await expect(
-        list({ receipt: { status: ReceiptStatus.Submitted } }),
+        list({ receipt: { status: ReceiptStatus.SUBMITTED } }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -319,7 +319,7 @@ describe('TradeService', () => {
 
     it('lets only the buyer withdraw their offer', async () => {
       await expect(
-        build().service.withdrawOffer(actor(Role.Buyer), 9),
+        build().service.withdrawOffer(actor(Role.BUYER), 9),
       ).rejects.toThrow(NotFoundException);
       const { service, chain } = build();
       await service.withdrawOffer(buyer, 9);
@@ -328,7 +328,7 @@ describe('TradeService', () => {
 
     it('refuses actions on an offer in the wrong state', async () => {
       await expect(
-        build({ offer: { status: OfferStatus.Paid } }).service.cancelDeal(
+        build({ offer: { status: OfferStatus.PAID } }).service.cancelDeal(
           admin,
           9,
         ),
@@ -339,7 +339,7 @@ describe('TradeService', () => {
   describe('buyer payment', () => {
     const approved = {
       offer: {
-        status: OfferStatus.Approved,
+        status: OfferStatus.APPROVED,
         paymentDueAt: new Date(NOW.getTime() + 3_600_000),
       },
     };
@@ -360,7 +360,7 @@ describe('TradeService', () => {
 
     it('refuses after the deadline, and while another confirmation is in flight', async () => {
       const late = await build({
-        offer: { status: OfferStatus.Approved, paymentDueAt: NOW },
+        offer: { status: OfferStatus.APPROVED, paymentDueAt: NOW },
       })
         .service.confirmPayment(accounts, 9, 'R')
         .catch((e: ConflictException) => e.getResponse());
@@ -377,7 +377,7 @@ describe('TradeService', () => {
     it('shows the reference only to roles that handle payments', async () => {
       const paid = {
         offer: {
-          status: OfferStatus.Paid,
+          status: OfferStatus.PAID,
           paymentRefEnc: 'enc[offers.payment_ref:9]R-1',
         },
       };
@@ -392,7 +392,7 @@ describe('TradeService', () => {
   });
 
   describe('delivery', () => {
-    const paid = { offer: { status: OfferStatus.Paid } };
+    const paid = { offer: { status: OfferStatus.PAID } };
 
     it('records the buyer’s side with a fingerprint of what they confirmed', async () => {
       const { service, deliveries, chain } = build(paid);
@@ -403,7 +403,7 @@ describe('TradeService', () => {
       } as never);
       const d = deliveries[0];
       expect(d).toMatchObject({
-        side: DeliverySide.Buyer,
+        side: DeliverySide.BUYER,
         quantity: 190,
         photoHash: photoHash('cd'.repeat(32)),
       });
@@ -418,7 +418,7 @@ describe('TradeService', () => {
       const stored = { ...paid, listing: { receiptId: RECEIPT } };
       const { service, deliveries } = build(stored);
       await service.confirmDelivery(operator, 9, { quantity: 200 } as never);
-      expect(deliveries[0].side).toBe(DeliverySide.Handler);
+      expect(deliveries[0].side).toBe(DeliverySide.HANDLER);
       await expect(
         build({ ...stored, operatorSite: 'site-2' }).service.confirmDelivery(
           operator,
@@ -430,7 +430,7 @@ describe('TradeService', () => {
       await fresh.service.confirmDelivery(officer, 9, {
         quantity: 200,
       } as never);
-      expect(fresh.deliveries[0].side).toBe(DeliverySide.Handler);
+      expect(fresh.deliveries[0].side).toBe(DeliverySide.HANDLER);
     });
 
     it('refuses a second confirmation from the same side, and someone else’s photo', async () => {

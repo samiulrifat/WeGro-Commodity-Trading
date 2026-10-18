@@ -35,14 +35,14 @@ export class BankAccountsController {
   constructor(private readonly accounts: BankAccountsService) {}
 
   @Get('me/bank-account')
-  @Roles(Role.Farmer, Role.Investor)
+  @Roles(Role.FARMER, Role.INVESTOR)
   @ApiOkResponse({ type: BankAccountsDto })
   mine(@CurrentUser() actor: AuthUser): Promise<BankAccountsDto> {
     return this.accounts.forUser(actor, actor.id);
   }
 
   @Put('me/bank-account')
-  @Roles(Role.Farmer, Role.Investor)
+  @Roles(Role.FARMER, Role.INVESTOR)
   @ApiOkResponse({
     type: BankAccountsDto,
     description: 'Waits for an admin to verify it',
@@ -56,7 +56,7 @@ export class BankAccountsController {
 
   @Get('bank-accounts/pending')
   @ApiPaged()
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR)
   @ApiOkResponse({
     type: [PendingBankAccountDto],
     description: 'Waiting for verification, oldest first',
@@ -69,7 +69,7 @@ export class BankAccountsController {
   }
 
   @Get('participants/:id/bank-account')
-  @Roles(Role.SuperAdmin, Role.Admin, Role.Accounts, Role.Auditor)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTS, Role.AUDITOR)
   @ApiOkResponse({ type: BankAccountsDto })
   forParticipant(
     @CurrentUser() actor: AuthUser,
@@ -79,7 +79,7 @@ export class BankAccountsController {
   }
 
   @Put('participants/:id/bank-account')
-  @Roles(Role.Admin)
+  @Roles(Role.ADMIN)
   @ApiOkResponse({
     type: BankAccountsDto,
     description: 'Entered for the payee; another admin verifies it',
@@ -93,7 +93,7 @@ export class BankAccountsController {
   }
 
   @Post('participants/:id/bank-account/verify')
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: BankAccountsDto,
@@ -107,7 +107,7 @@ export class BankAccountsController {
   }
 
   @Post('participants/:id/bank-account/reject')
-  @Roles(Role.SuperAdmin, Role.Admin)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: BankAccountsDto })
   reject(

@@ -17,9 +17,9 @@ import {
 import { Mnemonic } from 'ethers';
 
 export enum NodeEnv {
-  Development = 'development',
-  Test = 'test',
-  Production = 'production',
+  DEVELOPMENT = 'development',
+  TEST = 'test',
+  PRODUCTION = 'production',
 }
 
 /**
@@ -57,7 +57,7 @@ const IsMnemonic = () =>
  */
 export class EnvironmentVariables {
   @IsEnum(NodeEnv)
-  NODE_ENV: NodeEnv = NodeEnv.Development;
+  NODE_ENV: NodeEnv = NodeEnv.DEVELOPMENT;
 
   @Type(() => Number)
   @IsInt()
@@ -247,7 +247,7 @@ export function validateEnv(
       .join('; ');
     throw new Error(`Invalid environment configuration: ${problems}`);
   }
-  if (env.DEMO_MODE && env.NODE_ENV === NodeEnv.Production) {
+  if (env.DEMO_MODE && env.NODE_ENV === NodeEnv.PRODUCTION) {
     throw new Error(
       'Invalid environment configuration: DEMO_MODE cannot be on in production',
     );

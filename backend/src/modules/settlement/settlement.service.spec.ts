@@ -60,8 +60,8 @@ interface Ledger {
 }
 
 describe('SettlementService', () => {
-  const accounts = actor(Role.Accounts);
-  const second = actor(Role.Accounts);
+  const accounts = actor(Role.ACCOUNTS);
+  const second = actor(Role.ACCOUNTS);
 
   const build = (
     opts: {
@@ -80,7 +80,7 @@ describe('SettlementService', () => {
       id: PROJECT,
       farmerId: FARMER,
       title: 'Potato',
-      stage: ProjectStage.Active,
+      stage: ProjectStage.ACTIVE,
       ...opts.project,
     } as Project;
     const l: Ledger = {
@@ -149,7 +149,7 @@ describe('SettlementService', () => {
             id: randomUUID(),
             projectId: PROJECT,
             costId: 7,
-            status: CostStatus.Recorded,
+            status: CostStatus.RECORDED,
             amount: 150_000n,
             voidedById: null,
             ...opts.cost,
@@ -177,7 +177,7 @@ describe('SettlementService', () => {
       id: 5,
       projectId: PROJECT,
       isFinal: false,
-      status: RoundStatus.Prepared,
+      status: RoundStatus.PREPARED,
       preparedById: accounts.id,
       verified: true,
       income: 0n,
@@ -272,8 +272,8 @@ describe('SettlementService', () => {
       {
         apply: jest.fn(() => {
           costs.forEach((c) => {
-            if (c.status === CostStatus.Submitted)
-              c.status = CostStatus.Recorded;
+            if (c.status === CostStatus.SUBMITTED)
+              c.status = CostStatus.RECORDED;
           });
           return Promise.resolve();
         }),
@@ -319,11 +319,11 @@ describe('SettlementService', () => {
     });
 
     it('freezes costs once a final round is prepared or approved', async () => {
-      const open = await build({ blocking: { status: RoundStatus.Prepared } })
+      const open = await build({ blocking: { status: RoundStatus.PREPARED } })
         .service.addCost(accounts, PROJECT, dto as never)
         .catch((e: ConflictException) => e.getResponse());
       expect(open).toMatchObject({ code: 'FINAL_ROUND_OPEN' });
-      const settled = await build({ blocking: { status: RoundStatus.Paid } })
+      const settled = await build({ blocking: { status: RoundStatus.PAID } })
         .service.addCost(accounts, PROJECT, dto as never)
         .catch((e: ConflictException) => e.getResponse());
       expect(settled).toMatchObject({ code: 'ALREADY_SETTLED' });
@@ -332,7 +332,7 @@ describe('SettlementService', () => {
     it('refuses the wrong stage, a future date, a zero amount and someone else’s bill', async () => {
       await expect(
         build({
-          project: { stage: ProjectStage.OpenForFunding },
+          project: { stage: ProjectStage.OPEN_FOR_FUNDING },
         }).service.addCost(accounts, PROJECT, dto as never),
       ).rejects.toThrow(ConflictException);
       await expect(
@@ -368,11 +368,11 @@ describe('SettlementService', () => {
       expect(costs[0].voidedById).toBeNull();
       await service.voidCost(accounts, costs[0].id);
       expect(chain.sent[0]).toMatchObject({ method: 'voidCost', args: [7] });
-      const voided = build({ cost: { status: CostStatus.Voided } });
+      const voided = build({ cost: { status: CostStatus.VOIDED } });
       await expect(
         voided.service.voidCost(accounts, voided.costs[0].id),
       ).rejects.toThrow('This cost is already voided');
-      const unconfirmed = build({ cost: { status: CostStatus.Submitted } });
+      const unconfirmed = build({ cost: { status: CostStatus.SUBMITTED } });
       await expect(
         unconfirmed.service.voidCost(accounts, unconfirmed.costs[0].id),
       ).rejects.toThrow(NotFoundException);
@@ -471,7 +471,7 @@ describe('SettlementService', () => {
   });
 
   describe('recording a payment', () => {
-    const approved = { round: { status: RoundStatus.Approved } };
+    const approved = { round: { status: RoundStatus.APPROVED } };
 
     it('saves the reference encrypted, then sends its keyed hash for that payee', async () => {
       const { service, update, chain } = build(approved);
@@ -565,13 +565,13 @@ describe('SettlementService', () => {
 
     it('is visible to an investor only if they hold slots in the project', async () => {
       await expect(
-        build().service.summary(actor(Role.Investor), PROJECT),
+        build().service.summary(actor(Role.INVESTOR), PROJECT),
       ).rejects.toThrow(NotFoundException);
       await expect(
-        build({ holds: true }).service.summary(actor(Role.Investor), PROJECT),
+        build({ holds: true }).service.summary(actor(Role.INVESTOR), PROJECT),
       ).resolves.toBeDefined();
       await expect(
-        build().service.summary(actor(Role.Farmer, { id: FARMER }), PROJECT),
+        build().service.summary(actor(Role.FARMER, { id: FARMER }), PROJECT),
       ).resolves.toBeDefined();
     });
   });

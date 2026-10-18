@@ -9,12 +9,12 @@ import {
 
 export enum BankAccountStatus {
   /** Entered, waiting for an admin to verify it. */
-  Pending = 'pending',
+  PENDING = 'pending',
   /** The one payouts go to. */
-  Verified = 'verified',
-  Rejected = 'rejected',
+  VERIFIED = 'verified',
+  REJECTED = 'rejected',
   /** Replaced by later details; kept as history. */
-  Superseded = 'superseded',
+  SUPERSEDED = 'superseded',
 }
 
 /**

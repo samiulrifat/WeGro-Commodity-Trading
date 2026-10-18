@@ -68,17 +68,17 @@ import { DeliverySide, ListingStatus, OfferStatus } from './trade.enums';
 import { ErrorCode } from '../../common/errors/error-code';
 
 const STAFF: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Operations,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 const SEES_PAYMENTS: ReadonlySet<Role> = new Set([
-  Role.SuperAdmin,
-  Role.Admin,
-  Role.Accounts,
-  Role.Auditor,
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
 ]);
 
 /**
@@ -119,24 +119,24 @@ export class TradeService {
   async listReceipt(actor: AuthUser, dto: ListReceiptDto): Promise<ListingDto> {
     const receiptId = dto.receiptId.toLowerCase();
     const receipt = await this.receipts.findOneBy({ id: receiptId });
-    if (!receipt || receipt.status === ReceiptStatus.Submitted) {
+    if (!receipt || receipt.status === ReceiptStatus.SUBMITTED) {
       throw new NotFoundException({
         message: 'Receipt not found',
-        code: ErrorCode.ReceiptNotFound,
+        code: ErrorCode.RECEIPT_NOT_FOUND,
       });
     }
     const ownerSide = receipt.ownerIsWegro
-      ? actor.role === Role.Admin
+      ? actor.role === Role.ADMIN
       : !!receipt.ownerId && (await this.isOfficerOf(actor, receipt.ownerId));
     if (!ownerSide)
       throw new ForbiddenException({
         message: "Only the receipt owner's side can list it",
-        code: ErrorCode.NotReceiptOwner,
+        code: ErrorCode.NOT_RECEIPT_OWNER,
       });
-    if (receipt.status !== ReceiptStatus.Issued) {
+    if (receipt.status !== ReceiptStatus.ISSUED) {
       throw new ConflictException({
         message: `Only an issued receipt can be listed; this one is ${receipt.status}`,
-        code: ErrorCode.ReceiptNotIssued,
+        code: ErrorCode.RECEIPT_NOT_ISSUED,
         details: { status: receipt.status },
       });
     }
@@ -144,7 +144,7 @@ export class TradeService {
       throw new ConflictException({
         message:
           'This receipt has expired; the site must re-check and extend it first',
-        code: ErrorCode.ReceiptExpired,
+        code: ErrorCode.RECEIPT_EXPIRED,
       });
     }
     await this.requireActive(receipt.projectId);
@@ -164,20 +164,20 @@ export class TradeService {
   /** Fresh produce straight from a project: as WeGro (admin) or for the farmer (their officer). */
   async listProduce(actor: AuthUser, dto: ListProduceDto): Promise<ListingDto> {
     const project = await this.requireActive(dto.projectId);
-    if (project.category !== (ProduceCategory.Perishable as string)) {
+    if (project.category !== (ProduceCategory.PERISHABLE as string)) {
       throw new UnprocessableEntityException({
         message:
           'Stored crops and spices are sold through their warehouse receipts',
-        code: ErrorCode.NotPerishable,
+        code: ErrorCode.NOT_PERISHABLE,
       });
     }
     if (
-      actor.role !== Role.Admin &&
+      actor.role !== Role.ADMIN &&
       !(await this.isOfficerOf(actor, project.farmerId))
     ) {
       throw new ForbiddenException({
         message: "Only an admin or the farmer's field officer can list this",
-        code: ErrorCode.ListingNotAllowed,
+        code: ErrorCode.LISTING_NOT_ALLOWED,
       });
     }
     const result = await this.send(actor, (c) =>
@@ -198,18 +198,18 @@ export class TradeService {
   async cancelListing(actor: AuthUser, id: number): Promise<ListingDto> {
     const listing = await this.openListing(id);
     if (
-      actor.role !== Role.Admin &&
+      actor.role !== Role.ADMIN &&
       !(await this.isSellerSide(actor, listing))
     ) {
       throw new ForbiddenException({
         message: 'Only the seller side or an admin can cancel this listing',
-        code: ErrorCode.ListingCancelNotAllowed,
+        code: ErrorCode.LISTING_CANCEL_NOT_ALLOWED,
       });
     }
     if (listing.unpaidDeals > 0) {
       throw new ConflictException({
         message: `${listing.unpaidDeals} approved deal(s) are waiting for payment`,
-        code: ErrorCode.DealsPending,
+        code: ErrorCode.DEALS_PENDING,
         details: { unpaidDeals: listing.unpaidDeals },
       });
     }
@@ -220,7 +220,7 @@ export class TradeService {
   async listListings(q: ListListingsQueryDto): Promise<Paginated<ListingDto>> {
     const qb = this.listings
       .createQueryBuilder('l')
-      .where('l.status = :st', { st: q.status ?? ListingStatus.Open });
+      .where('l.status = :st', { st: q.status ?? ListingStatus.OPEN });
     if (q.produceCode)
       qb.andWhere('l.produce_code = :pc', { pc: q.produceCode });
     if (q.projectId) qb.andWhere('l.project_id = :pid', { pid: q.projectId });
@@ -246,7 +246,7 @@ export class TradeService {
     if (!listing || listing.status === null)
       throw new NotFoundException({
         message: 'Listing not found',
-        code: ErrorCode.ListingNotFound,
+        code: ErrorCode.LISTING_NOT_FOUND,
       });
     return (await this.listingDtos([listing]))[0];
   }
@@ -262,7 +262,7 @@ export class TradeService {
     if (dto.quantity > listing.available) {
       throw new ConflictException({
         message: `Only ${listing.available} available`,
-        code: ErrorCode.ExceedsAvailable,
+        code: ErrorCode.EXCEEDS_AVAILABLE,
         details: { available: listing.available },
       });
     }
@@ -280,30 +280,30 @@ export class TradeService {
   }
 
   async withdrawOffer(actor: AuthUser, id: number): Promise<OfferDto> {
-    const offer = await this.offerIn(id, [OfferStatus.Pending]);
+    const offer = await this.offerIn(id, [OfferStatus.PENDING]);
     if (offer.buyerId !== actor.id)
       throw new NotFoundException({
         message: 'Offer not found',
-        code: ErrorCode.OfferNotFound,
+        code: ErrorCode.OFFER_NOT_FOUND,
       });
     await this.send(actor, (c) => c.withdrawOffer.populateTransaction(id));
     return this.offerOne(actor, id);
   }
 
   async rejectOffer(actor: AuthUser, id: number): Promise<OfferDto> {
-    await this.offerIn(id, [OfferStatus.Pending]);
+    await this.offerIn(id, [OfferStatus.PENDING]);
     await this.send(actor, (c) => c.rejectOffer.populateTransaction(id));
     return this.offerOne(actor, id);
   }
 
   /** The offer becomes a deal: its quantity is reserved until paid or past its deadline. */
   async approveOffer(actor: AuthUser, id: number): Promise<OfferDto> {
-    const offer = await this.offerIn(id, [OfferStatus.Pending]);
+    const offer = await this.offerIn(id, [OfferStatus.PENDING]);
     const listing = await this.openListing(offer.listingId);
     if (offer.quantity > listing.available) {
       throw new ConflictException({
         message: `Only ${listing.available} still available`,
-        code: ErrorCode.ExceedsAvailable,
+        code: ErrorCode.EXCEEDS_AVAILABLE,
         details: { available: listing.available },
       });
     }
@@ -312,7 +312,7 @@ export class TradeService {
   }
 
   async cancelDeal(actor: AuthUser, id: number): Promise<OfferDto> {
-    await this.offerIn(id, [OfferStatus.Approved]);
+    await this.offerIn(id, [OfferStatus.APPROVED]);
     await this.send(actor, (c) => c.cancelDeal.populateTransaction(id));
     return this.offerOne(actor, id);
   }
@@ -334,15 +334,15 @@ export class TradeService {
     } catch (error) {
       throw new UnprocessableEntityException({
         message: (error as Error).message,
-        code: ErrorCode.PaymentRefInvalid,
+        code: ErrorCode.PAYMENT_REF_INVALID,
       });
     }
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
-    const offer = await this.offerIn(id, [OfferStatus.Approved]);
+    const offer = await this.offerIn(id, [OfferStatus.APPROVED]);
     if (offer.paymentDueAt && offer.paymentDueAt <= (await this.clock.now())) {
       throw new ConflictException({
         message: 'The payment deadline for this deal has passed',
-        code: ErrorCode.PaymentOverdue,
+        code: ErrorCode.PAYMENT_OVERDUE,
       });
     }
     try {
@@ -362,7 +362,7 @@ export class TradeService {
       if (saved.affected !== 1)
         throw new ConflictException({
           message: 'This deal is already being confirmed',
-          code: ErrorCode.DealConfirming,
+          code: ErrorCode.DEAL_CONFIRMING,
         });
     } catch (error) {
       if (
@@ -371,7 +371,7 @@ export class TradeService {
       ) {
         throw new ConflictException({
           message: 'This payment reference was already used',
-          code: ErrorCode.PaymentRefAlreadyUsed,
+          code: ErrorCode.PAYMENT_REF_ALREADY_USED,
         });
       }
       throw error;
@@ -383,7 +383,7 @@ export class TradeService {
     } catch (error) {
       if (error instanceof ContractRevertException) {
         await this.offers.update(
-          { id, paymentRefHash: hash, status: OfferStatus.Approved },
+          { id, paymentRefHash: hash, status: OfferStatus.APPROVED },
           {
             paymentRefEnc: null,
             paymentRefHash: null,
@@ -407,20 +407,20 @@ export class TradeService {
     id: number,
     dto: ConfirmDeliveryDto,
   ): Promise<OfferDto> {
-    const offer = await this.offerIn(id, [OfferStatus.Paid]);
+    const offer = await this.offerIn(id, [OfferStatus.PAID]);
     const listing = await this.listings.findOneByOrFail({
       id: offer.listingId,
     });
     const side =
-      actor.role === Role.Buyer && offer.buyerId === actor.id
-        ? DeliverySide.Buyer
+      actor.role === Role.BUYER && offer.buyerId === actor.id
+        ? DeliverySide.BUYER
         : (await this.isHandler(actor, listing))
-          ? DeliverySide.Handler
+          ? DeliverySide.HANDLER
           : null;
     if (!side)
       throw new ForbiddenException({
         message: 'Only the buyer or the handler confirms delivery',
-        code: ErrorCode.DeliveryConfirmNotAllowed,
+        code: ErrorCode.DELIVERY_CONFIRM_NOT_ALLOWED,
       });
     if (
       await this.deliveries.exists({
@@ -429,7 +429,7 @@ export class TradeService {
     ) {
       throw new ConflictException({
         message: `The ${side} has already confirmed this delivery`,
-        code: ErrorCode.DeliveryAlreadyConfirmed,
+        code: ErrorCode.DELIVERY_ALREADY_CONFIRMED,
         details: { side },
       });
     }
@@ -440,7 +440,7 @@ export class TradeService {
       if (!photo || photo.uploadedById !== actor.id) {
         throw new UnprocessableEntityException({
           message: 'photoId must be a photo you uploaded',
-          code: ErrorCode.PhotoNotYours,
+          code: ErrorCode.PHOTO_NOT_YOURS,
         });
       }
     }
@@ -515,7 +515,7 @@ export class TradeService {
     if (!offer)
       throw new NotFoundException({
         message: 'Offer not found',
-        code: ErrorCode.OfferNotFound,
+        code: ErrorCode.OFFER_NOT_FOUND,
       });
     return (await this.offerDtos(actor, [offer]))[0];
   }
@@ -531,7 +531,7 @@ export class TradeService {
     if (!delivery?.photoId)
       throw new NotFoundException({
         message: 'No photo for this delivery',
-        code: ErrorCode.DeliveryHasNoPhoto,
+        code: ErrorCode.DELIVERY_HAS_NO_PHOTO,
       });
     return this.photos.find(delivery.photoId);
   }
@@ -543,12 +543,12 @@ export class TradeService {
     if (!project)
       throw new NotFoundException({
         message: 'Project not found',
-        code: ErrorCode.ProjectNotFound,
+        code: ErrorCode.PROJECT_NOT_FOUND,
       });
-    if (project.stage !== ProjectStage.Active) {
+    if (project.stage !== ProjectStage.ACTIVE) {
       throw new ConflictException({
         message: 'Produce is sold only while the project is active',
-        code: ErrorCode.ProjectNotActive,
+        code: ErrorCode.PROJECT_NOT_ACTIVE,
       });
     }
     return project;
@@ -559,12 +559,12 @@ export class TradeService {
     if (!listing || listing.status === null)
       throw new NotFoundException({
         message: 'Listing not found',
-        code: ErrorCode.ListingNotFound,
+        code: ErrorCode.LISTING_NOT_FOUND,
       });
-    if (listing.status !== ListingStatus.Open) {
+    if (listing.status !== ListingStatus.OPEN) {
       throw new ConflictException({
         message: `This listing is ${listing.status}`,
-        code: ErrorCode.ListingWrongStatus,
+        code: ErrorCode.LISTING_WRONG_STATUS,
         details: { status: listing.status },
       });
     }
@@ -576,12 +576,12 @@ export class TradeService {
     if (!offer || offer.status === null)
       throw new NotFoundException({
         message: 'Offer not found',
-        code: ErrorCode.OfferNotFound,
+        code: ErrorCode.OFFER_NOT_FOUND,
       });
     if (!allowed.includes(offer.status))
       throw new ConflictException({
         message: `This offer is ${offer.status}`,
-        code: ErrorCode.OfferWrongStatus,
+        code: ErrorCode.OFFER_WRONG_STATUS,
         details: { status: offer.status },
       });
     return offer;
@@ -591,7 +591,7 @@ export class TradeService {
     actor: AuthUser,
     farmerId: string,
   ): Promise<boolean> {
-    if (actor.role !== Role.FieldOfficer) return false;
+    if (actor.role !== Role.FIELD_OFFICER) return false;
     return this.users.exists({
       where: { id: farmerId, fieldOfficerId: actor.id },
     });
@@ -599,14 +599,14 @@ export class TradeService {
 
   private async isSellerSide(actor: AuthUser, l: Listing): Promise<boolean> {
     return l.sellerIsWegro
-      ? actor.role === Role.Admin
+      ? actor.role === Role.ADMIN
       : this.isOfficerOf(actor, l.farmerId);
   }
 
   /** Receipt: an operator of the issuing site. Fresh produce: the farmer's officer. */
   private async isHandler(actor: AuthUser, l: Listing): Promise<boolean> {
     if (!l.receiptId) return this.isOfficerOf(actor, l.farmerId);
-    if (actor.role !== Role.Warehouse) return false;
+    if (actor.role !== Role.WAREHOUSE) return false;
     const [receipt, operator] = await Promise.all([
       this.receipts.findOne({
         where: { id: l.receiptId },
@@ -629,13 +629,13 @@ export class TradeService {
   ): Promise<void> {
     if (STAFF.has(actor.role)) return;
     switch (actor.role) {
-      case Role.Buyer:
+      case Role.BUYER:
         qb.andWhere('o.buyer_id = :me', { me: actor.id });
         return;
-      case Role.Farmer:
+      case Role.FARMER:
         qb.andWhere('l.farmer_id = :me', { me: actor.id });
         return;
-      case Role.FieldOfficer:
+      case Role.FIELD_OFFICER:
         qb.andWhere(
           'EXISTS (SELECT 1 FROM users f WHERE f.id = l.farmer_id AND f.field_officer_id = :me)',
           {
@@ -643,7 +643,7 @@ export class TradeService {
           },
         );
         return;
-      case Role.Warehouse:
+      case Role.WAREHOUSE:
         qb.andWhere(
           `EXISTS (SELECT 1 FROM warehouse_receipts r JOIN warehouse_operators w ON w.site_id = r.site_id
                     WHERE r.id = l.receipt_id AND w.operator_id = :me)`,
@@ -753,8 +753,8 @@ export class TradeService {
         : null;
     };
     return rows.map((o) => {
-      const buyerDelivery = view(o, DeliverySide.Buyer);
-      const handlerDelivery = view(o, DeliverySide.Handler);
+      const buyerDelivery = view(o, DeliverySide.BUYER);
+      const handlerDelivery = view(o, DeliverySide.HANDLER);
       return {
         id: o.id,
         listingId: o.listingId,
@@ -767,7 +767,7 @@ export class TradeService {
         madeAt: o.madeAt,
         paymentDueAt: o.paymentDueAt,
         overdue:
-          o.status === OfferStatus.Approved &&
+          o.status === OfferStatus.APPROVED &&
           !!o.paymentDueAt &&
           o.paymentDueAt <= now,
         paidAt: o.paidAt,

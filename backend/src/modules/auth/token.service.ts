@@ -175,7 +175,7 @@ export class TokenService {
 function invalidSession() {
   return new UnauthorizedException({
     message: 'Session expired. Please sign in again.',
-    code: ErrorCode.SessionExpired,
+    code: ErrorCode.SESSION_EXPIRED,
   });
 }
 

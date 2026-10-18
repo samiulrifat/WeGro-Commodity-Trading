@@ -110,7 +110,7 @@ describe('DashboardService', () => {
 
   it('shows funding progress with whole days open and rounded-down percentages', async () => {
     const { service } = build();
-    const d = await service.dashboard(actor(Role.Admin));
+    const d = await service.dashboard(actor(Role.ADMIN));
     expect(d.funding).toMatchObject({
       openProjects: 3,
       target: '150000.00',
@@ -128,7 +128,7 @@ describe('DashboardService', () => {
   });
 
   it('marks an active project overdue once its planned months have passed', async () => {
-    const d = await build().service.dashboard(actor(Role.Admin));
+    const d = await build().service.dashboard(actor(Role.ADMIN));
     expect(d.active.projects[0]).toMatchObject({
       startedOn: '2026-04-01',
       plannedEndOn: '2026-09-01',
@@ -139,7 +139,7 @@ describe('DashboardService', () => {
   });
 
   it('fills the 12-month trends with zeros where nothing happened', async () => {
-    const d = await build().service.dashboard(actor(Role.Admin));
+    const d = await build().service.dashboard(actor(Role.ADMIN));
     expect(d.trends.months[0]).toBe('2025-11');
     expect(d.trends.months[11]).toBe('2026-10');
     expect(d.trends.fundingRaised.slice(-2)).toEqual(['0.00', '100000.00']);
@@ -152,13 +152,13 @@ describe('DashboardService', () => {
 
   it('shows each role only its own queues, and passes the ledger time where a queue needs it', async () => {
     const { service, params } = build();
-    const d = await service.dashboard(actor(Role.Accounts));
+    const d = await service.dashboard(actor(Role.ACCOUNTS));
     expect(d.queues.map((q) => q.key)).toEqual(
-      queuesFor(Role.Accounts).map((q) => q.key),
+      queuesFor(Role.ACCOUNTS).map((q) => q.key),
     );
     expect(d.queues.every((q) => q.count === 2)).toBe(true);
     expect(params.some((p) => p[0] === NOW)).toBe(true);
-    const everything = await service.dashboard(actor(Role.Auditor));
+    const everything = await service.dashboard(actor(Role.AUDITOR));
     expect(everything.queues.length).toBeGreaterThan(d.queues.length);
   });
 
@@ -166,23 +166,23 @@ describe('DashboardService', () => {
     const clock = fakeClock(NOW);
     const { service, ran } = build(clock);
     await Promise.all([
-      service.dashboard(actor(Role.Admin)),
-      service.dashboard(actor(Role.Admin)),
-      service.dashboard(actor(Role.Admin)),
+      service.dashboard(actor(Role.ADMIN)),
+      service.dashboard(actor(Role.ADMIN)),
+      service.dashboard(actor(Role.ADMIN)),
     ]);
     expect(ran.figures).toBe(1);
     clock.now.mockResolvedValue(new Date(NOW.getTime() + 59_000));
-    const later = await service.dashboard(actor(Role.Admin));
+    const later = await service.dashboard(actor(Role.ADMIN));
     expect(ran.figures).toBe(1);
     expect(later.figuresAsOf).toEqual(NOW);
     clock.now.mockResolvedValue(new Date(NOW.getTime() + 61_000));
-    await service.dashboard(actor(Role.Admin));
+    await service.dashboard(actor(Role.ADMIN));
     expect(ran.figures).toBe(2);
   });
 
   it('looks every name on the page up in one call', async () => {
     const { service, views } = build();
-    await service.dashboard(actor(Role.Admin));
+    await service.dashboard(actor(Role.ADMIN));
     expect(views.names).toHaveBeenCalledTimes(1);
     expect(views.names.mock.calls[0][0]).toEqual(
       expect.arrayContaining(['f1', 'f2']),

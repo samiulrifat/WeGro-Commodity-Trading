@@ -111,7 +111,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
           );
         }
         await this.patch(m, event, id, {
-          status: ClaimStatus.Triggered,
+          status: ClaimStatus.TRIGGERED,
           openedAt: when,
         });
         return;
@@ -122,7 +122,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
         const status = CLAIM_STATUS_BY_CHAIN[Number(a.status)];
         if (!id || !status) return;
         const decided =
-          status === ClaimStatus.Approved || status === ClaimStatus.Rejected;
+          status === ClaimStatus.APPROVED || status === ClaimStatus.REJECTED;
         if (decided) {
           const row = await m.findOne(InsuranceClaim, {
             where: { id },
@@ -137,7 +137,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
         }
         await this.patch(m, event, id, {
           status,
-          ...(status === ClaimStatus.Approved && {
+          ...(status === ClaimStatus.APPROVED && {
             approvedAmount: BigInt(String(a.approvedAmount)),
           }),
           ...(decided && { decidedAt: when }),

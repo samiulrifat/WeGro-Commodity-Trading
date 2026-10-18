@@ -4,7 +4,7 @@ import type { VerificationRun } from '../entities/verification-run.entity';
 import { SweepService } from './sweep.service';
 
 describe('SweepService', () => {
-  const auditor = actor(Role.Auditor);
+  const auditor = actor(Role.AUDITOR);
 
   /**
    * `table` -> its ids; pages are served by keyset like the database would

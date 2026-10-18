@@ -22,9 +22,9 @@ describe('Catalog (database)', () => {
     http = request(chain.app.getHttpServer());
     await waitForDemoAccounts(chain);
     [ops, admin, investor] = await Promise.all([
-      demoToken(http, Role.Operations),
-      demoToken(http, Role.Admin),
-      demoToken(http, Role.Investor),
+      demoToken(http, Role.OPERATIONS),
+      demoToken(http, Role.ADMIN),
+      demoToken(http, Role.INVESTOR),
     ]);
   });
 

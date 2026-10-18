@@ -10,7 +10,7 @@ import { ROLE_BY_CHAIN_ID, Role, STAFF_ROLES } from '../users/roles';
 import { type Note, NotificationWriter } from './notification-writer';
 import { NotificationCategory, NotificationKind } from './notification.enums';
 
-const { Action, Outcome } = NotificationCategory;
+const { ACTION, OUTCOME } = NotificationCategory;
 
 type Rule = (e: ChainEvent, m: EntityManager, ctx: Context) => Promise<unknown>;
 
@@ -148,11 +148,11 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const id = uuid(e.args.participantId);
       // The super admin verifies staff; admins verify everyone else.
       const verifiers = STAFF_ROLES.has(role)
-        ? [Role.SuperAdmin]
-        : [Role.Admin];
+        ? [Role.SUPER_ADMIN]
+        : [Role.ADMIN];
       await x.send(await x.role(verifiers), {
-        category: Action,
-        kind: NotificationKind.ParticipantRegistered,
+        category: ACTION,
+        kind: NotificationKind.PARTICIPANT_REGISTERED,
         title: `New ${role.replace('_', ' ')} registration awaiting verification`,
         params: { role },
         subject: id ? { type: 'participant', id } : null,
@@ -163,11 +163,11 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const status = Number(e.args.newStatus);
       if (status !== 2 && status !== 3) return;
       await x.send([id], {
-        category: Outcome,
+        category: OUTCOME,
         kind:
           status === 2
-            ? NotificationKind.ParticipantVerified
-            : NotificationKind.ParticipantRejected,
+            ? NotificationKind.PARTICIPANT_VERIFIED
+            : NotificationKind.PARTICIPANT_REJECTED,
         title:
           status === 2
             ? 'Your account is verified'
@@ -179,8 +179,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
     FieldOfficerAssigned: async (e, _m, x) => {
       const farmer = uuid(e.args.farmerId);
       await x.send([uuid(e.args.officerId)], {
-        category: Outcome,
-        kind: NotificationKind.FarmerAssigned,
+        category: OUTCOME,
+        kind: NotificationKind.FARMER_ASSIGNED,
         title: 'A farmer was assigned to you',
         params: {},
         subject: farmer ? { type: 'participant', id: farmer } : null,
@@ -191,9 +191,9 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
   ProjectLedger: {
     SlotsReserved: async (e, _m, x) => {
       const p = await x.project(uuid(e.args.projectId));
-      await x.send(await x.role([Role.Accounts]), {
-        category: Action,
-        kind: NotificationKind.ReservationMade,
+      await x.send(await x.role([Role.ACCOUNTS]), {
+        category: ACTION,
+        kind: NotificationKind.RESERVATION_MADE,
         title: `Reservation #${String(e.args.reservationId)} awaiting payment confirmation`,
         body: `${String(e.args.slots)} slots in ${p?.title ?? 'a project'}; holds until ${date(e.args.expiresAt)} UTC`,
         params: {
@@ -208,8 +208,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
     ReservationConfirmed: async (e, _m, x) => {
       const p = await x.project(uuid(e.args.projectId));
       await x.send([uuid(e.args.investorId)], {
-        category: Outcome,
-        kind: NotificationKind.ReservationConfirmed,
+        category: OUTCOME,
+        kind: NotificationKind.RESERVATION_CONFIRMED,
         title: 'Payment confirmed: your slots are issued',
         body: `${String(e.args.slots)} slots in ${p?.title ?? 'the project'}`,
         params: { slots: Number(e.args.slots), project: p?.title ?? null },
@@ -217,11 +217,11 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       });
     },
     ReservationExpired: reservationClosed(
-      NotificationKind.ReservationExpired,
+      NotificationKind.RESERVATION_EXPIRED,
       'Your reservation expired unpaid',
     ),
     ReservationCancelled: reservationClosed(
-      NotificationKind.ReservationCancelled,
+      NotificationKind.RESERVATION_CANCELLED,
       'Your reservation was cancelled',
     ),
     ProjectStageChanged: async (e, _m, x) => {
@@ -232,33 +232,33 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const subject = { type: 'project', id };
       switch (Number(e.args.newStage)) {
         case 3: // Funded
-          return x.send(await x.role([Role.Operations]), {
-            category: Action,
-            kind: NotificationKind.ProjectFunded,
+          return x.send(await x.role([Role.OPERATIONS]), {
+            category: ACTION,
+            kind: NotificationKind.PROJECT_FUNDED,
             params: { project: p.title },
             title: `${p.title} is fully funded: propose its input vouchers`,
             subject,
           });
         case 4: // Active
           return x.send([p.farmer_id, await x.officerOf(p.farmer_id)], {
-            category: Outcome,
-            kind: NotificationKind.ProjectActive,
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_ACTIVE,
             params: { project: p.title },
             title: `${p.title} is active`,
             subject,
           });
         case 5: // ReadyForSale
-          return x.send(await x.role([Role.Accounts]), {
-            category: Action,
-            kind: NotificationKind.ProjectReadyForSale,
+          return x.send(await x.role([Role.ACCOUNTS]), {
+            category: ACTION,
+            kind: NotificationKind.PROJECT_READY_FOR_SALE,
             params: { project: p.title },
             title: `${p.title} is ready for its final payout`,
             subject,
           });
         case 6: // PaidOut
           return x.send([p.farmer_id, ...(await x.holders(id))], {
-            category: Outcome,
-            kind: NotificationKind.ProjectPaidOut,
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_PAID_OUT,
             params: { project: p.title },
             title: `${p.title} is paid out`,
             subject,
@@ -266,15 +266,15 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         case 8: {
           // Cancelled
           await x.send(await x.holders(id), {
-            category: Outcome,
-            kind: NotificationKind.ProjectCancelled,
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_CANCELLED,
             params: { project: p.title },
             title: `${p.title} was cancelled: your money will be refunded`,
             subject,
           });
-          await x.send(await x.role([Role.Accounts]), {
-            category: Action,
-            kind: NotificationKind.ProjectRefundsDue,
+          await x.send(await x.role([Role.ACCOUNTS]), {
+            category: ACTION,
+            kind: NotificationKind.PROJECT_REFUNDS_DUE,
             params: { project: p.title },
             title: `${p.title} was cancelled: refunds are due`,
             subject,
@@ -287,8 +287,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const id = uuid(e.args.projectId);
       const p = await x.project(id);
       await x.send([uuid(e.args.investorId)], {
-        category: Outcome,
-        kind: NotificationKind.RefundPaid,
+        category: OUTCOME,
+        kind: NotificationKind.REFUND_PAID,
         title: 'Your refund has been paid',
         body: p?.title,
         params: { project: p?.title ?? null },
@@ -301,9 +301,9 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
     VoucherProposed: async (e, _m, x) => {
       const p = await x.project(uuid(e.args.projectId));
       const input = await x.named('input_types', code(e.args.inputType));
-      await x.send(await x.role([Role.Accounts]), {
-        category: Action,
-        kind: NotificationKind.VoucherProposed,
+      await x.send(await x.role([Role.ACCOUNTS]), {
+        category: ACTION,
+        kind: NotificationKind.VOUCHER_PROPOSED,
         title: 'Voucher awaiting approval',
         body: `${String(e.args.quantity)} ${code(e.args.inputType)} for ${p?.title ?? 'a project'}`,
         params: {
@@ -315,17 +315,17 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         subject: { type: 'voucher', id: uuid(e.args.voucherId) ?? '' },
       });
     },
-    VoucherApproved: voucherDecided(NotificationKind.VoucherApproved),
-    VoucherRejected: voucherDecided(NotificationKind.VoucherRejected),
-    VoucherCancelled: voucherDecided(NotificationKind.VoucherCancelled),
+    VoucherApproved: voucherDecided(NotificationKind.VOUCHER_APPROVED),
+    VoucherRejected: voucherDecided(NotificationKind.VOUCHER_REJECTED),
+    VoucherCancelled: voucherDecided(NotificationKind.VOUCHER_CANCELLED),
     SaleRecorded: async (e, _m, x) => {
       const v = await x.one<{ farmer_id: string }>(
         'SELECT farmer_id FROM vouchers WHERE id = $1',
         [uuid(e.args.voucherId)],
       );
       await x.send([await x.officerOf(v?.farmer_id)], {
-        category: Action,
-        kind: NotificationKind.SaleRecorded,
+        category: ACTION,
+        kind: NotificationKind.SALE_RECORDED,
         title: `Confirm input sale #${String(e.args.saleId)}`,
         body: `${String(e.args.quantity)} units, ${taka(e.args.amount)} taka; unconfirmed sales lapse after 7 days`,
         params: {
@@ -336,9 +336,9 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         subject: { type: 'voucher-sale', id: String(e.args.saleId) },
       });
     },
-    SaleConfirmed: saleClosed(NotificationKind.SaleConfirmed, 'confirmed'),
-    SaleCancelled: saleClosed(NotificationKind.SaleCancelled, 'cancelled'),
-    SaleExpired: saleClosed(NotificationKind.SaleExpired, 'expired'),
+    SaleConfirmed: saleClosed(NotificationKind.SALE_CONFIRMED, 'confirmed'),
+    SaleCancelled: saleClosed(NotificationKind.SALE_CANCELLED, 'cancelled'),
+    SaleExpired: saleClosed(NotificationKind.SALE_EXPIRED, 'expired'),
   },
 
   WarehouseReceipt: {
@@ -346,8 +346,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const owner = uuid(e.args.owner);
       const produce = await x.named('produce_types', code(e.args.produceCode));
       await x.send([owner, await x.officerOf(owner)], {
-        category: Outcome,
-        kind: NotificationKind.ReceiptIssued,
+        category: OUTCOME,
+        kind: NotificationKind.RECEIPT_ISSUED,
         title: 'Warehouse receipt issued',
         body: `${String(e.args.quantity)} ${code(e.args.produceCode)} in storage`,
         params: {
@@ -359,9 +359,9 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       });
     },
     HandoverOffered: async (e, _m, x) => {
-      await x.send(await x.role([Role.Admin]), {
-        category: Action,
-        kind: NotificationKind.HandoverOffered,
+      await x.send(await x.role([Role.ADMIN]), {
+        category: ACTION,
+        kind: NotificationKind.HANDOVER_OFFERED,
         params: {},
         title: 'Buy-back offered: accept or decline the receipt',
         subject: { type: 'receipt', id: String(e.args.receiptId) },
@@ -373,8 +373,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         [String(e.args.receiptId)],
       );
       await x.send([await x.officerOf(r?.owner_id)], {
-        category: Outcome,
-        kind: NotificationKind.HandoverCancelled,
+        category: OUTCOME,
+        kind: NotificationKind.HANDOVER_CANCELLED,
         params: {},
         title: 'Buy-back offer withdrawn or declined',
         subject: { type: 'receipt', id: String(e.args.receiptId) },
@@ -385,8 +385,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       if (e.args.to !== WEGRO_OWNER) return;
       const farmer = uuid(e.args.from);
       await x.send([farmer, await x.officerOf(farmer)], {
-        category: Outcome,
-        kind: NotificationKind.HandoverAccepted,
+        category: OUTCOME,
+        kind: NotificationKind.HANDOVER_ACCEPTED,
         params: {},
         title: 'WeGro accepted the buy-back',
         subject: { type: 'receipt', id: String(e.args.receiptId) },
@@ -396,9 +396,9 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
 
   TradeLedger: {
     OfferMade: async (e, _m, x) => {
-      await x.send(await x.role([Role.Admin]), {
-        category: Action,
-        kind: NotificationKind.OfferMade,
+      await x.send(await x.role([Role.ADMIN]), {
+        category: ACTION,
+        kind: NotificationKind.OFFER_MADE,
         title: `Offer #${String(e.args.offerId)} awaiting approval`,
         body: `${String(e.args.quantity)} at ${taka(e.args.unitPrice)} taka on listing #${String(e.args.listingId)}`,
         params: {
@@ -413,31 +413,31 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
     OfferApproved: async (e, _m, x) => {
       const o = await x.offer(e);
       await x.send([o?.buyer_id], {
-        category: Outcome,
-        kind: NotificationKind.OfferApproved,
+        category: OUTCOME,
+        kind: NotificationKind.OFFER_APPROVED,
         title: 'Your offer was approved',
         body: `Pay by ${date(e.args.paymentDueAt)} UTC, or the deal lapses`,
         params: { paymentDueAt: isoTime(e.args.paymentDueAt) },
         subject: { type: 'offer', id: String(e.args.offerId) },
       });
-      await x.send(await x.role([Role.Accounts]), {
-        category: Action,
-        kind: NotificationKind.DealAwaitingPayment,
+      await x.send(await x.role([Role.ACCOUNTS]), {
+        category: ACTION,
+        kind: NotificationKind.DEAL_AWAITING_PAYMENT,
         title: `Deal #${String(e.args.offerId)}: confirm the buyer's payment when it arrives`,
         params: { offerId: String(e.args.offerId) },
         subject: { type: 'offer', id: String(e.args.offerId) },
       });
     },
     OfferRejected: offerOutcome(
-      NotificationKind.OfferRejected,
+      NotificationKind.OFFER_REJECTED,
       'Your offer was rejected',
     ),
     DealCancelled: offerOutcome(
-      NotificationKind.DealCancelled,
+      NotificationKind.DEAL_CANCELLED,
       'Your deal was cancelled',
     ),
     DealExpired: offerOutcome(
-      NotificationKind.DealExpired,
+      NotificationKind.DEAL_EXPIRED,
       'Your deal lapsed: payment was not confirmed in time',
     ),
     BuyerPaymentConfirmed: async (e, m, x) => {
@@ -445,8 +445,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       if (!o) return;
       const subject = { type: 'offer', id: String(e.args.offerId) };
       await x.send([o.buyer_id], {
-        category: Outcome,
-        kind: NotificationKind.DealPaid,
+        category: OUTCOME,
+        kind: NotificationKind.DEAL_PAID,
         params: {},
         title: 'Your payment is confirmed',
         subject,
@@ -464,8 +464,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
           ? handlers.map((h) => h.operator_id)
           : [await x.officerOf(o.farmer_id)],
         {
-          category: Action,
-          kind: NotificationKind.DealDeliver,
+          category: ACTION,
+          kind: NotificationKind.DEAL_DELIVER,
           title: `Deal #${String(e.args.offerId)} is paid: hand over and confirm delivery`,
           params: { offerId: String(e.args.offerId) },
           subject,
@@ -476,11 +476,11 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const o = await x.offer(e);
       if (!o) return;
       const sellers = o.seller_is_wegro
-        ? await x.role([Role.Admin])
+        ? await x.role([Role.ADMIN])
         : [o.farmer_id, await x.officerOf(o.farmer_id)];
       await x.send([o.buyer_id, ...sellers], {
-        category: Outcome,
-        kind: NotificationKind.DealDelivered,
+        category: OUTCOME,
+        kind: NotificationKind.DEAL_DELIVERED,
         title: `Deal #${String(e.args.offerId)} delivered`,
         body: `${taka(e.args.amount)} taka`,
         params: {
@@ -499,8 +499,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         [uuid(e.args.projectId)],
       );
       await x.send([insurer?.insurer_id], {
-        category: Action,
-        kind: NotificationKind.ClaimOpened,
+        category: ACTION,
+        kind: NotificationKind.CLAIM_OPENED,
         params: {},
         title: 'A claim was opened on a project you cover',
         subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
@@ -516,11 +516,11 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       if (!c) return;
       const p = await x.project(c.project_id);
       await x.send([c.opened_by_id, p?.farmer_id], {
-        category: Outcome,
+        category: OUTCOME,
         kind:
           status === 3
-            ? NotificationKind.ClaimApproved
-            : NotificationKind.ClaimRejected,
+            ? NotificationKind.CLAIM_APPROVED
+            : NotificationKind.CLAIM_REJECTED,
         title:
           status === 3
             ? `Insurance claim approved: ${taka(e.args.approvedAmount)} taka`
@@ -538,9 +538,9 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
   SettlementLedger: {
     RoundPrepared: async (e, _m, x) => {
       const preparer = uuid(e.args.preparedBy);
-      await x.send(await x.role([Role.Accounts], [preparer]), {
-        category: Action,
-        kind: NotificationKind.RoundPrepared,
+      await x.send(await x.role([Role.ACCOUNTS], [preparer]), {
+        category: ACTION,
+        kind: NotificationKind.ROUND_PREPARED,
         params: { roundId: String(e.args.roundId) },
         title: `Payout round #${String(e.args.roundId)} needs a second approval`,
         subject: { type: 'round', id: String(e.args.roundId) },
@@ -552,17 +552,17 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         [Number(e.args.roundId)],
       );
       await x.send([r?.prepared_by_id], {
-        category: Outcome,
-        kind: NotificationKind.RoundRejected,
+        category: OUTCOME,
+        kind: NotificationKind.ROUND_REJECTED,
         params: { roundId: String(e.args.roundId) },
         title: `Payout round #${String(e.args.roundId)} was sent back`,
         subject: { type: 'round', id: String(e.args.roundId) },
       });
     },
     RoundApproved: async (e, _m, x) => {
-      await x.send(await x.role([Role.Accounts]), {
-        category: Action,
-        kind: NotificationKind.RoundApproved,
+      await x.send(await x.role([Role.ACCOUNTS]), {
+        category: ACTION,
+        kind: NotificationKind.ROUND_APPROVED,
         params: { roundId: String(e.args.roundId) },
         title: `Payout round #${String(e.args.roundId)} approved: pay and record each line`,
         subject: { type: 'round', id: String(e.args.roundId) },
@@ -575,8 +575,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         [Number(e.args.roundId), payee],
       );
       await x.send([payee], {
-        category: Outcome,
-        kind: NotificationKind.PayoutPaid,
+        category: OUTCOME,
+        kind: NotificationKind.PAYOUT_PAID,
         params: { amount: line?.amount ? taka(line.amount) : null },
         title: line?.amount
           ? `You were paid ${taka(line.amount)} taka`
@@ -589,23 +589,23 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
   ConsentRegistry: {
     TrackRecordPublished: async (e, _m, x) => {
       await x.send([uuid(e.args.farmerId)], {
-        category: Outcome,
-        kind: NotificationKind.TrackRecordPublished,
+        category: OUTCOME,
+        kind: NotificationKind.TRACK_RECORD_PUBLISHED,
         params: { version: Number(e.args.version) },
         title: `Your track record version ${String(e.args.version)} was published`,
         subject: { type: 'track-record', id: uuid(e.args.farmerId) ?? '' },
       });
     },
     ConsentGranted: consentNotice(
-      NotificationKind.ConsentGranted,
+      NotificationKind.CONSENT_GRANTED,
       'gave permission to',
     ),
     ConsentRevoked: consentNotice(
-      NotificationKind.ConsentRevoked,
+      NotificationKind.CONSENT_REVOKED,
       'withdrew permission from',
     ),
     SummaryViewed: consentNotice(
-      NotificationKind.TrackRecordViewed,
+      NotificationKind.TRACK_RECORD_VIEWED,
       'was viewed by',
     ),
   },
@@ -620,7 +620,7 @@ function reservationClosed(kind: NotificationKind, title: string): Rule {
       [Number(e.args.reservationId)],
     );
     await x.send([r?.investor_id], {
-      category: Outcome,
+      category: OUTCOME,
       kind,
       title,
       params: {},
@@ -631,9 +631,9 @@ function reservationClosed(kind: NotificationKind, title: string): Rule {
 
 function voucherDecided(
   kind:
-    | NotificationKind.VoucherApproved
-    | NotificationKind.VoucherRejected
-    | NotificationKind.VoucherCancelled,
+    | NotificationKind.VOUCHER_APPROVED
+    | NotificationKind.VOUCHER_REJECTED
+    | NotificationKind.VOUCHER_CANCELLED,
 ): Rule {
   const status = kind.slice('voucher.'.length);
   return async (e, _m, x) => {
@@ -648,12 +648,12 @@ function voucherDecided(
     );
     if (!v) return;
     const to =
-      kind === NotificationKind.VoucherRejected
+      kind === NotificationKind.VOUCHER_REJECTED
         ? [v.proposed_by_id]
         : [v.proposed_by_id, v.farmer_id, await x.officerOf(v.farmer_id)];
     const input = await x.named('input_types', v.input_type_code);
     await x.send(to, {
-      category: Outcome,
+      category: OUTCOME,
       kind,
       title: `Voucher ${status}: ${v.quantity} ${v.input_type_code}`,
       params: {
@@ -673,7 +673,7 @@ function saleClosed(kind: NotificationKind, status: string): Rule {
       [Number(e.args.saleId)],
     );
     await x.send([s?.supplier_id], {
-      category: Outcome,
+      category: OUTCOME,
       kind,
       title: `Input sale #${String(e.args.saleId)} ${status}`,
       params: { saleId: String(e.args.saleId) },
@@ -686,7 +686,7 @@ function offerOutcome(kind: NotificationKind, title: string): Rule {
   return async (e, _m, x) => {
     const o = await x.offer(e);
     await x.send([o?.buyer_id], {
-      category: Outcome,
+      category: OUTCOME,
       kind,
       title,
       params: { offerId: String(e.args.offerId) },
@@ -704,10 +704,10 @@ function consentNotice(kind: NotificationKind, verb: string): Rule {
     const bankName = bank ? `${bank.name}, ${bank.branch_name}` : 'a bank';
     const farmer = uuid(e.args.farmerId);
     await x.send([farmer], {
-      category: Outcome,
+      category: OUTCOME,
       kind,
       title:
-        kind === NotificationKind.TrackRecordViewed
+        kind === NotificationKind.TRACK_RECORD_VIEWED
           ? `Your track record ${verb} ${bankName}`
           : `You ${verb} ${bankName}`,
       params: { bank: bankName },

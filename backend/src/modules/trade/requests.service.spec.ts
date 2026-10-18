@@ -30,7 +30,7 @@ const request = (over: Partial<BuyerRequest> = {}) =>
     quantity: 500,
     maxUnitPrice: 3000n,
     validUntil: LATER,
-    status: RequestStatus.Open,
+    status: RequestStatus.OPEN,
     postedAt: NOW,
     ...over,
   }) as BuyerRequest;
@@ -42,12 +42,12 @@ const listing = (id: number, price: bigint, over: Partial<Listing> = {}) =>
     produceCode: 'MAIZE',
     available: 100,
     askingUnitPrice: price,
-    status: ListingStatus.Open,
+    status: ListingStatus.OPEN,
     ...over,
   }) as Listing;
 
 describe('RequestsService', () => {
-  const buyer = actor(Role.Buyer, { id: 'b1' });
+  const buyer = actor(Role.BUYER, { id: 'b1' });
 
   const build = (
     opts: { row?: BuyerRequest | null; open?: Listing[] } = {},
@@ -175,7 +175,7 @@ describe('RequestsService', () => {
 
     it('hides other buyers’ requests and unconfirmed ones', async () => {
       await expect(
-        build().service.cancel(actor(Role.Buyer), 7),
+        build().service.cancel(actor(Role.BUYER), 7),
       ).rejects.toThrow(NotFoundException);
       await expect(
         build({ row: request({ status: null }) }).service.cancel(buyer, 7),
@@ -184,7 +184,7 @@ describe('RequestsService', () => {
 
     it('refuses a request already cancelled', async () => {
       const { service, chain } = build({
-        row: request({ status: RequestStatus.Cancelled }),
+        row: request({ status: RequestStatus.CANCELLED }),
       });
       await expect(service.cancel(buyer, 7)).rejects.toThrow(ConflictException);
       expect(chain.sent).toEqual([]);

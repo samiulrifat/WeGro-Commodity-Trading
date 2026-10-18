@@ -56,7 +56,7 @@ export class PhotosService {
     if (data.length === 0 || data.length > MAX_PHOTO_BYTES) {
       throw new UnprocessableEntityException({
         message: 'A photo must be 1 byte to 10 MB',
-        code: ErrorCode.PhotoSize,
+        code: ErrorCode.PHOTO_SIZE,
         details: { maxMb: MAX_PHOTO_BYTES / 1024 / 1024 },
       });
     }
@@ -64,7 +64,7 @@ export class PhotosService {
     if (!type)
       throw new UnsupportedMediaTypeException({
         message: 'Photos must be JPEG, PNG or WebP',
-        code: ErrorCode.PhotoType,
+        code: ErrorCode.PHOTO_TYPE,
       });
     let clean: Buffer;
     try {
@@ -73,7 +73,7 @@ export class PhotosService {
       if (error instanceof MalformedImageError) {
         throw new UnprocessableEntityException({
           message: 'The image file is damaged',
-          code: ErrorCode.PhotoDamaged,
+          code: ErrorCode.PHOTO_DAMAGED,
         });
       }
       throw error;
@@ -121,7 +121,7 @@ export class PhotosService {
     if (!photo)
       throw new NotFoundException({
         message: 'Photo not found',
-        code: ErrorCode.PhotoNotFound,
+        code: ErrorCode.PHOTO_NOT_FOUND,
       });
     return photo;
   }
@@ -142,7 +142,7 @@ export class PhotosService {
         reject(
           new NotFoundException({
             message: 'The photo file is missing',
-            code: ErrorCode.PhotoFileMissing,
+            code: ErrorCode.PHOTO_FILE_MISSING,
           }),
         ),
       );

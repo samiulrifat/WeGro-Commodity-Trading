@@ -52,7 +52,7 @@ describe('HistoryService', () => {
     const users = fakeRepo({
       find: jest.fn(({ where }: { where: Record<string, unknown> }) =>
         Promise.resolve(
-          [{ id: INVESTOR, account: CURRENT_KEY, role: Role.Investor }].filter(
+          [{ id: INVESTOR, account: CURRENT_KEY, role: Role.INVESTOR }].filter(
             (u) => matchesWhere(u, where),
           ),
         ),
@@ -122,7 +122,7 @@ describe('HistoryService', () => {
       address: CURRENT_KEY,
       id: INVESTOR,
       name: `name-${INVESTOR.slice(0, 4)}`,
-      role: Role.Investor,
+      role: Role.INVESTOR,
     });
     expect(before.actor).toMatchObject({ kind: 'participant', id: INVESTOR });
     expect(now.txHash).toBe('0xabc');

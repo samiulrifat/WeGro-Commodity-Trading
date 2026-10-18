@@ -120,7 +120,7 @@ export class SweepService implements OnModuleInit, OnApplicationShutdown {
     if (this.running) {
       throw new ConflictException({
         message: 'A sweep is already running',
-        code: ErrorCode.SweepRunning,
+        code: ErrorCode.SWEEP_RUNNING,
       });
     }
     const run = await this.runs.save({
@@ -157,7 +157,7 @@ export class SweepService implements OnModuleInit, OnApplicationShutdown {
     if (!run)
       throw new NotFoundException({
         message: 'Sweep not found',
-        code: ErrorCode.SweepNotFound,
+        code: ErrorCode.SWEEP_NOT_FOUND,
       });
     return (await this.dtos([run]))[0];
   }

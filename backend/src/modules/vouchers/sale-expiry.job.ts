@@ -34,7 +34,7 @@ export class SaleExpiryJob extends ExpiryJob<number> {
   protected async dueIds(chainNow: Date, limit: number): Promise<number[]> {
     const rows = await this.sales.find({
       where: {
-        status: SaleStatus.Pending,
+        status: SaleStatus.PENDING,
         expiresAt: LessThanOrEqual(chainNow),
       },
       select: { id: true },

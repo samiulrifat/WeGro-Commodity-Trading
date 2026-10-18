@@ -46,21 +46,21 @@ export function checkTerms(t: ProjectTerms): Problem[] {
   if (t.slotPrice <= 0n || t.fundingTarget <= 0n) {
     problems.push(
       problem(
-        ErrorCode.TermsAmountsNotPositive,
+        ErrorCode.TERMS_AMOUNTS_NOT_POSITIVE,
         'Funding target and slot price must be above zero',
       ),
     );
   } else if (t.fundingTarget % t.slotPrice !== 0n) {
     problems.push(
       problem(
-        ErrorCode.TermsPartialSlot,
+        ErrorCode.TERMS_PARTIAL_SLOT,
         'Funding target must be a whole number of slots',
       ),
     );
   } else if (t.fundingTarget / t.slotPrice > BigInt(MAX_SLOTS)) {
     problems.push(
       problem(
-        ErrorCode.TermsTooManySlots,
+        ErrorCode.TERMS_TOO_MANY_SLOTS,
         `A project can have at most ${MAX_SLOTS} slots`,
         { max: MAX_SLOTS },
       ),
@@ -70,7 +70,7 @@ export function checkTerms(t: ProjectTerms): Problem[] {
   if (t.farmerBps + t.investorBps + t.wegroBps !== BPS) {
     problems.push(
       problem(
-        ErrorCode.TermsSharesNot100,
+        ErrorCode.TERMS_SHARES_NOT_100,
         'Farmer, investor and WeGro shares must add up to 100%',
       ),
     );
@@ -79,16 +79,16 @@ export function checkTerms(t: ProjectTerms): Problem[] {
   if (t.durationMonths < 1 || t.durationMonths > 255) {
     problems.push(
       problem(
-        ErrorCode.TermsDurationRange,
+        ErrorCode.TERMS_DURATION_RANGE,
         'Duration must be 1 to 255 months',
         { min: 1, max: 255 },
       ),
     );
-  } else if (t.durationType === DurationType.ShortTerm) {
+  } else if (t.durationType === DurationType.SHORT_TERM) {
     if (t.durationMonths > SHORT_TERM_MAX_MONTHS) {
       problems.push(
         problem(
-          ErrorCode.TermsShortTooLong,
+          ErrorCode.TERMS_SHORT_TOO_LONG,
           `A short-term project lasts at most ${SHORT_TERM_MAX_MONTHS} months`,
           { max: SHORT_TERM_MAX_MONTHS },
         ),
@@ -97,7 +97,7 @@ export function checkTerms(t: ProjectTerms): Problem[] {
     if (t.payoutIntervalMonths !== 0) {
       problems.push(
         problem(
-          ErrorCode.TermsShortHasInterval,
+          ErrorCode.TERMS_SHORT_HAS_INTERVAL,
           'A short-term project has a single final payout',
         ),
       );
@@ -106,7 +106,7 @@ export function checkTerms(t: ProjectTerms): Problem[] {
     if (t.durationMonths <= SHORT_TERM_MAX_MONTHS) {
       problems.push(
         problem(
-          ErrorCode.TermsLongTooShort,
+          ErrorCode.TERMS_LONG_TOO_SHORT,
           `A long-term project lasts more than ${SHORT_TERM_MAX_MONTHS} months`,
           { min: SHORT_TERM_MAX_MONTHS },
         ),
@@ -115,7 +115,7 @@ export function checkTerms(t: ProjectTerms): Problem[] {
     if (t.payoutIntervalMonths > t.durationMonths) {
       problems.push(
         problem(
-          ErrorCode.TermsIntervalTooLong,
+          ErrorCode.TERMS_INTERVAL_TOO_LONG,
           'The payout interval cannot be longer than the project',
         ),
       );
@@ -125,7 +125,7 @@ export function checkTerms(t: ProjectTerms): Problem[] {
   if (t.estimatedReturnMinBps > t.estimatedReturnMaxBps) {
     problems.push(
       problem(
-        ErrorCode.TermsEstimatesReversed,
+        ErrorCode.TERMS_ESTIMATES_REVERSED,
         'The low estimate is above the high estimate',
       ),
     );
