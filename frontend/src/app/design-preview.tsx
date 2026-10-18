@@ -30,7 +30,7 @@ import { useFormat } from '@/i18n/use-format';
 /**
  * Temporary: the design system on one page, laid out like WeGro's own
  * dashboard, to review colours, type and components before real screens.
- * The app shell (TODO item 5) replaces it. Figures are made up.
+ * Served at /design in development only. Figures are made up.
  */
 
 const STATS = [

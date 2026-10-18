@@ -20,6 +20,8 @@ export const en = {
       'Your language could not be saved to your account. It applies on this device only.',
   },
   units: {
+    try_one: '{{count, number}} try',
+    try_other: '{{count, number}} tries',
     minute_one: '{{count, number}} minute',
     minute_other: '{{count, number}} minutes',
     slot_one: '{{count, number}} slot',
@@ -412,6 +414,14 @@ export const en = {
       CONSENT_NOT_FOUND: 'This permission could not be found.',
       EXPIRY_TOO_LATE:
         'Permission lasts at most a year: until {{latest, date}}. Renew it when it ends.',
+      PHONE_INVALID: 'Enter a Bangladeshi mobile number, such as 01712345678.',
+      RESET_WAIT:
+        'Wait {{seconds, number}} seconds before asking for another code.',
+      RESET_TOO_MANY:
+        'Too many codes for this number. Try again in $t(units.minute, {"count": {{minutes}} }).',
+      RESET_CODE_WRONG:
+        'That code is not right. $t(units.try, {"count": {{attemptsLeft}} }) left.',
+      RESET_CODE_EXPIRED: 'This code no longer works. Ask for a new one.',
     } satisfies Record<ErrorCode, string>,
     /** One failed input check: {{field}} and, where it has one, {{limit}}. */
     rule: {
@@ -675,11 +685,48 @@ export const en = {
   },
   signIn: {
     title: 'Sign in to WeGro',
+    signInTab: 'Sign in',
+    demoTab: 'Demo',
+    phone: 'Mobile number',
+    password: 'Password',
+    submit: 'Sign in',
+    signingIn: 'Signing in…',
+    forgot: 'Forgot password?',
+    phoneRequired: 'Enter your mobile number.',
+    passwordRequired: 'Enter your password.',
+    sessionEnded: 'Your session has ended. Please sign in again.',
     demoTitle: 'Demo: choose a role',
     demoHint: 'Each role signs in as a ready-made demo account.',
     demoOff: 'Demo sign-in is not available on this server.',
-    passwordComing: 'Sign-in with phone number and password is coming soon.',
-    signingIn: 'Signing in…',
+  },
+  password: {
+    show: 'Show password',
+    hide: 'Hide password',
+    new: 'New password',
+    confirm: 'Type the new password again',
+    rule: 'At least {{min, number}} characters.',
+    tooShort: 'Use at least {{min, number}} characters.',
+    tooLong: 'Use at most {{max, number}} characters.',
+    mismatch: 'The two passwords are not the same.',
+  },
+  forgot: {
+    title: 'Reset your password',
+    phoneIntro:
+      'Enter your mobile number. We will send you a 6-digit code by SMS.',
+    send: 'Send code',
+    sending: 'Sending…',
+    sent: 'If this number has a WeGro account, a 6-digit code is on its way. It works for $t(units.minute, {"count": {{minutes}} }).',
+    code: 'Code from the SMS',
+    check: 'Continue',
+    checking: 'Checking…',
+    resendIn: 'You can ask for a new code in {{seconds, number}} seconds.',
+    resend: 'Send a new code',
+    otherNumber: 'Use a different number',
+    codeRequired: 'Enter the 6 digits from the SMS.',
+    newIntro: 'Choose a new password. Every other device will be signed out.',
+    save: 'Save and sign in',
+    saving: 'Saving…',
+    back: 'Back to sign in',
   },
   statusPage: {
     pendingTitle: 'Your registration is being checked',
@@ -688,8 +735,11 @@ export const en = {
     role: 'Registered as',
   },
   changePassword: {
-    title: 'Change your temporary password',
-    hint: 'You signed in with a temporary password. The form to change it is coming soon.',
+    title: 'Choose your own password',
+    hint: 'You signed in with a temporary password. Choose your own to continue.',
+    current: 'Temporary password',
+    save: 'Save and continue',
+    saving: 'Saving…',
   },
   pwa: {
     updateReady: 'A new version of WeGro is ready.',

@@ -11,6 +11,8 @@ export const bn: Translation = {
       'আপনার ভাষা অ্যাকাউন্টে সংরক্ষণ করা যায়নি। এটি শুধু এই ডিভাইসে প্রযোজ্য।',
   },
   units: {
+    try_one: '{{count, number}} বার',
+    try_other: '{{count, number}} বার',
     minute_one: '{{count, number}} মিনিট',
     minute_other: '{{count, number}} মিনিট',
     slot_one: '{{count, number}}টি স্লট',
@@ -406,6 +408,13 @@ export const bn: Translation = {
       CONSENT_NOT_FOUND: 'এই অনুমতিটি খুঁজে পাওয়া যায়নি।',
       EXPIRY_TOO_LATE:
         'অনুমতি সর্বোচ্চ এক বছর থাকে: {{latest, date}} পর্যন্ত। শেষ হলে নবায়ন করুন।',
+      PHONE_INVALID: 'একটি বাংলাদেশি মোবাইল নম্বর দিন, যেমন 01712345678।',
+      RESET_WAIT: '{{seconds, number}} সেকেন্ড পরে আবার কোড চাইতে পারবেন।',
+      RESET_TOO_MANY:
+        'এই নম্বরে অনেকবার কোড চাওয়া হয়েছে। $t(units.minute, {"count": {{minutes}} }) পরে আবার চেষ্টা করুন।',
+      RESET_CODE_WRONG:
+        'কোডটি সঠিক নয়। আর $t(units.try, {"count": {{attemptsLeft}} }) চেষ্টা করা যাবে।',
+      RESET_CODE_EXPIRED: 'এই কোডটি আর কাজ করবে না। নতুন কোড চান।',
     },
     /** One failed input check: {{field}} and, where it has one, {{limit}}. */
     rule: {
@@ -684,11 +693,48 @@ export const bn: Translation = {
   },
   signIn: {
     title: 'WeGro-তে সাইন ইন করুন',
+    signInTab: 'সাইন ইন',
+    demoTab: 'ডেমো',
+    phone: 'মোবাইল নম্বর',
+    password: 'পাসওয়ার্ড',
+    submit: 'সাইন ইন',
+    signingIn: 'সাইন ইন হচ্ছে…',
+    forgot: 'পাসওয়ার্ড ভুলে গেছেন?',
+    phoneRequired: 'আপনার মোবাইল নম্বর দিন।',
+    passwordRequired: 'আপনার পাসওয়ার্ড দিন।',
+    sessionEnded: 'আপনার সেশন শেষ হয়েছে। অনুগ্রহ করে আবার সাইন ইন করুন।',
     demoTitle: 'ডেমো: একটি ভূমিকা বেছে নিন',
     demoHint: 'প্রতিটি ভূমিকা একটি তৈরি ডেমো অ্যাকাউন্ট দিয়ে সাইন ইন করে।',
     demoOff: 'এই সার্ভারে ডেমো সাইন ইন নেই।',
-    passwordComing: 'ফোন নম্বর ও পাসওয়ার্ড দিয়ে সাইন ইন শীঘ্রই আসছে।',
-    signingIn: 'সাইন ইন হচ্ছে…',
+  },
+  password: {
+    show: 'পাসওয়ার্ড দেখান',
+    hide: 'পাসওয়ার্ড লুকান',
+    new: 'নতুন পাসওয়ার্ড',
+    confirm: 'নতুন পাসওয়ার্ড আবার লিখুন',
+    rule: 'কমপক্ষে {{min, number}}টি অক্ষর।',
+    tooShort: 'কমপক্ষে {{min, number}}টি অক্ষর দিন।',
+    tooLong: 'সর্বোচ্চ {{max, number}}টি অক্ষর দিন।',
+    mismatch: 'দুটি পাসওয়ার্ড এক নয়।',
+  },
+  forgot: {
+    title: 'পাসওয়ার্ড নতুন করে দিন',
+    phoneIntro: 'আপনার মোবাইল নম্বর দিন। আমরা SMS-এ ৬ অঙ্কের একটি কোড পাঠাব।',
+    send: 'কোড পাঠান',
+    sending: 'পাঠানো হচ্ছে…',
+    sent: 'এই নম্বরে WeGro অ্যাকাউন্ট থাকলে ৬ অঙ্কের একটি কোড আসছে। এটি $t(units.minute, {"count": {{minutes}} }) কাজ করবে।',
+    code: 'SMS-এর কোড',
+    check: 'এগিয়ে যান',
+    checking: 'যাচাই হচ্ছে…',
+    resendIn: '{{seconds, number}} সেকেন্ড পরে নতুন কোড চাইতে পারবেন।',
+    resend: 'নতুন কোড পাঠান',
+    otherNumber: 'অন্য নম্বর ব্যবহার করুন',
+    codeRequired: 'SMS-এর ৬টি অঙ্ক দিন।',
+    newIntro:
+      'একটি নতুন পাসওয়ার্ড দিন। অন্য সব ডিভাইস থেকে সাইন আউট হয়ে যাবে।',
+    save: 'সংরক্ষণ করে সাইন ইন করুন',
+    saving: 'সংরক্ষণ হচ্ছে…',
+    back: 'সাইন ইনে ফিরে যান',
   },
   statusPage: {
     pendingTitle: 'আপনার নিবন্ধন যাচাই করা হচ্ছে',
@@ -697,8 +743,11 @@ export const bn: Translation = {
     role: 'নিবন্ধিত ভূমিকা',
   },
   changePassword: {
-    title: 'আপনার অস্থায়ী পাসওয়ার্ড বদলান',
-    hint: 'আপনি একটি অস্থায়ী পাসওয়ার্ড দিয়ে সাইন ইন করেছেন। এটি বদলানোর ফর্ম শীঘ্রই আসছে।',
+    title: 'নিজের পাসওয়ার্ড দিন',
+    hint: 'আপনি একটি অস্থায়ী পাসওয়ার্ড দিয়ে সাইন ইন করেছেন। এগিয়ে যেতে নিজের পাসওয়ার্ড দিন।',
+    current: 'অস্থায়ী পাসওয়ার্ড',
+    save: 'সংরক্ষণ করে এগিয়ে যান',
+    saving: 'সংরক্ষণ হচ্ছে…',
   },
   pwa: {
     updateReady: 'WeGro-এর নতুন সংস্করণ প্রস্তুত।',

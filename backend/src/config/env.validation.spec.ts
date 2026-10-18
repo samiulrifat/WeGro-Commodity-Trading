@@ -88,4 +88,17 @@ describe('validateEnv', () => {
       validateEnv({ ...base, DEMO_MODE: 'true', NODE_ENV: 'production' }),
     ).toThrow(/DEMO_MODE/);
   });
+
+  it('writes SMS to the log unless told otherwise, and refuses that in production', () => {
+    expect(validateEnv(base).SMS_PROVIDER).toBe('log');
+    expect(validateEnv({ ...base, SMS_PROVIDER: 'memory' }).SMS_PROVIDER).toBe(
+      'memory',
+    );
+    expect(() =>
+      validateEnv({ ...base, SMS_PROVIDER: 'carrier-pigeon' }),
+    ).toThrow(/SMS_PROVIDER/);
+    expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(
+      /SMS_PROVIDER/,
+    );
+  });
 });

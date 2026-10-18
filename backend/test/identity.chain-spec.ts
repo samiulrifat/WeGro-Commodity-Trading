@@ -19,6 +19,8 @@ import {
   ParticipantStatus,
   Role,
 } from '../src/modules/users/roles';
+import { MemorySmsSender, SmsSender } from '../src/modules/auth/sms/sms-sender';
+import { normalisePhone } from '../src/modules/participants/id-check/id-check';
 import { type ChainApp, startChainApp } from './support/chain-app';
 
 const SUPER_PHONE = '01811000000';
@@ -102,7 +104,7 @@ describe('Identity (node + database)', () => {
   let farmer: { id: string; phone: string; temp: string; nid: string };
 
   beforeAll(async () => {
-    chain = await startChainApp({ DEMO_MODE: 'false' });
+    chain = await startChainApp({ DEMO_MODE: 'false', SMS_PROVIDER: 'memory' });
     http = request(chain.app.getHttpServer());
     db = chain.app.get(DataSource);
     contracts = chain.app.get(ContractsRegistry);
@@ -694,6 +696,197 @@ describe('Identity (node + database)', () => {
         .auth(admin.token, { type: 'bearer' })
         .send({ reason: 'no' })
         .expect(400); // too short, checked first
+    });
+  });
+
+  describe('password reset by SMS', () => {
+    let outbox: MemorySmsSender['outbox'];
+    let who: { phone: string; password: string; token: string };
+    const ask = (phone: string) =>
+      http.post('/api/auth/password-reset/request').send({ phone });
+    const check = (phone: string, code: string) =>
+      http.post('/api/auth/password-reset/verify').send({ phone, code });
+    const complete = (phone: string, code: string, newPassword: string) =>
+      http
+        .post('/api/auth/password-reset/complete')
+        .send({ phone, code, newPassword });
+    /** The code in the newest text to this number. */
+    const codeFor = (phone: string) => {
+      const to = normalisePhone(phone)!;
+      const sms = outbox.filter((m) => m.phone === to).at(-1);
+      return /\b(\d{6})\b/.exec(sms?.text ?? '')?.[1] ?? '';
+    };
+    /** As if this number's codes were asked for `seconds` earlier. */
+    const ago = (phone: string, seconds: number) =>
+      db.query(
+        `UPDATE password_reset_codes SET created_at = created_at - make_interval(secs => $2)
+          WHERE phone_index = $1`,
+        [
+          chain.app
+            .get(PersonalDetailsCodec)
+            .phoneIndex(normalisePhone(phone)!),
+          seconds,
+        ],
+      );
+    const wrong = (code: string) => (code === '000000' ? '111111' : '000000');
+
+    beforeAll(async () => {
+      outbox = (chain.app.get(SmsSender) as MemorySmsSender).outbox;
+      const body = person(Role.INVESTOR);
+      const res = await register(admin.token, body).expect(201);
+      const token = await activate(body.phone, res.body.data.temporaryPassword);
+      who = { phone: body.phone, password: `${body.phone}-real-pass`, token };
+    });
+
+    it('answers a registered and an unknown number alike, and texts only the registered one', async () => {
+      const sent = outbox.length;
+      const known = await ask(who.phone).expect(200);
+      const unknown = await ask('01899999990').expect(200);
+      expect(known.body.data).toEqual({
+        resendAfterSeconds: 60,
+        expiresInSeconds: 600,
+      });
+      expect(unknown.body.data).toEqual(known.body.data);
+      await new Promise((r) => setTimeout(r, 50)); // the text goes out in the background
+      expect(outbox.length).toBe(sent + 1);
+      expect(outbox.at(-1)).toMatchObject({ phone: normalisePhone(who.phone) });
+      expect(codeFor(who.phone)).toMatch(/^\d{6}$/);
+    });
+
+    it('makes you wait before another code, and the new code replaces the old', async () => {
+      const first = codeFor(who.phone);
+      const wait = await ask(who.phone).expect(429);
+      expect(wait.body).toMatchObject({ code: 'RESET_WAIT' });
+      expect(wait.body.details.seconds).toBeGreaterThan(0);
+      expect(wait.body.details.seconds).toBeLessThanOrEqual(60);
+      await ago(who.phone, 61);
+      await ask(who.phone).expect(200);
+      await new Promise((r) => setTimeout(r, 50));
+      const second = codeFor(who.phone);
+      if (first !== second) {
+        expect((await check(who.phone, first).expect(422)).body.code).toBe(
+          'RESET_CODE_WRONG',
+        );
+      }
+      const ok = await check(who.phone, second).expect(200);
+      expect(ok.body.data).toEqual({ valid: true });
+    });
+
+    it('counts wrong codes down and closes the code after five', async () => {
+      await ago(who.phone, 61);
+      await ask(who.phone).expect(200);
+      await new Promise((r) => setTimeout(r, 50));
+      const code = codeFor(who.phone);
+      for (const left of [4, 3, 2, 1]) {
+        const res = await check(who.phone, wrong(code)).expect(422);
+        expect(res.body).toMatchObject({
+          code: 'RESET_CODE_WRONG',
+          details: { attemptsLeft: left },
+        });
+      }
+      const last = await check(who.phone, wrong(code)).expect(422);
+      expect(last.body.code).toBe('RESET_CODE_EXPIRED');
+      // Closed: even the right code no longer works.
+      expect((await check(who.phone, code).expect(422)).body.code).toBe(
+        'RESET_CODE_EXPIRED',
+      );
+    });
+
+    it('refuses a code past its ten minutes', async () => {
+      await ago(who.phone, 61);
+      await ask(who.phone).expect(200);
+      await new Promise((r) => setTimeout(r, 50));
+      await db.query(
+        `UPDATE password_reset_codes SET expires_at = now() - interval '1 second' WHERE closed_at IS NULL`,
+      );
+      const res = await check(who.phone, codeFor(who.phone)).expect(422);
+      expect(res.body.code).toBe('RESET_CODE_EXPIRED');
+    });
+
+    it('sets the new password, clears a lockout, ends other sessions and signs in', async () => {
+      const before = await login(who.phone, who.password);
+      await db.query(
+        `UPDATE users SET failed_login_count = 5, locked_until = now() + interval '1 hour'
+          WHERE phone_index = $1`,
+        [
+          chain.app
+            .get(PersonalDetailsCodec)
+            .phoneIndex(normalisePhone(who.phone)!),
+        ],
+      );
+      await http
+        .post('/api/auth/login')
+        .send({ phone: who.phone, password: who.password })
+        .expect(429);
+      await ago(who.phone, 61);
+      await ask(who.phone).expect(200);
+      await new Promise((r) => setTimeout(r, 50));
+      const code = codeFor(who.phone);
+
+      // The same password again is refused, and the code stays usable.
+      const same = await complete(who.phone, code, who.password).expect(422);
+      expect(same.body.code).toBe('PASSWORD_UNCHANGED');
+
+      const done = await complete(who.phone, code, 'a-new-reset-pass').expect(
+        200,
+      );
+      expect(done.body.data).toMatchObject({
+        tokenType: 'Bearer',
+        mustChangePassword: false,
+        user: { role: 'investor' },
+      });
+      expect(refreshCookie(done)).toMatch(/^wegro_rt=/);
+      await http
+        .post('/api/auth/refresh')
+        .set('Cookie', before.cookie)
+        .expect(401);
+      await http
+        .get('/api/auth/me')
+        .auth(before.token, { type: 'bearer' })
+        .expect(401);
+      await login(who.phone, 'a-new-reset-pass');
+      await http
+        .post('/api/auth/login')
+        .send({ phone: who.phone, password: who.password })
+        .expect(401);
+      // Used up.
+      expect((await check(who.phone, code).expect(422)).body.code).toBe(
+        'RESET_CODE_EXPIRED',
+      );
+    });
+
+    it('texts in the person’s own language', async () => {
+      const { token } = await login(who.phone, 'a-new-reset-pass');
+      await http
+        .patch('/api/auth/me')
+        .auth(token, { type: 'bearer' })
+        .send({ language: 'bn' })
+        .expect(200);
+      // Past the hourly limit the earlier tests used up.
+      await ago(who.phone, 3600);
+      await ask(who.phone).expect(200);
+      await new Promise((r) => setTimeout(r, 50));
+      const to = normalisePhone(who.phone);
+      expect(outbox.filter((m) => m.phone === to).at(-1)?.text).toMatch(
+        /^WeGro: পাসওয়ার্ড বদলানোর কোড \d{6}। ১০ মিনিট/,
+      );
+    });
+
+    it('allows five codes an hour per number, registered or not', async () => {
+      const stranger = '01899999991';
+      for (let i = 0; i < 5; i++) {
+        await ask(stranger).expect(200);
+        await ago(stranger, 61);
+      }
+      const res = await ask(stranger).expect(429);
+      expect(res.body).toMatchObject({ code: 'RESET_TOO_MANY' });
+      expect(res.body.details.minutes).toBeGreaterThan(0);
+    });
+
+    it('refuses malformed numbers and codes', async () => {
+      expect((await ask('12345').expect(422)).body.code).toBe('PHONE_INVALID');
+      const bad = await check(who.phone, '12ab56').expect(400);
+      expect(bad.body.code).toBe('INVALID_INPUT');
     });
   });
 

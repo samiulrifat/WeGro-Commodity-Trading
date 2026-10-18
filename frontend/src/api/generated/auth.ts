@@ -54,6 +54,39 @@ const injectedRtkApi = api
           invalidatesTags: ['Auth'],
         },
       ),
+      authRequestReset: build.mutation<
+        AuthRequestResetApiResponse,
+        AuthRequestResetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/auth/password-reset/request`,
+          method: 'POST',
+          body: queryArg.passwordResetRequestDto,
+        }),
+        invalidatesTags: ['Auth'],
+      }),
+      authVerifyReset: build.mutation<
+        AuthVerifyResetApiResponse,
+        AuthVerifyResetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/auth/password-reset/verify`,
+          method: 'POST',
+          body: queryArg.passwordResetVerifyDto,
+        }),
+        invalidatesTags: ['Auth'],
+      }),
+      authCompleteReset: build.mutation<
+        AuthCompleteResetApiResponse,
+        AuthCompleteResetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/auth/password-reset/complete`,
+          method: 'POST',
+          body: queryArg.passwordResetCompleteDto,
+        }),
+        invalidatesTags: ['Auth'],
+      }),
       authDemoAccounts: build.query<
         AuthDemoAccountsApiResponse,
         AuthDemoAccountsApiArg
@@ -105,6 +138,26 @@ export type AuthUpdateMeApiResponse = /** status 200  */ {
 };
 export type AuthUpdateMeApiArg = {
   updateMeDto: UpdateMeDto;
+};
+export type AuthRequestResetApiResponse =
+  /** status 200 Sends a 6-digit code by SMS if the number is registered; the answer is the same either way */ {
+    data: PasswordResetRequestedDto;
+  };
+export type AuthRequestResetApiArg = {
+  passwordResetRequestDto: PasswordResetRequestDto;
+};
+export type AuthVerifyResetApiResponse = /** status 200  */ {
+  data: PasswordResetVerifiedDto;
+};
+export type AuthVerifyResetApiArg = {
+  passwordResetVerifyDto: PasswordResetVerifyDto;
+};
+export type AuthCompleteResetApiResponse =
+  /** status 200 Sets the new password, ends every other session and signs in */ {
+    data: TokenResponseDto;
+  };
+export type AuthCompleteResetApiArg = {
+  passwordResetCompleteDto: PasswordResetCompleteDto;
 };
 export type AuthDemoAccountsApiResponse =
   /** status 200 Demo mode only (404 otherwise) */ {
@@ -187,6 +240,29 @@ export type MeResponseDto = {
 export type UpdateMeDto = {
   language: Language;
 };
+export type PasswordResetRequestedDto = {
+  /** Before another code may be asked for */
+  resendAfterSeconds: number;
+  /** How long the code is good for */
+  expiresInSeconds: number;
+};
+export type PasswordResetRequestDto = {
+  phone: string;
+};
+export type PasswordResetVerifiedDto = {
+  valid: boolean;
+};
+export type PasswordResetVerifyDto = {
+  phone: string;
+  /** The 6 digits from the SMS */
+  code: string;
+};
+export type PasswordResetCompleteDto = {
+  phone: string;
+  /** The 6 digits from the SMS */
+  code: string;
+  newPassword: string;
+};
 export type DemoAccountDto = {
   role:
     | 'super_admin'
@@ -229,6 +305,9 @@ export const {
   useAuthMeQuery,
   useLazyAuthMeQuery,
   useAuthUpdateMeMutation,
+  useAuthRequestResetMutation,
+  useAuthVerifyResetMutation,
+  useAuthCompleteResetMutation,
   useAuthDemoAccountsQuery,
   useLazyAuthDemoAccountsQuery,
   useAuthDemoLoginMutation,

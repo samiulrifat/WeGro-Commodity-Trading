@@ -56,6 +56,10 @@ export async function startChainApp(
     JOBS_ENABLED: 'false',
     THROTTLE_LIMIT: '100000',
     AUTH_THROTTLE_LIMIT: '100000',
+    // Never inherited from the developer's .env: demo accounts built in the
+    // background would race the test for keys and the super admin.
+    DEMO_MODE: 'false',
+    SMS_PROVIDER: 'memory',
     ...env,
     DATABASE_URL: url,
   });

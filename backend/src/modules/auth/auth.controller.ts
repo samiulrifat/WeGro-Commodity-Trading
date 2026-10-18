@@ -36,13 +36,19 @@ import {
   ChangePasswordDto,
   DemoLoginDto,
   LoginDto,
+  PasswordResetCompleteDto,
+  PasswordResetRequestDto,
+  PasswordResetVerifyDto,
   UpdateMeDto,
 } from './dto/auth-request.dto';
 import {
   DemoAccountDto,
   MeResponseDto,
+  PasswordResetRequestedDto,
+  PasswordResetVerifiedDto,
   TokenResponseDto,
 } from './dto/auth-response.dto';
+import { PasswordResetService } from './password-reset.service';
 import { ErrorCode } from '../../common/errors/error-code';
 
 export const REFRESH_COOKIE = 'wegro_rt';
@@ -54,6 +60,7 @@ export class AuthController {
 
   constructor(
     private readonly auth: AuthService,
+    private readonly reset: PasswordResetService,
     config: ConfigService<EnvironmentVariables, true>,
   ) {
     // Script-proof (httpOnly), never sent cross-site (Strict), and only to
@@ -166,6 +173,51 @@ export class AuthController {
     @Body() dto: UpdateMeDto,
   ): Promise<MeResponseDto> {
     return this.auth.updateMe(user, dto);
+  }
+
+  @Public()
+  @AuthThrottle()
+  @Post('password-reset/request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: PasswordResetRequestedDto,
+    description:
+      'Sends a 6-digit code by SMS if the number is registered; the answer is the same either way',
+  })
+  requestReset(
+    @Body() dto: PasswordResetRequestDto,
+  ): Promise<PasswordResetRequestedDto> {
+    return this.reset.request(dto.phone);
+  }
+
+  @Public()
+  @AuthThrottle()
+  @Post('password-reset/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: PasswordResetVerifiedDto })
+  async verifyReset(
+    @Body() dto: PasswordResetVerifyDto,
+  ): Promise<PasswordResetVerifiedDto> {
+    await this.reset.verify(dto.phone, dto.code);
+    return { valid: true };
+  }
+
+  @Public()
+  @AuthThrottle()
+  @Post('password-reset/complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: TokenResponseDto,
+    description: 'Sets the new password, ends every other session and signs in',
+  })
+  async completeReset(
+    @Body() dto: PasswordResetCompleteDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<TokenResponseDto> {
+    return this.respond(
+      res,
+      await this.reset.complete(dto.phone, dto.code, dto.newPassword),
+    );
   }
 
   @Public()

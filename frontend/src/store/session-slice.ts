@@ -10,6 +10,12 @@ export interface RememberedUser {
   mustChangePassword: boolean;
 }
 
+/**
+ * Why the last session ended: `expired` when it lapsed or was ended
+ * elsewhere (sign-in says so), `signedOut` when the person chose to.
+ */
+export type EndReason = 'expired' | 'signedOut';
+
 export interface SessionState {
   /**
    * unknown until the first refresh attempt answers (on page load); offline
@@ -21,6 +27,7 @@ export interface SessionState {
   accessToken: string | null;
   user: SessionUser | null;
   mustChangePassword: boolean;
+  endReason: EndReason | null;
 }
 
 const initialState: SessionState = {
@@ -28,6 +35,7 @@ const initialState: SessionState = {
   accessToken: null,
   user: null,
   mustChangePassword: false,
+  endReason: null,
 };
 
 export const sessionSlice = createSlice({
@@ -37,6 +45,7 @@ export const sessionSlice = createSlice({
     /** A sign-in or a token refresh answered. */
     sessionStarted(state, { payload }: PayloadAction<TokenResponseDto>) {
       state.status = 'signedIn';
+      state.endReason = null;
       state.accessToken = payload.accessToken;
       state.user = payload.user;
       state.mustChangePassword = payload.mustChangePassword;
@@ -53,8 +62,12 @@ export const sessionSlice = createSlice({
       state.mustChangePassword = payload.mustChangePassword;
     },
     /** Signed out, or the session could not be renewed. */
-    sessionEnded() {
-      return { ...initialState, status: 'signedOut' as const };
+    sessionEnded(_state, { payload }: PayloadAction<EndReason | undefined>) {
+      return {
+        ...initialState,
+        status: 'signedOut' as const,
+        endReason: payload ?? null,
+      };
     },
   },
 });

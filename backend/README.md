@@ -80,6 +80,12 @@ The [technical report](../Technical_Report.pdf) explains the internals module by
 
 With `DEMO_MODE=true`, startup creates one verified account for every role. `POST /api/auth/demo/login` with `{ "role": "farmer" }` signs in as that account without a password. Use it for demos only; the app refuses to start with it in production.
 
+### Forgotten passwords
+
+Someone who forgot their password asks for a 6-digit code by SMS (`POST /api/auth/password-reset/request`), checks it (`…/verify`) and sets a new password with it (`…/complete`), which clears a lockout, ends every other session and signs them in. The answer is the same whether or not the number is registered. A code lasts 10 minutes and allows 5 wrong tries; a new one can be asked for after 60 seconds, at most 5 an hour per number. Only a keyed hash of the code is stored.
+
+With `SMS_PROVIDER=log` (local work) the text is written to the backend log instead of being sent: look for `SMS` there to read the code. A real SMS provider is added behind the `SmsSender` interface (`src/modules/auth/sms/sms-sender.ts`) with its credentials in `.env`; production refuses to start without one.
+
 ## Everyday commands
 
 | Command | What it does |
@@ -101,6 +107,7 @@ Every setting is in [`.env.example`](.env.example) with its default and what it 
 | Setting | When to change it |
 |---|---|
 | `DEMO_MODE` | `true` for demos with ready-made accounts |
+| `SMS_PROVIDER` | `log` locally (reset codes in the log); a real provider in production |
 | `CORS_ORIGINS`, `PUBLIC_APP_URL` | The frontend runs somewhere other than `http://localhost:5173` |
 | `INDEXER_BATCH_BLOCKS` | A node limits how many blocks or logs one request may cover |
 | `INDEXER_CONFIRMATIONS` | A chain without instant finality: stay this many blocks behind |

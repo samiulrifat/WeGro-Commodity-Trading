@@ -86,3 +86,20 @@ export class DemoAccountDto {
   @ApiProperty()
   fullName: string;
 }
+
+/** The same answer whether or not the number is registered. */
+export class PasswordResetRequestedDto {
+  @ApiProperty({
+    example: 60,
+    description: 'Before another code may be asked for',
+  })
+  resendAfterSeconds: number;
+
+  @ApiProperty({ example: 600, description: 'How long the code is good for' })
+  expiresInSeconds: number;
+}
+
+export class PasswordResetVerifiedDto {
+  @ApiProperty({ example: true })
+  valid: true;
+}

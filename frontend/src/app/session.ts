@@ -57,7 +57,7 @@ export async function ensureSession(store: AppStore): Promise<void> {
   if (storage.get(SIGN_OUT_PENDING)) {
     // A sign-out made offline is finished before anything else.
     await tellServer();
-    store.dispatch(sessionEnded());
+    store.dispatch(sessionEnded('signedOut'));
     return;
   }
   await renewSession();
@@ -91,6 +91,6 @@ export function watchConnection(store: AppStore): void {
  */
 export async function signOut(store: AppStore): Promise<void> {
   await tellServer();
-  store.dispatch(sessionEnded());
+  store.dispatch(sessionEnded('signedOut'));
   store.dispatch(baseApi.util.resetApiState());
 }

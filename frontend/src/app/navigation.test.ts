@@ -25,6 +25,7 @@ const session = (
   accessToken: 't',
   user: user('admin'),
   mustChangePassword: false,
+  endReason: null,
   ...over,
 });
 

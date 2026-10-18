@@ -239,12 +239,12 @@ export enum ErrorCode {
   NOT_A_FARMER = 'NOT_A_FARMER',
   /** Only farmers and investors receive payouts */
   NOT_A_PAYEE = 'NOT_A_PAYEE',
+  /** Not confirmed by the ledger yet; keep the draft and send it again later */
+  NOT_CONFIRMED = 'NOT_CONFIRMED',
   /** Only {available} slots are available */
   NOT_ENOUGH_SLOTS = 'NOT_ENOUGH_SLOTS',
   /** Only the farmer's field officer can do this */
   NOT_FARMERS_OFFICER = 'NOT_FARMERS_OFFICER',
-  /** Not confirmed by the ledger yet; keep the draft and send it again later */
-  NOT_CONFIRMED = 'NOT_CONFIRMED',
   /** Not found */
   NOT_FOUND = 'NOT_FOUND',
   /** This project is not insured */
@@ -323,6 +323,8 @@ export enum ErrorCode {
   PERIOD_TOO_LONG = 'PERIOD_TOO_LONG',
   /** This phone number is already registered */
   PHONE_ALREADY_REGISTERED = 'PHONE_ALREADY_REGISTERED',
+  /** Enter a Bangladeshi mobile number */
+  PHONE_INVALID = 'PHONE_INVALID',
   /** The image file is damaged */
   PHOTO_DAMAGED = 'PHOTO_DAMAGED',
   /** Send the photo as the "file" field */
@@ -389,6 +391,14 @@ export enum ErrorCode {
   RESERVATION_NOT_FOUND = 'RESERVATION_NOT_FOUND',
   /** This reservation is {status} */
   RESERVATION_WRONG_STATUS = 'RESERVATION_WRONG_STATUS',
+  /** This code has expired (or had too many wrong tries). Ask for a new one. */
+  RESET_CODE_EXPIRED = 'RESET_CODE_EXPIRED',
+  /** That code is not right. {attemptsLeft} tries left. */
+  RESET_CODE_WRONG = 'RESET_CODE_WRONG',
+  /** Too many codes for this number. Try again in {minutes} minutes. */
+  RESET_TOO_MANY = 'RESET_TOO_MANY',
+  /** Wait {seconds} seconds before asking for another code */
+  RESET_WAIT = 'RESET_WAIT',
   /** This claim is {status}: start the review first */
   REVIEW_NOT_STARTED = 'REVIEW_NOT_STARTED',
   /** Your role cannot do this */

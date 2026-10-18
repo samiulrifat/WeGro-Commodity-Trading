@@ -21,12 +21,17 @@ const alertVariants = cva(
 function Alert({
   className,
   variant,
+  polite = false,
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+}: React.ComponentProps<'div'> &
+  VariantProps<typeof alertVariants> & {
+    /** Information, announced politely; otherwise an alert that interrupts. */
+    polite?: boolean;
+  }) {
   return (
     <div
       data-slot="alert"
-      role="alert"
+      role={polite ? 'status' : 'alert'}
       className={cn(alertVariants({ variant }), className)}
       {...props}
     />

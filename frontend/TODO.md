@@ -58,8 +58,8 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 1: Identity
 
-- [ ] 7. Sign-in: phone and password, first-sign-in password change, session refresh and expiry, lockout messages, sign out here or everywhere, demo-mode role picker
-- [ ] 8. My account: my details, language, change password
+- [x] 7. Sign-in: phone and password (Bengali digits accepted), first-sign-in password change, "your session has ended" when it lapses, lockout and other refusals worded from their codes, demo role picker on its own tab; forgotten password by SMS code (backend: codes stored as keyed hashes, 10 minutes, 5 tries, 60 s between and 5 an hour per number, the same answer for unregistered numbers, a pluggable SMS sender writing to the log locally). Signing out everywhere moved to item 8 (My account)
+- [ ] 8. My account: my details, language, change password, sign out on every device
 - [ ] 9. Participants: register with the ID check (results and flags to acknowledge), list with filters and search by phone or NID, detail (masked for auditors), verify, reject, assign field officer, replace key, reset password, sync with the ledger
 - [ ] 10. Bank details: payees enter and see their own; admins' verification queue (verified by someone other than who entered them)
 

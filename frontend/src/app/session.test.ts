@@ -50,11 +50,36 @@ describe('session', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('is signed out when there is no session cookie', async () => {
+  it('is signed out when there is no session cookie, with nothing to explain', async () => {
     answer = async () => refused();
     const { store, ensureSession } = await start();
     await ensureSession(store);
-    expect(store.getState().session.status).toBe('signedOut');
+    expect(store.getState().session).toMatchObject({
+      status: 'signedOut',
+      endReason: null,
+    });
+  });
+
+  it('says a session expired when it is refused while open', async () => {
+    answer = async () => Response.json({ data: tokens });
+    const { store, ensureSession } = await start();
+    await ensureSession(store);
+    const { renewSession } = await import('@/api/http');
+    answer = async () => refused();
+    await renewSession();
+    expect(store.getState().session).toMatchObject({
+      status: 'signedOut',
+      endReason: 'expired',
+    });
+  });
+
+  it('marks a chosen sign-out as such', async () => {
+    answer = async () => Response.json({ data: tokens });
+    const { store, ensureSession, signOut } = await start();
+    await ensureSession(store);
+    answer = async () => new Response(null, { status: 204 });
+    await signOut(store);
+    expect(store.getState().session.endReason).toBe('signedOut');
   });
 
   it('is restored from the cookie, and remembered on this device', async () => {
@@ -93,6 +118,7 @@ describe('session', () => {
       accessToken: null,
       user: tokens.user,
       mustChangePassword: false,
+      endReason: null,
     });
   });
 

@@ -16,6 +16,11 @@ import {
 } from 'class-validator';
 import { Mnemonic } from 'ethers';
 
+export enum SmsProvider {
+  LOG = 'log',
+  MEMORY = 'memory',
+}
+
 export enum NodeEnv {
   DEVELOPMENT = 'development',
   TEST = 'test',
@@ -99,6 +104,14 @@ export class EnvironmentVariables {
     message: 'IDENTITY_MASTER_KEY must be 64 hex characters (32 bytes)',
   })
   IDENTITY_MASTER_KEY: string;
+
+  /**
+   * Who sends text messages (password reset codes): `log` writes them to the
+   * backend log (local work), `memory` keeps them for tests. A real SMS
+   * provider is added here; production refuses both of these.
+   */
+  @IsEnum(SmsProvider)
+  SMS_PROVIDER: SmsProvider = SmsProvider.LOG;
 
   /** Ready-made accounts, one per role, with password-free login. Never in production. */
   @Transform(toBoolean)
@@ -250,6 +263,20 @@ export function validateEnv(
   if (env.DEMO_MODE && env.NODE_ENV === NodeEnv.PRODUCTION) {
     throw new Error(
       'Invalid environment configuration: DEMO_MODE cannot be on in production',
+    );
+  }
+  // Codes written to a log or kept in memory would never reach anyone:
+  // production needs a real SMS provider (none is added yet).
+  const NOT_SENT: readonly SmsProvider[] = [
+    SmsProvider.LOG,
+    SmsProvider.MEMORY,
+  ];
+  if (
+    env.NODE_ENV === NodeEnv.PRODUCTION &&
+    NOT_SENT.includes(env.SMS_PROVIDER)
+  ) {
+    throw new Error(
+      'Invalid environment configuration: set SMS_PROVIDER to a real SMS provider in production',
     );
   }
   return env;

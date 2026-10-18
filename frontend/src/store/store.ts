@@ -24,7 +24,11 @@ connectSession({
   getToken: () => store.getState().session.accessToken,
   onRenewed: (tokens) => store.dispatch(sessionStarted(tokens)),
   onEnded: () => {
-    store.dispatch(sessionEnded());
+    // Refused while signed in: it expired or was ended elsewhere. Refused on
+    // a page load: there simply was no session.
+    const { status } = store.getState().session;
+    const wasOpen = status === 'signedIn' || status === 'offline';
+    store.dispatch(sessionEnded(wasOpen ? 'expired' : undefined));
     // Nothing of the previous person's data may stay on screen.
     store.dispatch(baseApi.util.resetApiState());
   },

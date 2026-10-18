@@ -79,7 +79,7 @@ export class AuthService {
     }
 
     // Only now, with the right password, say why the account cannot sign in.
-    this.assertMaySignIn(user);
+    assertMaySignIn(user);
 
     const patch: Partial<User> = {
       failedLoginCount: 0,
@@ -108,7 +108,7 @@ export class AuthService {
         details: { role },
       });
     }
-    this.assertMaySignIn(user);
+    assertMaySignIn(user);
     await this.users.update({ id: user.id }, { lastLoginAt: new Date() });
     return { user, tokens: await this.tokens.issue(user) };
   }
@@ -136,7 +136,7 @@ export class AuthService {
         const user = await m.findOne(User, { where: { id } });
         if (!user) return null;
         try {
-          this.assertMaySignIn(user);
+          assertMaySignIn(user);
         } catch {
           return null;
         }
@@ -243,23 +243,6 @@ export class AuthService {
     );
   }
 
-  /** Pending participants may sign in (to see their status); rejected or unconfirmed ones may not. */
-  private assertMaySignIn(user: User): void {
-    if (user.chainState === ChainState.SUBMITTED) {
-      throw new ForbiddenException({
-        message:
-          'Your registration is still being confirmed. Try again shortly.',
-        code: ErrorCode.REGISTRATION_CONFIRMING,
-      });
-    }
-    if (user.status === ParticipantStatus.REJECTED) {
-      throw new ForbiddenException({
-        message: 'This account was not approved',
-        code: ErrorCode.ACCOUNT_REJECTED,
-      });
-    }
-  }
-
   /** One statement, so concurrent failures are all counted. */
   private async recordFailure(
     userId: string,
@@ -275,5 +258,21 @@ export class AuthService {
         WHERE "id" = $1`,
       [userId, MAX_FAILED_LOGINS, MAX_LOCK_MINUTES],
     );
+  }
+}
+
+/** Pending participants may sign in (to see their status); rejected or unconfirmed ones may not. */
+export function assertMaySignIn(user: User): void {
+  if (user.chainState === ChainState.SUBMITTED) {
+    throw new ForbiddenException({
+      message: 'Your registration is still being confirmed. Try again shortly.',
+      code: ErrorCode.REGISTRATION_CONFIRMING,
+    });
+  }
+  if (user.status === ParticipantStatus.REJECTED) {
+    throw new ForbiddenException({
+      message: 'This account was not approved',
+      code: ErrorCode.ACCOUNT_REJECTED,
+    });
   }
 }

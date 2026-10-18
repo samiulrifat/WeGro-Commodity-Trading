@@ -75,6 +75,13 @@ Routes are files under [src/routes](src/routes): one per page, and each page's c
 - States for any page: `LoadingState`, `EmptyState`, `ErrorState` (worded in the reader's language, with the reference to quote) in [src/components/states.tsx](src/components/states.tsx); the router shows them while a page loads or if it fails, and not-found for unknown addresses.
 - `/sign-in` offers the demo accounts when the backend runs in demo mode (`DEMO_MODE=true`); sign-in with phone and password comes in item 7. `/design` shows the design system, in development only.
 
+## Signing in
+
+- `/sign-in`: mobile number (any common form, Bengali digits too) and password; a "Demo" tab with the role picker when the backend runs in demo mode. Refusals are worded from their codes: wrong details, a lockout with its minutes, a registration still being confirmed. If a session ended on its own (it lapsed, or the password was changed elsewhere), the page says so.
+- A temporary password (new accounts, admin resets) leads to `/change-password`, where the person chooses their own before anything else.
+- `/forgot-password`: number, the 6-digit code from the SMS (locally, from the backend log), a new password; it ends signed in, every other device signed out.
+- Password fields can show what was typed; new passwords need 10 to 128 characters, typed twice ([password-rules.ts](src/app/auth/password-rules.ts)). Signing out on every device comes with My account (item 8).
+
 ## Installable and offline
 
 The production build is an installable app (`vite-plugin-pwa`, config in [vite.config.ts](vite.config.ts)). `npm run dev` leaves the offline worker out, so development never serves stale files; check these features with `npm run build && npm run preview` (http://localhost:4173, same `/api` proxy).

@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# TanStack Router plugin working files
+.tanstack/
