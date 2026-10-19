@@ -90,17 +90,54 @@ export type NavLabel =
   | 'system'
   | 'status';
 
+/** A page inside a section with several (nav.sub.<label>). */
+export type SubLabel =
+  | 'allPeople'
+  | 'myFarmers'
+  | 'pendingPeople'
+  | 'registerPerson'
+  | 'registerFarmer'
+  | 'detailChanges';
+
+/** The pages of sections that have several, as their routes are named. */
+export type SubPath =
+  | '/people'
+  | '/people/pending'
+  | '/people/new'
+  | '/people/changes';
+
+export interface SubPage {
+  to: SubPath;
+  label: SubLabel;
+}
+
 export interface NavItem {
   area: Area;
   label: NavLabel;
+  /**
+   * A section's pages this role may open: a dropdown in the sidebar and
+   * tabs on phones. Absent: the section is one page.
+   */
+  pages?: readonly SubPage[];
 }
 
-const item = (area: Area, label: NavLabel): NavItem => ({ area, label });
+const item = (
+  area: Area,
+  label: NavLabel,
+  pages?: readonly SubPage[],
+): NavItem => (pages ? { area, label, pages } : { area, label });
+
+const sub = (to: SubPath, label: SubLabel): SubPage => ({ to, label });
 
 const OFFICE: NavItem[] = [
   item('dashboard', 'dashboard'),
   item('projects', 'projects'),
-  item('people', 'people'),
+  item('people', 'people', [
+    sub('/people', 'allPeople'),
+    sub('/people/pending', 'pendingPeople'),
+    sub('/people/new', 'registerPerson'),
+    sub('/people/changes', 'detailChanges'),
+  ]),
   item('vouchers', 'vouchers'),
   item('warehouse', 'warehouse'),
   item('marketplace', 'marketplace'),
@@ -153,7 +190,10 @@ export const NAV: Record<Role, readonly NavItem[]> = {
   ],
   field_officer: [
     item('farm-updates', 'farmUpdates'),
-    item('people', 'farmers'),
+    item('people', 'farmers', [
+      sub('/people', 'myFarmers'),
+      sub('/people/new', 'registerFarmer'),
+    ]),
     item('projects', 'projects'),
     item('vouchers', 'vouchers'),
     item('warehouse', 'warehouse'),
@@ -209,15 +249,36 @@ export type Access = 'ok' | 'sign-in' | 'change-password' | 'no-access';
 
 /**
  * Whether the session may open a page of `area` (undefined: pages open to
- * everyone signed in, such as their account and notifications).
+ * everyone signed in, such as their account and notifications). A page that
+ * is one of its section's (`page`) must be among the role's pages of it.
  */
-export function access(session: SessionState, area?: Area): Access {
+export function access(
+  session: SessionState,
+  area?: Area,
+  page?: SubPath,
+): Access {
   const { user } = session;
   const open = session.status === 'signedIn' || session.status === 'offline';
   if (!open || !user) return 'sign-in';
   if (session.mustChangePassword) return 'change-password';
   if (!area) return 'ok';
-  return navFor(user).some((n) => n.area === area) ? 'ok' : 'no-access';
+  const section = navFor(user).find((n) => n.area === area);
+  if (!section) return 'no-access';
+  if (!page || page === AREAS[area].to) return 'ok';
+  return section.pages?.some((p) => p.to === page) ? 'ok' : 'no-access';
+}
+
+/**
+ * Which of a section's pages `pathname` is on: the longest that it starts
+ * with, so a person's own page (/people/<id>) counts as the list's.
+ */
+export function currentPage(
+  pages: readonly SubPage[],
+  pathname: string,
+): SubPage | undefined {
+  return pages
+    .filter((p) => pathname === p.to || pathname.startsWith(`${p.to}/`))
+    .sort((a, b) => b.to.length - a.to.length)[0];
 }
 
 /**

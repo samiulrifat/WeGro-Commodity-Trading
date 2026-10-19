@@ -15,8 +15,8 @@ import { Paginated } from '../../common/dto/pagination.dto';
 import { ApiPaged } from '../../common/swagger/envelope';
 import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser, Roles } from '../auth/decorators';
-import { PasswordResetRequestedDto } from '../auth/dto/auth-response.dto';
-import type { CodeIssued } from '../auth/sms-code.service';
+import { CodeSentDto } from '../auth/dto/auth-response.dto';
+import type { CodeIssued } from '../auth/verification-code.service';
 import { Role } from '../users/roles';
 import { DetailChangesService } from './detail-changes.service';
 import {
@@ -48,7 +48,7 @@ export class DetailChangesController {
   @Post('me/details/phone-code')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
-    type: PasswordResetRequestedDto,
+    type: CodeSentDto,
     description: 'Texts a 6-digit code to the new number',
   })
   phoneCode(

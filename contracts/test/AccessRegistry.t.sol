@@ -199,6 +199,72 @@ contract AccessRegistryTest is Test {
         registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
     }
 
+    function test_FieldOfficerRegistersFarmersOnly() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        bytes32 supplier = registry.SUPPLIER_ROLE();
+        vm.startPrank(imran);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, imran));
+        registry.registerParticipant(keccak256("INV-1"), investor, stranger, keccak256("x"));
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, imran));
+        registry.registerParticipant(keccak256("SUP-1"), supplier, stranger, keccak256("x"));
+        vm.stopPrank();
+
+        // An admin registers any non-staff role.
+        vm.prank(tania);
+        registry.registerParticipant(keccak256("SUP-1"), supplier, stranger, keccak256("x"));
+        assertEq(_status(keccak256("SUP-1")), uint8(AccessRegistry.Status.Pending));
+    }
+
+    function test_SelfRegistrationIsVerifiedAtOnce() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        bytes32 id = keccak256("INV-SELF");
+        address salma = makeAddr("salma");
+
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit AccessRegistry.ParticipantRegistered(id, investor, salma, keccak256("salma"), superAdmin);
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit AccessRegistry.ParticipantStatusChanged(
+            id, AccessRegistry.Status.Pending, AccessRegistry.Status.Verified, superAdmin
+        );
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(id, investor, salma, keccak256("salma"));
+
+        assertTrue(registry.isVerifiedAs(id, investor));
+        assertTrue(registry.hasRole(investor, salma));
+        assertEq(registry.participantOf(salma), id);
+
+        bytes32 buyer = registry.BUYER_ROLE();
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(keccak256("BUY-SELF"), buyer, makeAddr("karim"), keccak256("karim"));
+        assertTrue(registry.isVerifiedAs(keccak256("BUY-SELF"), buyer));
+    }
+
+    function test_SelfRegistrationGuards() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        // Only investors and buyers.
+        vm.startPrank(superAdmin);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotSelfRegistrable.selector, FARMER));
+        registry.selfRegisterParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotSelfRegistrable.selector, ADMIN));
+        registry.selfRegisterParticipant(RAHIM, ADMIN, rahim, RAHIM_DETAILS);
+        vm.stopPrank();
+
+        // Only the platform's key.
+        vm.prank(tania);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, tania));
+        registry.selfRegisterParticipant(keccak256("INV-1"), investor, stranger, keccak256("x"));
+
+        // The same guards as any registration.
+        vm.startPrank(superAdmin);
+        vm.expectRevert(AccessRegistry.ZeroValue.selector);
+        registry.selfRegisterParticipant(keccak256("INV-1"), investor, stranger, bytes32(0));
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.AccountAlreadyUsed.selector, tania));
+        registry.selfRegisterParticipant(keccak256("INV-1"), investor, tania, keccak256("x"));
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.ParticipantAlreadyRegistered.selector, TANIA));
+        registry.selfRegisterParticipant(TANIA, investor, stranger, keccak256("x"));
+        vm.stopPrank();
+    }
+
     function test_OnlySuperAdminRegistersStaff() public {
         bytes32 id = keccak256("STAFF-0099");
         vm.prank(tania);
@@ -435,14 +501,6 @@ contract AccessRegistryTest is Test {
         vm.prank(tania);
         registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
         assertEq(registry.fieldOfficerOf(RAHIM), bytes32(0));
-    }
-
-    function test_OfficerRegisteringNonFarmerIsNotMapped() public {
-        bytes32 investor = keccak256("INVESTOR-0001");
-        bytes32 investorRole = registry.INVESTOR_ROLE();
-        vm.prank(imran);
-        registry.registerParticipant(investor, investorRole, stranger, keccak256("x"));
-        assertEq(registry.fieldOfficerOf(investor), bytes32(0));
     }
 
     function test_AdminAssignsFieldOfficer() public {

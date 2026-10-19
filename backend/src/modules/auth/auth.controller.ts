@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -10,7 +11,6 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
   ApiCookieAuth,
@@ -18,14 +18,9 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { CookieOptions, Request, Response } from 'express';
-import { API_PREFIX } from '../../app.setup';
-import {
-  NodeEnv,
-  type EnvironmentVariables,
-} from '../../config/env.validation';
+import type { Request, Response } from 'express';
 import type { AuthUser } from './auth-user';
-import { AuthService, type SignInResult } from './auth.service';
+import { AuthService } from './auth.service';
 import {
   AllowPendingPassword,
   AuthThrottle,
@@ -34,7 +29,9 @@ import {
 } from './decorators';
 import {
   ChangePasswordDto,
+  ConfirmEmailDto,
   DemoLoginDto,
+  EmailCodeRequestDto,
   LoginDto,
   PasswordResetCompleteDto,
   PasswordResetRequestDto,
@@ -44,34 +41,24 @@ import {
 import {
   DemoAccountDto,
   MeResponseDto,
-  PasswordResetRequestedDto,
+  CodeSentDto,
   PasswordResetVerifiedDto,
   TokenResponseDto,
 } from './dto/auth-response.dto';
+import { MyEmailService } from './my-email.service';
 import { PasswordResetService } from './password-reset.service';
+import { REFRESH_COOKIE, SessionResponder } from './session-responder';
 import { ErrorCode } from '../../common/errors/error-code';
-
-export const REFRESH_COOKIE = 'wegro_rt';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  private readonly cookie: CookieOptions;
-
   constructor(
     private readonly auth: AuthService,
     private readonly reset: PasswordResetService,
-    config: ConfigService<EnvironmentVariables, true>,
-  ) {
-    // Script-proof (httpOnly), never sent cross-site (Strict), and only to
-    // the auth endpoints that need it.
-    this.cookie = {
-      httpOnly: true,
-      secure: config.get('NODE_ENV', { infer: true }) === NodeEnv.PRODUCTION,
-      sameSite: 'strict',
-      path: `/${API_PREFIX}/auth`,
-    };
-  }
+    private readonly session: SessionResponder,
+    private readonly email: MyEmailService,
+  ) {}
 
   @Public()
   @AuthThrottle()
@@ -82,7 +69,13 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
-    return this.respond(res, await this.auth.login(dto.phone, dto.password));
+    return this.session.respond(
+      res,
+      await this.auth.login(
+        { phone: dto.phone, email: dto.email },
+        dto.password,
+      ),
+    );
   }
 
   @Public()
@@ -103,9 +96,9 @@ export class AuthController {
       });
     }
     try {
-      return this.respond(res, await this.auth.refresh(token));
+      return this.session.respond(res, await this.auth.refresh(token));
     } catch (error) {
-      res.clearCookie(REFRESH_COOKIE, this.cookie);
+      this.session.clear(res);
       throw error;
     }
   }
@@ -119,7 +112,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     await this.auth.logout(readCookie(req, REFRESH_COOKIE));
-    res.clearCookie(REFRESH_COOKIE, this.cookie);
+    this.session.clear(res);
   }
 
   @ApiBearerAuth()
@@ -132,7 +125,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     await this.auth.logoutEverywhere(user.id);
-    res.clearCookie(REFRESH_COOKIE, this.cookie);
+    this.session.clear(res);
   }
 
   @ApiBearerAuth()
@@ -146,7 +139,7 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
-    return this.respond(
+    return this.session.respond(
       res,
       await this.auth.changePassword(
         user.id,
@@ -175,18 +168,55 @@ export class AuthController {
     return this.auth.updateMe(user, dto);
   }
 
+  @ApiBearerAuth()
+  @AuthThrottle()
+  @Post('me/email/code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: CodeSentDto,
+    description: 'Emails a 6-digit code to the address, to confirm it',
+  })
+  requestEmailCode(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: EmailCodeRequestDto,
+  ): Promise<CodeSentDto> {
+    return this.email.requestCode(user, dto.email);
+  }
+
+  @ApiBearerAuth()
+  @AuthThrottle()
+  @Post('me/email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: MeResponseDto,
+    description: 'Saves the address with its code; it signs in from then on',
+  })
+  async confirmEmail(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ConfirmEmailDto,
+  ): Promise<MeResponseDto> {
+    await this.email.confirm(user, dto.email, dto.code);
+    return this.auth.me(user);
+  }
+
+  @ApiBearerAuth()
+  @Delete('me/email')
+  @ApiOkResponse({ type: MeResponseDto })
+  async removeEmail(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
+    await this.email.remove(user);
+    return this.auth.me(user);
+  }
+
   @Public()
   @AuthThrottle()
   @Post('password-reset/request')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
-    type: PasswordResetRequestedDto,
+    type: CodeSentDto,
     description:
       'Sends a 6-digit code by SMS if the number is registered; the answer is the same either way',
   })
-  requestReset(
-    @Body() dto: PasswordResetRequestDto,
-  ): Promise<PasswordResetRequestedDto> {
+  requestReset(@Body() dto: PasswordResetRequestDto): Promise<CodeSentDto> {
     return this.reset.request(dto.phone);
   }
 
@@ -214,7 +244,7 @@ export class AuthController {
     @Body() dto: PasswordResetCompleteDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
-    return this.respond(
+    return this.session.respond(
       res,
       await this.reset.complete(dto.phone, dto.code, dto.newPassword),
     );
@@ -242,30 +272,7 @@ export class AuthController {
     @Body() dto: DemoLoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
-    return this.respond(res, await this.auth.demoLogin(dto.role));
-  }
-
-  private respond(
-    res: Response,
-    { user, tokens }: SignInResult,
-  ): TokenResponseDto {
-    res.cookie(REFRESH_COOKIE, tokens.refreshToken, {
-      ...this.cookie,
-      expires: tokens.refreshExpiresAt,
-    });
-    res.setHeader('Cache-Control', 'no-store');
-    return {
-      accessToken: tokens.accessToken,
-      tokenType: 'Bearer',
-      expiresIn: tokens.expiresIn,
-      mustChangePassword: user.mustChangePassword,
-      user: {
-        id: user.id,
-        role: user.role,
-        status: user.status,
-        language: user.language,
-      },
-    };
+    return this.session.respond(res, await this.auth.demoLogin(dto.role));
   }
 }
 

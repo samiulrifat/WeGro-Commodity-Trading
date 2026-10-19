@@ -1,7 +1,7 @@
 import { createRouter } from '@tanstack/react-router';
 import { routeTree } from '@/routeTree.gen';
 import { type AppStore, store } from '@/store/store';
-import type { Area } from './navigation';
+import type { Area, SubPath } from './navigation';
 import { NotFoundPage, PageError, PageLoading } from './pages';
 
 /** What every route's guards can read. */
@@ -27,5 +27,7 @@ declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
     /** The area a page belongs to: who may open it (see navigation.ts). */
     area?: Area;
+    /** One of its section's pages: only roles with that page may open it. */
+    page?: SubPath;
   }
 }

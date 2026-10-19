@@ -4,18 +4,26 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import {
+  EmailProvider,
   type EnvironmentVariables,
   SmsProvider,
 } from '../../config/env.validation';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { SmsCode } from './entities/sms-code.entity';
+import {
+  EmailSender,
+  LogEmailSender,
+  MemoryEmailSender,
+} from './email/email-sender';
+import { VerificationCode } from './entities/verification-code.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { JwtStrategy } from './jwt.strategy';
+import { MyEmailService } from './my-email.service';
 import { PasswordResetService } from './password-reset.service';
-import { SmsCodeService } from './sms-code.service';
+import { VerificationCodeService } from './verification-code.service';
 import { LogSmsSender, MemorySmsSender, SmsSender } from './sms/sms-sender';
+import { SessionResponder } from './session-responder';
 import { TokenService } from './token.service';
 
 /**
@@ -26,7 +34,7 @@ import { TokenService } from './token.service';
   imports: [
     UsersModule,
     PassportModule,
-    TypeOrmModule.forFeature([RefreshToken, SmsCode]),
+    TypeOrmModule.forFeature([RefreshToken, VerificationCode]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<EnvironmentVariables, true>) => ({
@@ -42,7 +50,9 @@ import { TokenService } from './token.service';
     TokenService,
     JwtStrategy,
     PasswordResetService,
-    SmsCodeService,
+    VerificationCodeService,
+    SessionResponder,
+    MyEmailService,
     {
       provide: SmsSender,
       inject: [ConfigService],
@@ -51,7 +61,15 @@ import { TokenService } from './token.service';
           ? new MemorySmsSender()
           : new LogSmsSender(),
     },
+    {
+      provide: EmailSender,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<EnvironmentVariables, true>) =>
+        config.get('EMAIL_PROVIDER', { infer: true }) === EmailProvider.MEMORY
+          ? new MemoryEmailSender()
+          : new LogEmailSender(),
+    },
   ],
-  exports: [TokenService, SmsCodeService],
+  exports: [TokenService, VerificationCodeService, SmsSender, SessionResponder],
 })
 export class AuthModule {}

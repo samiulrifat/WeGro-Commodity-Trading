@@ -23,6 +23,7 @@
   --wegro-green-700: #045747; /* logo green, 8.5:1 on white */
   --wegro-green-800: #03463a;
   --wegro-green-900: #02352c;
+  --wegro-ink: #04221f; /* the sign-in button: near-black green, 16:1 with white */
 
   /* Leaf green (main actions) */
   --wegro-leaf-50: #f1f8e6;
@@ -108,6 +109,11 @@
   /* The page you are on, in the menus: as in WeGro's admin product. */
   --nav-active: var(--wegro-leaf-200);
   --nav-active-foreground: var(--wegro-navy-900);
+
+  /* The main action before signing in: as in WeGro's sign-in box. */
+  --ink: var(--wegro-ink);
+  --ink-hover: var(--wegro-green-900);
+  --ink-foreground: #ffffff;
 }
 
 @theme inline {
@@ -130,6 +136,9 @@
   --color-danger-on-soft: var(--danger-on-soft);
   --color-neutral: var(--neutral);
   --color-wegro-leaf: var(--wegro-leaf-500);
+  --color-ink: var(--ink);
+  --color-ink-hover: var(--ink-hover);
+  --color-ink-foreground: var(--ink-foreground);
   --color-nav-active: var(--nav-active);
   --color-nav-active-foreground: var(--nav-active-foreground);
   --color-wegro-amber: var(--wegro-amber-500);

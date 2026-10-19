@@ -4,6 +4,7 @@ import {
 } from '../../../common/reference/bd-districts';
 import {
   type IdCheckInput,
+  IdCheckReason,
   nidIdentity,
   normaliseNid,
   normalisePhone,
@@ -291,5 +292,41 @@ describe('runIdCheck', () => {
         'NID_FORMAT',
       ]),
     );
+  });
+
+  it('gives every outcome its reason, and reaches every reason', () => {
+    const inputs: Array<Partial<IdCheckInput>> = [
+      {},
+      { fullName: 'A' },
+      { fullName: 'R2D2 Rahim' },
+      { phone: '0121' },
+      { dateOfBirth: '1990-02-30' },
+      { dateOfBirth: '2030-01-01' },
+      { dateOfBirth: '2015-01-01' },
+      { dateOfBirth: '1890-01-01' },
+      { district: 'Atlantis' },
+      { address: 'Hut' },
+      { address: 'Road 1\u0000Bogura' },
+      { nid: 'ID-1234' },
+      { nid: '12345' },
+      { nid: '1111111111' },
+      { nid: '1234567891', district: 'DHAKA' },
+      { nid: '19911012345678901' },
+      { nid: '19901012345678901', dateOfBirth: 'x' },
+      { nid: '1990 9912 3456 78901' },
+      { nid: '1990 1012 3456 78901', district: 'DHAKA' },
+    ];
+    const seen = new Set<string>();
+    for (const input of inputs) {
+      for (const c of check(input).checks) {
+        expect(Object.values(IdCheckReason)).toContain(c.reason);
+        seen.add(c.reason!);
+      }
+    }
+    expect([...seen].sort()).toEqual(Object.values(IdCheckReason).sort());
+    const differs = check({ district: 'DHAKA' }).checks.find(
+      (c) => c.reason === IdCheckReason.NID_DISTRICT_DIFFERENT,
+    );
+    expect(differs?.params).toEqual({ issued: 'BOGURA', given: 'DHAKA' });
   });
 });

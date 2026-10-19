@@ -1,16 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ChainState } from '../../users/entities/user.entity';
 import { ParticipantStatus, Role } from '../../users/roles';
+import { PersonNameDto } from '../../../common/swagger/refs';
+import { IdCheckReason } from '../id-check/id-check';
 
 export class IdCheckItemDto {
-  @ApiProperty({ example: 'NID_BIRTH_YEAR' })
+  @ApiProperty({ example: 'NID_BIRTH_YEAR', description: 'The rule' })
   code: string;
 
   @ApiProperty({ enum: ['pass', 'warn', 'fail'] })
   result: 'pass' | 'warn' | 'fail';
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    enum: IdCheckReason,
+    enumName: 'IdCheckReason',
+    description:
+      'Why: worded in the app with `params`. Absent on checks saved before reasons were recorded.',
+  })
+  reason?: IdCheckReason;
+
+  @ApiProperty({ description: 'The English wording' })
   message: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }] },
+    example: { issued: 'BOGURA', given: 'DHAKA' },
+  })
+  params?: Record<string, string | number>;
 }
 
 export class IdCheckDto {
@@ -89,6 +106,29 @@ export class ParticipantDetailDto extends ParticipantSummaryDto {
   @ApiPropertyOptional({ nullable: true, type: String, format: 'uuid' })
   registeredById: string | null;
 
+  @ApiPropertyOptional({ nullable: true, type: PersonNameDto })
+  registeredBy: PersonNameDto | null;
+
+  @ApiProperty({
+    description:
+      'Signed up themselves (an investor or buyer), rather than registered by staff',
+  })
+  selfRegistered: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: PersonNameDto,
+    description: 'A farmer’s field officer',
+  })
+  fieldOfficer: PersonNameDto | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Their confirmed email address (masked for auditors)',
+  })
+  email: string | null;
+
   @ApiPropertyOptional({ nullable: true, type: String })
   registrationTx: string | null;
 
@@ -102,17 +142,48 @@ export class RegisteredParticipantDto {
 
   @ApiProperty({
     description:
-      'Shown once, never stored in readable form. Hand it to the person; they must change it at first sign-in.',
+      'Shown once, never stored in readable form. Also sent to them by SMS; they must change it at first sign-in.',
     example: 'Kp7w-Xq3m-Rt9z',
   })
   temporaryPassword: string;
+
+  @ApiProperty({
+    description:
+      'Whether the SMS with the temporary password went out; if not, hand it over in person',
+  })
+  smsSent: boolean;
 }
 
 export class TemporaryPasswordDto {
   @ApiProperty({
-    description: 'Shown once. All existing sessions of the person were ended.',
+    description:
+      'Shown once, and sent to them by SMS. All existing sessions of the person were ended.',
   })
   temporaryPassword: string;
+
+  @ApiProperty({ description: 'Whether the SMS went out' })
+  smsSent: boolean;
+}
+
+/** What a registration would meet, before it is sent: nothing is saved. */
+export class RegistrationCheckDto {
+  @ApiProperty({
+    enum: ['passed', 'flagged', 'failed'],
+    description:
+      'failed: cannot be registered as given; flagged: can, an admin acknowledges the warnings when verifying',
+  })
+  outcome: 'passed' | 'flagged' | 'failed';
+
+  @ApiProperty({ type: [IdCheckItemDto] })
+  checks: IdCheckItemDto[];
+
+  @ApiProperty({
+    description: 'Someone is already registered with this number',
+  })
+  phoneTaken: boolean;
+
+  @ApiProperty({ description: 'Someone is already registered with this NID' })
+  nidTaken: boolean;
 }
 
 export class LedgerParticipantDto {

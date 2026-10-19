@@ -88,6 +88,18 @@ The same codes confirm a new number when someone changes their own details (belo
 
 With `SMS_PROVIDER=log` (local work) the text is written to the backend log instead of being sent: look for `SMS` there to read the code. A real SMS provider is added behind the `SmsSender` interface (`src/modules/auth/sms/sms-sender.ts`) with its credentials in `.env`; production refuses to start without one.
 
+### Registering people
+
+Staff are registered by the super admin; farmers by their field officer (who is then theirs) or an admin; every other role by an admin. Field officers register farmers only, which the contract enforces too. `POST /api/participants/check` runs the ID check and the duplicate checks of a registration without saving anything, so the registrar confirms before it goes on the ledger. Each check carries a `reason` (the `IdCheckReason` list in the API docs) and its `params`, worded in the app. A registration answers with the temporary password once and texts it to the person in the language chosen for them (`smsSent` says whether the SMS went out); a reset does the same. If the ledger is slow to confirm, the person is saved as `submitted` all the same and the password still handed over; the indexer or sync confirms them.
+
+### Signing up
+
+Investors and buyers sign up themselves: `POST /api/auth/sign-up/code` texts a code to a number not yet registered, and `POST /api/auth/sign-up` takes the same details as any registration, the code and their own password. They go through the ID check, are registered and verified on the ledger at once by the platform's key (`selfRegisterParticipant`, which the contract allows only for those two roles), and are signed in. Every other role is registered for them.
+
+### Email addresses
+
+An email address is optional and signs in like the number (`POST /api/auth/login` with `email` instead of `phone`) once it is confirmed: `POST /api/auth/me/email/code` emails a code, `POST /api/auth/me/email` saves the address with it, `DELETE /api/auth/me/email` removes it. It is stored encrypted with a lookup index (one account per address) and is not part of the ledger fingerprint, so it needs no admin. With `EMAIL_PROVIDER=log` the email is written to the backend log (look for `Email`); production refuses to start without a real provider behind `EmailSender` (`src/modules/auth/email/email-sender.ts`). Codes by SMS and by email share one table, `verification_codes`, each for one purpose.
+
 ### Changing one's own details
 
 Everyone sees their own details in full (`GET /api/me/details`) and can ask to change any of them (`POST /api/me/details/change`); the details go through the same ID check as at registration. A new number must first be confirmed by a code sent to it (`POST /api/me/details/phone-code`, then the code with the change). The request waits for an admin, or the super admin for staff (`GET /api/detail-changes`, `…/:id`, `…/:id/approve`, `…/:id/reject` with a reason); approving writes the new fingerprint to the ledger, signed by the approver, and the new number signs in from then on. A new request replaces one still waiting, and the person can take one back (`DELETE /api/me/details/change`). Nobody decides their own. The requested details are stored encrypted until decided. The super admin, who keeps only a name and a number, changes them at once.
@@ -114,6 +126,7 @@ Every setting is in [`.env.example`](.env.example) with its default and what it 
 |---|---|
 | `DEMO_MODE` | `true` for demos with ready-made accounts |
 | `SMS_PROVIDER` | `log` locally (codes in the log); a real provider in production |
+| `EMAIL_PROVIDER` | `log` locally (email codes in the log); a real provider in production |
 | `CORS_ORIGINS`, `PUBLIC_APP_URL` | The frontend runs somewhere other than `http://localhost:5173` |
 | `INDEXER_BATCH_BLOCKS` | A node limits how many blocks or logs one request may cover |
 | `INDEXER_CONFIRMATIONS` | A chain without instant finality: stay this many blocks behind |

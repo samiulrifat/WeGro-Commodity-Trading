@@ -90,6 +90,7 @@ contract AccessRegistry is AccessControl {
     error StatusUnchanged(bytes32 participantId, Status status);
     error NotAFarmer(bytes32 participantId);
     error NotAFieldOfficer(bytes32 participantId);
+    error NotSelfRegistrable(bytes32 role);
 
     /// @param superAdmin Platform operator key; manages staff, cannot be a participant.
     constructor(address superAdmin) {
@@ -144,41 +145,38 @@ contract AccessRegistry is AccessControl {
     // --- Participants (practice ID check) ---
 
     /// @notice Register a person as Pending (no role yet). Staff: super admin only;
-    /// others: field officer or admin. A farmer registered by a field officer is
-    /// assigned to that officer.
+    /// farmers: field officer or admin; other roles: admin only. A farmer
+    /// registered by a field officer is assigned to that officer.
     function registerParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
         external
     {
         if (!isPlatformRole(role)) revert UnknownRole(role);
         if (isStaffRole(role)) {
             _requireSuperAdmin();
-        } else if (!hasRole(FIELD_OFFICER_ROLE, msg.sender) && !hasRole(ADMIN_ROLE, msg.sender)) {
+        } else if (!hasRole(ADMIN_ROLE, msg.sender) && !(role == FARMER_ROLE && hasRole(FIELD_OFFICER_ROLE, msg.sender))) {
             revert NotAuthorized(msg.sender);
         }
-        if (participantId == bytes32(0) || detailsHash == bytes32(0)) revert ZeroValue();
-        if (_participants[participantId].status != Status.None) {
-            revert ParticipantAlreadyRegistered(participantId);
-        }
-        _claimAccount(account);
-
-        uint64 now_ = uint64(block.timestamp);
-        _participants[participantId] = Participant({
-            role: role,
-            account: account,
-            detailsHash: detailsHash,
-            status: Status.Pending,
-            registeredAt: now_,
-            updatedAt: now_
-        });
-        participantOf[account] = participantId;
-
-        emit ParticipantRegistered(participantId, role, account, detailsHash, msg.sender);
+        _register(participantId, role, account, detailsHash);
 
         if (role == FARMER_ROLE && hasRole(FIELD_OFFICER_ROLE, msg.sender)) {
             bytes32 officerId = participantOf[msg.sender];
             fieldOfficerOf[participantId] = officerId;
             emit FieldOfficerAssigned(participantId, officerId, msg.sender);
         }
+    }
+
+    /// @notice An investor or buyer who registered themselves (their number
+    /// confirmed by the platform): registered and verified at once, signed by
+    /// the platform's key. `registeredBy` in the event is then the super admin,
+    /// who registers no other non-staff participant: that marks it as self-registered.
+    function selfRegisterParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
+        external
+    {
+        _requireSuperAdmin();
+        if (role != INVESTOR_ROLE && role != BUYER_ROLE) revert NotSelfRegistrable(role);
+        Participant storage p = _register(participantId, role, account, detailsHash);
+        _setStatus(participantId, p, Status.Verified);
+        _grantRole(role, account);
     }
 
     /// @notice Admin assigns or reassigns a farmer's field officer.
@@ -250,6 +248,28 @@ contract AccessRegistry is AccessControl {
     }
 
     // --- Internals ---
+
+    /// @dev Records a new participant as Pending under their own, never-used key.
+    function _register(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
+        private
+        returns (Participant storage p)
+    {
+        if (participantId == bytes32(0) || detailsHash == bytes32(0)) revert ZeroValue();
+        p = _participants[participantId];
+        if (p.status != Status.None) revert ParticipantAlreadyRegistered(participantId);
+        _claimAccount(account);
+
+        uint64 now_ = uint64(block.timestamp);
+        p.role = role;
+        p.account = account;
+        p.detailsHash = detailsHash;
+        p.status = Status.Pending;
+        p.registeredAt = now_;
+        p.updatedAt = now_;
+        participantOf[account] = participantId;
+
+        emit ParticipantRegistered(participantId, role, account, detailsHash, msg.sender);
+    }
 
     /// @dev Loads a participant; caller must be super admin (staff) or admin (others).
     function _managed(bytes32 participantId) private view returns (Participant storage p) {

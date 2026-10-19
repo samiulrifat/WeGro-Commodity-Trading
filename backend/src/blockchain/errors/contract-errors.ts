@@ -115,6 +115,7 @@ export const CONTRACT_ERROR_STATUS: Record<string, HttpStatus> = {
   NotAFarmer: HttpStatus.UNPROCESSABLE_ENTITY,
   NotAFieldOfficer: HttpStatus.UNPROCESSABLE_ENTITY,
   NotAWarehouseOperator: HttpStatus.UNPROCESSABLE_ENTITY,
+  NotSelfRegistrable: HttpStatus.UNPROCESSABLE_ENTITY,
   NotEnoughSlots: HttpStatus.UNPROCESSABLE_ENTITY,
   NotFarmersProject: HttpStatus.UNPROCESSABLE_ENTITY,
   NotInsured: HttpStatus.UNPROCESSABLE_ENTITY,

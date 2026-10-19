@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { MyDetails } from '@/app/account/my-details';
+import { EmailCard } from '@/features/account/email-card';
+import { MyDetails } from '@/features/account/my-details';
 import {
   LedgerAccountCard,
   PasswordCard,
   SignOutEverywhereCard,
-} from '@/app/account/security';
+} from '@/features/account/security';
 import { isStaff } from '@/app/navigation';
 import { LanguageSwitch } from '@/components/language-switch';
 import { PageHeader } from '@/components/page-header';
@@ -31,7 +32,10 @@ function AccountPage() {
       <PageHeader title={t('account.title')} />
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <MyDetails />
-        <PasswordCard />
+        <div className="grid gap-6">
+          <PasswordCard />
+          <EmailCard />
+        </div>
         <div className="grid gap-6">
           <Card>
             <CardHeader>

@@ -6,11 +6,14 @@ import { ErrorCode } from '../../common/errors/error-code';
 import { User } from '../users/entities/user.entity';
 import { PersonalDetailsCodec } from '../users/personal-details.codec';
 import { assertMaySignIn, type SignInResult } from './auth.service';
-import { SmsCodePurpose } from './entities/sms-code.entity';
-import { type CodeIssued, SmsCodeService } from './sms-code.service';
+import { CodePurpose } from './entities/verification-code.entity';
+import {
+  type CodeIssued,
+  VerificationCodeService,
+} from './verification-code.service';
 import { TokenService } from './token.service';
 
-const PURPOSE = SmsCodePurpose.PASSWORD_RESET;
+const PURPOSE = CodePurpose.PASSWORD_RESET;
 
 /**
  * Forgotten passwords: a 6-digit code by SMS, then a new password. Asking
@@ -22,7 +25,7 @@ export class PasswordResetService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly codec: PersonalDetailsCodec,
-    private readonly codes: SmsCodeService,
+    private readonly codes: VerificationCodeService,
     private readonly hasher: PasswordHasher,
     private readonly tokens: TokenService,
   ) {}
@@ -65,7 +68,8 @@ export class PasswordResetService {
       const checked = await this.codes.check(m, PURPOSE, phone, code);
       if (!checked.ok) return checked;
       const { row } = checked;
-      const user = await m.findOneOrFail(User, { where: { id: row.userId } });
+      // Only a registered number's code is ever sent.
+      const user = await m.findOneOrFail(User, { where: { id: row.userId! } });
       assertMaySignIn(user);
       if (await this.hasher.verify(newPassword, user.passwordHash)) {
         throw new UnprocessableEntityException({

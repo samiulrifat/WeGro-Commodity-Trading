@@ -15,8 +15,11 @@ import { Paginated } from '../../common/dto/pagination.dto';
 import { IdentityCryptoService } from '../../common/crypto/identity-crypto.service';
 import { ErrorCode } from '../../common/errors/error-code';
 import type { AuthUser } from '../auth/auth-user';
-import { SmsCodePurpose } from '../auth/entities/sms-code.entity';
-import { type CodeIssued, SmsCodeService } from '../auth/sms-code.service';
+import { CodePurpose } from '../auth/entities/verification-code.entity';
+import {
+  type CodeIssued,
+  VerificationCodeService,
+} from '../auth/verification-code.service';
 import { NotificationWriter } from '../notifications/notification-writer';
 import {
   NotificationCategory,
@@ -70,7 +73,7 @@ export class DetailChangesService {
     private readonly changes: Repository<DetailChangeRequest>,
     private readonly codec: PersonalDetailsCodec,
     private readonly crypto: IdentityCryptoService,
-    private readonly codes: SmsCodeService,
+    private readonly codes: VerificationCodeService,
     private readonly tx: TransactionService,
     private readonly receipts: ReceiptApplier,
     private readonly writer: NotificationWriter,
@@ -108,7 +111,7 @@ export class DetailChangesService {
       where: { id: actor.id },
       select: { id: true, language: true },
     });
-    return this.codes.issue(SmsCodePurpose.PHONE_CHANGE, phone, {
+    return this.codes.issue(CodePurpose.PHONE_CHANGE, phone, {
       userId: me.id,
       language: me.language,
     });
@@ -191,7 +194,7 @@ export class DetailChangesService {
       if (phoneChanged) {
         const checked = await this.codes.check(
           m,
-          SmsCodePurpose.PHONE_CHANGE,
+          CodePurpose.PHONE_CHANGE,
           requested.phone,
           dto.phoneCode!,
           actor.id,

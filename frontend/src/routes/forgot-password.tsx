@@ -314,7 +314,7 @@ function PasswordStep({
     } catch (e) {
       const failure = toApiError(e as never)!;
       // The code stopped working meanwhile: back to asking for one.
-      if (failure.code === 'SMS_CODE_EXPIRED') onCodeGone(failure);
+      if (failure.code === 'CODE_EXPIRED') onCodeGone(failure);
       else setError(failure);
     }
   }

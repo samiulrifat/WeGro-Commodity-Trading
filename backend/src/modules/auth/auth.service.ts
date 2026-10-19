@@ -21,6 +21,7 @@ import type { AuthUser } from './auth-user';
 import type { UpdateMeDto } from './dto/auth-request.dto';
 import type { MeResponseDto } from './dto/auth-response.dto';
 import { type IssuedTokens, TokenService } from './token.service';
+import { normaliseEmail } from './verification-code.service';
 import { ErrorCode } from '../../common/errors/error-code';
 
 /** Failed sign-ins allowed before the account locks. */
@@ -29,7 +30,7 @@ export const MAX_FAILED_LOGINS = 5;
 const MAX_LOCK_MINUTES = 60;
 
 const BAD_CREDENTIALS = {
-  message: 'Phone number or password is incorrect',
+  message: 'Phone number, email or password is incorrect',
   code: ErrorCode.BAD_CREDENTIALS,
 };
 
@@ -55,17 +56,33 @@ export class AuthService {
   }
 
   /**
-   * Phone + password sign-in. Unknown phone numbers cost the same hashing
-   * time as known ones and get the same message, so the endpoint does not
-   * reveal who is registered. Failures are counted atomically per account.
+   * Phone (or confirmed email) + password sign-in. Unknown numbers and
+   * addresses cost the same hashing time as known ones and get the same
+   * message, so the endpoint does not reveal who is registered. Failures
+   * are counted atomically per account.
    */
-  async login(phoneInput: string, password: string): Promise<SignInResult> {
-    const phone = normalisePhone(phoneInput);
+  async login(
+    by: { phone?: string; email?: string },
+    password: string,
+  ): Promise<SignInResult> {
+    // Exactly one of the two; anything else is as good as unknown.
+    const phone =
+      by.phone !== undefined && by.email === undefined
+        ? normalisePhone(by.phone)
+        : null;
+    const email =
+      by.email !== undefined && by.phone === undefined
+        ? normaliseEmail(by.email)
+        : null;
     const user = phone
       ? await this.users.findOne({
           where: { phoneIndex: this.codec.phoneIndex(phone) },
         })
-      : null;
+      : email
+        ? await this.users.findOne({
+            where: { emailIndex: this.codec.emailIndex(email) },
+          })
+        : null;
     if (!user) {
       await this.hasher.verifyDummy(password);
       throw new UnauthorizedException(BAD_CREDENTIALS);
@@ -219,6 +236,7 @@ export class AuthService {
       mustChangePassword: user.mustChangePassword,
       isDemo: user.isDemo,
       language: user.language,
+      email: this.codec.openEmail(details),
     };
   }
 

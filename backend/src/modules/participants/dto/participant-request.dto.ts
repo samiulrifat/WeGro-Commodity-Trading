@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { ChainState } from '../../users/entities/user.entity';
+import { Language } from '../../users/language';
 import {
   PARTICIPANT_ROLES,
   type ParticipantRole,
@@ -64,6 +65,16 @@ export class RegisterParticipantDto {
   @IsString()
   @MaxLength(600)
   address: string;
+
+  @ApiPropertyOptional({
+    enum: Language,
+    enumName: 'Language',
+    description:
+      'The language WeGro writes to them in (SMS, the app); English if not given',
+  })
+  @IsOptional()
+  @IsEnum(Language)
+  language?: Language;
 }
 
 export class VerifyParticipantDto {

@@ -4,6 +4,7 @@ import {
   access,
   AREAS,
   type Area,
+  currentPage,
   homeOf,
   landingFor,
   NAV,
@@ -158,5 +159,27 @@ describe('after signing in', () => {
     // A prefix of an area's path is not that area.
     expect(landingFor(investor, '/holdingsx')).toBe('/holdingsx');
     expect(landingFor(user('farmer', 'pending'), '/projects')).toBe('/status');
+  });
+
+  it('opens a section page only for roles that have it', () => {
+    const officer = session({ user: user('field_officer') });
+    expect(access(officer, 'people', '/people/new')).toBe('ok');
+    expect(access(officer, 'people', '/people/changes')).toBe('no-access');
+    expect(access(officer, 'people', '/people/pending')).toBe('no-access');
+    expect(access(session(), 'people', '/people/changes')).toBe('ok');
+    const auditor = session({ user: user('auditor') });
+    expect(access(auditor, 'people')).toBe('ok');
+    expect(access(auditor, 'people', '/people/new')).toBe('no-access');
+  });
+
+  it('finds the section page you are on, a person counting as the list', () => {
+    const pages = NAV.admin.find((n) => n.area === 'people')!.pages!;
+    const at = (path: string) => currentPage(pages, path)?.label;
+    expect(at('/people')).toBe('allPeople');
+    expect(at('/people/0b6c2a50-1111-4111-8111-111111111111')).toBe(
+      'allPeople',
+    );
+    expect(at('/people/new')).toBe('registerPerson');
+    expect(at('/people/changes/abc')).toBe('detailChanges');
   });
 });

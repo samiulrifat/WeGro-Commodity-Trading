@@ -745,15 +745,20 @@ export class Importer {
             ? await this.actor(resolve('person', p.fieldOfficerId))
             : admin;
         }
-        const res = await participants.register(registrar, {
-          role: p.role,
-          fullName: p.fullName,
-          phone: p.phone,
-          nid: p.nid,
-          dateOfBirth: p.dateOfBirth,
-          district: p.district,
-          address: p.address,
-        });
+        const res = await participants.register(
+          registrar,
+          {
+            role: p.role,
+            fullName: p.fullName,
+            phone: p.phone,
+            nid: p.nid,
+            dateOfBirth: p.dateOfBirth,
+            district: p.district,
+            address: p.address,
+          },
+          // The sign-in details are written to the credentials file instead.
+          { text: false },
+        );
         const id = res.participant.id;
         await participants.verify(
           isStaff(row) ? superAdmin! : admin!,

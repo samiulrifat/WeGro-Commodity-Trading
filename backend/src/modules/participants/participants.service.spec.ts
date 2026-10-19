@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -141,6 +140,7 @@ function world() {
     addressOf: (i: number) => `0x${String(i).padStart(40, '0')}`,
   };
   const tokens = { revokeAllForUser: jest.fn(() => Promise.resolve()) };
+  const sms = { send: jest.fn(() => Promise.resolve()) };
   const dataSource = {
     transaction: jest.fn((work: (m: unknown) => unknown) => work(manager)),
   };
@@ -155,6 +155,8 @@ function world() {
     contracts as never,
     receipts as never,
     tokens as never,
+    sms as never,
+    {} as never,
   );
   jest
     .spyOn(
@@ -162,7 +164,7 @@ function world() {
       'warn',
     )
     .mockImplementation(() => undefined);
-  return { service, users, details, ledger, chain, tokens, usersRepo };
+  return { service, users, details, ledger, chain, tokens, usersRepo, sms };
 }
 
 describe('ParticipantsService', () => {
@@ -201,13 +203,23 @@ describe('ParticipantsService', () => {
       });
       expect(res.temporaryPassword).toMatch(/^\w{4}-\w{4}-\w{4}$/);
       expect(user.passwordHash).toBe(`hash:${res.temporaryPassword}`);
+      // Texted to them as well, in the language chosen for them.
+      expect(res.smsSent).toBe(true);
+      expect(w.sms.send).toHaveBeenCalledWith(
+        '+8801711000001',
+        expect.stringContaining(res.temporaryPassword),
+      );
     });
 
-    it('lets only the super admin register staff, and admins or officers everyone else', async () => {
+    it('lets only the super admin register staff, field officers farmers, and admins everyone else', async () => {
       const w = world();
       await expect(
         w.service.register(admin, { role: Role.ACCOUNTS, ...person } as never),
       ).rejects.toThrow(ForbiddenException);
+      const refused = await w.service
+        .register(officer, { role: Role.INVESTOR, ...person } as never)
+        .catch((e: ForbiddenException) => e.getResponse());
+      expect(refused).toMatchObject({ code: 'FIELD_OFFICER_FARMERS_ONLY' });
       await expect(
         w.service.register(actor(Role.INVESTOR), {
           role: Role.FARMER,
@@ -263,14 +275,33 @@ describe('ParticipantsService', () => {
       expect(w.users).toEqual([]);
     });
 
-    it('keeps the person as submitted when the node fails, and says so with a 503', async () => {
+    it('keeps the person as submitted when the node fails, still handing over the password', async () => {
       const w = world();
       w.chain.fail(new Error('timeout'));
-      const err = await w.service
-        .register(admin, { role: Role.FARMER, ...person } as never)
-        .catch((e: unknown) => e);
-      expect((err as HttpException).getStatus()).toBe(503);
+      const res = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      expect(res.participant.chainState).toBe(ChainState.SUBMITTED);
+      expect(res.temporaryPassword).toBeTruthy();
       expect(w.users[0].chainState).toBe(ChainState.SUBMITTED);
+    });
+
+    it('registers even when the SMS cannot be sent, and says so', async () => {
+      const w = world();
+      w.sms.send.mockRejectedValueOnce(new Error('gateway down'));
+      jest
+        .spyOn(
+          (w.service as unknown as { logger: { error: () => void } }).logger,
+          'error',
+        )
+        .mockImplementation(() => undefined);
+      const res = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      expect(res.smsSent).toBe(false);
+      expect(res.participant.id).toBeTruthy();
     });
   });
 

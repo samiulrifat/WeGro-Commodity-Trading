@@ -142,15 +142,20 @@ export class DemoAccountsService implements OnApplicationBootstrap {
       ],
     });
     if (!user) {
-      const { participant } = await this.participants.register(registrar, {
-        role,
-        fullName: `Demo ${LABEL[role]}`,
-        phone,
-        nid: demoNid(role),
-        dateOfBirth: '1990-01-15',
-        district: 'BOGURA',
-        address: 'Made-up demo address, Bogura Sadar',
-      });
+      const { participant } = await this.participants.register(
+        registrar,
+        {
+          role,
+          fullName: `Demo ${LABEL[role]}`,
+          phone,
+          nid: demoNid(role),
+          dateOfBirth: '1990-01-15',
+          district: 'BOGURA',
+          address: 'Made-up demo address, Bogura Sadar',
+        },
+        // Demo numbers belong to nobody: nothing to text.
+        { text: false },
+      );
       user = await this.users.findOneByOrFail({ id: participant.id });
     } else {
       // Brings it back onto the ledger after a chain reset; no-op otherwise.

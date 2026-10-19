@@ -82,6 +82,14 @@ Routes are files under [src/routes](src/routes): one per page, and each page's c
 - `/forgot-password`: number, the 6-digit code from the SMS (locally, from the backend log), a new password; it ends signed in, every other device signed out.
 - Password fields can show what was typed; new passwords need 10 to 128 characters, typed twice ([password-rules.ts](src/app/auth/password-rules.ts)).
 
+## Signing up and People
+
+- `/sign-in` is WeGro's sign-in box: Sign in | Demo, and inside Sign in, Email | Phone (an email signs in once confirmed). Below the button, "Don't have an account? Register" leads to `/register`.
+- `/register`: investors and buyers sign up in steps (role, number confirmed by an SMS code, details as on the NID, password and an optional email), are registered and verified at once and signed in; an email given is then confirmed by a code, or later in My account. Farmers are registered by their field officer, everyone else by WeGro.
+- People (`/people`, [src/features/people](src/features/people)): the list with search by full number or NID (names are encrypted) and filters kept in the address; waiting for verification; registering someone in steps, the details checked on the server before anything is saved (each rule worded in en/bn, warnings shown, duplicates caught), the temporary password shown once and texted; a person's page (details masked for auditors) with verify (warnings acknowledged), reject with a reason, assign field officer, reset password, replace key, sync and a check against the ledger; details-change requests reviewed side by side. Field officers see "Farmers": their own, and registering a farmer.
+- Sections with several pages are a dropdown in the sidebar (one open at a time) and tabs under the page title on phones; the map is `pages` in [src/app/navigation.ts](src/app/navigation.ts), and a route names its page (`staticData: { area, page }`) so roles without it see "not available".
+- Shared pieces for a person's details: `PersonFields`, `ConfirmCodeBox` with `useConfirmCode` (a code to a number or address), `IdCheckList`.
+
 ## My account
 
 `/account`, for everyone signed in ([src/app/account](src/app/account)):

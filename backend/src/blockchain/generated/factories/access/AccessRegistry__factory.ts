@@ -88,6 +88,17 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "name": "NotSelfRegistrable",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "participantId",
         "type": "bytes32"
       }
@@ -912,6 +923,34 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "revokeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "participantId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "detailsHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "selfRegisterParticipant",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

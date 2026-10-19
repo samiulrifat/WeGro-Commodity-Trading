@@ -20,10 +20,46 @@ export const ID_CHECK_VERSION = 1;
 
 export type CheckResult = 'pass' | 'warn' | 'fail';
 
+/**
+ * Why a rule passed, warned or failed: one per outcome, so the app can word
+ * it in the reader's language (with `params`). `message` stays the English.
+ */
+export enum IdCheckReason {
+  NAME_OK = 'NAME_OK',
+  NAME_LENGTH = 'NAME_LENGTH',
+  NAME_CHARACTERS = 'NAME_CHARACTERS',
+  PHONE_OK = 'PHONE_OK',
+  PHONE_FORMAT = 'PHONE_FORMAT',
+  DATE_OF_BIRTH_INVALID = 'DATE_OF_BIRTH_INVALID',
+  DATE_OF_BIRTH_FUTURE = 'DATE_OF_BIRTH_FUTURE',
+  AGE_OK = 'AGE_OK',
+  AGE_UNDER = 'AGE_UNDER',
+  AGE_OVER = 'AGE_OVER',
+  DISTRICT_OK = 'DISTRICT_OK',
+  DISTRICT_UNKNOWN = 'DISTRICT_UNKNOWN',
+  ADDRESS_OK = 'ADDRESS_OK',
+  ADDRESS_LENGTH = 'ADDRESS_LENGTH',
+  ADDRESS_CONTROL = 'ADDRESS_CONTROL',
+  NID_OK = 'NID_OK',
+  NID_DIGITS = 'NID_DIGITS',
+  NID_LENGTH = 'NID_LENGTH',
+  NID_PLACEHOLDER = 'NID_PLACEHOLDER',
+  NID_BIRTH_YEAR_OK = 'NID_BIRTH_YEAR_OK',
+  NID_BIRTH_YEAR_UNCHECKED = 'NID_BIRTH_YEAR_UNCHECKED',
+  NID_BIRTH_YEAR_MISMATCH = 'NID_BIRTH_YEAR_MISMATCH',
+  NID_DISTRICT_OK = 'NID_DISTRICT_OK',
+  NID_DISTRICT_UNKNOWN = 'NID_DISTRICT_UNKNOWN',
+  NID_DISTRICT_DIFFERENT = 'NID_DISTRICT_DIFFERENT',
+}
+
 export interface CheckOutcome {
+  /** The rule (NAME, NID_FORMAT, ...). */
   code: string;
   result: CheckResult;
+  /** Absent on reports saved before reasons were recorded. */
+  reason?: IdCheckReason;
   message: string;
+  params?: Record<string, string | number>;
 }
 
 export interface IdCheckInput {
@@ -58,6 +94,10 @@ export interface IdCheckReport {
 
 export const MIN_AGE_YEARS = 18;
 const MAX_AGE_YEARS = 120;
+const NAME_MIN = 2;
+const NAME_MAX = 100;
+const ADDRESS_MIN = 5;
+const ADDRESS_MAX = 300;
 /** Dates are judged by the calendar day in Bangladesh (UTC+6, no DST). */
 const BD_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -104,35 +144,66 @@ export function runIdCheck(
   now = new Date(),
 ): IdCheckReport {
   const checks: CheckOutcome[] = [];
-  const add = (code: string, result: CheckResult, message: string) =>
-    checks.push({ code, result, message });
+  const add: Add = (code, result, reason, message, params) =>
+    checks.push(
+      params
+        ? { code, result, reason, message, params }
+        : { code, result, reason, message },
+    );
 
   const fullName = normaliseText(input.fullName);
   checkName(fullName, add);
 
   const phone = normalisePhone(input.phone);
-  if (phone) add('PHONE_FORMAT', 'pass', 'Bangladeshi mobile number');
-  else
+  if (phone) {
+    add(
+      'PHONE_FORMAT',
+      'pass',
+      IdCheckReason.PHONE_OK,
+      'Bangladeshi mobile number',
+    );
+  } else {
     add(
       'PHONE_FORMAT',
       'fail',
+      IdCheckReason.PHONE_FORMAT,
       'Phone must be a Bangladeshi mobile number: 01 then 9 digits (3rd digit 3-9), optionally starting +88',
     );
+  }
 
   const dob = parseDate(toAsciiDigits(input.dateOfBirth.trim()));
   checkDateOfBirth(dob, now, add);
 
   const district = input.district.trim().toUpperCase();
-  if (isDistrictCode(district)) add('DISTRICT', 'pass', 'Known district');
-  else add('DISTRICT', 'fail', 'District must be one of the 64 districts');
+  if (isDistrictCode(district)) {
+    add('DISTRICT', 'pass', IdCheckReason.DISTRICT_OK, 'Known district');
+  } else {
+    add(
+      'DISTRICT',
+      'fail',
+      IdCheckReason.DISTRICT_UNKNOWN,
+      'District must be one of the 64 districts',
+    );
+  }
 
   const address = normaliseText(input.address);
-  if (address.length < 5 || address.length > 300) {
-    add('ADDRESS', 'fail', 'Address must be 5 to 300 characters');
+  if (address.length < ADDRESS_MIN || address.length > ADDRESS_MAX) {
+    add(
+      'ADDRESS',
+      'fail',
+      IdCheckReason.ADDRESS_LENGTH,
+      `Address must be ${ADDRESS_MIN} to ${ADDRESS_MAX} characters`,
+      { min: ADDRESS_MIN, max: ADDRESS_MAX },
+    );
   } else if (/\p{Cc}/u.test(address)) {
-    add('ADDRESS', 'fail', 'Address contains control characters');
+    add(
+      'ADDRESS',
+      'fail',
+      IdCheckReason.ADDRESS_CONTROL,
+      'Address contains control characters',
+    );
   } else {
-    add('ADDRESS', 'pass', 'Address given');
+    add('ADDRESS', 'pass', IdCheckReason.ADDRESS_OK, 'Address given');
   }
 
   const nid = normaliseNid(input.nid);
@@ -157,23 +228,36 @@ export function runIdCheck(
   };
 }
 
-type Add = (code: string, result: CheckResult, message: string) => void;
+type Add = (
+  code: string,
+  result: CheckResult,
+  reason: IdCheckReason,
+  message: string,
+  params?: Record<string, string | number>,
+) => void;
 
 function checkName(name: string, add: Add): void {
   // Letters and combining marks (Bengali vowel signs are marks), with
   // spaces, dots, hyphens and apostrophes between them.
   const shape = /^[\p{L}\p{M}]+(?:[ .'-]+[\p{L}\p{M}]+)*\.?$/u;
   const letters = name.match(/\p{L}/gu)?.length ?? 0;
-  if (name.length < 2 || name.length > 100) {
-    add('NAME', 'fail', 'Name must be 2 to 100 characters');
+  if (name.length < NAME_MIN || name.length > NAME_MAX) {
+    add(
+      'NAME',
+      'fail',
+      IdCheckReason.NAME_LENGTH,
+      `Name must be ${NAME_MIN} to ${NAME_MAX} characters`,
+      { min: NAME_MIN, max: NAME_MAX },
+    );
   } else if (!shape.test(name) || letters < 2) {
     add(
       'NAME',
       'fail',
+      IdCheckReason.NAME_CHARACTERS,
       'Name may contain only letters, spaces, dots, hyphens and apostrophes',
     );
   } else {
-    add('NAME', 'pass', 'Name is well formed');
+    add('NAME', 'pass', IdCheckReason.NAME_OK, 'Name is well formed');
   }
 }
 
@@ -182,17 +266,44 @@ function checkDateOfBirth(dob: UtcDate | null, now: Date, add: Add): void {
     add(
       'DATE_OF_BIRTH',
       'fail',
+      IdCheckReason.DATE_OF_BIRTH_INVALID,
       'Date of birth must be a real date as YYYY-MM-DD',
     );
     return;
   }
   const age = ageOn(dob, bdToday(now));
-  if (age < 0) add('DATE_OF_BIRTH', 'fail', 'Date of birth is in the future');
-  else if (age < MIN_AGE_YEARS)
-    add('AGE', 'fail', `Must be at least ${MIN_AGE_YEARS} years old`);
-  else if (age > MAX_AGE_YEARS)
-    add('AGE', 'fail', `Age over ${MAX_AGE_YEARS} years is not plausible`);
-  else add('AGE', 'pass', `At least ${MIN_AGE_YEARS} years old`);
+  if (age < 0) {
+    add(
+      'DATE_OF_BIRTH',
+      'fail',
+      IdCheckReason.DATE_OF_BIRTH_FUTURE,
+      'Date of birth is in the future',
+    );
+  } else if (age < MIN_AGE_YEARS) {
+    add(
+      'AGE',
+      'fail',
+      IdCheckReason.AGE_UNDER,
+      `Must be at least ${MIN_AGE_YEARS} years old`,
+      { min: MIN_AGE_YEARS },
+    );
+  } else if (age > MAX_AGE_YEARS) {
+    add(
+      'AGE',
+      'fail',
+      IdCheckReason.AGE_OVER,
+      `Age over ${MAX_AGE_YEARS} years is not plausible`,
+      { max: MAX_AGE_YEARS },
+    );
+  } else {
+    add(
+      'AGE',
+      'pass',
+      IdCheckReason.AGE_OK,
+      `At least ${MIN_AGE_YEARS} years old`,
+      { min: MIN_AGE_YEARS },
+    );
+  }
 }
 
 function checkNid(
@@ -205,12 +316,18 @@ function checkNid(
     add(
       'NID_FORMAT',
       'fail',
+      IdCheckReason.NID_DIGITS,
       'NID may contain only digits (spaces and hyphens are ignored)',
     );
     return;
   }
   if (nid.length !== 10 && nid.length !== 13 && nid.length !== 17) {
-    add('NID_FORMAT', 'fail', 'NID must have 10 (smart card), 13 or 17 digits');
+    add(
+      'NID_FORMAT',
+      'fail',
+      IdCheckReason.NID_LENGTH,
+      'NID must have 10 (smart card), 13 or 17 digits',
+    );
     return;
   }
   if (
@@ -221,11 +338,14 @@ function checkNid(
     add(
       'NID_FORMAT',
       'fail',
+      IdCheckReason.NID_PLACEHOLDER,
       'NID is a placeholder pattern, not a real number',
     );
     return;
   }
-  add('NID_FORMAT', 'pass', `${nid.length}-digit NID`);
+  add('NID_FORMAT', 'pass', IdCheckReason.NID_OK, `${nid.length}-digit NID`, {
+    digits: nid.length,
+  });
 
   if (nid.length === 17) {
     // The 17-digit form is the birth year followed by the 13-digit NID.
@@ -234,16 +354,23 @@ function checkNid(
       add(
         'NID_BIRTH_YEAR',
         'fail',
+        IdCheckReason.NID_BIRTH_YEAR_UNCHECKED,
         'Cannot compare the NID birth year without a valid date of birth',
       );
     } else if (year !== dob.year) {
       add(
         'NID_BIRTH_YEAR',
         'fail',
+        IdCheckReason.NID_BIRTH_YEAR_MISMATCH,
         'The first 4 digits of a 17-digit NID must be the birth year',
       );
     } else {
-      add('NID_BIRTH_YEAR', 'pass', 'Birth year matches the NID');
+      add(
+        'NID_BIRTH_YEAR',
+        'pass',
+        IdCheckReason.NID_BIRTH_YEAR_OK,
+        'Birth year matches the NID',
+      );
     }
   }
 
@@ -255,16 +382,25 @@ function checkNid(
       add(
         'NID_DISTRICT',
         'warn',
+        IdCheckReason.NID_DISTRICT_UNKNOWN,
         'NID does not begin with a known district code',
       );
     } else if (district && issued !== district) {
+      // District names are public reference data, not the person's details.
       add(
         'NID_DISTRICT',
         'warn',
+        IdCheckReason.NID_DISTRICT_DIFFERENT,
         'NID was issued in a different district from the one given',
+        { issued, given: district },
       );
     } else {
-      add('NID_DISTRICT', 'pass', 'NID district code is valid');
+      add(
+        'NID_DISTRICT',
+        'pass',
+        IdCheckReason.NID_DISTRICT_OK,
+        'NID district code is valid',
+      );
     }
   }
 }

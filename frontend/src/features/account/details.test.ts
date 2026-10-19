@@ -5,8 +5,8 @@ import {
   localPhone,
   missingFields,
   OPERATOR_FIELDS,
-  requestOf,
-} from './details';
+} from '@/features/people/person';
+import { requestOf } from './details';
 
 const current = {
   fullName: 'Rahima Begum',

@@ -21,6 +21,11 @@ export enum SmsProvider {
   MEMORY = 'memory',
 }
 
+export enum EmailProvider {
+  LOG = 'log',
+  MEMORY = 'memory',
+}
+
 export enum NodeEnv {
   DEVELOPMENT = 'development',
   TEST = 'test',
@@ -106,12 +111,20 @@ export class EnvironmentVariables {
   IDENTITY_MASTER_KEY: string;
 
   /**
-   * Who sends text messages (password reset codes): `log` writes them to the
+   * Who sends text messages (codes, temporary passwords): `log` writes them to the
    * backend log (local work), `memory` keeps them for tests. A real SMS
    * provider is added here; production refuses both of these.
    */
   @IsEnum(SmsProvider)
   SMS_PROVIDER: SmsProvider = SmsProvider.LOG;
+
+  /**
+   * Who delivers email (codes confirming an address): `log` writes it to the
+   * log, `memory` keeps it for tests. A real provider is added here;
+   * production refuses both of these.
+   */
+  @IsEnum(EmailProvider)
+  EMAIL_PROVIDER: EmailProvider = EmailProvider.LOG;
 
   /** Ready-made accounts, one per role, with password-free login. Never in production. */
   @Transform(toBoolean)
@@ -277,6 +290,14 @@ export function validateEnv(
   ) {
     throw new Error(
       'Invalid environment configuration: set SMS_PROVIDER to a real SMS provider in production',
+    );
+  }
+  if (
+    env.NODE_ENV === NodeEnv.PRODUCTION &&
+    [EmailProvider.LOG, EmailProvider.MEMORY].includes(env.EMAIL_PROVIDER)
+  ) {
+    throw new Error(
+      'Invalid environment configuration: set EMAIL_PROVIDER to a real email provider in production',
     );
   }
   return env;

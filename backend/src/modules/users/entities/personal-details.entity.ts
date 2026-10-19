@@ -45,6 +45,10 @@ export class PersonalDetails {
   @Column({ type: 'text', nullable: true })
   addressEnc: string | null;
 
+  /** Their confirmed email address; not part of the ledger fingerprint. */
+  @Column({ type: 'text', nullable: true })
+  emailEnc: string | null;
+
   @Index('ix_personal_details_district')
   @Column({ type: 'varchar', length: 20, nullable: true })
   district: string | null;

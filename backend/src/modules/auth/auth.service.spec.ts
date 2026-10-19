@@ -61,6 +61,8 @@ describe('AuthService', () => {
     const codec = {
       phoneIndex: jest.fn((p: string) => `idx:${p}`),
       openName: jest.fn(() => 'Rahim Uddin'),
+      openEmail: jest.fn(() => null),
+      emailIndex: jest.fn((e: string) => `email:${e}`),
       open: jest.fn(() => ({
         fullName: 'Rahim Uddin',
         phone: '+8801711000000',
@@ -89,7 +91,7 @@ describe('AuthService', () => {
   describe('sign-in', () => {
     it('signs in with the right password, clearing failures', async () => {
       const { service, users, codec, tokens } = build();
-      const res = await service.login('+8801711000000', 'right');
+      const res = await service.login({ phone: '+8801711000000' }, 'right');
       expect(codec.phoneIndex).toHaveBeenCalledWith('+8801711000000');
       expect(users.update).toHaveBeenCalledWith(
         { id: 'u1' },
@@ -99,12 +101,35 @@ describe('AuthService', () => {
       expect(tokens.issue).toHaveBeenCalledTimes(1);
     });
 
+    it('signs in by a confirmed email address, however it is typed', async () => {
+      const { service, users, codec } = build();
+      await service.login({ email: '  Rahim@Example.COM ' }, 'right');
+      expect(codec.emailIndex).toHaveBeenCalledWith('rahim@example.com');
+      expect(users.findOne).toHaveBeenCalledWith({
+        where: { emailIndex: 'email:rahim@example.com' },
+      });
+    });
+
+    it('treats a number and an email together as unknown', async () => {
+      const { service, users, hasher } = build();
+      await expect(
+        service.login({ phone: PHONE, email: 'a@b.co' }, 'right'),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({}, 'right')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(users.findOne).not.toHaveBeenCalled();
+      expect(hasher.verifyDummy).toHaveBeenCalledTimes(2);
+    });
+
     it('spends the same hashing time on an unknown phone, with the same message', async () => {
       const { service, hasher } = build({ user: null });
-      const err = await service.login(PHONE, 'x').catch((e: unknown) => e);
+      const err = await service
+        .login({ phone: PHONE }, 'x')
+        .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(UnauthorizedException);
       expect((err as Error).message).toBe(
-        'Phone number or password is incorrect',
+        'Phone number, email or password is incorrect',
       );
       expect((err as HttpException).getResponse()).toMatchObject({
         code: 'BAD_CREDENTIALS',
@@ -114,7 +139,7 @@ describe('AuthService', () => {
 
     it('treats a malformed phone as unknown, without a lookup', async () => {
       const { service, users, hasher } = build();
-      await expect(service.login('12345', 'x')).rejects.toThrow(
+      await expect(service.login({ phone: '12345' }, 'x')).rejects.toThrow(
         UnauthorizedException,
       );
       expect(users.findOne).not.toHaveBeenCalled();
@@ -123,7 +148,7 @@ describe('AuthService', () => {
 
     it('counts a wrong password in one statement, against the lockout limit', async () => {
       const { service, manager } = build();
-      await expect(service.login(PHONE, 'wrong')).rejects.toThrow(
+      await expect(service.login({ phone: PHONE }, 'wrong')).rejects.toThrow(
         UnauthorizedException,
       );
       expect(manager.query).toHaveBeenCalledWith(
@@ -136,7 +161,9 @@ describe('AuthService', () => {
       const { service, hasher } = build({
         user: { lockedUntil: new Date(Date.now() + 90_000) },
       });
-      const err = await service.login(PHONE, 'right').catch((e: unknown) => e);
+      const err = await service
+        .login({ phone: PHONE }, 'right')
+        .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(429);
       expect((err as Error).message).toContain('2 minutes');
@@ -150,30 +177,34 @@ describe('AuthService', () => {
 
     it('only says why an account cannot sign in once the password is right', async () => {
       const rejected = build({ user: { status: ParticipantStatus.REJECTED } });
-      await expect(rejected.service.login(PHONE, 'wrong')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(rejected.service.login(PHONE, 'right')).rejects.toThrow(
+      await expect(
+        rejected.service.login({ phone: PHONE }, 'wrong'),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        rejected.service.login({ phone: PHONE }, 'right'),
+      ).rejects.toThrow(
         new ForbiddenException('This account was not approved'),
       );
       const unconfirmed = build({
         user: { chainState: ChainState.SUBMITTED },
       });
-      await expect(unconfirmed.service.login(PHONE, 'right')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        unconfirmed.service.login({ phone: PHONE }, 'right'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('lets a pending participant sign in to see their status', async () => {
       const { service } = build({
         user: { status: ParticipantStatus.PENDING },
       });
-      await expect(service.login(PHONE, 'right')).resolves.toBeDefined();
+      await expect(
+        service.login({ phone: PHONE }, 'right'),
+      ).resolves.toBeDefined();
     });
 
     it('upgrades an old password hash on a good sign-in', async () => {
       const { service, users } = build({ rehash: true });
-      await service.login(PHONE, 'right');
+      await service.login({ phone: PHONE }, 'right');
       expect(users.update).toHaveBeenCalledWith(
         { id: 'u1' },
         expect.objectContaining({ passwordHash: 'hash:right' }),

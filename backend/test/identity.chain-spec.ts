@@ -19,6 +19,10 @@ import {
   ParticipantStatus,
   Role,
 } from '../src/modules/users/roles';
+import {
+  EmailSender,
+  MemoryEmailSender,
+} from '../src/modules/auth/email/email-sender';
 import { MemorySmsSender, SmsSender } from '../src/modules/auth/sms/sms-sender';
 import { normalisePhone } from '../src/modules/participants/id-check/id-check';
 import { type ChainApp, startChainApp } from './support/chain-app';
@@ -719,8 +723,8 @@ describe('Identity (node + database)', () => {
     /** As if this number's codes were asked for `seconds` earlier. */
     const ago = (phone: string, seconds: number) =>
       db.query(
-        `UPDATE sms_codes SET created_at = created_at - make_interval(secs => $2)
-          WHERE phone_index = $1`,
+        `UPDATE verification_codes SET created_at = created_at - make_interval(secs => $2)
+          WHERE target_index = $1`,
         [
           chain.app
             .get(PersonalDetailsCodec)
@@ -756,7 +760,7 @@ describe('Identity (node + database)', () => {
     it('makes you wait before another code, and the new code replaces the old', async () => {
       const first = codeFor(who.phone);
       const wait = await ask(who.phone).expect(429);
-      expect(wait.body).toMatchObject({ code: 'SMS_CODE_WAIT' });
+      expect(wait.body).toMatchObject({ code: 'CODE_WAIT' });
       expect(wait.body.details.seconds).toBeGreaterThan(0);
       expect(wait.body.details.seconds).toBeLessThanOrEqual(60);
       await ago(who.phone, 61);
@@ -765,7 +769,7 @@ describe('Identity (node + database)', () => {
       const second = codeFor(who.phone);
       if (first !== second) {
         expect((await check(who.phone, first).expect(422)).body.code).toBe(
-          'SMS_CODE_WRONG',
+          'CODE_WRONG',
         );
       }
       const ok = await check(who.phone, second).expect(200);
@@ -780,15 +784,15 @@ describe('Identity (node + database)', () => {
       for (const left of [4, 3, 2, 1]) {
         const res = await check(who.phone, wrong(code)).expect(422);
         expect(res.body).toMatchObject({
-          code: 'SMS_CODE_WRONG',
+          code: 'CODE_WRONG',
           details: { attemptsLeft: left },
         });
       }
       const last = await check(who.phone, wrong(code)).expect(422);
-      expect(last.body.code).toBe('SMS_CODE_EXPIRED');
+      expect(last.body.code).toBe('CODE_EXPIRED');
       // Closed: even the right code no longer works.
       expect((await check(who.phone, code).expect(422)).body.code).toBe(
-        'SMS_CODE_EXPIRED',
+        'CODE_EXPIRED',
       );
     });
 
@@ -797,10 +801,10 @@ describe('Identity (node + database)', () => {
       await ask(who.phone).expect(200);
       await new Promise((r) => setTimeout(r, 50));
       await db.query(
-        `UPDATE sms_codes SET expires_at = now() - interval '1 second' WHERE closed_at IS NULL`,
+        `UPDATE verification_codes SET expires_at = now() - interval '1 second' WHERE closed_at IS NULL`,
       );
       const res = await check(who.phone, codeFor(who.phone)).expect(422);
-      expect(res.body.code).toBe('SMS_CODE_EXPIRED');
+      expect(res.body.code).toBe('CODE_EXPIRED');
     });
 
     it('sets the new password, clears a lockout, ends other sessions and signs in', async () => {
@@ -851,7 +855,7 @@ describe('Identity (node + database)', () => {
         .expect(401);
       // Used up.
       expect((await check(who.phone, code).expect(422)).body.code).toBe(
-        'SMS_CODE_EXPIRED',
+        'CODE_EXPIRED',
       );
     });
 
@@ -879,7 +883,7 @@ describe('Identity (node + database)', () => {
         await ago(stranger, 61);
       }
       const res = await ask(stranger).expect(429);
-      expect(res.body).toMatchObject({ code: 'SMS_CODE_TOO_MANY' });
+      expect(res.body).toMatchObject({ code: 'CODE_TOO_MANY' });
       expect(res.body.details.minutes).toBeGreaterThan(0);
     });
 
@@ -1016,7 +1020,7 @@ describe('Identity (node + database)', () => {
         )
         .expect(422);
       expect(bad.body).toMatchObject({
-        code: 'SMS_CODE_WRONG',
+        code: 'CODE_WRONG',
         details: { attemptsLeft: 4 },
       });
 
@@ -1211,6 +1215,264 @@ describe('Identity (node + database)', () => {
         needsApproval: false,
         change: null,
         current: { fullName: 'Test Super Admin Renamed' },
+      });
+    });
+  });
+
+  describe('registration as of item 9', () => {
+    const sent = () => (chain.app.get(SmsSender) as MemorySmsSender).outbox;
+    const smsTo = (phone: string) =>
+      sent()
+        .filter((m) => m.phone === normalisePhone(phone))
+        .at(-1)?.text ?? '';
+    const codeIn = (text: string) => /\b(\d{6})\b/.exec(text)?.[1] ?? '';
+    const as = (token: string) => ({
+      get: (path: string) =>
+        http.get(`/api${path}`).auth(token, { type: 'bearer' }),
+      post: (path: string, body: object = {}) =>
+        http.post(`/api${path}`).auth(token, { type: 'bearer' }).send(body),
+      delete: (path: string) =>
+        http.delete(`/api${path}`).auth(token, { type: 'bearer' }),
+    });
+
+    it('lets field officers register farmers only', async () => {
+      for (const role of [Role.INVESTOR, Role.SUPPLIER, Role.BUYER]) {
+        const res = await register(officer.token, person(role)).expect(403);
+        expect(res.body.code).toBe('FIELD_OFFICER_FARMERS_ONLY');
+      }
+    });
+
+    it('checks a registration without saving it, worded by reason', async () => {
+      const body = person(Role.INVESTOR, {
+        nid: `1988${'26'}${String(randomInt(1e10, 1e11))}`,
+      });
+      const res = await as(admin.token)
+        .post('/participants/check', body)
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        outcome: 'flagged',
+        phoneTaken: false,
+        nidTaken: false,
+      });
+      expect(res.body.data.checks).toContainEqual(
+        expect.objectContaining({
+          code: 'NID_DISTRICT',
+          result: 'warn',
+          reason: 'NID_DISTRICT_DIFFERENT',
+          params: { issued: 'DHAKA', given: 'BOGURA' },
+        }),
+      );
+      const [{ n }] = await db.query(
+        `SELECT count(*)::int AS n FROM users u JOIN personal_details d ON d.user_id = u.id WHERE u.phone_index = $1`,
+        [
+          chain.app
+            .get(PersonalDetailsCodec)
+            .phoneIndex(normalisePhone(body.phone)!),
+        ],
+      );
+      expect(n).toBe(0);
+
+      // Taken details and failed rules, all at once.
+      const taken = await as(admin.token)
+        .post('/participants/check', {
+          ...person(Role.FARMER),
+          phone: admin.phone,
+          nid: farmer.nid,
+          dateOfBirth: '2015-01-01',
+        })
+        .expect(200);
+      expect(taken.body.data).toMatchObject({
+        outcome: 'failed',
+        phoneTaken: true,
+        nidTaken: true,
+      });
+      expect(
+        taken.body.data.checks.filter(
+          (c: { result: string }) => c.result === 'fail',
+        ),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ reason: 'AGE_UNDER', params: { min: 18 } }),
+        ]),
+      );
+      // A field officer may check farmers only, as they register.
+      await as(officer.token)
+        .post('/participants/check', person(Role.BUYER))
+        .expect(403);
+    });
+
+    it('texts the temporary password in the language chosen for them', async () => {
+      const body = { ...person(Role.BUYER), language: 'bn' };
+      const res = await register(admin.token, body as never).expect(201);
+      const { temporaryPassword, smsSent, participant } = res.body.data;
+      expect(smsSent).toBe(true);
+      expect(smsTo(body.phone)).toContain(temporaryPassword);
+      expect(smsTo(body.phone)).toContain('অস্থায়ী পাসওয়ার্ড');
+      const first = await login(body.phone, temporaryPassword);
+      expect(first.mustChange).toBe(true);
+
+      // A reset is texted too, ending the sessions it had.
+      const reset = await as(admin.token)
+        .post(`/participants/${participant.id}/reset-password`)
+        .expect(200);
+      expect(reset.body.data.smsSent).toBe(true);
+      expect(smsTo(body.phone)).toContain(reset.body.data.temporaryPassword);
+    });
+
+    it('names the registrar and the field officer on the detail', async () => {
+      const res = await as(admin.token)
+        .get(`/participants/${farmer.id}`)
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        selfRegistered: false,
+        registeredBy: { id: officer.id, name: 'Test field officer' },
+        // Reassigned to another officer earlier on.
+        fieldOfficer: { id: expect.any(String), name: 'Test field officer' },
+        email: null,
+      });
+    });
+
+    describe('signing up', () => {
+      const me = person(Role.INVESTOR);
+      const password = 'my-own-password-1';
+      let id: string;
+      let token: string;
+
+      it('sends a code only to a number not yet registered', async () => {
+        const taken = await http
+          .post('/api/auth/sign-up/code')
+          .send({ phone: admin.phone })
+          .expect(409);
+        expect(taken.body.code).toBe('PHONE_ALREADY_REGISTERED');
+        await http
+          .post('/api/auth/sign-up/code')
+          .send({ phone: me.phone, language: 'en' })
+          .expect(200);
+        expect(smsTo(me.phone)).toMatch(/your sign-up code is \d{6}/);
+      });
+
+      it('refuses other roles, a wrong code and a failed ID check', async () => {
+        const { role: _role, ...details } = me;
+        const base = { ...details, password };
+        await http
+          .post('/api/auth/sign-up')
+          .send({ ...base, role: 'farmer', phoneCode: '123456' })
+          .expect(400);
+        const code = codeIn(smsTo(me.phone));
+        const wrong = await http
+          .post('/api/auth/sign-up')
+          .send({
+            ...base,
+            role: 'investor',
+            phoneCode: code === '000000' ? '111111' : '000000',
+          })
+          .expect(422);
+        expect(wrong.body).toMatchObject({
+          code: 'CODE_WRONG',
+          details: { attemptsLeft: 4 },
+        });
+        const failed = await http
+          .post('/api/auth/sign-up')
+          .send({ ...base, role: 'investor', phoneCode: code, address: 'x' })
+          .expect(422);
+        expect(failed.body.code).toBe('ID_CHECK_FAILED');
+      });
+
+      it('registers and verifies them on the ledger, and signs them in', async () => {
+        const { role: _role, ...details } = me;
+        const res = await http
+          .post('/api/auth/sign-up')
+          .send({
+            ...details,
+            role: 'investor',
+            password,
+            language: 'bn',
+            phoneCode: codeIn(smsTo(me.phone)),
+          })
+          .expect(201);
+        expect(res.headers['set-cookie'][0]).toMatch(/^wegro_rt=/);
+        expect(res.body.data).toMatchObject({
+          mustChangePassword: false,
+          user: { role: 'investor', status: 'verified', language: 'bn' },
+        });
+        id = res.body.data.user.id;
+        token = res.body.data.accessToken;
+        await expect(
+          contracts
+            .get('AccessRegistry')
+            .isVerifiedAs(uuidToBytes32(id), CHAIN_ROLE[Role.INVESTOR]),
+        ).resolves.toBe(true);
+        const detail = await as(admin.token)
+          .get(`/participants/${id}`)
+          .expect(200);
+        expect(detail.body.data).toMatchObject({
+          selfRegistered: true,
+          registeredBy: null,
+          chainState: 'confirmed',
+          status: 'verified',
+        });
+        const integrity = await as(admin.token)
+          .get(`/participants/${id}/integrity`)
+          .expect(200);
+        expect(integrity.body.data.matches).toBe(true);
+        // The code is used up; their own password signs in.
+        await login(me.phone, password);
+      });
+
+      it('confirms an email address by code, which then signs in', async () => {
+        const outbox = (chain.app.get(EmailSender) as MemoryEmailSender).outbox;
+        const address = `Investor.${phoneSeq}@Example.com`;
+        await as(token)
+          .post('/auth/me/email/code', { email: 'nope' })
+          .expect(400);
+        await as(token)
+          .post('/auth/me/email/code', { email: address })
+          .expect(200);
+        const mail = outbox.at(-1)!;
+        expect(mail.to).toBe(address.toLowerCase());
+        const code = codeIn(mail.text);
+
+        const wrong = await as(token)
+          .post('/auth/me/email', {
+            email: address,
+            code: code === '000000' ? '111111' : '000000',
+          })
+          .expect(422);
+        expect(wrong.body.code).toBe('CODE_WRONG');
+        const saved = await as(token)
+          .post('/auth/me/email', { email: address, code })
+          .expect(200);
+        expect(saved.body.data.email).toBe(address.toLowerCase());
+
+        const byEmail = await http
+          .post('/api/auth/login')
+          .send({ email: ` ${address.toUpperCase()} `, password })
+          .expect(200);
+        expect(byEmail.body.data.user.id).toBe(id);
+
+        // Nobody else may take it; it is theirs already.
+        await as(admin.token)
+          .post('/auth/me/email/code', { email: address })
+          .expect(409);
+        const same = await as(token)
+          .post('/auth/me/email/code', { email: address })
+          .expect(422);
+        expect(same.body.code).toBe('EMAIL_UNCHANGED');
+        const shown = await as(admin.token)
+          .get(`/participants/${id}`)
+          .expect(200);
+        expect(shown.body.data.email).toBe(address.toLowerCase());
+
+        // Taken off, it no longer signs in.
+        const removed = await as(token).delete('/auth/me/email').expect(200);
+        expect(removed.body.data.email).toBeNull();
+        await http
+          .post('/api/auth/login')
+          .send({ email: address, password })
+          .expect(401);
+        expect(
+          (await as(token).delete('/auth/me/email').expect(404)).body.code,
+        ).toBe('EMAIL_NOT_SET');
       });
     });
   });

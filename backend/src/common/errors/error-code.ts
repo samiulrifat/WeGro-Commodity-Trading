@@ -35,7 +35,7 @@ export enum ErrorCode {
   AMOUNT_NOT_POSITIVE = 'AMOUNT_NOT_POSITIVE',
   /** Auditors have read-only access */
   AUDITOR_READ_ONLY = 'AUDITOR_READ_ONLY',
-  /** Phone number or password is incorrect */
+  /** Phone number, email or password is incorrect */
   BAD_CREDENTIALS = 'BAD_CREDENTIALS',
   /** These details are already verified */
   BANK_DETAILS_ALREADY_VERIFIED = 'BANK_DETAILS_ALREADY_VERIFIED',
@@ -87,6 +87,14 @@ export enum ErrorCode {
   CLAIM_PHOTO_NOT_FOUND = 'CLAIM_PHOTO_NOT_FOUND',
   /** This claim is {status} */
   CLAIM_WRONG_STATUS = 'CLAIM_WRONG_STATUS',
+  /** This code has expired (or had too many wrong tries). Ask for a new one. */
+  CODE_EXPIRED = 'CODE_EXPIRED',
+  /** Too many codes for this number or address. Try again in {minutes} minutes. */
+  CODE_TOO_MANY = 'CODE_TOO_MANY',
+  /** Wait {seconds} seconds before asking for another code */
+  CODE_WAIT = 'CODE_WAIT',
+  /** That code is not right. {attemptsLeft} tries left. */
+  CODE_WRONG = 'CODE_WRONG',
   /** Not possible in the current state */
   CONFLICT = 'CONFLICT',
   /** Consent not found */
@@ -131,6 +139,12 @@ export enum ErrorCode {
   DRAFT_NEVER_PUBLISHED = 'DRAFT_NEVER_PUBLISHED',
   /** The same id appears twice in this batch */
   DUPLICATE_IN_BATCH = 'DUPLICATE_IN_BATCH',
+  /** This email address is already in use */
+  EMAIL_ALREADY_REGISTERED = 'EMAIL_ALREADY_REGISTERED',
+  /** There is no email address on this account */
+  EMAIL_NOT_SET = 'EMAIL_NOT_SET',
+  /** This is already your email address */
+  EMAIL_UNCHANGED = 'EMAIL_UNCHANGED',
   /** This id was already used for a different record */
   ENTRY_ID_REUSED = 'ENTRY_ID_REUSED',
   /** The cover does not include this kind of event (see coveredEventTypes) */
@@ -155,6 +169,8 @@ export enum ErrorCode {
   FARMER_NOT_FOUND = 'FARMER_NOT_FOUND',
   /** Farm updates are recorded from funding until the produce is ready for sale */
   FARM_UPDATE_WRONG_STAGE = 'FARM_UPDATE_WRONG_STAGE',
+  /** Field officers register farmers only */
+  FIELD_OFFICER_FARMERS_ONLY = 'FIELD_OFFICER_FARMERS_ONLY',
   /** officerId must be a verified field officer */
   FIELD_OFFICER_INVALID = 'FIELD_OFFICER_INVALID',
   /** Field record not found */
@@ -441,14 +457,6 @@ export enum ErrorCode {
   SITE_NAME_EXISTS = 'SITE_NAME_EXISTS',
   /** Site not found */
   SITE_NOT_FOUND = 'SITE_NOT_FOUND',
-  /** This code has expired (or had too many wrong tries). Ask for a new one. */
-  SMS_CODE_EXPIRED = 'SMS_CODE_EXPIRED',
-  /** Too many codes for this number. Try again in {minutes} minutes. */
-  SMS_CODE_TOO_MANY = 'SMS_CODE_TOO_MANY',
-  /** Wait {seconds} seconds before asking for another code */
-  SMS_CODE_WAIT = 'SMS_CODE_WAIT',
-  /** That code is not right. {attemptsLeft} tries left. */
-  SMS_CODE_WRONG = 'SMS_CODE_WRONG',
   /** Only the super admin manages staff */
   STAFF_MANAGED_BY_SUPER_ADMIN = 'STAFF_MANAGED_BY_SUPER_ADMIN',
   /** Only the super admin registers staff */

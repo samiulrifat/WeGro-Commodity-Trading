@@ -18,9 +18,12 @@ export function AppShell() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const session = useAppSelector((s) => s.session);
-  const area = useMatches({
-    select: (matches) =>
-      matches.findLast((m) => m.staticData.area)?.staticData.area,
+  const { area, page } = useMatches({
+    select: (matches) => {
+      const data = matches.findLast((m) => m.staticData.area)?.staticData;
+      return { area: data?.area, page: data?.page };
+    },
+    structuralSharing: true,
   });
 
   // Signed out here or elsewhere (a failed renewal): back to sign-in.
@@ -52,7 +55,7 @@ export function AppShell() {
           id="main"
           className="w-full max-w-7xl flex-1 p-4 pb-24 sm:p-6 lg:pb-6"
         >
-          {access(session, area) === 'ok' ? <Outlet /> : <NoAccessPage />}
+          {access(session, area, page) === 'ok' ? <Outlet /> : <NoAccessPage />}
         </main>
       </div>
       <BottomBar items={items} />

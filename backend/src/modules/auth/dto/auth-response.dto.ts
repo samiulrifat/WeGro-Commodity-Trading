@@ -77,6 +77,13 @@ export class MeResponseDto {
 
   @ApiProperty(LANGUAGE)
   language: Language | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Confirmed email address; it signs in like the number',
+  })
+  email: string | null;
 }
 
 export class DemoAccountDto {
@@ -87,8 +94,8 @@ export class DemoAccountDto {
   fullName: string;
 }
 
-/** The same answer whether or not the number is registered. */
-export class PasswordResetRequestedDto {
+/** A code is on its way (for a reset: the same answer whether or not the number is registered). */
+export class CodeSentDto {
   @ApiProperty({
     example: 60,
     description: 'Before another code may be asked for',

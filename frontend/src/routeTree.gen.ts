@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as DesignRouteImport } from './routes/design'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
@@ -29,6 +30,9 @@ import { Route as AppMarketplaceIndexRouteImport } from './routes/_app/marketpla
 import { Route as AppOffersIndexRouteImport } from './routes/_app/offers/index'
 import { Route as AppPayoutsIndexRouteImport } from './routes/_app/payouts/index'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
+import { Route as AppPeoplePersonIdRouteImport } from './routes/_app/people/$personId'
+import { Route as AppPeopleNewRouteImport } from './routes/_app/people/new'
+import { Route as AppPeoplePendingRouteImport } from './routes/_app/people/pending'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects/index'
 import { Route as AppRequestsIndexRouteImport } from './routes/_app/requests/index'
 import { Route as AppStatementIndexRouteImport } from './routes/_app/statement/index'
@@ -37,6 +41,8 @@ import { Route as AppTrackRecordsIndexRouteImport } from './routes/_app/track-re
 import { Route as AppVouchersIndexRouteImport } from './routes/_app/vouchers/index'
 import { Route as AppWarehouseIndexRouteImport } from './routes/_app/warehouse/index'
 import { Route as AppBankFarmersIndexRouteImport } from './routes/_app/bank/farmers/index'
+import { Route as AppPeopleChangesIndexRouteImport } from './routes/_app/people/changes/index'
+import { Route as AppPeopleChangesChangeIdRouteImport } from './routes/_app/people/changes/$changeId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -55,6 +61,11 @@ const DesignRoute = DesignRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -137,6 +148,21 @@ const AppPeopleIndexRoute = AppPeopleIndexRouteImport.update({
   path: '/people/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPeoplePersonIdRoute = AppPeoplePersonIdRouteImport.update({
+  id: '/people/$personId',
+  path: '/people/$personId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleNewRoute = AppPeopleNewRouteImport.update({
+  id: '/people/new',
+  path: '/people/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeoplePendingRoute = AppPeoplePendingRouteImport.update({
+  id: '/people/pending',
+  path: '/people/pending',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
@@ -177,16 +203,31 @@ const AppBankFarmersIndexRoute = AppBankFarmersIndexRouteImport.update({
   path: '/bank/farmers/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPeopleChangesIndexRoute = AppPeopleChangesIndexRouteImport.update({
+  id: '/people/changes/',
+  path: '/people/changes/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleChangesChangeIdRoute =
+  AppPeopleChangesChangeIdRouteImport.update({
+    id: '/people/changes/$changeId',
+    path: '/people/changes/$changeId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/design': typeof DesignRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/register': typeof RegisterRoute
   '/sign-in': typeof SignInRoute
   '/account': typeof AppAccountRoute
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
+  '/people/$personId': typeof AppPeoplePersonIdRoute
+  '/people/new': typeof AppPeopleNewRoute
+  '/people/pending': typeof AppPeoplePendingRoute
   '/audit/': typeof AppAuditIndexRoute
   '/batches/': typeof AppBatchesIndexRoute
   '/catalog/': typeof AppCatalogIndexRoute
@@ -205,17 +246,23 @@ export interface FileRoutesByFullPath {
   '/track-records/': typeof AppTrackRecordsIndexRoute
   '/vouchers/': typeof AppVouchersIndexRoute
   '/warehouse/': typeof AppWarehouseIndexRoute
+  '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/bank/farmers/': typeof AppBankFarmersIndexRoute
+  '/people/changes/': typeof AppPeopleChangesIndexRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/design': typeof DesignRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/register': typeof RegisterRoute
   '/sign-in': typeof SignInRoute
   '/account': typeof AppAccountRoute
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
   '/': typeof AppIndexRoute
+  '/people/$personId': typeof AppPeoplePersonIdRoute
+  '/people/new': typeof AppPeopleNewRoute
+  '/people/pending': typeof AppPeoplePendingRoute
   '/audit': typeof AppAuditIndexRoute
   '/batches': typeof AppBatchesIndexRoute
   '/catalog': typeof AppCatalogIndexRoute
@@ -234,7 +281,9 @@ export interface FileRoutesByTo {
   '/track-records': typeof AppTrackRecordsIndexRoute
   '/vouchers': typeof AppVouchersIndexRoute
   '/warehouse': typeof AppWarehouseIndexRoute
+  '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/bank/farmers': typeof AppBankFarmersIndexRoute
+  '/people/changes': typeof AppPeopleChangesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -242,11 +291,15 @@ export interface FileRoutesById {
   '/change-password': typeof ChangePasswordRoute
   '/design': typeof DesignRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/register': typeof RegisterRoute
   '/sign-in': typeof SignInRoute
   '/_app/account': typeof AppAccountRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/status': typeof AppStatusRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/people/$personId': typeof AppPeoplePersonIdRoute
+  '/_app/people/new': typeof AppPeopleNewRoute
+  '/_app/people/pending': typeof AppPeoplePendingRoute
   '/_app/audit/': typeof AppAuditIndexRoute
   '/_app/batches/': typeof AppBatchesIndexRoute
   '/_app/catalog/': typeof AppCatalogIndexRoute
@@ -265,7 +318,9 @@ export interface FileRoutesById {
   '/_app/track-records/': typeof AppTrackRecordsIndexRoute
   '/_app/vouchers/': typeof AppVouchersIndexRoute
   '/_app/warehouse/': typeof AppWarehouseIndexRoute
+  '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/_app/bank/farmers/': typeof AppBankFarmersIndexRoute
+  '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -274,10 +329,14 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/design'
     | '/forgot-password'
+    | '/register'
     | '/sign-in'
     | '/account'
     | '/notifications'
     | '/status'
+    | '/people/$personId'
+    | '/people/new'
+    | '/people/pending'
     | '/audit/'
     | '/batches/'
     | '/catalog/'
@@ -296,17 +355,23 @@ export interface FileRouteTypes {
     | '/track-records/'
     | '/vouchers/'
     | '/warehouse/'
+    | '/people/changes/$changeId'
     | '/bank/farmers/'
+    | '/people/changes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
     | '/design'
     | '/forgot-password'
+    | '/register'
     | '/sign-in'
     | '/account'
     | '/notifications'
     | '/status'
     | '/'
+    | '/people/$personId'
+    | '/people/new'
+    | '/people/pending'
     | '/audit'
     | '/batches'
     | '/catalog'
@@ -325,18 +390,24 @@ export interface FileRouteTypes {
     | '/track-records'
     | '/vouchers'
     | '/warehouse'
+    | '/people/changes/$changeId'
     | '/bank/farmers'
+    | '/people/changes'
   id:
     | '__root__'
     | '/_app'
     | '/change-password'
     | '/design'
     | '/forgot-password'
+    | '/register'
     | '/sign-in'
     | '/_app/account'
     | '/_app/notifications'
     | '/_app/status'
     | '/_app/'
+    | '/_app/people/$personId'
+    | '/_app/people/new'
+    | '/_app/people/pending'
     | '/_app/audit/'
     | '/_app/batches/'
     | '/_app/catalog/'
@@ -355,7 +426,9 @@ export interface FileRouteTypes {
     | '/_app/track-records/'
     | '/_app/vouchers/'
     | '/_app/warehouse/'
+    | '/_app/people/changes/$changeId'
     | '/_app/bank/farmers/'
+    | '/_app/people/changes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -363,6 +436,7 @@ export interface RootRouteChildren {
   ChangePasswordRoute: typeof ChangePasswordRoute
   DesignRoute: typeof DesignRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  RegisterRoute: typeof RegisterRoute
   SignInRoute: typeof SignInRoute
 }
 
@@ -394,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -508,6 +589,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeopleIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/people/$personId': {
+      id: '/_app/people/$personId'
+      path: '/people/$personId'
+      fullPath: '/people/$personId'
+      preLoaderRoute: typeof AppPeoplePersonIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/people/new': {
+      id: '/_app/people/new'
+      path: '/people/new'
+      fullPath: '/people/new'
+      preLoaderRoute: typeof AppPeopleNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/people/pending': {
+      id: '/_app/people/pending'
+      path: '/people/pending'
+      fullPath: '/people/pending'
+      preLoaderRoute: typeof AppPeoplePendingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/projects/': {
       id: '/_app/projects/'
       path: '/projects'
@@ -564,6 +666,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankFarmersIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/people/changes/': {
+      id: '/_app/people/changes/'
+      path: '/people/changes'
+      fullPath: '/people/changes/'
+      preLoaderRoute: typeof AppPeopleChangesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/people/changes/$changeId': {
+      id: '/_app/people/changes/$changeId'
+      path: '/people/changes/$changeId'
+      fullPath: '/people/changes/$changeId'
+      preLoaderRoute: typeof AppPeopleChangesChangeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -572,6 +688,9 @@ interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppStatusRoute: typeof AppStatusRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
+  AppPeopleNewRoute: typeof AppPeopleNewRoute
+  AppPeoplePendingRoute: typeof AppPeoplePendingRoute
   AppAuditIndexRoute: typeof AppAuditIndexRoute
   AppBatchesIndexRoute: typeof AppBatchesIndexRoute
   AppCatalogIndexRoute: typeof AppCatalogIndexRoute
@@ -590,7 +709,9 @@ interface AppRouteChildren {
   AppTrackRecordsIndexRoute: typeof AppTrackRecordsIndexRoute
   AppVouchersIndexRoute: typeof AppVouchersIndexRoute
   AppWarehouseIndexRoute: typeof AppWarehouseIndexRoute
+  AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
   AppBankFarmersIndexRoute: typeof AppBankFarmersIndexRoute
+  AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -598,6 +719,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
   AppStatusRoute: AppStatusRoute,
   AppIndexRoute: AppIndexRoute,
+  AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
+  AppPeopleNewRoute: AppPeopleNewRoute,
+  AppPeoplePendingRoute: AppPeoplePendingRoute,
   AppAuditIndexRoute: AppAuditIndexRoute,
   AppBatchesIndexRoute: AppBatchesIndexRoute,
   AppCatalogIndexRoute: AppCatalogIndexRoute,
@@ -616,7 +740,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackRecordsIndexRoute: AppTrackRecordsIndexRoute,
   AppVouchersIndexRoute: AppVouchersIndexRoute,
   AppWarehouseIndexRoute: AppWarehouseIndexRoute,
+  AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
   AppBankFarmersIndexRoute: AppBankFarmersIndexRoute,
+  AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -626,6 +752,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChangePasswordRoute: ChangePasswordRoute,
   DesignRoute: DesignRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  RegisterRoute: RegisterRoute,
   SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport

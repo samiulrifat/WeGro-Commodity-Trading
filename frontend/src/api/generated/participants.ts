@@ -36,6 +36,17 @@ const injectedRtkApi = api
         }),
         providesTags: ['Participants'],
       }),
+      participantsCheck: build.mutation<
+        ParticipantsCheckApiResponse,
+        ParticipantsCheckApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/participants/check`,
+          method: 'POST',
+          body: queryArg.registerParticipantDto,
+        }),
+        invalidatesTags: ['Participants'],
+      }),
       participantsFindOne: build.query<
         ParticipantsFindOneApiResponse,
         ParticipantsFindOneApiArg
@@ -232,6 +243,13 @@ export type ParticipantsListApiArg = {
   /** Exact NID match (13- and 17-digit forms are equivalent) */
   nid?: string;
 };
+export type ParticipantsCheckApiResponse =
+  /** status 200 The ID check and duplicate checks of a registration, nothing saved: what the registrar confirms before registering */ {
+    data: RegistrationCheckDto;
+  };
+export type ParticipantsCheckApiArg = {
+  registerParticipantDto: RegisterParticipantDto;
+};
 export type ParticipantsFindOneApiResponse = /** status 200  */ {
   data: ParticipantDetailDto;
 };
@@ -289,7 +307,7 @@ export type DetailChangesMineApiResponse = /** status 200  */ {
 export type DetailChangesMineApiArg = void;
 export type DetailChangesPhoneCodeApiResponse =
   /** status 200 Texts a 6-digit code to the new number */ {
-    data: PasswordResetRequestedDto;
+    data: CodeSentDto;
   };
 export type DetailChangesPhoneCodeApiArg = {
   phoneCodeRequestDto: PhoneCodeRequestDto;
@@ -335,10 +353,47 @@ export type DetailChangesRejectApiArg = {
   id: string;
   rejectDetailChangeDto: RejectDetailChangeDto;
 };
+export type PersonNameDto = {
+  id: string;
+  name: string;
+};
+export type IdCheckReason =
+  | 'NAME_OK'
+  | 'NAME_LENGTH'
+  | 'NAME_CHARACTERS'
+  | 'PHONE_OK'
+  | 'PHONE_FORMAT'
+  | 'DATE_OF_BIRTH_INVALID'
+  | 'DATE_OF_BIRTH_FUTURE'
+  | 'AGE_OK'
+  | 'AGE_UNDER'
+  | 'AGE_OVER'
+  | 'DISTRICT_OK'
+  | 'DISTRICT_UNKNOWN'
+  | 'ADDRESS_OK'
+  | 'ADDRESS_LENGTH'
+  | 'ADDRESS_CONTROL'
+  | 'NID_OK'
+  | 'NID_DIGITS'
+  | 'NID_LENGTH'
+  | 'NID_PLACEHOLDER'
+  | 'NID_BIRTH_YEAR_OK'
+  | 'NID_BIRTH_YEAR_UNCHECKED'
+  | 'NID_BIRTH_YEAR_MISMATCH'
+  | 'NID_DISTRICT_OK'
+  | 'NID_DISTRICT_UNKNOWN'
+  | 'NID_DISTRICT_DIFFERENT';
 export type IdCheckItemDto = {
+  /** The rule */
   code: string;
   result: 'pass' | 'warn' | 'fail';
+  /** Why: worded in the app with `params`. Absent on checks saved before reasons were recorded. */
+  reason?: IdCheckReason;
+  /** The English wording */
   message: string;
+  params?: {
+    [key: string]: string | number;
+  };
 };
 export type IdCheckDto = {
   version: number;
@@ -379,13 +434,22 @@ export type ParticipantDetailDto = {
   statusReason?: string | null;
   statusChangedAt?: string | null;
   registeredById?: string | null;
+  registeredBy?: PersonNameDto | null;
+  /** Signed up themselves (an investor or buyer), rather than registered by staff */
+  selfRegistered: boolean;
+  /** A farmer’s field officer */
+  fieldOfficer?: PersonNameDto | null;
+  /** Their confirmed email address (masked for auditors) */
+  email?: string | null;
   registrationTx?: string | null;
   idCheck?: IdCheckDto | null;
 };
 export type RegisteredParticipantDto = {
   participant: ParticipantDetailDto;
-  /** Shown once, never stored in readable form. Hand it to the person; they must change it at first sign-in. */
+  /** Shown once, never stored in readable form. Also sent to them by SMS; they must change it at first sign-in. */
   temporaryPassword: string;
+  /** Whether the SMS with the temporary password went out; if not, hand it over in person */
+  smsSent: boolean;
 };
 export type District =
   | 'BARGUNA'
@@ -452,6 +516,7 @@ export type District =
   | 'MOULVIBAZAR'
   | 'SUNAMGANJ'
   | 'SYLHET';
+export type Language = 'en' | 'bn';
 export type RegisterParticipantDto = {
   role:
     | 'investor'
@@ -474,6 +539,8 @@ export type RegisterParticipantDto = {
   dateOfBirth: string;
   district: District;
   address: string;
+  /** The language WeGro writes to them in (SMS, the app); English if not given */
+  language?: Language;
 };
 export type ParticipantSummaryDto = {
   id: string;
@@ -507,6 +574,15 @@ export type PageMetaDto = {
   total: number;
   totalPages: number;
 };
+export type RegistrationCheckDto = {
+  /** failed: cannot be registered as given; flagged: can, an admin acknowledges the warnings when verifying */
+  outcome: 'passed' | 'flagged' | 'failed';
+  checks: IdCheckItemDto[];
+  /** Someone is already registered with this number */
+  phoneTaken: boolean;
+  /** Someone is already registered with this NID */
+  nidTaken: boolean;
+};
 export type VerifyParticipantDto = {
   /** Required when the ID check flagged something: confirms the admin has reviewed the flags */
   acknowledgeFlags?: boolean;
@@ -519,8 +595,10 @@ export type AssignFieldOfficerDto = {
   officerId: string;
 };
 export type TemporaryPasswordDto = {
-  /** Shown once. All existing sessions of the person were ended. */
+  /** Shown once, and sent to them by SMS. All existing sessions of the person were ended. */
   temporaryPassword: string;
+  /** Whether the SMS went out */
+  smsSent: boolean;
 };
 export type LedgerParticipantDto = {
   status: 'none' | 'pending' | 'verified' | 'rejected';
@@ -583,7 +661,7 @@ export type MyDetailsDto = {
   /** False for the super admin, whose changes apply at once */
   needsApproval: boolean;
 };
-export type PasswordResetRequestedDto = {
+export type CodeSentDto = {
   /** Before another code may be asked for */
   resendAfterSeconds: number;
   /** How long the code is good for */
@@ -603,10 +681,6 @@ export type DetailChangeRequestDto = {
   address?: string;
   /** The code sent to a new number (POST me/details/phone-code) */
   phoneCode?: string;
-};
-export type PersonNameDto = {
-  id: string;
-  name: string;
 };
 export type DetailChangeSummaryDto = {
   id: string;
@@ -673,6 +747,7 @@ export const {
   useParticipantsRegisterMutation,
   useParticipantsListQuery,
   useLazyParticipantsListQuery,
+  useParticipantsCheckMutation,
   useParticipantsFindOneQuery,
   useLazyParticipantsFindOneQuery,
   useParticipantsVerifyMutation,

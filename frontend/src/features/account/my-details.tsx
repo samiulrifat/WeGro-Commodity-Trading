@@ -28,7 +28,11 @@ import {
 import { errorText } from '@/i18n/text';
 import { useFormat } from '@/i18n/use-format';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { DETAIL_FIELDS, localPhone, OPERATOR_FIELDS } from './details';
+import {
+  DETAIL_FIELDS,
+  localPhone,
+  OPERATOR_FIELDS,
+} from '@/features/people/person';
 import { DetailsForm } from './details-form';
 
 /**
@@ -144,9 +148,7 @@ function Details({
     >
       {fields.map((f) => (
         <div key={f} className={f === 'address' ? 'sm:col-span-2' : undefined}>
-          <dt className="text-sm text-muted-foreground">
-            {t(`account.details.${f}`)}
-          </dt>
+          <dt className="text-sm text-muted-foreground">{t(`person.${f}`)}</dt>
           <dd className="font-medium">{shown(f, values[f])}</dd>
         </div>
       ))}

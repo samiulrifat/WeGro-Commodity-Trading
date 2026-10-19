@@ -53,6 +53,14 @@ export class User extends BaseEntity {
   @Column({ type: 'char', length: 64 })
   phoneIndex: string;
 
+  /**
+   * Blind index of their confirmed email address, which signs in like the
+   * phone number; null until they confirm one.
+   */
+  @Index('uq_users_email_index', { unique: true })
+  @Column({ type: 'char', length: 64, nullable: true })
+  emailIndex: string | null;
+
   @Column({ type: 'varchar', length: 200 })
   passwordHash: string;
 

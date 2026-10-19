@@ -60,6 +60,7 @@ export async function startChainApp(
     // background would race the test for keys and the super admin.
     DEMO_MODE: 'false',
     SMS_PROVIDER: 'memory',
+    EMAIL_PROVIDER: 'memory',
     ...env,
     DATABASE_URL: url,
   });

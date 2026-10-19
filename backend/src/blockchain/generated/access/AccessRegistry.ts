@@ -13,7 +13,7 @@ export declare namespace AccessRegistry {
     }
 
   export interface AccessRegistryInterface extends Interface {
-    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "OPERATIONS_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
+    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "OPERATIONS_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
 
@@ -47,6 +47,7 @@ encodeFunctionData(functionFragment: 'registerParticipant', values: [BytesLike, 
 encodeFunctionData(functionFragment: 'rejectParticipant', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'renounceRole', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'revokeRole', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'selfRegisterParticipant', values: [BytesLike, BytesLike, AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'updateDetailsHash', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'verifyParticipant', values: [BytesLike]): string;
@@ -81,6 +82,7 @@ decodeFunctionResult(functionFragment: 'registerParticipant', data: BytesLike): 
 decodeFunctionResult(functionFragment: 'rejectParticipant', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceRole', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'revokeRole', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'selfRegisterParticipant', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'updateDetailsHash', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Result;
@@ -457,6 +459,14 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
     
 
     
+    selfRegisterParticipant: TypedContractMethod<
+      [participantId: BytesLike, role: BytesLike, account: AddressLike, detailsHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
@@ -630,6 +640,11 @@ getFunction(nameOrSignature: 'renounceRole'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'revokeRole'): TypedContractMethod<
       [role: BytesLike, account: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'selfRegisterParticipant'): TypedContractMethod<
+      [participantId: BytesLike, role: BytesLike, account: AddressLike, detailsHash: BytesLike, ],
       [void],
       'nonpayable'
     >;

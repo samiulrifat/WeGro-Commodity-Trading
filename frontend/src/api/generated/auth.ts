@@ -54,6 +54,35 @@ const injectedRtkApi = api
           invalidatesTags: ['Auth'],
         },
       ),
+      authRequestEmailCode: build.mutation<
+        AuthRequestEmailCodeApiResponse,
+        AuthRequestEmailCodeApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/auth/me/email/code`,
+          method: 'POST',
+          body: queryArg.emailCodeRequestDto,
+        }),
+        invalidatesTags: ['Auth'],
+      }),
+      authConfirmEmail: build.mutation<
+        AuthConfirmEmailApiResponse,
+        AuthConfirmEmailApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/auth/me/email`,
+          method: 'POST',
+          body: queryArg.confirmEmailDto,
+        }),
+        invalidatesTags: ['Auth'],
+      }),
+      authRemoveEmail: build.mutation<
+        AuthRemoveEmailApiResponse,
+        AuthRemoveEmailApiArg
+      >({
+        query: () => ({ url: `/api/auth/me/email`, method: 'DELETE' }),
+        invalidatesTags: ['Auth'],
+      }),
       authRequestReset: build.mutation<
         AuthRequestResetApiResponse,
         AuthRequestResetApiArg
@@ -105,6 +134,27 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Auth'],
       }),
+      signUpRequestCode: build.mutation<
+        SignUpRequestCodeApiResponse,
+        SignUpRequestCodeApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/auth/sign-up/code`,
+          method: 'POST',
+          body: queryArg.signUpCodeRequestDto,
+        }),
+        invalidatesTags: ['Auth'],
+      }),
+      signUpCreate: build.mutation<SignUpCreateApiResponse, SignUpCreateApiArg>(
+        {
+          query: (queryArg) => ({
+            url: `/api/auth/sign-up`,
+            method: 'POST',
+            body: queryArg.signUpDto,
+          }),
+          invalidatesTags: ['Auth'],
+        },
+      ),
     }),
     overrideExisting: false,
   });
@@ -139,9 +189,27 @@ export type AuthUpdateMeApiResponse = /** status 200  */ {
 export type AuthUpdateMeApiArg = {
   updateMeDto: UpdateMeDto;
 };
+export type AuthRequestEmailCodeApiResponse =
+  /** status 200 Emails a 6-digit code to the address, to confirm it */ {
+    data: CodeSentDto;
+  };
+export type AuthRequestEmailCodeApiArg = {
+  emailCodeRequestDto: EmailCodeRequestDto;
+};
+export type AuthConfirmEmailApiResponse =
+  /** status 200 Saves the address with its code; it signs in from then on */ {
+    data: MeResponseDto;
+  };
+export type AuthConfirmEmailApiArg = {
+  confirmEmailDto: ConfirmEmailDto;
+};
+export type AuthRemoveEmailApiResponse = /** status 200  */ {
+  data: MeResponseDto;
+};
+export type AuthRemoveEmailApiArg = void;
 export type AuthRequestResetApiResponse =
   /** status 200 Sends a 6-digit code by SMS if the number is registered; the answer is the same either way */ {
-    data: PasswordResetRequestedDto;
+    data: CodeSentDto;
   };
 export type AuthRequestResetApiArg = {
   passwordResetRequestDto: PasswordResetRequestDto;
@@ -170,6 +238,20 @@ export type AuthDemoLoginApiResponse =
   };
 export type AuthDemoLoginApiArg = {
   demoLoginDto: DemoLoginDto;
+};
+export type SignUpRequestCodeApiResponse =
+  /** status 200 Texts a 6-digit code to the number, unless it is registered */ {
+    data: CodeSentDto;
+  };
+export type SignUpRequestCodeApiArg = {
+  signUpCodeRequestDto: SignUpCodeRequestDto;
+};
+export type SignUpCreateApiResponse =
+  /** status 201 Registers and verifies them on the ledger, and signs them in */ {
+    data: TokenResponseDto;
+  };
+export type SignUpCreateApiArg = {
+  signUpDto: SignUpDto;
 };
 export type Language = 'en' | 'bn';
 export type SessionUserDto = {
@@ -203,7 +285,9 @@ export type TokenResponseDto = {
 };
 export type LoginDto = {
   /** Bangladeshi mobile number; 01…, 8801…, +8801… and Bengali digits are accepted */
-  phone: string;
+  phone?: string;
+  /** A confirmed email address, instead of the number */
+  email?: string;
   password: string;
 };
 export type ChangePasswordDto = {
@@ -236,15 +320,25 @@ export type MeResponseDto = {
   isDemo: boolean;
   /** The language the person chose; null until chosen (English) */
   language: Language | null;
+  /** Confirmed email address; it signs in like the number */
+  email?: string | null;
 };
 export type UpdateMeDto = {
   language: Language;
 };
-export type PasswordResetRequestedDto = {
+export type CodeSentDto = {
   /** Before another code may be asked for */
   resendAfterSeconds: number;
   /** How long the code is good for */
   expiresInSeconds: number;
+};
+export type EmailCodeRequestDto = {
+  email: string;
+};
+export type ConfirmEmailDto = {
+  email: string;
+  /** The 6 digits from the email */
+  code: string;
 };
 export type PasswordResetRequestDto = {
   phone: string;
@@ -296,6 +390,92 @@ export type DemoLoginDto = {
     | 'insurer'
     | 'auditor';
 };
+export type SignUpCodeRequestDto = {
+  phone: string;
+  /** The language of the SMS */
+  language?: Language;
+};
+export type District =
+  | 'BARGUNA'
+  | 'BARISHAL'
+  | 'BHOLA'
+  | 'JHALOKATI'
+  | 'PATUAKHALI'
+  | 'PIROJPUR'
+  | 'BANDARBAN'
+  | 'BRAHMANBARIA'
+  | 'CHANDPUR'
+  | 'CHATTOGRAM'
+  | 'CUMILLA'
+  | 'COXS_BAZAR'
+  | 'FENI'
+  | 'KHAGRACHHARI'
+  | 'LAKSHMIPUR'
+  | 'NOAKHALI'
+  | 'RANGAMATI'
+  | 'DHAKA'
+  | 'FARIDPUR'
+  | 'GAZIPUR'
+  | 'GOPALGANJ'
+  | 'KISHOREGANJ'
+  | 'MADARIPUR'
+  | 'MANIKGANJ'
+  | 'MUNSHIGANJ'
+  | 'NARAYANGANJ'
+  | 'NARSINGDI'
+  | 'RAJBARI'
+  | 'SHARIATPUR'
+  | 'TANGAIL'
+  | 'BAGERHAT'
+  | 'CHUADANGA'
+  | 'JASHORE'
+  | 'JHENAIDAH'
+  | 'KHULNA'
+  | 'KUSHTIA'
+  | 'MAGURA'
+  | 'MEHERPUR'
+  | 'NARAIL'
+  | 'SATKHIRA'
+  | 'JAMALPUR'
+  | 'MYMENSINGH'
+  | 'NETROKONA'
+  | 'SHERPUR'
+  | 'BOGURA'
+  | 'JOYPURHAT'
+  | 'NAOGAON'
+  | 'NATORE'
+  | 'CHAPAI_NAWABGANJ'
+  | 'PABNA'
+  | 'RAJSHAHI'
+  | 'SIRAJGANJ'
+  | 'DINAJPUR'
+  | 'GAIBANDHA'
+  | 'KURIGRAM'
+  | 'LALMONIRHAT'
+  | 'NILPHAMARI'
+  | 'PANCHAGARH'
+  | 'RANGPUR'
+  | 'THAKURGAON'
+  | 'HABIGANJ'
+  | 'MOULVIBAZAR'
+  | 'SUNAMGANJ'
+  | 'SYLHET';
+export type SignUpDto = {
+  fullName: string;
+  phone: string;
+  /** 10-digit smart card NID, or the old 13- or 17-digit NID */
+  nid: string;
+  /** YYYY-MM-DD */
+  dateOfBirth: string;
+  district: District;
+  address: string;
+  /** The language WeGro writes to them in (SMS, the app); English if not given */
+  language?: Language;
+  role: 'investor' | 'buyer';
+  /** The 6 digits from the SMS */
+  phoneCode: string;
+  password: string;
+};
 export const {
   useAuthLoginMutation,
   useAuthRefreshMutation,
@@ -305,10 +485,15 @@ export const {
   useAuthMeQuery,
   useLazyAuthMeQuery,
   useAuthUpdateMeMutation,
+  useAuthRequestEmailCodeMutation,
+  useAuthConfirmEmailMutation,
+  useAuthRemoveEmailMutation,
   useAuthRequestResetMutation,
   useAuthVerifyResetMutation,
   useAuthCompleteResetMutation,
   useAuthDemoAccountsQuery,
   useLazyAuthDemoAccountsQuery,
   useAuthDemoLoginMutation,
+  useSignUpRequestCodeMutation,
+  useSignUpCreateMutation,
 } = injectedRtkApi;

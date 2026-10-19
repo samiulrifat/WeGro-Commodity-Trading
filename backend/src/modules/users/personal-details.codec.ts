@@ -19,7 +19,12 @@ export interface PlainDetails {
 }
 
 type EncryptedField =
-  'fullNameEnc' | 'phoneEnc' | 'nidEnc' | 'dateOfBirthEnc' | 'addressEnc';
+  | 'fullNameEnc'
+  | 'phoneEnc'
+  | 'nidEnc'
+  | 'dateOfBirthEnc'
+  | 'addressEnc'
+  | 'emailEnc';
 
 /** Fingerprint layout version, part of the hashed data. */
 const FINGERPRINT_VERSION = 1;
@@ -36,15 +41,34 @@ export class PersonalDetailsCodec {
     return this.crypto.blindIndex('phone', normalisedPhone);
   }
 
+  /** Of a normalised (trimmed, lower-case) address. */
+  emailIndex(normalisedEmail: string): string {
+    return this.crypto.blindIndex('email', normalisedEmail);
+  }
+
+  sealEmail(userId: string, email: string): string {
+    return this.crypto.encrypt(email, context(userId, 'emailEnc'));
+  }
+
+  openEmail(row: Pick<PersonalDetails, 'userId' | 'emailEnc'>): string | null {
+    return row.emailEnc
+      ? this.crypto.decrypt(row.emailEnc, context(row.userId, 'emailEnc'))
+      : null;
+  }
+
   /** 13- and 17-digit forms of the same old NID share one index. */
   nidIndex(nid: string): string {
     return this.crypto.blindIndex('nid', nidIdentity(nid));
   }
 
+  /** The identity details (never the email, which is kept apart). */
   seal(
     userId: string,
     d: NormalisedDetails,
-  ): Omit<PersonalDetails, 'updatedAt' | 'user' | 'detailsHash' | 'idCheck'> {
+  ): Omit<
+    PersonalDetails,
+    'updatedAt' | 'user' | 'detailsHash' | 'idCheck' | 'emailEnc'
+  > {
     const enc = (field: EncryptedField, value: string) =>
       this.crypto.encrypt(value, context(userId, field));
     return {

@@ -10,6 +10,7 @@ import { DetailChangeRequest } from './entities/detail-change-request.entity';
 import { ParticipantLedgerSync } from './participant-ledger.sync';
 import { ParticipantsController } from './participants.controller';
 import { ParticipantsService } from './participants.service';
+import { SignUpController } from './sign-up.controller';
 
 /** Practice ID check, registration and everything AccessRegistry records about people. */
 @Module({
@@ -19,7 +20,11 @@ import { ParticipantsService } from './participants.service';
     NotificationsModule,
     TypeOrmModule.forFeature([DetailChangeRequest]),
   ],
-  controllers: [ParticipantsController, DetailChangesController],
+  controllers: [
+    ParticipantsController,
+    DetailChangesController,
+    SignUpController,
+  ],
   providers: [
     ParticipantsService,
     ParticipantLedgerSync,

@@ -1,6 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsEmail,
   IsEnum,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -13,15 +15,29 @@ import {
 import { Language } from '../../users/language';
 import { Role } from '../../users/roles';
 
+/** Longest address the mail standards allow. */
+export const EMAIL_MAX_LENGTH = 254;
+
+/** Signs in by number or by confirmed email address: give one of the two. */
 export class LoginDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '01712345678',
     description:
       'Bangladeshi mobile number; 01…, 8801…, +8801… and Bengali digits are accepted',
   })
+  @IsOptional()
   @IsString()
   @MaxLength(32)
-  phone: string;
+  phone?: string;
+
+  @ApiPropertyOptional({
+    example: 'rahim@example.com',
+    description: 'A confirmed email address, instead of the number',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(EMAIL_MAX_LENGTH)
+  email?: string;
 
   @ApiProperty({ format: 'password' })
   @IsString()
@@ -59,6 +75,24 @@ export class UpdateMeDto {
   @ApiProperty({ enum: Language, enumName: 'Language' })
   @IsEnum(Language)
   language: Language;
+}
+
+/** Send a code to this address, to confirm it is mine. */
+export class EmailCodeRequestDto {
+  @ApiProperty({ example: 'rahim@example.com' })
+  @IsEmail()
+  @MaxLength(EMAIL_MAX_LENGTH)
+  email: string;
+}
+
+/** The address again, with the code emailed to it. */
+export class ConfirmEmailDto extends EmailCodeRequestDto {
+  @ApiProperty({
+    example: '482913',
+    description: 'The 6 digits from the email',
+  })
+  @Matches(/^\d{6}$/)
+  code: string;
 }
 
 /** Forgotten password, step 1: send a code to this number. */

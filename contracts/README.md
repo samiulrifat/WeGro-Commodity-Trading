@@ -20,7 +20,7 @@ The ledger behind the WeGro platform: nine Solidity contracts that hold every bu
 | `SettlementLedger` | Project costs, staged and final payout rounds, and payment of each line |
 | `ConsentRegistry` | Banks and their officers, farmers' track records, and bank permissions with every view logged |
 
-`AccessGuarded` is the base each contract uses to check roles through `AccessRegistry`. `Roles` lists the twelve roles: investor, farmer, field officer, admin, accounts, operations, warehouse, bank, supplier, buyer, insurer and auditor. The deploying account holds the super admin role and registers staff.
+`AccessGuarded` is the base each contract uses to check roles through `AccessRegistry`. `Roles` lists the twelve roles: investor, farmer, field officer, admin, accounts, operations, warehouse, bank, supplier, buyer, insurer and auditor. The deploying account holds the super admin role and registers staff. Admins register every other role; field officers register farmers only (who are then assigned to them). Investors and buyers who sign up in the app are registered and verified at once by the platform's key (`selfRegisterParticipant`).
 
 ## Commands
 

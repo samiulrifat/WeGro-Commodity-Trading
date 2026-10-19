@@ -33,6 +33,7 @@ import {
   ParticipantDetailDto,
   ParticipantSummaryDto,
   RegisteredParticipantDto,
+  RegistrationCheckDto,
   TemporaryPasswordDto,
 } from './dto/participant-response.dto';
 import { ParticipantsService } from './participants.service';
@@ -57,6 +58,21 @@ export class ParticipantsController {
     @Body() dto: RegisterParticipantDto,
   ): Promise<RegisteredParticipantDto> {
     return this.participants.register(actor, dto);
+  }
+
+  @Post('check')
+  @HttpCode(HttpStatus.OK)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FIELD_OFFICER)
+  @ApiOkResponse({
+    type: RegistrationCheckDto,
+    description:
+      'The ID check and duplicate checks of a registration, nothing saved: what the registrar confirms before registering',
+  })
+  check(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: RegisterParticipantDto,
+  ): Promise<RegistrationCheckDto> {
+    return this.participants.check(actor, dto);
   }
 
   @Get()

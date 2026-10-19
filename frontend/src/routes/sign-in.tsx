@@ -19,16 +19,18 @@ import { AuthPage } from '@/app/auth/auth-page';
 import { FormError } from '@/app/auth/form-error';
 import { internalPath } from '@/app/auth/landing';
 import { PasswordInput } from '@/app/auth/password-input';
+import { SegmentedChoice } from '@/app/auth/segmented-choice';
 import { landingFor, type Role } from '@/app/navigation';
 import { InstallApp, InstallIcon } from '@/app/pwa/install-app';
 import { ensureSession, SessionUnknownError } from '@/app/session';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorText } from '@/i18n/text';
 import { latinDigits } from '@/lib/format';
+import { storage } from '@/lib/storage';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { sessionStarted } from '@/store/session-slice';
 
@@ -57,9 +59,21 @@ function SignInPage() {
   const demo = useAuthDemoAccountsQuery();
   const form = <PasswordSignIn />;
   return (
-    <AuthPage title={t('signIn.title')}>
+    <AuthPage
+      title={t('signIn.title')}
+      intro={t('signIn.intro')}
+      after={
+        <InstallApp
+          render={(open) => (
+            <Button variant="outline" onClick={open}>
+              <InstallIcon /> {t('pwa.install')}
+            </Button>
+          )}
+        />
+      }
+    >
       {ended && (
-        <Alert polite>
+        <Alert polite className="mb-5">
           <Info />
           <AlertDescription>{t('signIn.sessionEnded')}</AlertDescription>
         </Alert>
@@ -78,13 +92,6 @@ function SignInPage() {
       ) : (
         form
       )}
-      <InstallApp
-        render={(open) => (
-          <Button variant="outline" className="self-start" onClick={open}>
-            <InstallIcon /> {t('pwa.install')}
-          </Button>
-        )}
-      />
     </AuthPage>
   );
 }
@@ -99,26 +106,49 @@ function useSignedIn() {
   };
 }
 
-/** Phone and password. A temporary password leads on to choosing one's own. */
+type Method = 'email' | 'phone';
+const METHOD_KEY = 'wegro.signInBy';
+
+/** How this device signed in last: the number unless it was an email. */
+const lastMethod = (): Method =>
+  storage.get(METHOD_KEY) === 'email' ? 'email' : 'phone';
+
+/**
+ * Number (or confirmed email) and password. A temporary password leads on to
+ * choosing one's own. Below: signing up, for those without an account.
+ */
 function PasswordSignIn() {
   const { t } = useTranslation();
   const signedIn = useSignedIn();
   const [login, { isLoading }] = useAuthLoginMutation();
+  const [method, setMethod] = useState<Method>(lastMethod);
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const missingPhone = tried && !phone.trim();
+  const who = method === 'phone' ? phone.trim() : email.trim();
+  const missingWho = tried && !who;
   const missingPassword = tried && !password;
+
+  function choose(next: Method) {
+    setMethod(next);
+    setTried(false);
+    setError(null);
+    storage.set(METHOD_KEY, next);
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTried(true);
-    if (!phone.trim() || !password) return;
+    if (!who || !password) return;
     setError(null);
     try {
       const { data } = await login({
-        loginDto: { phone: latinDigits(phone.trim()), password },
+        loginDto:
+          method === 'phone'
+            ? { phone: latinDigits(who), password }
+            : { email: who, password },
       }).unwrap();
       await signedIn(data);
     } catch (e) {
@@ -128,19 +158,47 @@ function PasswordSignIn() {
 
   return (
     <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-5">
-      <Field data-invalid={missingPhone || undefined}>
-        <FieldLabel htmlFor="sign-in-phone">{t('signIn.phone')}</FieldLabel>
-        <Input
-          id="sign-in-phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="username"
-          value={phone}
-          aria-invalid={missingPhone || undefined}
-          onChange={(e) => setPhone(e.target.value)}
-        />
-        {missingPhone && <FieldError>{t('signIn.phoneRequired')}</FieldError>}
-      </Field>
+      <SegmentedChoice
+        legend={t('signIn.method')}
+        className="justify-self-center"
+        value={method}
+        onChange={choose}
+        options={[
+          { value: 'email', label: t('signIn.byEmail') },
+          { value: 'phone', label: t('signIn.byPhone') },
+        ]}
+      />
+      {method === 'phone' ? (
+        <Field data-invalid={missingWho || undefined}>
+          <FieldLabel htmlFor="sign-in-phone">{t('signIn.phone')}</FieldLabel>
+          <Input
+            id="sign-in-phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="username"
+            placeholder={t('signIn.phonePlaceholder')}
+            value={phone}
+            aria-invalid={missingWho || undefined}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          {missingWho && <FieldError>{t('signIn.phoneRequired')}</FieldError>}
+        </Field>
+      ) : (
+        <Field data-invalid={missingWho || undefined}>
+          <FieldLabel htmlFor="sign-in-email">{t('signIn.email')}</FieldLabel>
+          <Input
+            id="sign-in-email"
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            placeholder={t('signIn.emailPlaceholder')}
+            value={email}
+            aria-invalid={missingWho || undefined}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          {missingWho && <FieldError>{t('signIn.emailRequired')}</FieldError>}
+        </Field>
+      )}
       <Field data-invalid={missingPassword || undefined}>
         <FieldLabel htmlFor="sign-in-password">
           {t('signIn.password')}
@@ -148,6 +206,7 @@ function PasswordSignIn() {
         <PasswordInput
           id="sign-in-password"
           autoComplete="current-password"
+          placeholder={t('signIn.passwordPlaceholder')}
           value={password}
           aria-invalid={missingPassword || undefined}
           onChange={(e) => setPassword(e.target.value)}
@@ -155,18 +214,29 @@ function PasswordSignIn() {
         {missingPassword && (
           <FieldError>{t('signIn.passwordRequired')}</FieldError>
         )}
+        <Link
+          to="/forgot-password"
+          search={
+            method === 'phone' && phone.trim() ? { phone: phone.trim() } : {}
+          }
+          className="self-end text-sm font-medium underline underline-offset-4 hover:text-primary"
+        >
+          {t('signIn.forgot')}
+        </Link>
       </Field>
       <FormError error={error} />
-      <Button type="submit" size="lg" disabled={isLoading}>
+      <Button type="submit" variant="ink" size="lg" disabled={isLoading}>
         {isLoading ? t('signIn.signingIn') : t('signIn.submit')}
       </Button>
-      <Link
-        to="/forgot-password"
-        search={phone.trim() ? { phone: phone.trim() } : {}}
-        className="justify-self-start text-sm font-semibold text-primary underline-offset-4 hover:underline"
-      >
-        {t('signIn.forgot')}
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t pt-5 text-sm">
+        <span className="text-muted-foreground">{t('signIn.noAccount')}</span>
+        <Link
+          to="/register"
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
+          {t('signIn.register')}
+        </Link>
+      </div>
     </form>
   );
 }

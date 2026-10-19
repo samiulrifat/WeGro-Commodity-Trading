@@ -9,6 +9,7 @@ const LISTS = {
   LedgerErrorCode: 'Why the ledger itself refused (contract error name).',
   ValidationRule: 'What an input check found wrong with a field.',
   District: 'The 64 districts, by the code the API uses (BOGURA).',
+  IdCheckReason: 'Why an ID check rule passed, warned or failed.',
 };
 
 const doc = await (await fetch(url)).json();

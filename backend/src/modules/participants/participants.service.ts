@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { getAddress } from 'ethers';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
@@ -26,9 +26,16 @@ import { Paginated } from '../../common/dto/pagination.dto';
 import { PasswordHasher } from '../../common/crypto/password-hasher.service';
 import { generateTemporaryPassword } from '../../common/crypto/temporary-password';
 import type { AuthUser } from '../auth/auth-user';
+import { CodePurpose } from '../auth/entities/verification-code.entity';
+import { SmsSender } from '../auth/sms/sms-sender';
+import {
+  type CodeIssued,
+  VerificationCodeService,
+} from '../auth/verification-code.service';
 import { TokenService } from '../auth/token.service';
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { ChainState, User } from '../users/entities/user.entity';
+import type { Language } from '../users/language';
 import {
   type PlainDetails,
   PersonalDetailsCodec,
@@ -46,12 +53,15 @@ import type {
   ListParticipantsQueryDto,
   RegisterParticipantDto,
 } from './dto/participant-request.dto';
+import type { SignUpDto } from './dto/sign-up.dto';
 import type {
   IntegrityReportDto,
   LedgerParticipantDto,
   ParticipantDetailDto,
   ParticipantSummaryDto,
   RegisteredParticipantDto,
+  RegistrationCheckDto,
+  TemporaryPasswordDto,
 } from './dto/participant-response.dto';
 import {
   type NormalisedDetails,
@@ -59,6 +69,7 @@ import {
   normalisePhone,
   runIdCheck,
 } from './id-check/id-check';
+import { temporaryPasswordText } from './temporary-password-sms';
 import { ErrorCode } from '../../common/errors/error-code';
 
 /** Which unique index a duplicate hit, and what to tell the caller. */
@@ -91,6 +102,8 @@ export class ParticipantsService {
     private readonly contracts: ContractsRegistry,
     private readonly receipts: ReceiptApplier,
     private readonly tokens: TokenService,
+    private readonly sms: SmsSender,
+    private readonly codes: VerificationCodeService,
   ) {}
 
   // --- Registration ---
@@ -103,6 +116,7 @@ export class ParticipantsService {
   async register(
     actor: AuthUser,
     dto: RegisterParticipantDto,
+    { text = true }: { text?: boolean } = {},
   ): Promise<RegisteredParticipantDto> {
     assertCanRegister(actor, dto.role);
 
@@ -147,6 +161,7 @@ export class ParticipantsService {
           keyIndex,
           account,
           registeredById: actor.role === Role.SUPER_ADMIN ? null : actor.id,
+          language: dto.language ?? null,
         });
         await m.insert(PersonalDetails, {
           ...this.codec.seal(id, d),
@@ -162,6 +177,8 @@ export class ParticipantsService {
       throw mapUniqueViolation(error);
     }
 
+    // Unconfirmed, they are saved as `submitted` all the same: the indexer
+    // or sync confirms them, and the password must still reach them.
     await this.submitRegistration(
       actor,
       id,
@@ -170,36 +187,211 @@ export class ParticipantsService {
       detailsHash,
       true,
     );
+    const smsSent =
+      text &&
+      (await this.textPassword(
+        'registered',
+        d.phone,
+        dto.language ?? null,
+        temporaryPassword,
+      ));
     return {
       participant: await this.findOne(actor, id),
       temporaryPassword,
+      smsSent,
     };
+  }
+
+  /** Signing up, step 1: a code to the number, unless it is registered. */
+  async signUpCode(
+    phoneInput: string,
+    language: Language | null,
+  ): Promise<CodeIssued> {
+    const phone = this.codes.phone(phoneInput);
+    if (
+      await this.users.exists({
+        where: { phoneIndex: this.codec.phoneIndex(phone) },
+      })
+    ) {
+      throw duplicate('uq_users_phone_index');
+    }
+    return this.codes.issue(CodePurpose.SIGN_UP, phone, {
+      userId: null,
+      language,
+    });
+  }
+
+  /**
+   * An investor or buyer signing up: the ID check, the code sent to their
+   * number, then registered and verified on the ledger at once by the
+   * platform's key. Returns them, to be signed in.
+   */
+  async signUp(dto: SignUpDto): Promise<User> {
+    const report = runIdCheck(dto);
+    if (report.outcome === 'failed' || !report.details) {
+      throw new UnprocessableEntityException({
+        message: 'The ID check failed',
+        code: ErrorCode.ID_CHECK_FAILED,
+        details: { checks: report.checks.filter((c) => c.result === 'fail') },
+      });
+    }
+    const d = report.details;
+    const phoneIndex = this.codec.phoneIndex(d.phone);
+    const nidIndex = this.codec.nidIndex(d.nid);
+    const [phoneTaken, nidTaken] = await Promise.all([
+      this.users.exists({ where: { phoneIndex } }),
+      this.details.exists({ where: { nidIndex } }),
+    ]);
+    if (phoneTaken) throw duplicate('uq_users_phone_index');
+    if (nidTaken) throw duplicate('uq_personal_details_nid_index');
+
+    const id = randomUUID();
+    const detailsHash = this.codec.fingerprint(id, dto.role, d);
+    const passwordHash = await this.hasher.hash(dto.password);
+    let account = '';
+    let refusal: UnprocessableEntityException | null;
+    try {
+      refusal = await this.dataSource.transaction(async (m) => {
+        const checked = await this.codes.check(
+          m,
+          CodePurpose.SIGN_UP,
+          d.phone,
+          dto.phoneCode,
+        );
+        if (!checked.ok) return checked.refusal; // the wrong try still counts
+        await this.codes.close(m, checked.row.id);
+        const keyIndex = await this.keys.allocateIndex();
+        account = this.keys.addressOf(keyIndex);
+        await m.insert(User, {
+          id,
+          role: dto.role,
+          status: ParticipantStatus.PENDING,
+          chainState: ChainState.SUBMITTED,
+          phoneIndex,
+          passwordHash,
+          mustChangePassword: false,
+          keyIndex,
+          account,
+          registeredById: null,
+          language: dto.language ?? null,
+        });
+        await m.insert(PersonalDetails, {
+          ...this.codec.seal(id, d),
+          detailsHash,
+          idCheck: {
+            version: report.version,
+            outcome: report.outcome,
+            checks: report.checks,
+          },
+        });
+        return null;
+      });
+    } catch (error) {
+      throw mapUniqueViolation(error);
+    }
+    if (refusal) throw refusal;
+
+    // Unconfirmed, they stay `submitted` and pending until the indexer or
+    // sync confirms them; they can sign in and see where it stands.
+    await this.submitRegistration(
+      'self',
+      id,
+      dto.role,
+      account,
+      detailsHash,
+      true,
+    );
+    return this.users.findOneByOrFail({ id });
+  }
+
+  /**
+   * The ID check and the duplicate checks of a registration, without saving
+   * anything: what the registrar confirms before sending it to the ledger.
+   */
+  async check(
+    actor: AuthUser,
+    dto: RegisterParticipantDto,
+  ): Promise<RegistrationCheckDto> {
+    assertCanRegister(actor, dto.role);
+    const report = runIdCheck(dto);
+    const phone = normalisePhone(dto.phone);
+    const nid = normaliseNid(dto.nid);
+    const [phoneTaken, nidTaken] = await Promise.all([
+      phone
+        ? this.users.exists({
+            where: { phoneIndex: this.codec.phoneIndex(phone) },
+          })
+        : false,
+      nid
+        ? this.details.exists({ where: { nidIndex: this.codec.nidIndex(nid) } })
+        : false,
+    ]);
+    return {
+      outcome: report.outcome,
+      checks: report.checks,
+      phoneTaken,
+      nidTaken,
+    };
+  }
+
+  /** Texts a temporary password; false if it could not be sent. */
+  private async textPassword(
+    kind: 'registered' | 'reset',
+    phone: string,
+    language: Language | null,
+    password: string,
+  ): Promise<boolean> {
+    try {
+      await this.sms.send(
+        phone,
+        temporaryPasswordText(kind, language, password),
+      );
+      return true;
+    } catch (error) {
+      this.logger.error(`Temporary password not sent: ${String(error)}`);
+      return false;
+    }
   }
 
   /**
    * Sends the registration. A rejection by the contracts (decided during
    * simulation, before anything is broadcast) removes the saved rows. Any
-   * other failure leaves the person as `submitted`: the indexer confirms
-   * them if the transaction did land, and `sync` finishes the job if not.
+   * other failure leaves the person as `submitted` (answering false): the
+   * indexer confirms them if the transaction did land, and `sync` finishes
+   * the job if not.
    */
   private async submitRegistration(
-    actor: AuthUser,
+    by: AuthUser | 'self',
     id: string,
     role: ParticipantRole,
     account: string,
     detailsHash: string,
     removeOnRejection: boolean,
-  ): Promise<void> {
+  ): Promise<boolean> {
     let result: TxResult;
     try {
-      result = await this.tx.send(actor.keyIndex, 'AccessRegistry', (c) =>
-        c.registerParticipant.populateTransaction(
-          uuidToBytes32(id),
-          CHAIN_ROLE[role],
-          account,
-          detailsHash,
-        ),
-      );
+      // Someone who signed up is registered (and verified) by the platform's key.
+      result =
+        by === 'self'
+          ? await this.tx.send(
+              KeyService.OPERATOR_INDEX,
+              'AccessRegistry',
+              (c) =>
+                c.selfRegisterParticipant.populateTransaction(
+                  uuidToBytes32(id),
+                  CHAIN_ROLE[role],
+                  account,
+                  detailsHash,
+                ),
+            )
+          : await this.tx.send(by.keyIndex, 'AccessRegistry', (c) =>
+              c.registerParticipant.populateTransaction(
+                uuidToBytes32(id),
+                CHAIN_ROLE[role],
+                account,
+                detailsHash,
+              ),
+            );
     } catch (error) {
       if (error instanceof ContractRevertException && removeOnRejection) {
         await this.users.delete({ id });
@@ -209,17 +401,10 @@ export class ParticipantsService {
       this.logger.warn(
         `Registration of ${id} not confirmed; left as submitted`,
       );
-      throw new HttpException(
-        {
-          message:
-            'Saved, but the ledger has not confirmed the registration yet. It will be confirmed automatically, or use sync.',
-          code: ErrorCode.REGISTRATION_UNCONFIRMED,
-          details: { participantId: id },
-        },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      return false;
     }
     await this.applyReceipt(result);
+    return true;
   }
 
   // --- Ledger actions ---
@@ -380,8 +565,8 @@ export class ParticipantsService {
   async resetPassword(
     actor: AuthUser,
     id: string,
-  ): Promise<{ temporaryPassword: string }> {
-    const { user } = await this.loadParticipant(id);
+  ): Promise<TemporaryPasswordDto> {
+    const { user, details } = await this.loadParticipant(id);
     assertCanManage(actor, user.role);
     const temporaryPassword = generateTemporaryPassword();
     const passwordHash = await this.hasher.hash(temporaryPassword);
@@ -399,7 +584,13 @@ export class ParticipantsService {
       await m.increment(User, { id }, 'tokenVersion', 1);
       await this.tokens.revokeAllForUser(id, m);
     });
-    return { temporaryPassword };
+    const smsSent = await this.textPassword(
+      'reset',
+      this.codec.open(details).phone,
+      user.language,
+      temporaryPassword,
+    );
+    return { temporaryPassword, smsSent };
   }
 
   /**
@@ -416,7 +607,9 @@ export class ParticipantsService {
     const ledger = await this.readLedger(id);
 
     if (ledger.status === 'none') {
-      assertCanRegister(actor, user.role as ParticipantRole);
+      // Signed up themselves: the only non-staff without a registrar.
+      const self = !isStaffRole(user.role) && user.registeredById === null;
+      if (!self) assertCanRegister(actor, user.role as ParticipantRole);
       if (!details.detailsHash)
         throw new ConflictException({
           message: 'No fingerprint stored',
@@ -427,14 +620,25 @@ export class ParticipantsService {
           `Participant ${id} is missing from the ledger; registering again`,
         );
       }
-      await this.submitRegistration(
-        actor,
+      const confirmed = await this.submitRegistration(
+        self ? 'self' : actor,
         id,
         user.role as ParticipantRole,
         user.account,
         details.detailsHash,
         false,
       );
+      if (!confirmed) {
+        throw new HttpException(
+          {
+            message:
+              'The ledger has not confirmed the registration yet. It will be confirmed automatically, or try sync again.',
+            code: ErrorCode.REGISTRATION_UNCONFIRMED,
+            details: { participantId: id },
+          },
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
       return this.findOne(actor, id);
     }
 
@@ -532,6 +736,14 @@ export class ParticipantsService {
     const visibility: Visibility =
       actor.role === Role.AUDITOR ? 'masked' : 'full';
     const plain = this.codec.open(details);
+    const names = await this.namesOf(
+      [user.fieldOfficerId, user.registeredById].filter(
+        (x): x is string => x !== null,
+      ),
+    );
+    const person = (pid: string | null) =>
+      pid === null ? null : { id: pid, name: names.get(pid) ?? '' };
+    const email = this.codec.openEmail(details);
     return Object.assign(this.summary(user, details, plain), {
       phone: visibility === 'full' ? plain.phone : maskPhone(plain.phone),
       nid: visibility === 'full' ? plain.nid : maskTail(plain.nid, 4),
@@ -542,9 +754,23 @@ export class ParticipantsService {
       statusReason: user.statusReason,
       statusChangedAt: user.statusChangedAt,
       registeredById: user.registeredById,
+      registeredBy: person(user.registeredById),
+      selfRegistered: !isStaffRole(user.role) && user.registeredById === null,
+      fieldOfficer: person(user.fieldOfficerId),
+      email: visibility === 'full' ? email : email && maskEmail(email),
       registrationTx: user.registrationTx,
       idCheck: details.idCheck,
     });
+  }
+
+  /** People's names by id, decrypting the names only. */
+  private async namesOf(ids: string[]): Promise<Map<string, string>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.details.find({
+      where: { userId: In(ids) },
+      select: { userId: true, fullNameEnc: true },
+    });
+    return new Map(rows.map((r) => [r.userId, this.codec.openName(r)]));
   }
 
   // --- Helpers ---
@@ -650,7 +876,14 @@ function assertCanRegister(actor: AuthUser, role: ParticipantRole): void {
         code: ErrorCode.STAFF_REGISTERED_BY_SUPER_ADMIN,
       });
     }
-  } else if (actor.role !== Role.ADMIN && actor.role !== Role.FIELD_OFFICER) {
+  } else if (actor.role === Role.FIELD_OFFICER) {
+    if (role !== Role.FARMER) {
+      throw new ForbiddenException({
+        message: 'Field officers register farmers only',
+        code: ErrorCode.FIELD_OFFICER_FARMERS_ONLY,
+      });
+    }
+  } else if (actor.role !== Role.ADMIN) {
     throw new ForbiddenException({
       message: 'Only admins and field officers register non-staff participants',
       code: ErrorCode.REGISTRATION_NOT_ALLOWED,
@@ -700,6 +933,12 @@ export function mapUniqueViolation(error: unknown): unknown {
     }
   }
   return error;
+}
+
+/** ra•••@example.com */
+export function maskEmail(email: string): string {
+  const [name, domain] = email.split('@');
+  return `${name!.slice(0, 2)}•••@${domain}`;
 }
 
 /** +88017•••••678 */
