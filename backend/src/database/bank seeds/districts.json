@@ -1,0 +1,264 @@
+{
+    "districts": [
+        {
+            "district_code": 112,
+            "district_name": "BRAHMANBARIA"
+        },
+        {
+            "district_code": 113,
+            "district_name": "CHANDPUR"
+        },
+        {
+            "district_code": 119,
+            "district_name": "COMILLA"
+        },
+        {
+            "district_code": 126,
+            "district_name": "DHAKA-NORTH"
+        },
+        {
+            "district_code": 127,
+            "district_name": "DHAKA-SOUTH"
+        },
+        {
+            "district_code": 133,
+            "district_name": "GAZIPUR"
+        },
+        {
+            "district_code": 139,
+            "district_name": "JAMALPUR"
+        },
+        {
+            "district_code": 148,
+            "district_name": "KISHOREGANJ"
+        },
+        {
+            "district_code": 156,
+            "district_name": "MANIKGANJ"
+        },
+        {
+            "district_code": 159,
+            "district_name": "MUNSHIGANJ"
+        },
+        {
+            "district_code": 161,
+            "district_name": "MYMENSINGH"
+        },
+        {
+            "district_code": 167,
+            "district_name": "NARAYANGANJ"
+        },
+        {
+            "district_code": 168,
+            "district_name": "NARSHINGDI"
+        },
+        {
+            "district_code": 172,
+            "district_name": "NETROKONA"
+        },
+        {
+            "district_code": 189,
+            "district_name": "SHERPUR"
+        },
+        {
+            "district_code": 193,
+            "district_name": "TANGAIL"
+        },
+        {
+            "district_code": 203,
+            "district_name": "BANDARBAN"
+        },
+        {
+            "district_code": 215,
+            "district_name": "CHITTAGONG"
+        },
+        {
+            "district_code": 222,
+            "district_name": "COXS BAZAR"
+        },
+        {
+            "district_code": 230,
+            "district_name": "FENI"
+        },
+        {
+            "district_code": 246,
+            "district_name": "KHAGRACHARI"
+        },
+        {
+            "district_code": 251,
+            "district_name": "LAKSHMIPUR"
+        },
+        {
+            "district_code": 275,
+            "district_name": "NOAKHALI"
+        },
+        {
+            "district_code": 284,
+            "district_name": "RANGAMATI"
+        },
+        {
+            "district_code": 304,
+            "district_name": "BARGUNA"
+        },
+        {
+            "district_code": 306,
+            "district_name": "BARISHAL"
+        },
+        {
+            "district_code": 309,
+            "district_name": "BHOLA"
+        },
+        {
+            "district_code": 329,
+            "district_name": "FARIDPUR"
+        },
+        {
+            "district_code": 342,
+            "district_name": "JHALOKATHI"
+        },
+        {
+            "district_code": 354,
+            "district_name": "MADARIPUR"
+        },
+        {
+            "district_code": 378,
+            "district_name": "PATUAKHALI"
+        },
+        {
+            "district_code": 379,
+            "district_name": "PIROJPUR"
+        },
+        {
+            "district_code": 382,
+            "district_name": "RAJBARI"
+        },
+        {
+            "district_code": 386,
+            "district_name": "SHARIATPUR"
+        },
+        {
+            "district_code": 401,
+            "district_name": "BAGERHAT"
+        },
+        {
+            "district_code": 418,
+            "district_name": "CHUADANGA"
+        },
+        {
+            "district_code": 435,
+            "district_name": "GOPALGANJ"
+        },
+        {
+            "district_code": 441,
+            "district_name": "JESSORE"
+        },
+        {
+            "district_code": 444,
+            "district_name": "JHENAIDAH"
+        },
+        {
+            "district_code": 447,
+            "district_name": "KHULNA"
+        },
+        {
+            "district_code": 450,
+            "district_name": "KUSHTIA"
+        },
+        {
+            "district_code": 455,
+            "district_name": "MAGURA"
+        },
+        {
+            "district_code": 457,
+            "district_name": "MEHERPUR"
+        },
+        {
+            "district_code": 465,
+            "district_name": "NARAIL"
+        },
+        {
+            "district_code": 487,
+            "district_name": "SATKHIRA"
+        },
+        {
+            "district_code": 564,
+            "district_name": "NAOGAON"
+        },
+        {
+            "district_code": 569,
+            "district_name": "NATORE"
+        },
+        {
+            "district_code": 570,
+            "district_name": "NAWABGANJ"
+        },
+        {
+            "district_code": 576,
+            "district_name": "PABNA"
+        },
+        {
+            "district_code": 581,
+            "district_name": "RAJSHAHI"
+        },
+        {
+            "district_code": 610,
+            "district_name": "BOGRA"
+        },
+        {
+            "district_code": 632,
+            "district_name": "GAIBANDHA"
+        },
+        {
+            "district_code": 638,
+            "district_name": "JOYPURHAT"
+        },
+        {
+            "district_code": 688,
+            "district_name": "SIRAJGANJ"
+        },
+        {
+            "district_code": 728,
+            "district_name": "DINAJPUR"
+        },
+        {
+            "district_code": 749,
+            "district_name": "KURIGRAM"
+        },
+        {
+            "district_code": 752,
+            "district_name": "LALMONIRHAT"
+        },
+        {
+            "district_code": 773,
+            "district_name": "NILPHAMARI"
+        },
+        {
+            "district_code": 777,
+            "district_name": "PANCHAGARH"
+        },
+        {
+            "district_code": 785,
+            "district_name": "RANGPUR"
+        },
+        {
+            "district_code": 794,
+            "district_name": "THAKURGAON"
+        },
+        {
+            "district_code": 836,
+            "district_name": "HABIGANJ"
+        },
+        {
+            "district_code": 858,
+            "district_name": "MOULVI BAZAR"
+        },
+        {
+            "district_code": 890,
+            "district_name": "SUNAMGANJ"
+        },
+        {
+            "district_code": 891,
+            "district_name": "SYLHET"
+        }
+    ]
+}
