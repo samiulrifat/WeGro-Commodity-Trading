@@ -1,6 +1,5 @@
 import { type District, DISTRICTS } from '@/api/generated/codes';
 import type { ParticipantsListApiArg } from '@/api/generated/participants';
-import { latinDigits } from '@/lib/format';
 
 /** The list's filters, kept in the address so they survive back and forward. */
 export interface PeopleSearch {
@@ -8,7 +7,7 @@ export interface PeopleSearch {
   role?: ParticipantsListApiArg['role'];
   status?: ParticipantsListApiArg['status'];
   district?: District;
-  /** A full phone number or NID. */
+  /** A mobile number, an NID or words of a name (the server decides which). */
   q?: string;
 }
 
@@ -43,15 +42,8 @@ export function parsePeopleSearch(raw: Record<string, unknown>): PeopleSearch {
   if (typeof raw.district === 'string' && DISTRICT_SET.has(raw.district)) {
     out.district = raw.district as District;
   }
-  if (typeof raw.q === 'string' && raw.q.trim() && raw.q.length <= 40) {
+  if (typeof raw.q === 'string' && raw.q.trim() && raw.q.length <= 100) {
     out.q = raw.q.trim();
   }
   return out;
-}
-
-/** A phone number goes to the phone search, anything else to the NID one. */
-export function searchArgs(q: string | undefined) {
-  const value = latinDigits(q ?? '').replace(/[\s\-()]/g, '');
-  if (!value) return {};
-  return /^(\+?88)?01\d{9}$/.test(value) ? { phone: value } : { nid: value };
 }

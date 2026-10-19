@@ -32,6 +32,8 @@ const injectedRtkApi = api
             district: queryArg.district,
             phone: queryArg.phone,
             nid: queryArg.nid,
+            manageable: queryArg.manageable,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Participants'],
@@ -172,6 +174,7 @@ const injectedRtkApi = api
             page: queryArg.page,
             limit: queryArg.limit,
             status: queryArg.status,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Participants'],
@@ -242,6 +245,10 @@ export type ParticipantsListApiArg = {
   phone?: string;
   /** Exact NID match (13- and 17-digit forms are equivalent) */
   nid?: string;
+  /** Only people the caller manages: staff for the super admin, everyone else for an admin */
+  manageable?: boolean;
+  /** A mobile number, an NID, or whole words of a name (every word must be in it) */
+  q?: string;
 };
 export type ParticipantsCheckApiResponse =
   /** status 200 The ID check and duplicate checks of a registration, nothing saved: what the registrar confirms before registering */ {
@@ -332,6 +339,8 @@ export type DetailChangesListApiArg = {
   page?: number;
   limit?: number;
   status?: DetailChangeStatus;
+  /** Whose: a mobile number, an NID, or whole words of their name */
+  q?: string;
 };
 export type DetailChangesReviewApiResponse = /** status 200  */ {
   data: DetailChangeReviewDto;

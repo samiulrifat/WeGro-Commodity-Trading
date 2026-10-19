@@ -11,6 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import { SEARCH_MAX_LENGTH } from '../../users/person-search';
 import { ChainState } from '../../users/entities/user.entity';
 import { Language } from '../../users/language';
 import {
@@ -138,4 +139,23 @@ export class ListParticipantsQueryDto extends PaginationQueryDto {
   @IsString()
   @MaxLength(40)
   nid?: string;
+  @ApiPropertyOptional({
+    description:
+      'Only people the caller manages: staff for the super admin, everyone else for an admin',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  manageable?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'A mobile number, an NID, or whole words of a name (every word must be in it)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(SEARCH_MAX_LENGTH)
+  q?: string;
 }

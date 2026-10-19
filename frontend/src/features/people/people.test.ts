@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { applyLanguage, i18n, initI18n } from '@/i18n';
 import { checkText, problemsOf } from './id-check-text';
-import { parsePeopleSearch, searchArgs } from './people-search';
+import { parsePeopleSearch } from './people-search';
 import { canManage, registrableRoles } from './permissions';
 import type { IdCheck } from './person';
 
@@ -28,16 +28,9 @@ describe('the people list address', () => {
         role: 'super_admin',
         status: 'gone',
         district: 'ATLANTIS',
-        q: 'x'.repeat(41),
+        q: 'x'.repeat(101),
       }),
     ).toEqual({});
-  });
-
-  it('searches a number by phone and anything else by NID', () => {
-    expect(searchArgs('০১৭১২-৩৪৫৬৭৮')).toEqual({ phone: '01712345678' });
-    expect(searchArgs('+8801712345678')).toEqual({ phone: '+8801712345678' });
-    expect(searchArgs('1234 567 890')).toEqual({ nid: '1234567890' });
-    expect(searchArgs('  ')).toEqual({});
   });
 });
 

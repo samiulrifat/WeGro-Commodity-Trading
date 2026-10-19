@@ -18,6 +18,8 @@ import {
 import { FormError } from '@/app/auth/form-error';
 import type { Role } from '@/app/navigation';
 import { PageHeader } from '@/components/page-header';
+import { Pager } from '@/components/pager';
+import { SearchBox } from '@/components/search-box';
 import { PersonCell } from '@/components/person-cell';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { StatusPill } from '@/components/status-pill';
@@ -39,6 +41,15 @@ import { SegmentedChoice } from '@/app/auth/segmented-choice';
 import { IdCheckList } from './id-check';
 import { DETAIL_FIELDS, type IdCheck, localPhone } from './person';
 
+const PAGE_SIZE = 20;
+
+/** The requests list's view, kept in the address. */
+export interface ChangesSearch {
+  status?: DetailChangeStatus;
+  q?: string;
+  page?: number;
+}
+
 const STATUSES: readonly DetailChangeStatus[] = [
   'pending',
   'approved',
@@ -55,32 +66,45 @@ const TONE = {
  * People asking to change their own details, waiting first: an admin
  * reviews everyone's but staff, the super admin the staff's.
  */
-export function DetailChangesList({ status }: { status: DetailChangeStatus }) {
+export function DetailChangesList({ search }: { search: ChangesSearch }) {
   const { t } = useTranslation();
   const fmt = useFormat();
   const navigate = useNavigate();
-  const query = useDetailChangesListQuery({ status, limit: 50 });
+  const status = search.status ?? 'pending';
+  const page = search.page ?? 1;
+  const query = useDetailChangesListQuery({
+    status,
+    q: search.q,
+    page,
+    limit: PAGE_SIZE,
+  });
+  const go = (next: ChangesSearch) =>
+    void navigate({ to: '/people/changes', search: next });
   return (
     <div className="grid gap-6">
       <PageHeader
         title={t('nav.sub.detailChanges')}
         description={t('changes.intro')}
       />
-      <SegmentedChoice
-        legend={t('changes.show')}
-        className="justify-self-start"
-        value={status}
-        onChange={(s) =>
-          void navigate({
-            to: '/people/changes',
-            search: s === 'pending' ? {} : { status: s },
-          })
-        }
-        options={STATUSES.map((s) => ({
-          value: s,
-          label: t(`changes.status.${s}`),
-        }))}
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <SegmentedChoice
+          legend={t('changes.show')}
+          value={status}
+          onChange={(s) =>
+            go({ q: search.q, status: s === 'pending' ? undefined : s })
+          }
+          options={STATUSES.map((s) => ({
+            value: s,
+            label: t(`changes.status.${s}`),
+          }))}
+        />
+        <SearchBox
+          className="min-w-64 flex-1"
+          value={search.q}
+          onSearch={(q) => go({ status: search.status, q })}
+          placeholder={t('changes.search')}
+        />
+      </div>
       {query.isLoading && <LoadingState />}
       {query.error && (
         <ErrorState
@@ -91,7 +115,12 @@ export function DetailChangesList({ status }: { status: DetailChangeStatus }) {
       {query.data?.data.length === 0 && (
         <EmptyState
           icon={FilePenLine}
-          title={t(`changes.none.${status}` as never)}
+          title={
+            search.q
+              ? t('people.noMatch')
+              : t(`changes.none.${status}` as never)
+          }
+          description={search.q ? t('people.noMatchHint') : undefined}
         />
       )}
       {query.data && query.data.data.length > 0 && (
@@ -126,6 +155,14 @@ export function DetailChangesList({ status }: { status: DetailChangeStatus }) {
             </li>
           ))}
         </ul>
+      )}
+      {query.data && (
+        <Pager
+          page={page}
+          pages={query.data.meta.totalPages}
+          total={query.data.meta.total}
+          onPage={(p) => go({ ...search, page: p })}
+        />
       )}
     </div>
   );

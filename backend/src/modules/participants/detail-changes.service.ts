@@ -28,6 +28,8 @@ import {
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { User } from '../users/entities/user.entity';
 import { PersonalDetailsCodec } from '../users/personal-details.codec';
+import { NameIndexService } from '../users/name-index.service';
+import { PersonSearch } from '../users/person-search';
 import { isStaffRole, Role } from '../users/roles';
 import type {
   DetailChangeDto,
@@ -77,6 +79,8 @@ export class DetailChangesService {
     private readonly tx: TransactionService,
     private readonly receipts: ReceiptApplier,
     private readonly writer: NotificationWriter,
+    private readonly nameIndex: NameIndexService,
+    private readonly search: PersonSearch,
   ) {}
 
   // --- The person ---
@@ -217,6 +221,7 @@ export class DetailChangesService {
           { id: actor.id },
           { phoneIndex: this.codec.phoneIndex(requested.phone) },
         );
+        await this.nameIndex.write(m, actor.id, requested.fullName);
         return null;
       }
       const full = requested as NormalisedDetails;
@@ -281,11 +286,13 @@ export class DetailChangesService {
     q: DetailChangesQueryDto,
   ): Promise<Paginated<DetailChangeSummaryDto>> {
     const roles = this.reviewableRoles(actor);
-    const [rows, total] = await this.changes
+    const qb = this.changes
       .createQueryBuilder('c')
       .innerJoinAndSelect('c.user', 'u')
       .where('c.status = :status', { status: q.status })
-      .andWhere('u.role IN (:...roles)', { roles })
+      .andWhere('u.role IN (:...roles)', { roles });
+    const [rows, total] = await this.search
+      .apply(qb, 'u.id', q.q)
       .orderBy('c.created_at', 'ASC')
       .skip(q.skip)
       .take(q.limit)
@@ -371,6 +378,7 @@ export class DetailChangesService {
           { id: user.id },
           { phoneIndex: this.codec.phoneIndex(requested.phone) },
         );
+        await this.nameIndex.write(m, user.id, requested.fullName);
         await m.update(
           DetailChangeRequest,
           { id },

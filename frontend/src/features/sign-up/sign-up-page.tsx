@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CircleCheck,
   HandCoins,
+  Hourglass,
   ShoppingBasket,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
@@ -25,7 +26,8 @@ import {
   newPasswordProblem,
 } from '@/app/auth/password-rules';
 import { landingFor } from '@/app/navigation';
-import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Field,
   FieldDescription,
@@ -51,7 +53,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { sessionStarted } from '@/store/session-slice';
 
 type Role = SignUpDto['role'];
-type Step = 'role' | 'phone' | 'details' | 'password' | 'email';
+type Step = 'role' | 'phone' | 'details' | 'password' | 'email' | 'created';
 const STEPS: readonly Step[] = ['role', 'phone', 'details', 'password'];
 const DETAILS: readonly DetailField[] = [
   'fullName',
@@ -153,7 +155,10 @@ export function SignUpPage() {
     } catch (e) {
       const failure = toApiError(e as never)!;
       // Back to the step the refusal is about.
-      if (failure.code?.startsWith('CODE_')) {
+      if (failure.code === 'REGISTRATION_CONFIRMING') {
+        // Saved; the ledger is still confirming it, as with any sign-in.
+        go('created');
+      } else if (failure.code?.startsWith('CODE_')) {
         phoneCode.setError(failure);
         go('phone');
       } else if (failure.code === 'PHONE_ALREADY_REGISTERED') {
@@ -177,7 +182,13 @@ export function SignUpPage() {
   return (
     <AuthPage
       wide
-      title={step === 'email' ? t('signUp.emailTitle') : t('signUp.title')}
+      title={
+        step === 'email'
+          ? t('signUp.emailTitle')
+          : step === 'created'
+            ? t('signUp.createdTitle')
+            : t('signUp.title')
+      }
       intro={
         index >= 0
           ? t('signUp.step', { n: index + 1, of: STEPS.length })
@@ -324,6 +335,24 @@ export function SignUpPage() {
             onBack={() => go('details')}
           />
         </form>
+      )}
+
+      {step === 'created' && (
+        <div className="grid gap-5">
+          <Alert polite>
+            <Hourglass />
+            <AlertDescription>{t('signUp.createdText')}</AlertDescription>
+          </Alert>
+          <Link
+            to="/sign-in"
+            className={cn(
+              buttonVariants({ variant: 'ink' }),
+              'justify-self-start',
+            )}
+          >
+            {t('signUp.signIn')}
+          </Link>
+        </div>
       )}
 
       {step === 'email' && signedIn && (

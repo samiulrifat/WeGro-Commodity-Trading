@@ -837,6 +837,10 @@ export const en = {
     emailNeeded: 'We email a 6-digit code to this address.',
     emailConfirm: 'Confirm',
     emailLater: 'Later, in My account',
+    createdTitle: 'Your account is created',
+    createdText:
+      'The WeGro ledger is still confirming it. Sign in in a few minutes with your number and password.',
+    signIn: 'Go to sign in',
   },
   password: {
     show: 'Show password',
@@ -959,6 +963,17 @@ export const en = {
     warned: 'Check this',
     failed: 'Not valid',
   },
+  search: {
+    find: 'Find',
+    clear: 'Clear the search',
+  },
+  pager: {
+    label: 'Pages',
+    pageOf:
+      'Page {{page, number}} of {{pages, number}}, {{count, number}} in all',
+    previous: 'Previous',
+    next: 'Next',
+  },
   people: {
     register: 'Register someone',
     pendingIntro: 'Registrations waiting for you to check and verify.',
@@ -966,9 +981,7 @@ export const en = {
     noneWaiting: 'Nobody is waiting for verification.',
     noMatch: 'Nobody matches',
     noMatchHint: 'Check the number or NID, or clear the filters.',
-    search: 'Full mobile number or NID',
-    find: 'Find',
-    clearSearch: 'Clear the search',
+    search: 'Name, mobile number or NID',
     role: 'Role',
     anyRole: 'All roles',
     statusLabel: 'Status',
@@ -976,11 +989,6 @@ export const en = {
     anyDistrict: 'All districts',
     status: { pending: 'Pending', verified: 'Verified', rejected: 'Rejected' },
     column: { person: 'Person', registered: 'Registered' },
-    pages: 'Pages',
-    pageOf:
-      'Page {{page, number}} of {{pages, number}}, {{count, number}} in all',
-    previous: 'Previous',
-    next: 'Next',
     flagged: 'Flagged',
     ledgerPending: 'Ledger confirming',
     rejectedBecause: 'Not accepted',
@@ -1065,6 +1073,8 @@ export const en = {
       assignNow: 'Now: {{name}}.',
       assignNone: 'No field officer yet.',
       chooseOfficer: 'Choose a field officer',
+      findOfficer: 'Name or mobile number of the officer',
+      narrowOfficers: 'More officers match: search to narrow the list.',
     },
     new: {
       intro:
@@ -1099,6 +1109,7 @@ export const en = {
     intro:
       'People asking to change their own details. Approving puts the new details on the ledger.',
     show: 'Show',
+    search: 'Name, mobile number or NID of the person',
     status: {
       pending: 'Waiting',
       approved: 'Approved',

@@ -36,6 +36,8 @@ import { TokenService } from '../auth/token.service';
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { ChainState, User } from '../users/entities/user.entity';
 import type { Language } from '../users/language';
+import { NameIndexService } from '../users/name-index.service';
+import { PersonSearch } from '../users/person-search';
 import {
   type PlainDetails,
   PersonalDetailsCodec,
@@ -43,6 +45,7 @@ import {
 import {
   CHAIN_ROLE,
   isStaffRole,
+  STAFF_ROLES,
   type ParticipantRole,
   ParticipantStatus,
   Role,
@@ -104,6 +107,8 @@ export class ParticipantsService {
     private readonly tokens: TokenService,
     private readonly sms: SmsSender,
     private readonly codes: VerificationCodeService,
+    private readonly names: NameIndexService,
+    private readonly search: PersonSearch,
   ) {}
 
   // --- Registration ---
@@ -172,6 +177,7 @@ export class ParticipantsService {
             checks: report.checks,
           },
         });
+        await this.names.write(m, id, d.fullName);
       });
     } catch (error) {
       throw mapUniqueViolation(error);
@@ -284,6 +290,7 @@ export class ParticipantsService {
             checks: report.checks,
           },
         });
+        await this.names.write(m, id, d.fullName);
         return null;
       });
     } catch (error) {
@@ -604,12 +611,58 @@ export class ParticipantsService {
   ): Promise<ParticipantDetailDto> {
     const { user, details } = await this.loadParticipant(id);
     assertCanManage(actor, user.role);
-    const ledger = await this.readLedger(id);
+    const self = isSelfRegistered(user);
+    if (!self) assertCanRegister(actor, user.role as ParticipantRole);
+    const confirmed = await this.settle(user, details, self ? 'self' : actor);
+    if (!confirmed) {
+      throw new HttpException(
+        {
+          message:
+            'The ledger has not confirmed the registration yet. It will be confirmed automatically, or try sync again.',
+          code: ErrorCode.REGISTRATION_UNCONFIRMED,
+          details: { participantId: id },
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return this.findOne(actor, id);
+  }
 
+  /**
+   * Sign-ups the ledger has not confirmed a minute on (the transaction was
+   * lost): registered again by the platform's key, or copied from the ledger
+   * if it did land. Run on a timer; nobody has to notice them.
+   */
+  async retrySignUps(limit: number): Promise<number> {
+    const waiting = await this.users
+      .createQueryBuilder('u')
+      .innerJoinAndSelect('u.details', 'd')
+      .where('u.chain_state = :submitted', { submitted: ChainState.SUBMITTED })
+      .andWhere('u.registered_by_id IS NULL')
+      .andWhere('u.role IN (:...roles)', { roles: [Role.INVESTOR, Role.BUYER] })
+      .andWhere("u.created_at < now() - interval '1 minute'")
+      .orderBy('u.created_at', 'ASC')
+      .take(limit)
+      .getMany();
+    let settled = 0;
+    for (const user of waiting) {
+      if (await this.settle(user, user.details!, 'self')) settled++;
+    }
+    return settled;
+  }
+
+  /**
+   * Brings one record in line with the ledger: registers it if the ledger
+   * has none (by `by`), or copies status and account from it. False while
+   * the ledger has not confirmed it.
+   */
+  private async settle(
+    user: User,
+    details: PersonalDetails,
+    by: AuthUser | 'self',
+  ): Promise<boolean> {
+    const ledger = await this.readLedger(user.id);
     if (ledger.status === 'none') {
-      // Signed up themselves: the only non-staff without a registrar.
-      const self = !isStaffRole(user.role) && user.registeredById === null;
-      if (!self) assertCanRegister(actor, user.role as ParticipantRole);
       if (!details.detailsHash)
         throw new ConflictException({
           message: 'No fingerprint stored',
@@ -617,31 +670,18 @@ export class ParticipantsService {
         });
       if (user.chainState === ChainState.CONFIRMED) {
         this.logger.warn(
-          `Participant ${id} is missing from the ledger; registering again`,
+          `Participant ${user.id} is missing from the ledger; registering again`,
         );
       }
-      const confirmed = await this.submitRegistration(
-        self ? 'self' : actor,
-        id,
+      return this.submitRegistration(
+        by,
+        user.id,
         user.role as ParticipantRole,
         user.account,
         details.detailsHash,
         false,
       );
-      if (!confirmed) {
-        throw new HttpException(
-          {
-            message:
-              'The ledger has not confirmed the registration yet. It will be confirmed automatically, or try sync again.',
-            code: ErrorCode.REGISTRATION_UNCONFIRMED,
-            details: { participantId: id },
-          },
-          HttpStatus.SERVICE_UNAVAILABLE,
-        );
-      }
-      return this.findOne(actor, id);
     }
-
     if (
       ledger.role !== user.role ||
       ledger.detailsHash !== details.detailsHash
@@ -652,14 +692,14 @@ export class ParticipantsService {
       });
     }
     await this.users.update(
-      { id },
+      { id: user.id },
       {
         chainState: ChainState.CONFIRMED,
         status: ledger.status,
         account: ledger.account!,
       },
     );
-    return this.findOne(actor, id);
+    return true;
   }
 
   async integrity(id: string): Promise<IntegrityReportDto> {
@@ -684,6 +724,19 @@ export class ParticipantsService {
       });
     }
     if (query.role) qb.andWhere('u.role = :role', { role: query.role });
+    if (query.manageable) {
+      // As the ledger has it: staff by the super admin, the rest by admins.
+      const staff = actor.role === Role.SUPER_ADMIN;
+      qb.andWhere(
+        staff ? 'u.role IN (:...managed)' : 'u.role NOT IN (:...managed)',
+        {
+          managed: [...STAFF_ROLES],
+        },
+      );
+      if (actor.role !== Role.SUPER_ADMIN && actor.role !== Role.ADMIN) {
+        qb.andWhere('1 = 0');
+      }
+    }
     if (query.status)
       qb.andWhere('u.status = :status', { status: query.status });
     if (query.chainState) {
@@ -707,6 +760,7 @@ export class ParticipantsService {
         nidIndex: nid ? this.codec.nidIndex(nid) : '',
       });
     }
+    this.search.apply(qb, 'u.id', query.q);
 
     const [rows, total] = await qb
       .orderBy('u.created_at', 'DESC')
@@ -905,6 +959,17 @@ export function assertCanManage(actor: AuthUser, role: Role): void {
       code: ErrorCode.PARTICIPANTS_MANAGED_BY_ADMINS,
     });
   }
+}
+
+/** Signed up themselves: the only non-staff without a registrar. */
+export function isSelfRegistered(
+  user: Pick<User, 'role' | 'registeredById'>,
+): boolean {
+  return (
+    user.role !== Role.SUPER_ADMIN &&
+    !isStaffRole(user.role) &&
+    user.registeredById === null
+  );
 }
 
 export function assertConfirmed(user: User): void {

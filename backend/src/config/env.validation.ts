@@ -231,6 +231,12 @@ export class EnvironmentVariables {
   @Min(1000)
   REMINDER_SWEEP_MS: number = 300_000;
 
+  /** How often sign-ups the ledger has not confirmed are sent again. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  SIGN_UP_RETRY_MS: number = 60_000;
+
   /** How often the indexer watchdog checks that the database keeps up with the ledger. */
   @Type(() => Number)
   @IsInt()

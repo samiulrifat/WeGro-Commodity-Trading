@@ -5,3 +5,8 @@ if (!('location' in globalThis)) {
     value: new URL('http://localhost'),
   });
 }
+
+// Page tests run in jsdom, which has no scrolling; the router scrolls on navigation.
+if (typeof window !== 'undefined') {
+  window.scrollTo = () => undefined;
+}

@@ -11,6 +11,7 @@ import { ParticipantLedgerSync } from './participant-ledger.sync';
 import { ParticipantsController } from './participants.controller';
 import { ParticipantsService } from './participants.service';
 import { SignUpController } from './sign-up.controller';
+import { SignUpRetryJob } from './sign-up-retry.job';
 
 /** Practice ID check, registration and everything AccessRegistry records about people. */
 @Module({
@@ -30,6 +31,7 @@ import { SignUpController } from './sign-up.controller';
     ParticipantLedgerSync,
     DemoAccountsService,
     DetailChangesService,
+    SignUpRetryJob,
   ],
   exports: [ParticipantsService],
 })

@@ -41,14 +41,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { SearchBox } from '@/components/search-box';
+import { cn } from '@/lib/utils';
 import { errorText } from '@/i18n/text';
 import { IdCheckList } from './id-check';
 import type { IdCheck } from './person';
@@ -481,21 +476,18 @@ function AssignDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const [q, setQ] = useState<string | undefined>();
   const officers = useParticipantsListQuery(
-    { role: 'field_officer', status: 'verified', limit: 100 },
+    { role: 'field_officer', status: 'verified', q, limit: 20 },
     { skip: !open },
   );
   const [assign, assigning] = useParticipantsAssignFieldOfficerMutation();
   const [officerId, setOfficerId] = useState<string | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  const items = (officers.data?.data ?? [])
-    .filter((o) => o.id !== person.fieldOfficer?.id)
-    .map((o) => ({
-      value: o.id,
-      label: o.district
-        ? `${o.fullName} · ${t(`districts.${o.district as District}`)}`
-        : o.fullName,
-    }));
+  const shown = (officers.data?.data ?? []).filter(
+    (o) => o.id !== person.fieldOfficer?.id,
+  );
+  const more = (officers.data?.meta.total ?? 0) > shown.length + 1;
 
   async function go() {
     if (!officerId) return;
@@ -523,23 +515,47 @@ function AssignDialog({
           : t('people.actions.assignNone')
       }
     >
-      <Field>
-        <FieldLabel htmlFor="assign-officer">
-          {t('people.fieldOfficer')}
-        </FieldLabel>
-        <Select items={items} value={officerId} onValueChange={setOfficerId}>
-          <SelectTrigger id="assign-officer" className="w-full">
-            <SelectValue placeholder={t('people.actions.chooseOfficer')} />
-          </SelectTrigger>
-          <SelectContent>
-            {items.map((i) => (
-              <SelectItem key={i.value} value={i.value}>
-                {i.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
+      <SearchBox
+        value={q}
+        onSearch={(next) => {
+          setQ(next);
+          setOfficerId(null);
+        }}
+        placeholder={t('people.actions.findOfficer')}
+      />
+      <fieldset className="grid max-h-72 gap-1.5 overflow-y-auto">
+        <legend className="sr-only">{t('people.fieldOfficer')}</legend>
+        {officers.isFetching && (
+          <p className="text-sm text-muted-foreground">{t('states.loading')}</p>
+        )}
+        {!officers.isFetching && shown.length === 0 && (
+          <p className="text-sm text-muted-foreground">{t('people.noMatch')}</p>
+        )}
+        {shown.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            aria-pressed={officerId === o.id}
+            onClick={() => setOfficerId(o.id)}
+            className={cn(
+              'flex min-h-12 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+              officerId === o.id
+                ? 'border-ink bg-nav-active/40 ring-1 ring-ink'
+                : 'hover:bg-muted',
+            )}
+          >
+            <span className="font-medium">{o.fullName}</span>
+            <span className="text-sm text-muted-foreground">
+              {o.district ? t(`districts.${o.district as District}`) : ''}
+            </span>
+          </button>
+        ))}
+        {more && (
+          <p className="text-sm text-muted-foreground">
+            {t('people.actions.narrowOfficers')}
+          </p>
+        )}
+      </fieldset>
       <FormError error={error} />
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>

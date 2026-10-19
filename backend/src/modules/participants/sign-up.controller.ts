@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
   Post,
@@ -8,10 +9,12 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { ErrorCode } from '../../common/errors/error-code';
 import { AuthThrottle, Public } from '../auth/decorators';
 import { CodeSentDto, TokenResponseDto } from '../auth/dto/auth-response.dto';
 import { SessionResponder } from '../auth/session-responder';
 import { TokenService } from '../auth/token.service';
+import { ChainState } from '../users/entities/user.entity';
 import type { CodeIssued } from '../auth/verification-code.service';
 import { SignUpCodeRequestDto, SignUpDto } from './dto/sign-up.dto';
 import { ParticipantsService } from './participants.service';
@@ -55,6 +58,16 @@ export class SignUpController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
     const user = await this.participants.signUp(dto);
+    if (user.chainState === ChainState.SUBMITTED) {
+      // Saved, but like any sign-in, it waits for the ledger: a retry
+      // confirms them within minutes, and they sign in then.
+      throw new ForbiddenException({
+        message:
+          'Your account is created and is being confirmed. Sign in again in a few minutes.',
+        code: ErrorCode.REGISTRATION_CONFIRMING,
+        details: { created: true },
+      });
+    }
     return this.session.respond(res, {
       user,
       tokens: await this.tokens.issue(user),

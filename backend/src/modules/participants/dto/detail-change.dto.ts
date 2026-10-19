@@ -9,6 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { SEARCH_MAX_LENGTH } from '../../users/person-search';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { PersonNameDto } from '../../../common/swagger/refs';
 import { DISTRICT_CODES } from '../../../common/reference/bd-districts';
@@ -153,6 +154,14 @@ export class DetailChangesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(DetailChangeStatus)
   status: DetailChangeStatus = DetailChangeStatus.PENDING;
+
+  @ApiPropertyOptional({
+    description: 'Whose: a mobile number, an NID, or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(SEARCH_MAX_LENGTH)
+  q?: string;
 }
 
 export class DetailChangeSummaryDto {

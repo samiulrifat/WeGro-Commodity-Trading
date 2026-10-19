@@ -1,6 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Search, UserPlus, Users, X } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { UserPlus, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toApiError } from '@/api/errors';
 import type { District } from '@/api/generated/codes';
@@ -10,10 +9,11 @@ import {
 } from '@/api/generated/participants';
 import type { Role } from '@/app/navigation';
 import { PageHeader } from '@/components/page-header';
+import { Pager } from '@/components/pager';
+import { SearchBox } from '@/components/search-box';
 import { PersonCell } from '@/components/person-cell';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/table';
 import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
-import { type PeopleSearch, searchArgs } from './people-search';
+import type { PeopleSearch } from './people-search';
 import { PersonStatus } from './person-status';
 import { useDistrictOptions } from './use-district-options';
 
@@ -76,8 +76,10 @@ export function PeopleList({
     limit: PAGE_SIZE,
     role: search.role,
     status: pending ? 'pending' : search.status,
+    // Waiting for you: only those you may verify.
+    manageable: pending || undefined,
     district: search.district,
-    ...searchArgs(search.q),
+    q: search.q,
   });
 
   const path = pending ? '/people/pending' : '/people';
@@ -175,13 +177,7 @@ function Filters({
 }) {
   const { t } = useTranslation();
   const districts = useDistrictOptions();
-  const [q, setQ] = useState(search.q ?? '');
   const ANY = '';
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    onChange({ q: q.trim() || undefined });
-  }
 
   const roleItems = [
     { value: ANY, label: t('people.anyRole') },
@@ -198,41 +194,11 @@ function Filters({
 
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
-      <search className="flex gap-2">
-        <form onSubmit={submit} className="flex flex-1 gap-2">
-          <div className="relative flex-1">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              aria-label={t('people.search')}
-              placeholder={t('people.search')}
-              inputMode="numeric"
-              value={q}
-              className="pl-9"
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-          <Button type="submit" variant="outline">
-            {t('people.find')}
-          </Button>
-          {search.q && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={t('people.clearSearch')}
-              onClick={() => {
-                setQ('');
-                onChange({ q: undefined });
-              }}
-            >
-              <X />
-            </Button>
-          )}
-        </form>
-      </search>
+      <SearchBox
+        value={search.q}
+        onSearch={(q) => onChange({ q })}
+        placeholder={t('people.search')}
+      />
       {roles.length > 0 && (
         <FilterSelect
           label={t('people.role')}
@@ -370,45 +336,5 @@ function PeopleCards({ people }: { people: ParticipantSummaryDto[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function Pager({
-  page,
-  pages,
-  total,
-  onPage,
-}: {
-  page: number;
-  pages: number;
-  total: number;
-  onPage: (page: number) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <nav
-      aria-label={t('people.pages')}
-      className="flex flex-wrap items-center justify-between gap-3"
-    >
-      <p className="text-sm text-muted-foreground">
-        {t('people.pageOf', { page, pages, count: total })}
-      </p>
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          disabled={page <= 1}
-          onClick={() => onPage(page - 1)}
-        >
-          {t('people.previous')}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={page >= pages}
-          onClick={() => onPage(page + 1)}
-        >
-          {t('people.next')}
-        </Button>
-      </div>
-    </nav>
   );
 }

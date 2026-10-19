@@ -2,7 +2,7 @@ import { Outlet, useMatches, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
-import { access, navFor } from '../navigation';
+import { access, homeOf, navFor } from '../navigation';
 import { NoAccessPage } from '../pages';
 import { OfflineBanner } from '../pwa/offline-banner';
 import { BottomBar } from './bottom-bar';
@@ -35,6 +35,16 @@ export function AppShell() {
       });
     }
   }, [session.status, navigate]);
+
+  // Verified while waiting on the status page (a sign-up the ledger has
+  // just confirmed): on to their home.
+  const verifiedOnStatus =
+    area === 'status' && session.user?.status === 'verified';
+  useEffect(() => {
+    if (verifiedOnStatus && session.user) {
+      void navigate({ href: homeOf(session.user) });
+    }
+  }, [verifiedOnStatus, session.user, navigate]);
 
   if (!session.user) return null;
   const items = navFor(session.user);

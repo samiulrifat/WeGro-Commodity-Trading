@@ -1319,6 +1319,76 @@ describe('Identity (node + database)', () => {
       expect(smsTo(body.phone)).toContain(reset.body.data.temporaryPassword);
     });
 
+    it('finds people by whole words of their name, their number or NID', async () => {
+      const body = person(Role.BUYER, { fullName: 'Shapla Khatun Mondal' });
+      const id = (await register(admin.token, body).expect(201)).body.data
+        .participant.id;
+      const found = async (q: string) =>
+        (
+          await as(admin.token)
+            .get(`/participants?q=${encodeURIComponent(q)}&limit=100`)
+            .expect(200)
+        ).body.data.map((p: { id: string }) => p.id) as string[];
+      expect(await found('khatun')).toContain(id);
+      expect(await found('MONDAL  shapla')).toContain(id);
+      expect(await found(body.phone)).toEqual([id]);
+      expect(await found(body.nid)).toEqual([id]);
+      // Every word must be in the name; a part of a word is not a word.
+      expect(await found('shapla rahim')).not.toContain(id);
+      expect(await found('khat')).not.toContain(id);
+
+      // A name changed by an approved request is found by its new words.
+      const staff = await as(superToken)
+        .get('/participants?q=renamed&limit=100')
+        .expect(200);
+      expect(staff.body.data.map((p: { id: string }) => p.id)).toContain(
+        admin.id,
+      );
+    });
+
+    it('lists as waiting only the people the caller may verify', async () => {
+      const staff = await register(superToken, person(Role.AUDITOR)).expect(
+        201,
+      );
+      const other = await register(admin.token, person(Role.BUYER)).expect(201);
+      const waiting = async (token: string) =>
+        (
+          await as(token)
+            .get('/participants?status=pending&manageable=true&limit=100')
+            .expect(200)
+        ).body.data.map((p: { id: string }) => p.id) as string[];
+      const byAdmin = await waiting(admin.token);
+      expect(byAdmin).toContain(other.body.data.participant.id);
+      expect(byAdmin).not.toContain(staff.body.data.participant.id);
+      const bySuper = await waiting(superToken);
+      expect(bySuper).toContain(staff.body.data.participant.id);
+      expect(bySuper).not.toContain(other.body.data.participant.id);
+    });
+
+    it('finds details-change requests by whose they are', async () => {
+      const body = person(Role.INVESTOR, { fullName: 'Kohinoor Begum' });
+      const res = await register(admin.token, body).expect(201);
+      const token = await activate(body.phone, res.body.data.temporaryPassword);
+      const { role: _role, ...details } = body;
+      await as(token)
+        .post('/me/details/change', {
+          ...details,
+          address: 'House 3, Road 8, Sherpur, Bogura',
+        })
+        .expect(200);
+      const list = async (q: string) =>
+        (
+          await as(admin.token)
+            .get(`/detail-changes?q=${encodeURIComponent(q)}`)
+            .expect(200)
+        ).body.data.map(
+          (c: { participant: { id: string } }) => c.participant.id,
+        );
+      expect(await list('kohinoor')).toEqual([res.body.data.participant.id]);
+      expect(await list(body.phone)).toEqual([res.body.data.participant.id]);
+      expect(await list('nobody-by-this-name')).toEqual([]);
+    });
+
     it('names the registrar and the field officer on the detail', async () => {
       const res = await as(admin.token)
         .get(`/participants/${farmer.id}`)

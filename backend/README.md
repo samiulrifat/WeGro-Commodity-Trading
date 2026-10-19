@@ -92,9 +92,13 @@ With `SMS_PROVIDER=log` (local work) the text is written to the backend log inst
 
 Staff are registered by the super admin; farmers by their field officer (who is then theirs) or an admin; every other role by an admin. Field officers register farmers only, which the contract enforces too. `POST /api/participants/check` runs the ID check and the duplicate checks of a registration without saving anything, so the registrar confirms before it goes on the ledger. Each check carries a `reason` (the `IdCheckReason` list in the API docs) and its `params`, worded in the app. A registration answers with the temporary password once and texts it to the person in the language chosen for them (`smsSent` says whether the SMS went out); a reset does the same. If the ledger is slow to confirm, the person is saved as `submitted` all the same and the password still handed over; the indexer or sync confirms them.
 
+### Finding people
+
+Lists of people take `q`: a mobile number (phone index), an NID (NID index) or words of a name. Names stay encrypted; each word of a name is kept as a keyed hash (`person_name_tokens`), so typing any whole word finds them, every word typed must be in the name, and nothing is decrypted to search. A part of a word does not match. The words are rewritten whenever a name is saved or changed, and people saved before the index existed are indexed at startup. The same rule (`PersonSearch`) serves every list that shows people.
+
 ### Signing up
 
-Investors and buyers sign up themselves: `POST /api/auth/sign-up/code` texts a code to a number not yet registered, and `POST /api/auth/sign-up` takes the same details as any registration, the code and their own password. They go through the ID check, are registered and verified on the ledger at once by the platform's key (`selfRegisterParticipant`, which the contract allows only for those two roles), and are signed in. Every other role is registered for them.
+Investors and buyers sign up themselves: `POST /api/auth/sign-up/code` texts a code to a number not yet registered, and `POST /api/auth/sign-up` takes the same details as any registration, the code and their own password. They go through the ID check, are registered and verified on the ledger at once by the platform's key (`selfRegisterParticipant`, which the contract allows only for those two roles), and are signed in. If the ledger has not confirmed them yet, sign-up answers `REGISTRATION_CONFIRMING` like a sign-in would; the `sign-up-retry` job (every `SIGN_UP_RETRY_MS`) sends such registrations again by the platform key, so they can sign in within minutes without anyone stepping in. Every other role is registered for them.
 
 ### Email addresses
 

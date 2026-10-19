@@ -157,6 +157,8 @@ function world() {
     tokens as never,
     sms as never,
     {} as never,
+    { write: jest.fn(() => Promise.resolve()) } as never,
+    { apply: (qb: unknown) => qb } as never,
   );
   jest
     .spyOn(

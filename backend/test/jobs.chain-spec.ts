@@ -7,6 +7,7 @@ const JOBS = [
   'reminders',
   'reservation-expiry',
   'sale-expiry',
+  'sign-up-retry',
 ];
 
 describe('Jobs (node + database)', () => {

@@ -101,10 +101,7 @@ export type SubLabel =
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
-  | '/people'
-  | '/people/pending'
-  | '/people/new'
-  | '/people/changes';
+  '/people' | '/people/pending' | '/people/new' | '/people/changes';
 
 export interface SubPage {
   to: SubPath;

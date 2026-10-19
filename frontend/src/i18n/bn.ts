@@ -838,6 +838,10 @@ export const bn: Translation = {
     emailNeeded: 'আমরা এই ঠিকানায় ৬ অঙ্কের একটি কোড ইমেইল করব।',
     emailConfirm: 'নিশ্চিত করুন',
     emailLater: 'পরে, আমার অ্যাকাউন্টে',
+    createdTitle: 'আপনার অ্যাকাউন্ট তৈরি হয়েছে',
+    createdText:
+      'WeGro লেজার এখনও এটি নিশ্চিত করছে। কয়েক মিনিট পরে আপনার নম্বর ও পাসওয়ার্ড দিয়ে সাইন ইন করুন।',
+    signIn: 'সাইন ইনে যান',
   },
   password: {
     show: 'পাসওয়ার্ড দেখান',
@@ -955,6 +959,17 @@ export const bn: Translation = {
     warned: 'যাচাই করুন',
     failed: 'সঠিক নয়',
   },
+  search: {
+    find: 'খুঁজুন',
+    clear: 'খোঁজ মুছুন',
+  },
+  pager: {
+    label: 'পাতা',
+    pageOf:
+      'পাতা {{page, number}} / {{pages, number}}, মোট {{count, number}}টি',
+    previous: 'আগের',
+    next: 'পরের',
+  },
   people: {
     register: 'কাউকে নিবন্ধন করুন',
     pendingIntro: 'যেসব নিবন্ধন আপনার যাচাইয়ের অপেক্ষায় আছে।',
@@ -962,9 +977,7 @@ export const bn: Translation = {
     noneWaiting: 'কেউ যাচাইয়ের অপেক্ষায় নেই।',
     noMatch: 'কারও সাথে মেলেনি',
     noMatchHint: 'নম্বর বা এনআইডি দেখে নিন, অথবা ফিল্টার মুছে দিন।',
-    search: 'পূর্ণ মোবাইল নম্বর বা এনআইডি',
-    find: 'খুঁজুন',
-    clearSearch: 'খোঁজ মুছুন',
+    search: 'নাম, মোবাইল নম্বর বা এনআইডি',
     role: 'ভূমিকা',
     anyRole: 'সব ভূমিকা',
     statusLabel: 'অবস্থা',
@@ -976,11 +989,6 @@ export const bn: Translation = {
       rejected: 'প্রত্যাখ্যাত',
     },
     column: { person: 'ব্যক্তি', registered: 'নিবন্ধনের তারিখ' },
-    pages: 'পাতা',
-    pageOf:
-      'পাতা {{page, number}} / {{pages, number}}, মোট {{count, number}} জন',
-    previous: 'আগের',
-    next: 'পরের',
     flagged: 'সতর্কতা আছে',
     ledgerPending: 'লেজার নিশ্চিত করছে',
     rejectedBecause: 'গ্রহণ করা হয়নি',
@@ -1066,6 +1074,8 @@ export const bn: Translation = {
       assignNow: 'এখন: {{name}}।',
       assignNone: 'এখনও কোনো মাঠ কর্মকর্তা নেই।',
       chooseOfficer: 'একজন মাঠ কর্মকর্তা বেছে নিন',
+      findOfficer: 'কর্মকর্তার নাম বা মোবাইল নম্বর',
+      narrowOfficers: 'আরও কর্মকর্তা মেলে: তালিকা ছোট করতে খুঁজুন।',
     },
     new: {
       intro:
@@ -1100,6 +1110,7 @@ export const bn: Translation = {
     intro:
       'যাঁরা নিজেদের তথ্য বদলাতে চেয়েছেন। অনুমোদন দিলে নতুন তথ্য লেজারে যায়।',
     show: 'দেখান',
+    search: 'ব্যক্তির নাম, মোবাইল নম্বর বা এনআইডি',
     status: {
       pending: 'অপেক্ষমাণ',
       approved: 'অনুমোদিত',
