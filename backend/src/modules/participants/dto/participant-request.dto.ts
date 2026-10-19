@@ -51,7 +51,11 @@ export class RegisterParticipantDto {
   @MaxLength(20)
   dateOfBirth: string;
 
-  @ApiProperty({ enum: DISTRICT_CODES, example: 'BOGURA' })
+  @ApiProperty({
+    enum: DISTRICT_CODES,
+    enumName: 'District',
+    example: 'BOGURA',
+  })
   @IsString()
   @MaxLength(40)
   district: string;
@@ -105,7 +109,7 @@ export class ListParticipantsQueryDto extends PaginationQueryDto {
   @IsIn([ChainState.SUBMITTED, ChainState.CONFIRMED])
   chainState?: ChainState;
 
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   district?: string;

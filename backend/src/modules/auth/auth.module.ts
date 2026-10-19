@@ -10,10 +10,11 @@ import {
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { PasswordResetCode } from './entities/password-reset-code.entity';
+import { SmsCode } from './entities/sms-code.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { JwtStrategy } from './jwt.strategy';
 import { PasswordResetService } from './password-reset.service';
+import { SmsCodeService } from './sms-code.service';
 import { LogSmsSender, MemorySmsSender, SmsSender } from './sms/sms-sender';
 import { TokenService } from './token.service';
 
@@ -25,7 +26,7 @@ import { TokenService } from './token.service';
   imports: [
     UsersModule,
     PassportModule,
-    TypeOrmModule.forFeature([RefreshToken, PasswordResetCode]),
+    TypeOrmModule.forFeature([RefreshToken, SmsCode]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<EnvironmentVariables, true>) => ({
@@ -41,6 +42,7 @@ import { TokenService } from './token.service';
     TokenService,
     JwtStrategy,
     PasswordResetService,
+    SmsCodeService,
     {
       provide: SmsSender,
       inject: [ConfigService],
@@ -50,6 +52,6 @@ import { TokenService } from './token.service';
           : new LogSmsSender(),
     },
   ],
-  exports: [TokenService],
+  exports: [TokenService, SmsCodeService],
 })
 export class AuthModule {}

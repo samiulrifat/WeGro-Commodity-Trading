@@ -59,8 +59,8 @@ Build in order: each phase depends on the ones above it.
 ## Phase 1: Identity
 
 - [x] 7. Sign-in: phone and password (Bengali digits accepted), first-sign-in password change, "your session has ended" when it lapses, lockout and other refusals worded from their codes, demo role picker on its own tab; forgotten password by SMS code (backend: codes stored as keyed hashes, 10 minutes, 5 tries, 60 s between and 5 an hour per number, the same answer for unregistered numbers, a pluggable SMS sender writing to the log locally). Signing out everywhere moved to item 8 (My account)
-- [ ] 8. My account: my details, language, change password, sign out on every device
-- [ ] 9. Participants: register with the ID check (results and flags to acknowledge), list with filters and search by phone or NID, detail (masked for auditors), verify, reject, assign field officer, replace key, reset password, sync with the ledger
+- [x] 8. My account: my details (changes by request, approved by an admin or for staff the super admin; a new number confirmed by SMS code; the super admin's apply at once), language, change password, ledger account for staff, sign out on every device. The admins' review of the requests comes with item 9 (People)
+- [ ] 9. Participants: register with the ID check (results and flags to acknowledge), list with filters and search by phone or NID, detail (masked for auditors), verify, reject, assign field officer, replace key, reset password, sync with the ledger, review details-change requests (approve, or reject with a reason)
 - [ ] 10. Bank details: payees enter and see their own; admins' verification queue (verified by someone other than who entered them)
 
 ## Phase 2: Business screens

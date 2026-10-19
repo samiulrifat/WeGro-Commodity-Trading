@@ -1,5 +1,5 @@
 // Writes the backend's code lists (published in its OpenAPI document) as
-// types, so the app's wording can be checked to cover every one. Part of
+// lists and types, so the app's wording can be checked to cover every one. Part of
 // `npm run api:generate`; reads the same document as the API client.
 import { writeFileSync } from 'node:fs';
 
@@ -8,6 +8,7 @@ const LISTS = {
   ErrorCode: 'Why the backend refused a request (error code).',
   LedgerErrorCode: 'Why the ledger itself refused (contract error name).',
   ValidationRule: 'What an input check found wrong with a field.',
+  District: 'The 64 districts, by the code the API uses (BOGURA).',
 };
 
 const doc = await (await fetch(url)).json();

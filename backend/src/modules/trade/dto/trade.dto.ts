@@ -83,7 +83,7 @@ export class ListListingsQueryDto extends PaginationQueryDto {
   @Matches(CODE_PATTERN)
   produceCode?: string;
 
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;

@@ -55,8 +55,11 @@ function world(existing: Partial<User>[] = []) {
   const repo = fakeRepo({
     manager,
     create: jest.fn((u: Partial<User>) => ({ ...u }) as User),
-    findOne: jest.fn(({ where }: { where: Partial<User> }) =>
-      Promise.resolve(find(where)),
+    // A list of conditions matches any one of them, as in TypeORM.
+    findOne: jest.fn(({ where }: { where: Partial<User> | Partial<User>[] }) =>
+      Promise.resolve(
+        [where].flat().reduce<User | null>((u, w) => u ?? find(w), null),
+      ),
     ),
     findOneByOrFail: jest.fn((where: Partial<User>) => {
       const u = find(where);
@@ -158,6 +161,28 @@ describe('DemoAccountsService', () => {
     const w = world(all);
     await build(w).ensureAll();
     expect(w.participants.verify).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes over an account an earlier start registered but did not mark', async () => {
+    const all = [Role.SUPER_ADMIN, ...STAFF, ...OTHERS].map((role) => ({
+      role,
+      isDemo: role !== Role.SUPER_ADMIN,
+    }));
+    // The ledger was slow: saved, still pending, not yet marked as a demo.
+    Object.assign(all[1], {
+      isDemo: false,
+      status: ParticipantStatus.PENDING,
+      phoneIndex: 'idx:+8801700000001',
+      mustChangePassword: true,
+    });
+    const w = world(all);
+    await build(w).ensureAll();
+    expect(w.participants.register).not.toHaveBeenCalled();
+    expect(w.users.find((u) => u.role === Role.ADMIN)).toMatchObject({
+      isDemo: true,
+      mustChangePassword: false,
+      status: ParticipantStatus.VERIFIED,
+    });
   });
 
   it('does nothing at startup outside demo mode', () => {

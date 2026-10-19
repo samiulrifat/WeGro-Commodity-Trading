@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 /**
- * Sends text messages (password reset codes). One small interface, so a
- * Bangladeshi SMS provider can be plugged in with its credentials in .env.
+ * Sends text messages (codes for a password reset or a new number). One
+ * small interface, so a Bangladeshi SMS provider can be plugged in with its
+ * credentials in .env.
  * Chosen by SMS_PROVIDER; production refuses the two below.
  */
 export abstract class SmsSender {

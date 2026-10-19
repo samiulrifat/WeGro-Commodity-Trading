@@ -115,6 +115,85 @@ const injectedRtkApi = api
         }),
         providesTags: ['Participants'],
       }),
+      detailChangesMine: build.query<
+        DetailChangesMineApiResponse,
+        DetailChangesMineApiArg
+      >({
+        query: () => ({ url: `/api/me/details` }),
+        providesTags: ['Participants'],
+      }),
+      detailChangesPhoneCode: build.mutation<
+        DetailChangesPhoneCodeApiResponse,
+        DetailChangesPhoneCodeApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/me/details/phone-code`,
+          method: 'POST',
+          body: queryArg.phoneCodeRequestDto,
+        }),
+        invalidatesTags: ['Participants'],
+      }),
+      detailChangesSubmit: build.mutation<
+        DetailChangesSubmitApiResponse,
+        DetailChangesSubmitApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/me/details/change`,
+          method: 'POST',
+          body: queryArg.detailChangeRequestDto,
+        }),
+        invalidatesTags: ['Participants'],
+      }),
+      detailChangesWithdraw: build.mutation<
+        DetailChangesWithdrawApiResponse,
+        DetailChangesWithdrawApiArg
+      >({
+        query: () => ({ url: `/api/me/details/change`, method: 'DELETE' }),
+        invalidatesTags: ['Participants'],
+      }),
+      detailChangesList: build.query<
+        DetailChangesListApiResponse,
+        DetailChangesListApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/detail-changes`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            status: queryArg.status,
+          },
+        }),
+        providesTags: ['Participants'],
+      }),
+      detailChangesReview: build.query<
+        DetailChangesReviewApiResponse,
+        DetailChangesReviewApiArg
+      >({
+        query: (queryArg) => ({ url: `/api/detail-changes/${queryArg.id}` }),
+        providesTags: ['Participants'],
+      }),
+      detailChangesApprove: build.mutation<
+        DetailChangesApproveApiResponse,
+        DetailChangesApproveApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/detail-changes/${queryArg.id}/approve`,
+          method: 'POST',
+          body: queryArg.approveDetailChangeDto,
+        }),
+        invalidatesTags: ['Participants'],
+      }),
+      detailChangesReject: build.mutation<
+        DetailChangesRejectApiResponse,
+        DetailChangesRejectApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/detail-changes/${queryArg.id}/reject`,
+          method: 'POST',
+          body: queryArg.rejectDetailChangeDto,
+        }),
+        invalidatesTags: ['Participants'],
+      }),
     }),
     overrideExisting: false,
   });
@@ -147,71 +226,7 @@ export type ParticipantsListApiArg = {
     | 'auditor';
   status?: 'pending' | 'verified' | 'rejected';
   chainState?: 'submitted' | 'confirmed';
-  district?:
-    | 'BARGUNA'
-    | 'BARISHAL'
-    | 'BHOLA'
-    | 'JHALOKATI'
-    | 'PATUAKHALI'
-    | 'PIROJPUR'
-    | 'BANDARBAN'
-    | 'BRAHMANBARIA'
-    | 'CHANDPUR'
-    | 'CHATTOGRAM'
-    | 'CUMILLA'
-    | 'COXS_BAZAR'
-    | 'FENI'
-    | 'KHAGRACHHARI'
-    | 'LAKSHMIPUR'
-    | 'NOAKHALI'
-    | 'RANGAMATI'
-    | 'DHAKA'
-    | 'FARIDPUR'
-    | 'GAZIPUR'
-    | 'GOPALGANJ'
-    | 'KISHOREGANJ'
-    | 'MADARIPUR'
-    | 'MANIKGANJ'
-    | 'MUNSHIGANJ'
-    | 'NARAYANGANJ'
-    | 'NARSINGDI'
-    | 'RAJBARI'
-    | 'SHARIATPUR'
-    | 'TANGAIL'
-    | 'BAGERHAT'
-    | 'CHUADANGA'
-    | 'JASHORE'
-    | 'JHENAIDAH'
-    | 'KHULNA'
-    | 'KUSHTIA'
-    | 'MAGURA'
-    | 'MEHERPUR'
-    | 'NARAIL'
-    | 'SATKHIRA'
-    | 'JAMALPUR'
-    | 'MYMENSINGH'
-    | 'NETROKONA'
-    | 'SHERPUR'
-    | 'BOGURA'
-    | 'JOYPURHAT'
-    | 'NAOGAON'
-    | 'NATORE'
-    | 'CHAPAI_NAWABGANJ'
-    | 'PABNA'
-    | 'RAJSHAHI'
-    | 'SIRAJGANJ'
-    | 'DINAJPUR'
-    | 'GAIBANDHA'
-    | 'KURIGRAM'
-    | 'LALMONIRHAT'
-    | 'NILPHAMARI'
-    | 'PANCHAGARH'
-    | 'RANGPUR'
-    | 'THAKURGAON'
-    | 'HABIGANJ'
-    | 'MOULVIBAZAR'
-    | 'SUNAMGANJ'
-    | 'SYLHET';
+  district?: District;
   /** Exact phone number match */
   phone?: string;
   /** Exact NID match (13- and 17-digit forms are equivalent) */
@@ -268,6 +283,58 @@ export type ParticipantsIntegrityApiResponse = /** status 200  */ {
 export type ParticipantsIntegrityApiArg = {
   id: string;
 };
+export type DetailChangesMineApiResponse = /** status 200  */ {
+  data: MyDetailsDto;
+};
+export type DetailChangesMineApiArg = void;
+export type DetailChangesPhoneCodeApiResponse =
+  /** status 200 Texts a 6-digit code to the new number */ {
+    data: PasswordResetRequestedDto;
+  };
+export type DetailChangesPhoneCodeApiArg = {
+  phoneCodeRequestDto: PhoneCodeRequestDto;
+};
+export type DetailChangesSubmitApiResponse =
+  /** status 200 Asks for the details to be as given; an admin approves (the super admin for staff). The super admin’s apply at once. */ {
+    data: MyDetailsDto;
+  };
+export type DetailChangesSubmitApiArg = {
+  detailChangeRequestDto: DetailChangeRequestDto;
+};
+export type DetailChangesWithdrawApiResponse =
+  /** status 200 Takes back a change still waiting */ {
+    data: MyDetailsDto;
+  };
+export type DetailChangesWithdrawApiArg = void;
+export type DetailChangesListApiResponse = /** status 200 Oldest first */ {
+  data: DetailChangeSummaryDto[];
+  meta: PageMetaDto;
+};
+export type DetailChangesListApiArg = {
+  page?: number;
+  limit?: number;
+  status?: DetailChangeStatus;
+};
+export type DetailChangesReviewApiResponse = /** status 200  */ {
+  data: DetailChangeReviewDto;
+};
+export type DetailChangesReviewApiArg = {
+  id: string;
+};
+export type DetailChangesApproveApiResponse = /** status 200  */ {
+  data: DetailChangeReviewDto;
+};
+export type DetailChangesApproveApiArg = {
+  id: string;
+  approveDetailChangeDto: ApproveDetailChangeDto;
+};
+export type DetailChangesRejectApiResponse = /** status 200  */ {
+  data: DetailChangeReviewDto;
+};
+export type DetailChangesRejectApiArg = {
+  id: string;
+  rejectDetailChangeDto: RejectDetailChangeDto;
+};
 export type IdCheckItemDto = {
   code: string;
   result: 'pass' | 'warn' | 'fail';
@@ -320,6 +387,71 @@ export type RegisteredParticipantDto = {
   /** Shown once, never stored in readable form. Hand it to the person; they must change it at first sign-in. */
   temporaryPassword: string;
 };
+export type District =
+  | 'BARGUNA'
+  | 'BARISHAL'
+  | 'BHOLA'
+  | 'JHALOKATI'
+  | 'PATUAKHALI'
+  | 'PIROJPUR'
+  | 'BANDARBAN'
+  | 'BRAHMANBARIA'
+  | 'CHANDPUR'
+  | 'CHATTOGRAM'
+  | 'CUMILLA'
+  | 'COXS_BAZAR'
+  | 'FENI'
+  | 'KHAGRACHHARI'
+  | 'LAKSHMIPUR'
+  | 'NOAKHALI'
+  | 'RANGAMATI'
+  | 'DHAKA'
+  | 'FARIDPUR'
+  | 'GAZIPUR'
+  | 'GOPALGANJ'
+  | 'KISHOREGANJ'
+  | 'MADARIPUR'
+  | 'MANIKGANJ'
+  | 'MUNSHIGANJ'
+  | 'NARAYANGANJ'
+  | 'NARSINGDI'
+  | 'RAJBARI'
+  | 'SHARIATPUR'
+  | 'TANGAIL'
+  | 'BAGERHAT'
+  | 'CHUADANGA'
+  | 'JASHORE'
+  | 'JHENAIDAH'
+  | 'KHULNA'
+  | 'KUSHTIA'
+  | 'MAGURA'
+  | 'MEHERPUR'
+  | 'NARAIL'
+  | 'SATKHIRA'
+  | 'JAMALPUR'
+  | 'MYMENSINGH'
+  | 'NETROKONA'
+  | 'SHERPUR'
+  | 'BOGURA'
+  | 'JOYPURHAT'
+  | 'NAOGAON'
+  | 'NATORE'
+  | 'CHAPAI_NAWABGANJ'
+  | 'PABNA'
+  | 'RAJSHAHI'
+  | 'SIRAJGANJ'
+  | 'DINAJPUR'
+  | 'GAIBANDHA'
+  | 'KURIGRAM'
+  | 'LALMONIRHAT'
+  | 'NILPHAMARI'
+  | 'PANCHAGARH'
+  | 'RANGPUR'
+  | 'THAKURGAON'
+  | 'HABIGANJ'
+  | 'MOULVIBAZAR'
+  | 'SUNAMGANJ'
+  | 'SYLHET';
 export type RegisterParticipantDto = {
   role:
     | 'investor'
@@ -340,71 +472,7 @@ export type RegisterParticipantDto = {
   nid: string;
   /** YYYY-MM-DD */
   dateOfBirth: string;
-  district:
-    | 'BARGUNA'
-    | 'BARISHAL'
-    | 'BHOLA'
-    | 'JHALOKATI'
-    | 'PATUAKHALI'
-    | 'PIROJPUR'
-    | 'BANDARBAN'
-    | 'BRAHMANBARIA'
-    | 'CHANDPUR'
-    | 'CHATTOGRAM'
-    | 'CUMILLA'
-    | 'COXS_BAZAR'
-    | 'FENI'
-    | 'KHAGRACHHARI'
-    | 'LAKSHMIPUR'
-    | 'NOAKHALI'
-    | 'RANGAMATI'
-    | 'DHAKA'
-    | 'FARIDPUR'
-    | 'GAZIPUR'
-    | 'GOPALGANJ'
-    | 'KISHOREGANJ'
-    | 'MADARIPUR'
-    | 'MANIKGANJ'
-    | 'MUNSHIGANJ'
-    | 'NARAYANGANJ'
-    | 'NARSINGDI'
-    | 'RAJBARI'
-    | 'SHARIATPUR'
-    | 'TANGAIL'
-    | 'BAGERHAT'
-    | 'CHUADANGA'
-    | 'JASHORE'
-    | 'JHENAIDAH'
-    | 'KHULNA'
-    | 'KUSHTIA'
-    | 'MAGURA'
-    | 'MEHERPUR'
-    | 'NARAIL'
-    | 'SATKHIRA'
-    | 'JAMALPUR'
-    | 'MYMENSINGH'
-    | 'NETROKONA'
-    | 'SHERPUR'
-    | 'BOGURA'
-    | 'JOYPURHAT'
-    | 'NAOGAON'
-    | 'NATORE'
-    | 'CHAPAI_NAWABGANJ'
-    | 'PABNA'
-    | 'RAJSHAHI'
-    | 'SIRAJGANJ'
-    | 'DINAJPUR'
-    | 'GAIBANDHA'
-    | 'KURIGRAM'
-    | 'LALMONIRHAT'
-    | 'NILPHAMARI'
-    | 'PANCHAGARH'
-    | 'RANGPUR'
-    | 'THAKURGAON'
-    | 'HABIGANJ'
-    | 'MOULVIBAZAR'
-    | 'SUNAMGANJ'
-    | 'SYLHET';
+  district: District;
   address: string;
 };
 export type ParticipantSummaryDto = {
@@ -485,6 +553,122 @@ export type IntegrityReportDto = {
   ledger: LedgerParticipantDto;
   mismatches: string[];
 };
+export type OwnDetailsDto = {
+  fullName: string;
+  phone: string;
+  nid?: string | null;
+  dateOfBirth?: string | null;
+  district?: string | null;
+  address?: string | null;
+};
+export type DetailChangeStatus =
+  'pending' | 'approved' | 'rejected' | 'withdrawn';
+export type DetailField =
+  'fullName' | 'phone' | 'nid' | 'dateOfBirth' | 'district' | 'address';
+export type DetailChangeDto = {
+  id: string;
+  status: DetailChangeStatus;
+  requested: OwnDetailsDto;
+  changedFields: DetailField[];
+  idCheck?: IdCheckDto | null;
+  createdAt: string;
+  decidedAt?: string | null;
+  /** Why it was rejected */
+  reason?: string | null;
+};
+export type MyDetailsDto = {
+  current: OwnDetailsDto;
+  /** The latest change asked for: waiting, or how it was decided */
+  change?: DetailChangeDto | null;
+  /** False for the super admin, whose changes apply at once */
+  needsApproval: boolean;
+};
+export type PasswordResetRequestedDto = {
+  /** Before another code may be asked for */
+  resendAfterSeconds: number;
+  /** How long the code is good for */
+  expiresInSeconds: number;
+};
+export type PhoneCodeRequestDto = {
+  /** The new number */
+  phone: string;
+};
+export type DetailChangeRequestDto = {
+  fullName: string;
+  phone: string;
+  /** Not for the super admin */
+  nid?: string;
+  dateOfBirth?: string;
+  district?: District;
+  address?: string;
+  /** The code sent to a new number (POST me/details/phone-code) */
+  phoneCode?: string;
+};
+export type PersonNameDto = {
+  id: string;
+  name: string;
+};
+export type DetailChangeSummaryDto = {
+  id: string;
+  /** Whose details (current name) */
+  participant: PersonNameDto;
+  role:
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor';
+  status: DetailChangeStatus;
+  changedFields: DetailField[];
+  /** The ID check on the requested details */
+  idCheckOutcome?: ('passed' | 'flagged' | 'failed') | null;
+  createdAt: string;
+};
+export type DetailChangeReviewDto = {
+  id: string;
+  /** Whose details (current name) */
+  participant: PersonNameDto;
+  role:
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor';
+  status: DetailChangeStatus;
+  changedFields: DetailField[];
+  /** The ID check on the requested details */
+  idCheckOutcome?: ('passed' | 'flagged' | 'failed') | null;
+  createdAt: string;
+  current: OwnDetailsDto;
+  requested: OwnDetailsDto;
+  idCheck?: IdCheckDto | null;
+  decidedBy?: PersonNameDto | null;
+  decidedAt?: string | null;
+  reason?: string | null;
+};
+export type ApproveDetailChangeDto = {
+  /** Required when the ID check flagged something: confirms the flags were reviewed */
+  acknowledgeFlags?: boolean;
+};
+export type RejectDetailChangeDto = {
+  reason: string;
+};
 export const {
   useParticipantsRegisterMutation,
   useParticipantsListQuery,
@@ -499,4 +683,15 @@ export const {
   useParticipantsSyncMutation,
   useParticipantsIntegrityQuery,
   useLazyParticipantsIntegrityQuery,
+  useDetailChangesMineQuery,
+  useLazyDetailChangesMineQuery,
+  useDetailChangesPhoneCodeMutation,
+  useDetailChangesSubmitMutation,
+  useDetailChangesWithdrawMutation,
+  useDetailChangesListQuery,
+  useLazyDetailChangesListQuery,
+  useDetailChangesReviewQuery,
+  useLazyDetailChangesReviewQuery,
+  useDetailChangesApproveMutation,
+  useDetailChangesRejectMutation,
 } = injectedRtkApi;

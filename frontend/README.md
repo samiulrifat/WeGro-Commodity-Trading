@@ -80,7 +80,17 @@ Routes are files under [src/routes](src/routes): one per page, and each page's c
 - `/sign-in`: mobile number (any common form, Bengali digits too) and password; a "Demo" tab with the role picker when the backend runs in demo mode. Refusals are worded from their codes: wrong details, a lockout with its minutes, a registration still being confirmed. If a session ended on its own (it lapsed, or the password was changed elsewhere), the page says so.
 - A temporary password (new accounts, admin resets) leads to `/change-password`, where the person chooses their own before anything else.
 - `/forgot-password`: number, the 6-digit code from the SMS (locally, from the backend log), a new password; it ends signed in, every other device signed out.
-- Password fields can show what was typed; new passwords need 10 to 128 characters, typed twice ([password-rules.ts](src/app/auth/password-rules.ts)). Signing out on every device comes with My account (item 8).
+- Password fields can show what was typed; new passwords need 10 to 128 characters, typed twice ([password-rules.ts](src/app/auth/password-rules.ts)).
+
+## My account
+
+`/account`, for everyone signed in ([src/app/account](src/app/account)):
+
+- My details in full, and changing them: a new number is confirmed by a code sent to it, then the change waits for an admin (the super admin for staff); the page shows it waiting, with what was asked for and a way to take it back, or how it was decided and why. Changing again starts from the change still waiting. The super admin's name and number change at once.
+- Language, saved to the account (the app, notifications and SMS use it everywhere).
+- Change password: every other device is signed out, this one carries on.
+- Staff see their ledger account (the address that signs what they do on the ledger), with copy.
+- Sign out everywhere, after a confirmation.
 
 ## Installable and offline
 

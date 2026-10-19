@@ -91,6 +91,11 @@ export function watchConnection(store: AppStore): void {
  */
 export async function signOut(store: AppStore): Promise<void> {
   await tellServer();
+  forgetSession(store);
+}
+
+/** The session ended on the server already: nothing of it stays on screen. */
+export function forgetSession(store: AppStore): void {
   store.dispatch(sessionEnded('signedOut'));
   store.dispatch(baseApi.util.resetApiState());
 }

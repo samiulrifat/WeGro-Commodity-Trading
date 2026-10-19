@@ -4,7 +4,7 @@ import {
   redirect,
   useNavigate,
 } from '@tanstack/react-router';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ApiError, toApiError } from '@/api/errors';
 import {
@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { latinDigits } from '@/lib/format';
+import { useSecondsUntil } from '@/lib/use-seconds-until';
 import { useAppDispatch } from '@/store/hooks';
 import { sessionStarted } from '@/store/session-slice';
 
@@ -48,7 +49,13 @@ export const Route = createFileRoute('/forgot-password')({
 
 type Step =
   | { name: 'phone' }
-  | { name: 'code'; phone: string; resendAt: number; minutes: number }
+  | {
+      name: 'code';
+      phone: string;
+      sentAt: number;
+      resendAt: number;
+      minutes: number;
+    }
   | { name: 'password'; phone: string; code: string };
 
 const linkClass =
@@ -73,10 +80,12 @@ function ForgotPasswordPage() {
       const { data } = await request({
         passwordResetRequestDto: { phone: number },
       }).unwrap();
+      const sentAt = Date.now();
       setStep({
         name: 'code',
         phone: number,
-        resendAt: Date.now() + data.resendAfterSeconds * 1000,
+        sentAt,
+        resendAt: sentAt + data.resendAfterSeconds * 1000,
         minutes: Math.round(data.expiresInSeconds / 60),
       });
     } catch (e) {
@@ -122,6 +131,7 @@ function ForgotPasswordPage() {
             setStep({
               name: 'code',
               phone: step.phone,
+              sentAt: 0,
               resendAt: 0,
               minutes: 10,
             });
@@ -179,17 +189,6 @@ function PhoneStep({
   );
 }
 
-/** Seconds left until `at`, ticking. */
-function useSecondsUntil(at: number): number {
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (at <= Date.now()) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [at]);
-  return Math.max(0, Math.ceil((at - now) / 1000));
-}
-
 function CodeStep({
   step,
   sendError,
@@ -210,7 +209,7 @@ function CodeStep({
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [verify, verifying] = useAuthVerifyResetMutation();
-  const wait = useSecondsUntil(step.resendAt);
+  const wait = useSecondsUntil(step.resendAt, step.sentAt);
   const digits = latinDigits(code.trim());
   const malformed = tried && !/^\d{6}$/.test(digits);
 
@@ -315,7 +314,7 @@ function PasswordStep({
     } catch (e) {
       const failure = toApiError(e as never)!;
       // The code stopped working meanwhile: back to asking for one.
-      if (failure.code === 'RESET_CODE_EXPIRED') onCodeGone(failure);
+      if (failure.code === 'SMS_CODE_EXPIRED') onCodeGone(failure);
       else setError(failure);
     }
   }

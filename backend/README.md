@@ -84,7 +84,13 @@ With `DEMO_MODE=true`, startup creates one verified account for every role. `POS
 
 Someone who forgot their password asks for a 6-digit code by SMS (`POST /api/auth/password-reset/request`), checks it (`…/verify`) and sets a new password with it (`…/complete`), which clears a lockout, ends every other session and signs them in. The answer is the same whether or not the number is registered. A code lasts 10 minutes and allows 5 wrong tries; a new one can be asked for after 60 seconds, at most 5 an hour per number. Only a keyed hash of the code is stored.
 
+The same codes confirm a new number when someone changes their own details (below); each code is for one purpose only.
+
 With `SMS_PROVIDER=log` (local work) the text is written to the backend log instead of being sent: look for `SMS` there to read the code. A real SMS provider is added behind the `SmsSender` interface (`src/modules/auth/sms/sms-sender.ts`) with its credentials in `.env`; production refuses to start without one.
+
+### Changing one's own details
+
+Everyone sees their own details in full (`GET /api/me/details`) and can ask to change any of them (`POST /api/me/details/change`); the details go through the same ID check as at registration. A new number must first be confirmed by a code sent to it (`POST /api/me/details/phone-code`, then the code with the change). The request waits for an admin, or the super admin for staff (`GET /api/detail-changes`, `…/:id`, `…/:id/approve`, `…/:id/reject` with a reason); approving writes the new fingerprint to the ledger, signed by the approver, and the new number signs in from then on. A new request replaces one still waiting, and the person can take one back (`DELETE /api/me/details/change`). Nobody decides their own. The requested details are stored encrypted until decided. The super admin, who keeps only a name and a number, changes them at once.
 
 ## Everyday commands
 
@@ -107,7 +113,7 @@ Every setting is in [`.env.example`](.env.example) with its default and what it 
 | Setting | When to change it |
 |---|---|
 | `DEMO_MODE` | `true` for demos with ready-made accounts |
-| `SMS_PROVIDER` | `log` locally (reset codes in the log); a real provider in production |
+| `SMS_PROVIDER` | `log` locally (codes in the log); a real provider in production |
 | `CORS_ORIGINS`, `PUBLIC_APP_URL` | The frontend runs somewhere other than `http://localhost:5173` |
 | `INDEXER_BATCH_BLOCKS` | A node limits how many blocks or logs one request may cover |
 | `INDEXER_CONFIRMATIONS` | A chain without instant finality: stay this many blocks behind |

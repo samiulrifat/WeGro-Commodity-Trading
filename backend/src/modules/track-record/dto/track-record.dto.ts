@@ -42,7 +42,11 @@ export class RegisterBankDto {
   @MaxLength(100)
   branchName: string;
 
-  @ApiProperty({ enum: DISTRICT_CODES, example: 'BOGURA' })
+  @ApiProperty({
+    enum: DISTRICT_CODES,
+    enumName: 'District',
+    example: 'BOGURA',
+  })
   @IsIn(DISTRICT_CODES)
   districtCode: string;
 
@@ -91,7 +95,7 @@ export class ListBankFarmersQueryDto extends PaginationQueryDto {}
 export class ListViewsQueryDto extends PaginationQueryDto {}
 
 export class ListBanksQueryDto {
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;

@@ -9,23 +9,35 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
+/** What a code sent by SMS is for. */
+export enum SmsCodePurpose {
+  /** A forgotten password. */
+  PASSWORD_RESET = 'password-reset',
+  /** Confirming a new mobile number before a details change. */
+  PHONE_CHANGE = 'phone-change',
+}
+
 /**
- * One password reset code sent by SMS. Only a keyed hash of it is stored
- * (6 digits are guessable; without the key a database copy is not enough).
- * Asking for a reset looks the same whether the number is registered or
+ * One 6-digit code sent by SMS. Only a keyed hash of it is stored (6 digits
+ * are guessable; without the key a database copy is not enough). For a
+ * password reset, asking looks the same whether the number is registered or
  * not: a row is kept either way (`userId` null, nothing sent), so the
  * per-number limits apply alike.
  */
-@Entity('password_reset_codes')
-@Index('ix_password_reset_codes_phone', ['phoneIndex', 'createdAt'])
-export class PasswordResetCode {
+@Entity('sms_codes')
+@Index('ix_sms_codes_phone', ['purpose', 'phoneIndex', 'createdAt'])
+export class SmsCode {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  purpose: SmsCodePurpose;
 
   /** The number's blind index, as on users. */
   @Column({ type: 'char', length: 64 })
   phoneIndex: string;
 
+  /** Whose code: for a phone change, the person changing their number. */
   @Column({ type: 'uuid', nullable: true })
   userId: string | null;
 

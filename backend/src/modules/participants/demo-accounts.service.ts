@@ -132,30 +132,40 @@ export class DemoAccountsService implements OnApplicationBootstrap {
     registrar: AuthUser,
     manager: AuthUser,
   ): Promise<void> {
-    let user = await this.users.findOne({ where: { role, isDemo: true } });
+    const phone = demoPhone(STAFF.concat(OTHERS).indexOf(role) + 1);
+    let user = await this.users.findOne({
+      where: [
+        { role, isDemo: true },
+        // Saved by an earlier start that stopped before marking it (the
+        // ledger had not confirmed the registration yet).
+        { role, phoneIndex: this.codec.phoneIndex(phone) },
+      ],
+    });
     if (!user) {
       const { participant } = await this.participants.register(registrar, {
         role,
         fullName: `Demo ${LABEL[role]}`,
-        phone: demoPhone(STAFF.concat(OTHERS).indexOf(role) + 1),
+        phone,
         nid: demoNid(role),
         dateOfBirth: '1990-01-15',
         district: 'BOGURA',
         address: 'Made-up demo address, Bogura Sadar',
       });
+      user = await this.users.findOneByOrFail({ id: participant.id });
+    } else {
+      // Brings it back onto the ledger after a chain reset; no-op otherwise.
+      await this.participants.syncWithLedger(manager, user.id);
+      user = await this.users.findOneByOrFail({ id: user.id });
+    }
+    if (!user.isDemo) {
       await this.users.update(
-        { id: participant.id },
+        { id: user.id },
         {
           isDemo: true,
           mustChangePassword: false,
           passwordHash: await this.unusablePassword(),
         },
       );
-      user = await this.users.findOneByOrFail({ id: participant.id });
-    } else {
-      // Brings it back onto the ledger after a chain reset; no-op otherwise.
-      await this.participants.syncWithLedger(manager, user.id);
-      user = await this.users.findOneByOrFail({ id: user.id });
     }
     if (user.status !== ParticipantStatus.VERIFIED) {
       await this.participants.verify(manager, user.id, true);

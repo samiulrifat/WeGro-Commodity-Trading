@@ -719,7 +719,7 @@ describe('Identity (node + database)', () => {
     /** As if this number's codes were asked for `seconds` earlier. */
     const ago = (phone: string, seconds: number) =>
       db.query(
-        `UPDATE password_reset_codes SET created_at = created_at - make_interval(secs => $2)
+        `UPDATE sms_codes SET created_at = created_at - make_interval(secs => $2)
           WHERE phone_index = $1`,
         [
           chain.app
@@ -756,7 +756,7 @@ describe('Identity (node + database)', () => {
     it('makes you wait before another code, and the new code replaces the old', async () => {
       const first = codeFor(who.phone);
       const wait = await ask(who.phone).expect(429);
-      expect(wait.body).toMatchObject({ code: 'RESET_WAIT' });
+      expect(wait.body).toMatchObject({ code: 'SMS_CODE_WAIT' });
       expect(wait.body.details.seconds).toBeGreaterThan(0);
       expect(wait.body.details.seconds).toBeLessThanOrEqual(60);
       await ago(who.phone, 61);
@@ -765,7 +765,7 @@ describe('Identity (node + database)', () => {
       const second = codeFor(who.phone);
       if (first !== second) {
         expect((await check(who.phone, first).expect(422)).body.code).toBe(
-          'RESET_CODE_WRONG',
+          'SMS_CODE_WRONG',
         );
       }
       const ok = await check(who.phone, second).expect(200);
@@ -780,15 +780,15 @@ describe('Identity (node + database)', () => {
       for (const left of [4, 3, 2, 1]) {
         const res = await check(who.phone, wrong(code)).expect(422);
         expect(res.body).toMatchObject({
-          code: 'RESET_CODE_WRONG',
+          code: 'SMS_CODE_WRONG',
           details: { attemptsLeft: left },
         });
       }
       const last = await check(who.phone, wrong(code)).expect(422);
-      expect(last.body.code).toBe('RESET_CODE_EXPIRED');
+      expect(last.body.code).toBe('SMS_CODE_EXPIRED');
       // Closed: even the right code no longer works.
       expect((await check(who.phone, code).expect(422)).body.code).toBe(
-        'RESET_CODE_EXPIRED',
+        'SMS_CODE_EXPIRED',
       );
     });
 
@@ -797,10 +797,10 @@ describe('Identity (node + database)', () => {
       await ask(who.phone).expect(200);
       await new Promise((r) => setTimeout(r, 50));
       await db.query(
-        `UPDATE password_reset_codes SET expires_at = now() - interval '1 second' WHERE closed_at IS NULL`,
+        `UPDATE sms_codes SET expires_at = now() - interval '1 second' WHERE closed_at IS NULL`,
       );
       const res = await check(who.phone, codeFor(who.phone)).expect(422);
-      expect(res.body.code).toBe('RESET_CODE_EXPIRED');
+      expect(res.body.code).toBe('SMS_CODE_EXPIRED');
     });
 
     it('sets the new password, clears a lockout, ends other sessions and signs in', async () => {
@@ -851,7 +851,7 @@ describe('Identity (node + database)', () => {
         .expect(401);
       // Used up.
       expect((await check(who.phone, code).expect(422)).body.code).toBe(
-        'RESET_CODE_EXPIRED',
+        'SMS_CODE_EXPIRED',
       );
     });
 
@@ -879,7 +879,7 @@ describe('Identity (node + database)', () => {
         await ago(stranger, 61);
       }
       const res = await ask(stranger).expect(429);
-      expect(res.body).toMatchObject({ code: 'RESET_TOO_MANY' });
+      expect(res.body).toMatchObject({ code: 'SMS_CODE_TOO_MANY' });
       expect(res.body.details.minutes).toBeGreaterThan(0);
     });
 
@@ -887,6 +887,331 @@ describe('Identity (node + database)', () => {
       expect((await ask('12345').expect(422)).body.code).toBe('PHONE_INVALID');
       const bad = await check(who.phone, '12ab56').expect(400);
       expect(bad.body.code).toBe('INVALID_INPUT');
+    });
+  });
+
+  describe('changing one’s own details', () => {
+    let outbox: MemorySmsSender['outbox'];
+    let me: {
+      id: string;
+      token: string;
+      password: string;
+      body: ReturnType<typeof person>;
+    };
+    let oldPhone: string;
+    const as = (token: string) => ({
+      get: (path: string) =>
+        http.get(`/api${path}`).auth(token, { type: 'bearer' }),
+      post: (path: string, body: object = {}) =>
+        http.post(`/api${path}`).auth(token, { type: 'bearer' }).send(body),
+      delete: (path: string) =>
+        http.delete(`/api${path}`).auth(token, { type: 'bearer' }),
+    });
+    /** Every detail, as the form sends them. */
+    const details = (
+      over: Partial<ReturnType<typeof person>> & { phoneCode?: string } = {},
+    ) => {
+      const { role: _role, ...rest } = { ...me.body, ...over };
+      return rest;
+    };
+    const codeFor = (phone: string) => {
+      const to = normalisePhone(phone)!;
+      const sms = outbox.filter((m) => m.phone === to).at(-1);
+      return /\b(\d{6})\b/.exec(sms?.text ?? '')?.[1] ?? '';
+    };
+    const wrong = (code: string) => (code === '000000' ? '111111' : '000000');
+    const ledgerHash = async (id: string) =>
+      (await contracts.get('AccessRegistry').getParticipant(uuidToBytes32(id)))
+        .detailsHash as string;
+
+    beforeAll(async () => {
+      outbox = (chain.app.get(SmsSender) as MemorySmsSender).outbox;
+      const body = person(Role.INVESTOR);
+      const res = await register(admin.token, body).expect(201);
+      const token = await activate(body.phone, res.body.data.temporaryPassword);
+      me = {
+        id: res.body.data.participant.id,
+        token,
+        password: `${body.phone}-real-pass`,
+        body,
+      };
+      oldPhone = body.phone;
+    });
+
+    it('shows my own details in full, and asks for a change only when something differs', async () => {
+      const mine = await as(me.token).get('/me/details').expect(200);
+      expect(mine.body.data).toMatchObject({
+        current: {
+          fullName: me.body.fullName,
+          phone: normalisePhone(me.body.phone),
+          nid: me.body.nid,
+          district: 'BOGURA',
+        },
+        change: null,
+        needsApproval: true,
+      });
+      const same = await as(me.token)
+        .post('/me/details/change', details())
+        .expect(422);
+      expect(same.body.code).toBe('DETAILS_UNCHANGED');
+    });
+
+    it('waits for an admin, keeping the current details and the ledger as they are', async () => {
+      const before = await ledgerHash(me.id);
+      const res = await as(me.token)
+        .post(
+          '/me/details/change',
+          details({ address: 'New made-up address, Bogura' }),
+        )
+        .expect(200);
+      expect(res.body.data.change).toMatchObject({
+        status: 'pending',
+        changedFields: ['address'],
+        requested: { address: 'New made-up address, Bogura' },
+      });
+      expect(res.body.data.current.address).toBe(me.body.address);
+      expect(await ledgerHash(me.id)).toBe(before);
+      await new Promise((r) => setTimeout(r, 50));
+      const inbox = await as(admin.token)
+        .get('/notifications?limit=100')
+        .expect(200);
+      expect(
+        inbox.body.data.items.some(
+          (n: { kind: string }) => n.kind === 'details.change-requested',
+        ),
+      ).toBe(true);
+    });
+
+    it('needs a new number confirmed by a code sent to it', async () => {
+      const newPhone = nextPhone();
+      const noCode = await as(me.token)
+        .post('/me/details/change', details({ phone: newPhone }))
+        .expect(422);
+      expect(noCode.body.code).toBe('PHONE_NOT_CONFIRMED');
+      expect(
+        (
+          await as(me.token)
+            .post('/me/details/phone-code', { phone: me.body.phone })
+            .expect(422)
+        ).body.code,
+      ).toBe('PHONE_UNCHANGED');
+      expect(
+        (
+          await as(me.token)
+            .post('/me/details/phone-code', { phone: admin.phone })
+            .expect(409)
+        ).body.code,
+      ).toBe('PHONE_ALREADY_REGISTERED');
+
+      await as(me.token)
+        .post('/me/details/phone-code', { phone: newPhone })
+        .expect(200);
+      await new Promise((r) => setTimeout(r, 50));
+      const code = codeFor(newPhone);
+      expect(code).toMatch(/^\d{6}$/);
+      const bad = await as(me.token)
+        .post(
+          '/me/details/change',
+          details({ phone: newPhone, phoneCode: wrong(code) }),
+        )
+        .expect(422);
+      expect(bad.body).toMatchObject({
+        code: 'SMS_CODE_WRONG',
+        details: { attemptsLeft: 4 },
+      });
+
+      // A new request replaces the one waiting.
+      const res = await as(me.token)
+        .post(
+          '/me/details/change',
+          details({
+            phone: newPhone,
+            address: 'New made-up address, Bogura',
+            phoneCode: code,
+          }),
+        )
+        .expect(200);
+      expect(res.body.data.change).toMatchObject({
+        status: 'pending',
+        changedFields: ['phone', 'address'],
+      });
+      me.body = {
+        ...me.body,
+        phone: newPhone,
+        address: 'New made-up address, Bogura',
+      };
+      const pending = await db.query(
+        `SELECT status FROM detail_change_requests WHERE user_id = $1 ORDER BY created_at`,
+        [me.id],
+      );
+      expect(pending.map((r: { status: string }) => r.status)).toEqual([
+        'withdrawn',
+        'pending',
+      ]);
+    });
+
+    it('is approved by an admin: the ledger records it, the new number signs in', async () => {
+      const list = await as(admin.token).get('/detail-changes').expect(200);
+      const row = list.body.data.find(
+        (c: { participant: { id: string } }) => c.participant.id === me.id,
+      );
+      expect(row).toMatchObject({
+        role: 'investor',
+        changedFields: ['phone', 'address'],
+      });
+      // Staff changes are the super admin's; this one is not on their list.
+      const staffList = await as(superToken).get('/detail-changes').expect(200);
+      expect(
+        staffList.body.data.some(
+          (c: { participant: { id: string } }) => c.participant.id === me.id,
+        ),
+      ).toBe(false);
+
+      const review = await as(admin.token)
+        .get(`/detail-changes/${row.id}`)
+        .expect(200);
+      expect(review.body.data.current.phone).not.toBe(
+        review.body.data.requested.phone,
+      );
+
+      const done = await as(admin.token)
+        .post(`/detail-changes/${row.id}/approve`)
+        .expect(200);
+      expect(done.body.data).toMatchObject({
+        status: 'approved',
+        decidedBy: { id: admin.id },
+        current: { phone: normalisePhone(me.body.phone) },
+      });
+      const integrity = await as(admin.token)
+        .get(`/participants/${me.id}/integrity`)
+        .expect(200);
+      expect(integrity.body.data).toMatchObject({
+        matches: true,
+        mismatches: [],
+      });
+      expect(await ledgerHash(me.id)).toBe(integrity.body.data.computedHash);
+
+      // The new number signs in with the same password; the old one no longer does.
+      me.token = (await login(me.body.phone, me.password)).token;
+      await http
+        .post('/api/auth/login')
+        .send({ phone: oldPhone, password: me.password })
+        .expect(401);
+      const mine = await as(me.token).get('/me/details').expect(200);
+      expect(mine.body.data).toMatchObject({
+        current: {
+          phone: normalisePhone(me.body.phone),
+          address: 'New made-up address, Bogura',
+        },
+        change: { status: 'approved' },
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      const inbox = await as(me.token)
+        .get('/notifications?limit=100')
+        .expect(200);
+      expect(
+        inbox.body.data.items.some(
+          (n: { kind: string }) => n.kind === 'details.change-approved',
+        ),
+      ).toBe(true);
+    });
+
+    it('can be rejected with a reason, or withdrawn', async () => {
+      await as(me.token)
+        .post(
+          '/me/details/change',
+          details({ address: 'Another made-up address, Bogura' }),
+        )
+        .expect(200);
+      const [{ id }] = await db.query(
+        `SELECT id FROM detail_change_requests WHERE user_id = $1 AND status = 'pending'`,
+        [me.id],
+      );
+      const rejected = await as(admin.token)
+        .post(`/detail-changes/${id}/reject`, {
+          reason: 'Please send the NID photo first',
+        })
+        .expect(200);
+      expect(rejected.body.data).toMatchObject({
+        status: 'rejected',
+        reason: 'Please send the NID photo first',
+      });
+      const mine = await as(me.token).get('/me/details').expect(200);
+      expect(mine.body.data.change).toMatchObject({
+        status: 'rejected',
+        reason: 'Please send the NID photo first',
+      });
+      const again = await as(admin.token)
+        .post(`/detail-changes/${id}/approve`)
+        .expect(409);
+      expect(again.body).toMatchObject({
+        code: 'CHANGE_NOT_PENDING',
+        details: { status: 'rejected' },
+      });
+
+      await as(me.token)
+        .post(
+          '/me/details/change',
+          details({ address: 'Third made-up address, Bogura' }),
+        )
+        .expect(200);
+      const withdrawn = await as(me.token)
+        .delete('/me/details/change')
+        .expect(200);
+      expect(withdrawn.body.data.change.status).toBe('withdrawn');
+      expect(
+        (await as(me.token).delete('/me/details/change').expect(404)).body.code,
+      ).toBe('CHANGE_NOT_FOUND');
+    });
+
+    it('refuses an NID someone else already has', async () => {
+      const res = await as(me.token)
+        .post('/me/details/change', details({ nid: farmer.nid }))
+        .expect(409);
+      expect(res.body.code).toBe('NID_ALREADY_REGISTERED');
+    });
+
+    it('leaves staff changes to the super admin, whose own apply at once', async () => {
+      await as(admin.token)
+        .post('/me/details/change', {
+          fullName: 'Test Admin Renamed',
+          phone: admin.phone,
+          nid: (await as(admin.token).get('/me/details').expect(200)).body.data
+            .current.nid,
+          dateOfBirth: '1988-03-21',
+          district: 'BOGURA',
+          address: 'Made-up test address, Bogura',
+        })
+        .expect(200);
+      const [{ id }] = await db.query(
+        `SELECT id FROM detail_change_requests WHERE user_id = $1 AND status = 'pending'`,
+        [admin.id],
+      );
+      // An admin is staff: only the super admin decides.
+      expect(
+        (
+          await as(admin.token)
+            .post(`/detail-changes/${id}/approve`)
+            .expect(403)
+        ).body.code,
+      ).toBe('STAFF_MANAGED_BY_SUPER_ADMIN');
+      await as(superToken).post(`/detail-changes/${id}/approve`).expect(200);
+      expect(
+        (await as(admin.token).get('/me/details').expect(200)).body.data.current
+          .fullName,
+      ).toBe('Test Admin Renamed');
+
+      const own = await as(superToken)
+        .post('/me/details/change', {
+          fullName: 'Test Super Admin Renamed',
+          phone: SUPER_PHONE,
+        })
+        .expect(200);
+      expect(own.body.data).toMatchObject({
+        needsApproval: false,
+        change: null,
+        current: { fullName: 'Test Super Admin Renamed' },
+      });
     });
   });
 

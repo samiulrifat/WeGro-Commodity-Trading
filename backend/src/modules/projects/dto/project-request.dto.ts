@@ -57,7 +57,11 @@ export class CreateProjectDto {
   @Matches(CODE_PATTERN)
   produceCode: string;
 
-  @ApiProperty({ enum: DISTRICT_CODES, example: 'BOGURA' })
+  @ApiProperty({
+    enum: DISTRICT_CODES,
+    enumName: 'District',
+    example: 'BOGURA',
+  })
   @IsIn(DISTRICT_CODES)
   districtCode: string;
 
@@ -178,7 +182,7 @@ export class UpdateProjectDto {
   @Matches(CODE_PATTERN)
   produceCode?: string;
 
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;
@@ -287,7 +291,7 @@ export class ListProjectsQueryDto extends PaginationQueryDto {
   @Matches(CODE_PATTERN)
   produceCode?: string;
 
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;

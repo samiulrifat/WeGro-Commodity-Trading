@@ -159,7 +159,8 @@ export class ParticipantLedgerSync implements OnModuleInit {
         return { account };
       }
       case 'ParticipantDetailsUpdated':
-        // Details corrections are not offered yet; only the position moves.
+        // Approved details changes store the new details and fingerprint
+        // themselves (they are not on the ledger); only the position moves.
         return {};
       default:
         return null;

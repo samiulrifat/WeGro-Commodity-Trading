@@ -658,7 +658,7 @@ function assertCanRegister(actor: AuthUser, role: ParticipantRole): void {
   }
 }
 
-function assertCanManage(actor: AuthUser, role: Role): void {
+export function assertCanManage(actor: AuthUser, role: Role): void {
   if (isStaffRole(role)) {
     if (actor.role !== Role.SUPER_ADMIN) {
       throw new ForbiddenException({
@@ -674,7 +674,7 @@ function assertCanManage(actor: AuthUser, role: Role): void {
   }
 }
 
-function assertConfirmed(user: User): void {
+export function assertConfirmed(user: User): void {
   if (user.chainState !== ChainState.CONFIRMED) {
     throw new ConflictException({
       message: 'The registration is not confirmed on the ledger yet',
@@ -683,12 +683,12 @@ function assertConfirmed(user: User): void {
   }
 }
 
-function duplicate(constraint: string): ConflictException {
+export function duplicate(constraint: string): ConflictException {
   const d = DUPLICATES[constraint];
   return new ConflictException({ message: d.message, code: d.code });
 }
 
-function mapUniqueViolation(error: unknown): unknown {
+export function mapUniqueViolation(error: unknown): unknown {
   if (error instanceof QueryFailedError) {
     const driver = error.driverError as { code?: string; constraint?: string };
     if (

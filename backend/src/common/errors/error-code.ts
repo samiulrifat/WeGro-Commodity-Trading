@@ -69,6 +69,12 @@ export enum ErrorCode {
   CATALOG_REFERENCE_UNKNOWN = 'CATALOG_REFERENCE_UNKNOWN',
   /** This changed meanwhile; try again */
   CHANGED_MEANWHILE = 'CHANGED_MEANWHILE',
+  /** Details change not found */
+  CHANGE_NOT_FOUND = 'CHANGE_NOT_FOUND',
+  /** This details change is {status} */
+  CHANGE_NOT_PENDING = 'CHANGE_NOT_PENDING',
+  /** Someone else must review your own details change */
+  CHANGE_OWN_REQUEST = 'CHANGE_OWN_REQUEST',
   /** checkedOn cannot be in the future */
   CHECK_IN_FUTURE = 'CHECK_IN_FUTURE',
   /** No assessment photo for this claim */
@@ -119,6 +125,8 @@ export enum ErrorCode {
   DELIVERY_HAS_NO_PHOTO = 'DELIVERY_HAS_NO_PHOTO',
   /** Stored details do not match the ledger; cannot verify */
   DETAILS_MISMATCH = 'DETAILS_MISMATCH',
+  /** Nothing in these details is different from the current ones */
+  DETAILS_UNCHANGED = 'DETAILS_UNCHANGED',
   /** This draft was never published: delete it instead */
   DRAFT_NEVER_PUBLISHED = 'DRAFT_NEVER_PUBLISHED',
   /** The same id appears twice in this batch */
@@ -325,6 +333,10 @@ export enum ErrorCode {
   PHONE_ALREADY_REGISTERED = 'PHONE_ALREADY_REGISTERED',
   /** Enter a Bangladeshi mobile number */
   PHONE_INVALID = 'PHONE_INVALID',
+  /** Confirm the new number with the code sent to it */
+  PHONE_NOT_CONFIRMED = 'PHONE_NOT_CONFIRMED',
+  /** This is already your number */
+  PHONE_UNCHANGED = 'PHONE_UNCHANGED',
   /** The image file is damaged */
   PHOTO_DAMAGED = 'PHOTO_DAMAGED',
   /** Send the photo as the "file" field */
@@ -391,14 +403,6 @@ export enum ErrorCode {
   RESERVATION_NOT_FOUND = 'RESERVATION_NOT_FOUND',
   /** This reservation is {status} */
   RESERVATION_WRONG_STATUS = 'RESERVATION_WRONG_STATUS',
-  /** This code has expired (or had too many wrong tries). Ask for a new one. */
-  RESET_CODE_EXPIRED = 'RESET_CODE_EXPIRED',
-  /** That code is not right. {attemptsLeft} tries left. */
-  RESET_CODE_WRONG = 'RESET_CODE_WRONG',
-  /** Too many codes for this number. Try again in {minutes} minutes. */
-  RESET_TOO_MANY = 'RESET_TOO_MANY',
-  /** Wait {seconds} seconds before asking for another code */
-  RESET_WAIT = 'RESET_WAIT',
   /** This claim is {status}: start the review first */
   REVIEW_NOT_STARTED = 'REVIEW_NOT_STARTED',
   /** Your role cannot do this */
@@ -437,6 +441,14 @@ export enum ErrorCode {
   SITE_NAME_EXISTS = 'SITE_NAME_EXISTS',
   /** Site not found */
   SITE_NOT_FOUND = 'SITE_NOT_FOUND',
+  /** This code has expired (or had too many wrong tries). Ask for a new one. */
+  SMS_CODE_EXPIRED = 'SMS_CODE_EXPIRED',
+  /** Too many codes for this number. Try again in {minutes} minutes. */
+  SMS_CODE_TOO_MANY = 'SMS_CODE_TOO_MANY',
+  /** Wait {seconds} seconds before asking for another code */
+  SMS_CODE_WAIT = 'SMS_CODE_WAIT',
+  /** That code is not right. {attemptsLeft} tries left. */
+  SMS_CODE_WRONG = 'SMS_CODE_WRONG',
   /** Only the super admin manages staff */
   STAFF_MANAGED_BY_SUPER_ADMIN = 'STAFF_MANAGED_BY_SUPER_ADMIN',
   /** Only the super admin registers staff */

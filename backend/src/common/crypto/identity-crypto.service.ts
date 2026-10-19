@@ -16,7 +16,7 @@ const TAG_BYTES = 16;
 const HKDF_SALT = 'wegro-identity';
 
 /** What a lookup index is for: the same value under two kinds never matches. */
-export type BlindIndexKind = 'phone' | 'nid' | 'reset-code';
+export type BlindIndexKind = 'phone' | 'nid' | 'sms-code';
 
 /**
  * Encryption of personal details at rest, and the keyed hashes that let us

@@ -73,7 +73,11 @@ export class SetCoverageDto {
 }
 
 export class RecordWeatherEventDto {
-  @ApiProperty({ enum: DISTRICT_CODES, example: 'BOGURA' })
+  @ApiProperty({
+    enum: DISTRICT_CODES,
+    enumName: 'District',
+    example: 'BOGURA',
+  })
   @IsIn(DISTRICT_CODES)
   districtCode: string;
 
@@ -105,7 +109,7 @@ export class RecordWeatherEventDto {
 }
 
 export class ListWeatherEventsQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;
@@ -201,7 +205,7 @@ export class ListClaimsQueryDto extends PaginationQueryDto {
 }
 
 export class InsuredProjectsQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: DISTRICT_CODES })
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;

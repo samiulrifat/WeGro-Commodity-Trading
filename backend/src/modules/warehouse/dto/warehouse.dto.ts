@@ -35,7 +35,11 @@ export class CreateSiteDto {
   @MaxLength(100)
   name: string;
 
-  @ApiProperty({ enum: DISTRICT_CODES, example: 'BOGURA' })
+  @ApiProperty({
+    enum: DISTRICT_CODES,
+    enumName: 'District',
+    example: 'BOGURA',
+  })
   @IsIn(DISTRICT_CODES)
   districtCode: string;
 

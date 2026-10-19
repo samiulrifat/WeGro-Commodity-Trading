@@ -26,6 +26,17 @@ import type { SessionState } from '@/store/session-slice';
 
 export type Role = SessionUserDto['role'];
 
+/** Those who run WeGro, the super admin among them (as on the ledger). */
+const STAFF: ReadonlySet<Role> = new Set<Role>([
+  'super_admin',
+  'admin',
+  'accounts',
+  'operations',
+  'field_officer',
+  'auditor',
+]);
+export const isStaff = (role: Role) => STAFF.has(role);
+
 /** Each area of the app: where it lives and its icon. */
 export const AREAS = {
   dashboard: { to: '/dashboard', icon: LayoutDashboard },
