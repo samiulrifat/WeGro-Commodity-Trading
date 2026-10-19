@@ -116,10 +116,9 @@ describe('Settlement (node + database)', () => {
 
   const bank = (account: string) => ({
     holderName: 'Account Holder',
-    bankName: 'Sonali Bank PLC',
-    branchName: 'Bogura Main Branch',
     accountNumber: account,
-    routingNumber: '200100123',
+    // Sonali Bank, Bogra Bazar branch (on the bank list).
+    routingNumber: '200100405',
   });
 
   beforeAll(async () => {
@@ -221,7 +220,11 @@ describe('Settlement (node + database)', () => {
         .expect(200);
       expect(mine.body.data.pending).toMatchObject({
         status: 'pending',
-        routingNumber: '200100123',
+        routingNumber: '200100405',
+        // Names come from the bank list, not from what was sent.
+        bankName: 'SONALI BANK LTD.',
+        branchName: 'BOGRA BAZAR',
+        districtName: 'BOGRA',
         enteredBy: { id: user.investor.id },
       });
       expect(mine.body.data.pending.accountNumber).toMatch(/^\d{14}$/);
@@ -268,16 +271,9 @@ describe('Settlement (node + database)', () => {
       const verified = (
         await as(t.investor).get('/me/bank-account').expect(200)
       ).body.data.verified;
-      const { holderName, bankName, branchName, accountNumber, routingNumber } =
-        verified;
+      const { holderName, accountNumber, routingNumber } = verified;
       await as(t.investor)
-        .put('/me/bank-account', {
-          holderName,
-          bankName,
-          branchName,
-          accountNumber,
-          routingNumber,
-        })
+        .put('/me/bank-account', { holderName, accountNumber, routingNumber })
         .expect(409);
       await as(t.investor)
         .put('/me/bank-account', bank('11112222333'))
@@ -301,10 +297,99 @@ describe('Settlement (node + database)', () => {
       await as(t.investor)
         .put('/me/bank-account', { ...bank('123456'), routingNumber: '12345' })
         .expect(400);
+      // Nine digits, but no branch on the bank list.
+      const unlisted = await as(t.investor)
+        .put('/me/bank-account', {
+          ...bank('123456'),
+          routingNumber: '999999999',
+        })
+        .expect(422);
+      expect(unlisted.body.code).toBe('BANK_BRANCH_NOT_FOUND');
       await as(t.admin)
         .put(`/participants/${user.buyer.id}/bank-account`, bank('123456789'))
         .expect(422);
       await as(t.buyer).get('/me/bank-account').expect(403);
+    });
+  });
+
+  describe('bank list', () => {
+    it('is loaded at startup: bank, then district, then branch with its routing number', async () => {
+      const status = await as(t.investor).get('/bank-list').expect(200);
+      expect(status.body.data).toMatchObject({
+        source: 'bundled',
+        importedBy: null,
+      });
+      expect(status.body.data.branchCount).toBeGreaterThan(10_000);
+      const banks = await as(t.investor).get('/bank-list/banks').expect(200);
+      expect(banks.body.data).toContainEqual({
+        code: 200,
+        name: 'SONALI BANK LTD.',
+      });
+      const districts = await as(t.investor)
+        .get('/bank-list/banks/200/districts')
+        .expect(200);
+      expect(districts.body.data).toContainEqual({ code: 610, name: 'BOGRA' });
+      const branches = await as(t.investor)
+        .get('/bank-list/banks/200/districts/610/branches')
+        .expect(200);
+      expect(branches.body.data).toContainEqual({
+        routingNumber: '200100405',
+        name: 'BOGRA BAZAR',
+      });
+      // Banks below 100 keep the leading zero their file dropped.
+      const agrani = await as(t.investor)
+        .get('/bank-list/branches/010010048')
+        .expect(200);
+      expect(agrani.body.data).toMatchObject({
+        name: 'BADHAL BAZAR',
+        bank: { code: 10, name: 'AGRANI BANK LTD.' },
+        district: { code: 401, name: 'BAGERHAT' },
+      });
+      await as(t.investor).get('/bank-list/branches/10010048').expect(404);
+    });
+
+    it('is replaced whole by an admin import, checked first', async () => {
+      const list = (banks: object[]) => Buffer.from(JSON.stringify({ banks }));
+      const upload = (token: string, file: Buffer) =>
+        http
+          .post('/api/bank-list/import')
+          .auth(token, { type: 'bearer' })
+          .attach('branches', file, 'bank_branches.json');
+      await upload(t.investor, list([])).expect(403);
+      const bad = await upload(
+        t.admin,
+        list([{ bank_code: 200, bank_name: 'SONALI', branches: [{}] }]),
+      ).expect(422);
+      expect(bad.body.code).toBe('BANK_LIST_INVALID');
+      expect(bad.body.details.problems[0].code).toBe('BANK_LIST_ENTRY_INVALID');
+      const sonali = {
+        bank_code: 200,
+        bank_name: 'SONALI BANK PLC',
+        branches: [
+          {
+            district_code: 610,
+            district_name: 'BOGURA',
+            branch_code: 40,
+            branch_name: 'BOGURA BAZAR',
+            routing_number: '200100405',
+          },
+        ],
+      };
+      const done = await upload(t.admin, list([sonali])).expect(200);
+      expect(done.body.data).toMatchObject({
+        bankCount: 1,
+        districtCount: 1,
+        branchCount: 1,
+        source: 'upload',
+        importedBy: { id: user.admin.id },
+      });
+      const branch = await as(t.investor)
+        .get('/bank-list/branches/200100405')
+        .expect(200);
+      expect(branch.body.data.bank.name).toBe('SONALI BANK PLC');
+      // Details entered earlier keep the names they were entered with.
+      const mine = await as(t.investor).get('/me/bank-account').expect(200);
+      expect(mine.body.data.verified.bankName).toBe('SONALI BANK LTD.');
     });
   });
 

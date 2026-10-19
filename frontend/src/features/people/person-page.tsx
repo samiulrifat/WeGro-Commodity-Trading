@@ -29,12 +29,22 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useFormat } from '@/i18n/use-format';
+import { PersonBankAccountCard } from '@/features/bank-details/bank-account-card';
 import { useAppSelector } from '@/store/hooks';
 import { IdCheckList } from './id-check';
 import { canManage } from './permissions';
 import { type IdCheck, localPhone } from './person';
 import { PersonActions, SyncButton } from './person-actions';
 import { PersonStatus } from './person-status';
+
+/** Who is paid out, and who may see where. */
+const PAYEES = new Set<string>(['farmer', 'investor']);
+const BANK_READERS = new Set<Role>([
+  'super_admin',
+  'admin',
+  'accounts',
+  'auditor',
+]);
 
 /**
  * One person: their details (partly hidden from the auditor), the ID check,
@@ -107,6 +117,12 @@ export function PersonPage({ id }: { id: string }) {
         <IdCheckCard person={person} />
         <RegistrationCard person={person} />
         {viewer !== 'field_officer' && <LedgerCard person={person} />}
+        {PAYEES.has(person.role) && BANK_READERS.has(viewer) && (
+          <PersonBankAccountCard
+            personId={person.id}
+            personName={person.fullName}
+          />
+        )}
       </div>
     </div>
   );

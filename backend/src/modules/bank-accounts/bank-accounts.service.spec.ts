@@ -17,12 +17,27 @@ import {
 } from './entities/bank-account.entity';
 
 const PAYEE = 'f1';
+/** What is entered: the branch only by its routing number. */
 const DETAILS = {
   holderName: 'Rahim Uddin',
-  bankName: 'Krishi Bank',
-  branchName: 'Bogura',
   accountNumber: '0012345678',
   routingNumber: '035100000',
+};
+/** What is kept: the names come from the bank list. */
+const STORED = {
+  holderName: 'Rahim Uddin',
+  bankName: 'KRISHI BANK',
+  branchName: 'BOGRA',
+  districtName: 'BOGRA',
+  accountNumber: '0012345678',
+  routingNumber: '035100000',
+};
+const BRANCH = {
+  routingNumber: '035100000',
+  name: 'BOGRA',
+  branchCode: 0,
+  bank: { code: 35, name: 'KRISHI BANK' },
+  district: { code: 610, name: 'BOGRA' },
 };
 
 /** Bank accounts in memory, with the conditional updates the service relies on. */
@@ -104,6 +119,11 @@ describe('BankAccountsService', () => {
       crypto as never,
       { names: () => Promise.resolve(new Map()) } as never,
       writer as never,
+      {
+        find: (routing: string) =>
+          Promise.resolve(routing === BRANCH.routingNumber ? BRANCH : null),
+      } as never,
+      { apply: (qb: unknown) => qb } as never,
     );
     jest
       .spyOn(
@@ -118,9 +138,9 @@ describe('BankAccountsService', () => {
     const { service, rows, writer } = build();
     const res = await service.submit(admin, PAYEE, DETAILS as never);
     expect(rows[0].detailsEnc).toBe(
-      `enc[bank_accounts.details:${rows[0].id}]${JSON.stringify(DETAILS)}`,
+      `enc[bank_accounts.details:${rows[0].id}]${JSON.stringify(STORED)}`,
     );
-    expect(res.pending).toMatchObject({ ...DETAILS, status: 'pending' });
+    expect(res.pending).toMatchObject({ ...STORED, status: 'pending' });
     expect(res.verified).toBeNull();
     // Other admins are asked to verify.
     expect(writer.withRole).toHaveBeenCalledWith(
@@ -211,12 +231,40 @@ describe('BankAccountsService', () => {
       accountNumber: '9',
     } as never);
     const { verified, pendingChange } = await service.forPayout([PAYEE, PAYEE]);
-    expect(verified.get(PAYEE)).toMatchObject(DETAILS);
+    expect(verified.get(PAYEE)).toMatchObject(STORED);
     expect(pendingChange.has(PAYEE)).toBe(true);
     await expect(service.forPayout([])).resolves.toEqual({
       verified: new Map(),
       pendingChange: new Set(),
     });
+  });
+
+  it('takes the bank, branch and district from the list, refusing routing numbers not on it', async () => {
+    const { service, rows } = build();
+    await expect(
+      service.submit(admin, PAYEE, {
+        ...DETAILS,
+        routingNumber: '999999999',
+      } as never),
+    ).rejects.toMatchObject({
+      response: { code: 'BANK_BRANCH_NOT_FOUND' },
+    });
+    expect(rows).toHaveLength(0);
+    // Names sent along are not used.
+    const res = await service.submit(admin, PAYEE, {
+      ...DETAILS,
+      bankName: 'Made-up Bank',
+    } as never);
+    expect(res.pending?.bankName).toBe('KRISHI BANK');
+  });
+
+  it('reads details kept before the bank list as having no district', async () => {
+    const { service, rows } = build();
+    await service.submit(admin, PAYEE, DETAILS as never);
+    const { districtName: _, ...older } = STORED;
+    rows[0].detailsEnc = `enc[bank_accounts.details:${rows[0].id}]${JSON.stringify(older)}`;
+    const res = await service.forUser(admin, PAYEE);
+    expect(res.pending).toMatchObject({ ...older, districtName: null });
   });
 
   it('keeps the change when the notice fails', async () => {

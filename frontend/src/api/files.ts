@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import {
+  type BankListImportApiArg,
+  type BankListImportApiResponse,
+  bankListApi,
+} from '@/api/generated/bank-list';
 import type {
   FieldRecordsUploadApiArg,
   FieldRecordsUploadApiResponse,
@@ -7,8 +12,8 @@ import { baseApi } from './base-api';
 import { apiFetch, apiUrl } from './http';
 
 /**
- * What the generated endpoints cannot do on their own: send the photo upload
- * as multipart, and fetch file responses (photos, QR codes, CSV). Files are
+ * What the generated endpoints cannot do on their own: send the photo and
+ * bank list uploads as multipart, and fetch file responses (photos, QR codes, CSV). Files are
  * never kept in the store; they are fetched with the session's token.
  */
 
@@ -33,6 +38,28 @@ export const filesApi = baseApi.injectEndpoints({
 /** Uploads a photo; use the returned id in a farm update, delivery, claim or bill. */
 export const { useFieldRecordsUploadMutation: usePhotoUploadMutation } =
   filesApi;
+
+// The same for the bank list's files.
+const bankListFiles = bankListApi.injectEndpoints({
+  overrideExisting: true,
+  endpoints: (build) => ({
+    bankListImport: build.mutation<
+      BankListImportApiResponse,
+      BankListImportApiArg
+    >({
+      query: ({ body }) => {
+        const form = new FormData();
+        form.append('branches', body.branches);
+        if (body.districts) form.append('districts', body.districts);
+        return { url: '/api/bank-list/import', method: 'POST', body: form };
+      },
+      invalidatesTags: ['Bank list'],
+    }),
+  }),
+});
+
+/** Replaces the bank list with the official files an admin chose. */
+export const { useBankListImportMutation } = bankListFiles;
 
 /** Fetches an API file (photo, QR code) and gives an object URL to show it. */
 export function useApiFile(path: string | null | undefined): {

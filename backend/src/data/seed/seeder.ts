@@ -410,14 +410,13 @@ export class Seeder {
       const payee = await this.actor(line.payee.id);
       await bank.submit(payee, payee.id, {
         holderName: line.payee.name || 'Account holder',
-        bankName: 'Sonali Bank PLC',
-        branchName: `${p.districtCode.charAt(0)}${p.districtCode.slice(1).toLowerCase()} Branch`,
         // 13 digits derived from the payee's id: stable and distinct.
         accountNumber: BigInt(`0x${payee.id.replace(/-/g, '').slice(0, 12)}`)
           .toString()
           .padStart(13, '0')
           .slice(-13),
-        routingNumber: '200100123',
+        // Sonali Bank, Bogra Bazar branch (on the bank list).
+        routingNumber: '200100405',
       });
       await bank.verify(await this.admin(data), payee.id);
     }

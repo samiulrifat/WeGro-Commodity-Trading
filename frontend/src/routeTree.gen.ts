@@ -31,6 +31,7 @@ import { Route as AppOffersIndexRouteImport } from './routes/_app/offers/index'
 import { Route as AppPayoutsIndexRouteImport } from './routes/_app/payouts/index'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
 import { Route as AppPeoplePersonIdRouteImport } from './routes/_app/people/$personId'
+import { Route as AppPeopleBankDetailsRouteImport } from './routes/_app/people/bank-details'
 import { Route as AppPeopleNewRouteImport } from './routes/_app/people/new'
 import { Route as AppPeoplePendingRouteImport } from './routes/_app/people/pending'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects/index'
@@ -153,6 +154,11 @@ const AppPeoplePersonIdRoute = AppPeoplePersonIdRouteImport.update({
   path: '/people/$personId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPeopleBankDetailsRoute = AppPeopleBankDetailsRouteImport.update({
+  id: '/people/bank-details',
+  path: '/people/bank-details',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPeopleNewRoute = AppPeopleNewRouteImport.update({
   id: '/people/new',
   path: '/people/new',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
+  '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
   '/people/pending': typeof AppPeoplePendingRoute
   '/audit/': typeof AppAuditIndexRoute
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/status': typeof AppStatusRoute
   '/': typeof AppIndexRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
+  '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
   '/people/pending': typeof AppPeoplePendingRoute
   '/audit': typeof AppAuditIndexRoute
@@ -298,6 +306,7 @@ export interface FileRoutesById {
   '/_app/status': typeof AppStatusRoute
   '/_app/': typeof AppIndexRoute
   '/_app/people/$personId': typeof AppPeoplePersonIdRoute
+  '/_app/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/_app/people/new': typeof AppPeopleNewRoute
   '/_app/people/pending': typeof AppPeoplePendingRoute
   '/_app/audit/': typeof AppAuditIndexRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/status'
     | '/people/$personId'
+    | '/people/bank-details'
     | '/people/new'
     | '/people/pending'
     | '/audit/'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/status'
     | '/'
     | '/people/$personId'
+    | '/people/bank-details'
     | '/people/new'
     | '/people/pending'
     | '/audit'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/_app/status'
     | '/_app/'
     | '/_app/people/$personId'
+    | '/_app/people/bank-details'
     | '/_app/people/new'
     | '/_app/people/pending'
     | '/_app/audit/'
@@ -596,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeoplePersonIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/people/bank-details': {
+      id: '/_app/people/bank-details'
+      path: '/people/bank-details'
+      fullPath: '/people/bank-details'
+      preLoaderRoute: typeof AppPeopleBankDetailsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/people/new': {
       id: '/_app/people/new'
       path: '/people/new'
@@ -689,6 +708,7 @@ interface AppRouteChildren {
   AppStatusRoute: typeof AppStatusRoute
   AppIndexRoute: typeof AppIndexRoute
   AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
+  AppPeopleBankDetailsRoute: typeof AppPeopleBankDetailsRoute
   AppPeopleNewRoute: typeof AppPeopleNewRoute
   AppPeoplePendingRoute: typeof AppPeoplePendingRoute
   AppAuditIndexRoute: typeof AppAuditIndexRoute
@@ -720,6 +740,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStatusRoute: AppStatusRoute,
   AppIndexRoute: AppIndexRoute,
   AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
+  AppPeopleBankDetailsRoute: AppPeopleBankDetailsRoute,
   AppPeopleNewRoute: AppPeopleNewRoute,
   AppPeoplePendingRoute: AppPeoplePendingRoute,
   AppAuditIndexRoute: AppAuditIndexRoute,

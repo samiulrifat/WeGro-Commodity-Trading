@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { EmailCard } from '@/features/account/email-card';
+import { MyBankAccountCard } from '@/features/bank-details/bank-account-card';
 import { MyDetails } from '@/features/account/my-details';
 import {
   LedgerAccountCard,
@@ -27,12 +28,14 @@ export const Route = createFileRoute('/_app/account')({
 function AccountPage() {
   const { t } = useTranslation();
   const role = useAppSelector((s) => s.session.user?.role);
+  const payee = role === 'farmer' || role === 'investor';
   return (
     <div className="grid gap-6">
       <PageHeader title={t('account.title')} />
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <MyDetails />
         <div className="grid gap-6">
+          {payee && <MyBankAccountCard />}
           <PasswordCard />
           <EmailCard />
         </div>

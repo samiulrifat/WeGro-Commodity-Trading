@@ -108,6 +108,12 @@ An email address is optional and signs in like the number (`POST /api/auth/login
 
 Everyone sees their own details in full (`GET /api/me/details`) and can ask to change any of them (`POST /api/me/details/change`); the details go through the same ID check as at registration. A new number must first be confirmed by a code sent to it (`POST /api/me/details/phone-code`, then the code with the change). The request waits for an admin, or the super admin for staff (`GET /api/detail-changes`, `…/:id`, `…/:id/approve`, `…/:id/reject` with a reason); approving writes the new fingerprint to the ledger, signed by the approver, and the new number signs in from then on. A new request replaces one still waiting, and the person can take one back (`DELETE /api/me/details/change`). Nobody decides their own. The requested details are stored encrypted until decided. The super admin, who keeps only a name and a number, changes them at once.
 
+### Bank details and the bank list
+
+Farmers and investors are paid into a bank account (no mobile wallets). They pick the bank, then the district, then the branch from the official list (`GET /api/bank-list/banks`, `…/banks/:bankCode/districts`, `…/banks/:bankCode/districts/:districtCode/branches`); the branch's routing number comes from the list (`GET /api/bank-list/branches/:routingNumber`), and they add the account number and the name on it. Only the routing number is sent (`PUT /api/me/bank-account`, or an admin's `PUT /api/participants/:id/bank-account`); the bank, branch and district names are taken from the list and kept, encrypted, with the details, so a later list does not change them. New details count once someone other than who entered them verifies them (`GET /api/bank-accounts/pending?q=`, `…/participants/:id/bank-account/verify` or `…/reject`).
+
+The list comes from `src/database/bank seeds/` (`bank_branches.json`: banks, each with its branches; `districts.json`: the districts) and is loaded into an empty database at startup. An admin replaces the whole list by uploading new files of the same shape (`POST /api/bank-list/import`, fields `branches` and optionally `districts`); every entry is checked first and nothing changes if any is wrong. Routing numbers are 9 digits starting with the bank's code; those the files give as 8 digits (banks below 100, leading zero lost) get the zero back. `GET /api/bank-list` says how big the list is and who loaded it when; each import is recorded in `bank_list_imports` with the files' SHA-256.
+
 ## Everyday commands
 
 | Command | What it does |

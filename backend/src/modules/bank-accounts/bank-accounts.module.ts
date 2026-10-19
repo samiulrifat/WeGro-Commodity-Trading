@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BankListModule } from '../bank-list/bank-list.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { UsersModule } from '../users/users.module';
@@ -14,6 +15,7 @@ import { BankAccount } from './entities/bank-account.entity';
     UsersModule,
     ProjectsModule,
     NotificationsModule,
+    BankListModule,
   ],
   controllers: [BankAccountsController],
   providers: [BankAccountsService],

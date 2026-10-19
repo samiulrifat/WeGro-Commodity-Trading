@@ -33,6 +33,7 @@ const injectedRtkApi = api
           params: {
             page: queryArg.page,
             limit: queryArg.limit,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Bank accounts'],
@@ -101,6 +102,8 @@ export type BankAccountsPendingApiResponse =
 export type BankAccountsPendingApiArg = {
   page?: number;
   limit?: number;
+  /** Whose: a mobile number, an NID, or whole words of their name */
+  q?: string;
 };
 export type BankAccountsForParticipantApiResponse = /** status 200  */ {
   data: BankAccountsDto;
@@ -135,14 +138,15 @@ export type BankPartyDto = {
   name: string;
 };
 export type BankAccountDto = {
+  id: string;
   holderName: string;
   bankName: string;
   branchName: string;
-  /** 6 to 20 digits */
+  /** The branch's district (null for details entered before the bank list) */
+  districtName?: string | null;
+  /** In full for admins, Accounts and the payee; others see the last four digits */
   accountNumber: string;
-  /** 9-digit routing number */
   routingNumber: string;
-  id: string;
   status: 'pending' | 'verified' | 'rejected' | 'superseded';
   enteredBy: BankPartyDto;
   enteredAt: string;
@@ -159,23 +163,23 @@ export type BankAccountsDto = {
   history: BankAccountDto[];
 };
 export type BankDetailsDto = {
+  /** The name on the account, as the bank has it */
   holderName: string;
-  bankName: string;
-  branchName: string;
   /** 6 to 20 digits */
   accountNumber: string;
-  /** 9-digit routing number */
+  /** The branch's 9-digit routing number, from the bank list */
   routingNumber: string;
 };
 export type PendingBankAccountDto = {
+  id: string;
   holderName: string;
   bankName: string;
   branchName: string;
-  /** 6 to 20 digits */
+  /** The branch's district (null for details entered before the bank list) */
+  districtName?: string | null;
+  /** In full for admins, Accounts and the payee; others see the last four digits */
   accountNumber: string;
-  /** 9-digit routing number */
   routingNumber: string;
-  id: string;
   status: 'pending' | 'verified' | 'rejected' | 'superseded';
   enteredBy: BankPartyDto;
   enteredAt: string;

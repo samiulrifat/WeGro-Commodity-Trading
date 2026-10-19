@@ -13,6 +13,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { BankListModule } from './modules/bank-list/bank-list.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AUTH_THROTTLE } from './modules/auth/decorators';
@@ -71,6 +72,7 @@ import { WarehouseModule } from './modules/warehouse/warehouse.module';
     WarehouseModule,
     TradeModule,
     InsuranceModule,
+    BankListModule,
     BankAccountsModule,
     SettlementModule,
     TrackRecordModule,

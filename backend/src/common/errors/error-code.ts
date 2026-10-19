@@ -37,10 +37,30 @@ export enum ErrorCode {
   AUDITOR_READ_ONLY = 'AUDITOR_READ_ONLY',
   /** Phone number, email or password is incorrect */
   BAD_CREDENTIALS = 'BAD_CREDENTIALS',
+  /** No branch has routing number {routingNumber} */
+  BANK_BRANCH_NOT_FOUND = 'BANK_BRANCH_NOT_FOUND',
   /** These details are already verified */
   BANK_DETAILS_ALREADY_VERIFIED = 'BANK_DETAILS_ALREADY_VERIFIED',
   /** This bank branch is already registered */
   BANK_EXISTS = 'BANK_EXISTS',
+  /** {entry}: district {districtCode} is {name} here but {expected} elsewhere */
+  BANK_LIST_DISTRICT_MISMATCH = 'BANK_LIST_DISTRICT_MISMATCH',
+  /** {entry}: district {districtCode} is not in the districts file */
+  BANK_LIST_DISTRICT_UNKNOWN = 'BANK_LIST_DISTRICT_UNKNOWN',
+  /** {file}: {value} appears more than once */
+  BANK_LIST_DUPLICATE = 'BANK_LIST_DUPLICATE',
+  /** The bank list has no branches */
+  BANK_LIST_EMPTY = 'BANK_LIST_EMPTY',
+  /** {file}, {entry}: {field} is missing or wrong */
+  BANK_LIST_ENTRY_INVALID = 'BANK_LIST_ENTRY_INVALID',
+  /** Send the branches file as the "branches" field */
+  BANK_LIST_FILE_MISSING = 'BANK_LIST_FILE_MISSING',
+  /** The bank list has problems; nothing was changed */
+  BANK_LIST_INVALID = 'BANK_LIST_INVALID',
+  /** ... and {count} more */
+  BANK_LIST_MORE_PROBLEMS = 'BANK_LIST_MORE_PROBLEMS',
+  /** {file} must be JSON with a "{key}" list */
+  BANK_LIST_UNREADABLE = 'BANK_LIST_UNREADABLE',
   /** Bank not found */
   BANK_NOT_FOUND = 'BANK_NOT_FOUND',
   /** Only a verified bank officer can be assigned */

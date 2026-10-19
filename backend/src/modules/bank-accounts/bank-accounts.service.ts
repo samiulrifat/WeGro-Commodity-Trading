@@ -32,6 +32,8 @@ import type {
 } from './dto/bank-account.dto';
 import { BankAccount, BankAccountStatus } from './entities/bank-account.entity';
 import { ErrorCode } from '../../common/errors/error-code';
+import { BankListService } from '../bank-list/bank-list.service';
+import { PersonSearch } from '../users/person-search';
 
 /** Only payees have bank accounts. */
 const PAYEE_ROLES: ReadonlySet<Role> = new Set([Role.FARMER, Role.INVESTOR]);
@@ -42,10 +44,13 @@ const SEES_FULL: ReadonlySet<Role> = new Set([
   Role.ACCOUNTS,
 ]);
 
+/** What is kept (encrypted) for each version: the names as the bank list gave them then. */
 export interface BankDetails {
   holderName: string;
   bankName: string;
   branchName: string;
+  /** Null for details entered before the bank list. */
+  districtName: string | null;
   accountNumber: string;
   routingNumber: string;
 }
@@ -66,21 +71,35 @@ export class BankAccountsService {
     private readonly crypto: IdentityCryptoService,
     private readonly views: ProjectViews,
     private readonly writer: NotificationWriter,
+    private readonly bankList: BankListService,
+    private readonly search: PersonSearch,
   ) {}
 
-  /** Enters new details for a payee; they wait for an admin, replacing any still waiting. */
+  /**
+   * Enters new details for a payee; they wait for an admin, replacing any
+   * still waiting. The routing number must be a branch on the bank list.
+   */
   async submit(
     actor: AuthUser,
     userId: string,
     dto: BankDetailsDto,
   ): Promise<BankAccountsDto> {
     await this.requirePayee(userId);
+    const branch = await this.bankList.find(dto.routingNumber);
+    if (!branch) {
+      throw new UnprocessableEntityException({
+        message: `No branch has routing number ${dto.routingNumber}`,
+        code: ErrorCode.BANK_BRANCH_NOT_FOUND,
+        details: { routingNumber: dto.routingNumber },
+      });
+    }
     const details: BankDetails = {
       holderName: dto.holderName,
-      bankName: dto.bankName,
-      branchName: dto.branchName,
+      bankName: branch.bank.name,
+      branchName: branch.name,
+      districtName: branch.district.name,
       accountNumber: dto.accountNumber,
-      routingNumber: dto.routingNumber,
+      routingNumber: branch.routingNumber,
     };
     const current = await this.accounts.findOneBy({
       userId,
@@ -229,17 +248,21 @@ export class BankAccountsService {
     };
   }
 
-  /** The admins' queue: details waiting for verification, oldest first. */
+  /** The admins' queue: details waiting for verification, oldest first; searchable by whose. */
   async listPending(
     actor: AuthUser,
     q: ListPendingQueryDto,
   ): Promise<Paginated<PendingBankAccountDto>> {
-    const [rows, total] = await this.accounts.findAndCount({
-      where: { status: BankAccountStatus.PENDING },
-      order: { createdAt: 'ASC' },
-      skip: q.skip,
-      take: q.limit,
-    });
+    const qb = this.accounts
+      .createQueryBuilder('a')
+      .where('a.status = :status', { status: BankAccountStatus.PENDING });
+    const [rows, total] = await this.search
+      .apply(qb, 'a.user_id', q.q)
+      .orderBy('a.created_at', 'ASC')
+      .addOrderBy('a.id', 'ASC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
     const userIds = rows.map((r) => r.userId);
     const [views, owners, changes, names] = await Promise.all([
       this.dtos(actor, rows),
@@ -347,9 +370,10 @@ export class BankAccountsService {
   }
 
   private open(row: BankAccount): BankDetails {
-    return JSON.parse(
+    const details = JSON.parse(
       this.crypto.decrypt(row.detailsEnc, context(row.id)),
-    ) as BankDetails;
+    ) as Omit<BankDetails, 'districtName'> & { districtName?: string | null };
+    return { ...details, districtName: details.districtName ?? null };
   }
 
   private async dtos(
@@ -391,11 +415,10 @@ const context = (id: string) => `bank_accounts.details:${id}`;
 const mask = (accountNumber: string) =>
   `${'•'.repeat(Math.max(accountNumber.length - 4, 0))}${accountNumber.slice(-4)}`;
 
+/** The routing number names bank and branch, so the names need no comparing. */
 function sameDetails(a: BankDetails, b: BankDetails): boolean {
   return (
     a.holderName === b.holderName &&
-    a.bankName === b.bankName &&
-    a.branchName === b.branchName &&
     a.accountNumber === b.accountNumber &&
     a.routingNumber === b.routingNumber
   );

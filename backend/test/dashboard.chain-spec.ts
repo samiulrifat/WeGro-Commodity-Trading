@@ -149,10 +149,8 @@ describe('Dashboard (node + database)', () => {
     await as(t.investor)
       .put('/me/bank-account', {
         holderName: 'Demo Investor',
-        bankName: 'Sonali Bank PLC',
-        branchName: 'Motijheel',
         accountNumber: String(randomInt(1e9, 1e10)),
-        routingNumber: '200100123',
+        routingNumber: '200100405',
       })
       .expect(200);
 

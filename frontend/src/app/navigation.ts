@@ -97,11 +97,16 @@ export type SubLabel =
   | 'pendingPeople'
   | 'registerPerson'
   | 'registerFarmer'
-  | 'detailChanges';
+  | 'detailChanges'
+  | 'bankDetails';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
-  '/people' | '/people/pending' | '/people/new' | '/people/changes';
+  | '/people'
+  | '/people/pending'
+  | '/people/new'
+  | '/people/changes'
+  | '/people/bank-details';
 
 export interface SubPage {
   to: SubPath;
@@ -134,6 +139,7 @@ const OFFICE: NavItem[] = [
     sub('/people/pending', 'pendingPeople'),
     sub('/people/new', 'registerPerson'),
     sub('/people/changes', 'detailChanges'),
+    sub('/people/bank-details', 'bankDetails'),
   ]),
   item('vouchers', 'vouchers'),
   item('warehouse', 'warehouse'),

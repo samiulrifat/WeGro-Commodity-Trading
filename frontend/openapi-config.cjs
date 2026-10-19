@@ -9,6 +9,7 @@ const AREAS = {
   Auth: 'auth',
   Participants: 'participants',
   'Bank accounts': 'bank-accounts',
+  'Bank list': 'bank-list',
   Catalog: 'catalog',
   Projects: 'projects',
   Vouchers: 'vouchers',
