@@ -527,17 +527,131 @@ contract AccessRegistryTest is Test {
         registry.assignFieldOfficer(RAHIM, FARHANA);
         vm.stopPrank();
 
+        address sumon = makeAddr("sumon");
+        bytes32 SUMON = keccak256("STAFF-0004");
+        _staff(SUMON, OFFICER, sumon);
         vm.prank(superAdmin);
-        registry.rejectParticipant(IMRAN);
+        registry.rejectParticipant(SUMON);
         vm.prank(tania);
-        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAFieldOfficer.selector, IMRAN));
-        registry.assignFieldOfficer(RAHIM, IMRAN);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAFieldOfficer.selector, SUMON));
+        registry.assignFieldOfficer(RAHIM, SUMON);
 
         vm.prank(imran);
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, imran, ADMIN)
         );
         registry.assignFieldOfficer(RAHIM, IMRAN);
+    }
+
+    // --- officers leaving: farmer counts and hand-over --------------------
+
+    address sumon = makeAddr("sumon"); // second field officer
+    bytes32 constant SUMON = keccak256("STAFF-0004");
+
+    function _farmer(bytes32 id, address account) internal {
+        vm.prank(imran);
+        registry.registerParticipant(id, FARMER, account, keccak256(abi.encode(id)));
+    }
+
+    function _farmers(uint256 n) internal returns (bytes32[] memory ids) {
+        ids = new bytes32[](n);
+        for (uint256 i = 0; i < n; ++i) {
+            ids[i] = keccak256(abi.encode("FARMER", i));
+            _farmer(ids[i], makeAddr(string(abi.encode("farmer", i))));
+        }
+    }
+
+    function test_FarmerCountsFollowAssignments() public {
+        _staff(SUMON, OFFICER, sumon);
+        _registerRahim();
+        assertEq(registry.farmerCountOf(IMRAN), 1);
+        vm.startPrank(tania);
+        registry.assignFieldOfficer(RAHIM, SUMON);
+        assertEq(registry.farmerCountOf(IMRAN), 0);
+        assertEq(registry.farmerCountOf(SUMON), 1);
+        // The same officer again changes nothing.
+        registry.assignFieldOfficer(RAHIM, SUMON);
+        assertEq(registry.farmerCountOf(SUMON), 1);
+        vm.stopPrank();
+    }
+
+    function test_OfficerWithFarmersKeepsRoleUntilMoved() public {
+        _staff(SUMON, OFFICER, sumon);
+        bytes32[] memory ids = _farmers(3);
+        vm.prank(superAdmin);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.OfficerHasFarmers.selector, IMRAN, 3));
+        registry.rejectParticipant(IMRAN);
+
+        vm.expectEmit(address(registry));
+        emit AccessRegistry.FieldOfficerAssigned(ids[0], SUMON, superAdmin);
+        vm.prank(superAdmin);
+        registry.reassignFarmers(IMRAN, SUMON, ids);
+        assertEq(registry.farmerCountOf(IMRAN), 0);
+        assertEq(registry.farmerCountOf(SUMON), 3);
+        for (uint256 i = 0; i < ids.length; ++i) {
+            assertEq(registry.fieldOfficerOf(ids[i]), SUMON);
+        }
+
+        vm.prank(superAdmin);
+        registry.rejectParticipant(IMRAN);
+        assertFalse(registry.hasRole(OFFICER, imran));
+        // Restored, they start with no farmers.
+        vm.prank(superAdmin);
+        registry.verifyParticipant(IMRAN);
+        assertTrue(registry.hasRole(OFFICER, imran));
+        assertEq(registry.farmerCountOf(IMRAN), 0);
+    }
+
+    function test_AdminReassignsFarmersToo() public {
+        _staff(SUMON, OFFICER, sumon);
+        bytes32[] memory ids = _farmers(2);
+        vm.prank(tania);
+        registry.reassignFarmers(IMRAN, SUMON, ids);
+        assertEq(registry.farmerCountOf(SUMON), 2);
+    }
+
+    function test_ReassignFarmersGuards() public {
+        _staff(SUMON, OFFICER, sumon);
+        bytes32[] memory ids = _farmers(2);
+
+        address[3] memory refused = [stranger, imran, farhana];
+        for (uint256 i = 0; i < refused.length; ++i) {
+            vm.prank(refused[i]);
+            vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, refused[i]));
+            registry.reassignFarmers(IMRAN, SUMON, ids);
+        }
+
+        vm.startPrank(superAdmin);
+        vm.expectRevert(AccessRegistry.ZeroValue.selector);
+        registry.reassignFarmers(IMRAN, SUMON, new bytes32[](0));
+
+        uint256 max = registry.MAX_REASSIGN();
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.TooManyFarmers.selector, max + 1, max));
+        registry.reassignFarmers(IMRAN, SUMON, new bytes32[](max + 1));
+
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.SameFieldOfficer.selector, IMRAN));
+        registry.reassignFarmers(IMRAN, IMRAN, ids);
+
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAFieldOfficer.selector, FARHANA));
+        registry.reassignFarmers(IMRAN, FARHANA, ids);
+
+        // Every farmer must be with the officer they are moved from: none moves otherwise.
+        bytes32[] memory wrong = new bytes32[](2);
+        wrong[0] = ids[0];
+        wrong[1] = TANIA;
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.FarmerNotWithOfficer.selector, TANIA, IMRAN));
+        registry.reassignFarmers(IMRAN, SUMON, wrong);
+        assertEq(registry.fieldOfficerOf(ids[0]), IMRAN);
+        assertEq(registry.farmerCountOf(IMRAN), 2);
+        vm.stopPrank();
+    }
+
+    function test_ReassignAtTheLimit() public {
+        _staff(SUMON, OFFICER, sumon);
+        bytes32[] memory ids = _farmers(registry.MAX_REASSIGN());
+        vm.prank(superAdmin);
+        registry.reassignFarmers(IMRAN, SUMON, ids);
+        assertEq(registry.farmerCountOf(SUMON), ids.length);
     }
 
     // --- AccessGuarded ------------------------------------------------------

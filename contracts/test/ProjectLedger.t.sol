@@ -493,6 +493,100 @@ contract ProjectLedgerTest is Test {
         ledger.cancelReservation(a);
     }
 
+    // --- payment under review: the clock stops ------------------------------
+
+    function test_ProofStopsTheClockUntilReviewed() public {
+        _open();
+        uint256 id = _reserve(NASRIN, 4);
+        uint64 expiresAt = ledger.getReservation(id).expiresAt;
+        vm.warp(expiresAt - 1 hours);
+
+        vm.expectEmit(address(ledger));
+        emit ProjectLedger.ReservationPaused(id, 1 hours, _keyOf(NASRIN));
+        vm.prank(_keyOf(NASRIN));
+        ledger.pauseReservation(id);
+        assertEq(ledger.pausedRemaining(id), 1 hours);
+
+        // Days later, it still cannot expire, and Accounts can still confirm.
+        vm.warp(expiresAt + 3 days);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.ReservationOnHold.selector, id));
+        ledger.expireReservation(id);
+        _confirm(id, "REF-1");
+        assertEq(ledger.pausedRemaining(id), 0);
+        assertEq(ledger.holdingOf(PROJECT, NASRIN), 4);
+    }
+
+    function test_ResumedClockRunsOnFromWhereItStopped() public {
+        _open();
+        uint256 id = _reserve(NASRIN, 4);
+        uint64 expiresAt = ledger.getReservation(id).expiresAt;
+        vm.warp(expiresAt - 2 hours);
+        vm.prank(accounts);
+        ledger.pauseReservation(id);
+
+        vm.warp(expiresAt + 1 days);
+        vm.expectEmit(address(ledger));
+        emit ProjectLedger.ReservationResumed(id, uint64(block.timestamp) + 2 hours, accounts);
+        vm.prank(accounts);
+        ledger.resumeReservation(id);
+        assertEq(ledger.getReservation(id).expiresAt, uint64(block.timestamp) + 2 hours);
+
+        vm.warp(block.timestamp + 2 hours);
+        ledger.expireReservation(id);
+        assertEq(uint8(ledger.getReservation(id).status), uint8(ProjectLedger.ReservationStatus.Expired));
+    }
+
+    function test_PauseGuards() public {
+        _open();
+        uint256 id = _reserve(NASRIN, 4);
+        address karim = _keyOf(KARIM);
+
+        // Only the investor who made it, or Accounts.
+        vm.prank(karim);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.NotAuthorized.selector, karim));
+        ledger.pauseReservation(id);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.NotAuthorized.selector, admin));
+        ledger.pauseReservation(id);
+
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.ReservationNotOnHold.selector, id));
+        ledger.resumeReservation(id);
+
+        vm.prank(_keyOf(NASRIN));
+        ledger.pauseReservation(id);
+        vm.prank(_keyOf(NASRIN));
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.ReservationOnHold.selector, id));
+        ledger.pauseReservation(id);
+        // Only Accounts restarts the clock.
+        vm.prank(_keyOf(NASRIN));
+        vm.expectRevert();
+        ledger.resumeReservation(id);
+
+        // Too late to stop a clock that has run out.
+        uint256 late = _reserve(KARIM, 1);
+        vm.warp(ledger.getReservation(late).expiresAt);
+        vm.prank(karim);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.ReservationHasExpired.selector, late));
+        ledger.pauseReservation(late);
+    }
+
+    function test_OnHoldOnlyAnAdminCancels() public {
+        _open();
+        uint256 id = _reserve(NASRIN, 4);
+        address nasrin = _keyOf(NASRIN);
+        vm.prank(nasrin);
+        ledger.pauseReservation(id);
+        vm.prank(nasrin);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.ReservationOnHold.selector, id));
+        ledger.cancelReservation(id);
+
+        vm.prank(admin);
+        ledger.cancelReservation(id);
+        assertEq(ledger.pausedRemaining(id), 0);
+        assertEq(ledger.availableSlots(PROJECT), 100);
+    }
+
     function test_FullyIssuedProjectBecomesFunded() public {
         _open();
         _confirm(_reserve(NASRIN, 4), "REF-1");

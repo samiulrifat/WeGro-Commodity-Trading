@@ -131,7 +131,7 @@ export class MeasurementValueDto {
   @ApiProperty({ example: 'plant_height' })
   key: string;
 
-  @ApiProperty({ example: 'Plant height' })
+  @ApiProperty({ example: 'Plant Height' })
   label: string;
 
   @ApiProperty({ example: 'গাছের উচ্চতা' })
@@ -179,7 +179,7 @@ export class FieldRecordDto {
   @ApiProperty({ example: 'GROWTH_CHECK' })
   entryTypeCode: string;
 
-  @ApiProperty({ example: 'Growth check' })
+  @ApiProperty({ example: 'Growth Check' })
   entryTypeName: string;
 
   @ApiProperty({ example: 'বৃদ্ধি পর্যবেক্ষণ' })

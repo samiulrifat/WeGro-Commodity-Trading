@@ -13,7 +13,7 @@ export declare namespace AccessRegistry {
     }
 
   export interface AccessRegistryInterface extends Interface {
-    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "OPERATIONS_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
+    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "MAX_REASSIGN" | "OPERATIONS_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "farmerCountOf" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "reassignFarmers" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
 
@@ -27,12 +27,14 @@ encodeFunctionData(functionFragment: 'FARMER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'FIELD_OFFICER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'INSURER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'INVESTOR_ROLE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_REASSIGN', values?: undefined): string;
 encodeFunctionData(functionFragment: 'OPERATIONS_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'SUPPLIER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'WAREHOUSE_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'accountUsed', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'assignFieldOfficer', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'changeAccount', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'farmerCountOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'fieldOfficerOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getParticipant', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getRoleAdmin', values: [BytesLike]): string;
@@ -43,6 +45,7 @@ encodeFunctionData(functionFragment: 'isStaffRole', values: [BytesLike]): string
 encodeFunctionData(functionFragment: 'isVerified', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'isVerifiedAs', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'participantOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'reassignFarmers', values: [BytesLike, BytesLike, BytesLike[]]): string;
 encodeFunctionData(functionFragment: 'registerParticipant', values: [BytesLike, BytesLike, AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'rejectParticipant', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'renounceRole', values: [BytesLike, AddressLike]): string;
@@ -62,12 +65,14 @@ decodeFunctionResult(functionFragment: 'FARMER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'FIELD_OFFICER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'INSURER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'INVESTOR_ROLE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_REASSIGN', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'OPERATIONS_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'SUPPLIER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'WAREHOUSE_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'accountUsed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'assignFieldOfficer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'changeAccount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'farmerCountOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'fieldOfficerOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getParticipant', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRoleAdmin', data: BytesLike): Result;
@@ -78,6 +83,7 @@ decodeFunctionResult(functionFragment: 'isStaffRole', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isVerified', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isVerifiedAs', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'participantOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'reassignFarmers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerParticipant', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rejectParticipant', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceRole', data: BytesLike): Result;
@@ -299,6 +305,14 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
     
 
     
+    MAX_REASSIGN: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     OPERATIONS_ROLE: TypedContractMethod<
       [],
       [string],
@@ -343,6 +357,14 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
       [participantId: BytesLike, newAccount: AddressLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    farmerCountOf: TypedContractMethod<
+      [officerId: BytesLike, ],
+      [bigint],
+      'view'
     >
     
 
@@ -423,6 +445,14 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
       [account: AddressLike, ],
       [string],
       'view'
+    >
+    
+
+    
+    reassignFarmers: TypedContractMethod<
+      [fromOfficerId: BytesLike, toOfficerId: BytesLike, farmerIds: BytesLike[], ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -543,6 +573,11 @@ getFunction(nameOrSignature: 'INVESTOR_ROLE'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'MAX_REASSIGN'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'OPERATIONS_ROLE'): TypedContractMethod<
       [],
       [string],
@@ -572,6 +607,11 @@ getFunction(nameOrSignature: 'changeAccount'): TypedContractMethod<
       [participantId: BytesLike, newAccount: AddressLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'farmerCountOf'): TypedContractMethod<
+      [officerId: BytesLike, ],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'fieldOfficerOf'): TypedContractMethod<
       [farmerId: BytesLike, ],
@@ -622,6 +662,11 @@ getFunction(nameOrSignature: 'participantOf'): TypedContractMethod<
       [account: AddressLike, ],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'reassignFarmers'): TypedContractMethod<
+      [fromOfficerId: BytesLike, toOfficerId: BytesLike, farmerIds: BytesLike[], ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'registerParticipant'): TypedContractMethod<
       [participantId: BytesLike, role: BytesLike, account: AddressLike, detailsHash: BytesLike, ],

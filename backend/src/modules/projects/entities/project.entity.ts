@@ -132,6 +132,10 @@ export class Project extends BaseEntity {
   @Column({ type: 'date', nullable: true })
   plannedStartDate: string | null;
 
+  /** The photo on the project's card and page (a stored photo); not part of the terms. */
+  @Column({ type: 'uuid', nullable: true })
+  coverPhotoId: string | null;
+
   @Column({ type: 'varchar', length: 20 })
   stage: ProjectStage;
 

@@ -134,6 +134,26 @@ export class ProjectDto {
   @ApiPropertyOptional({ nullable: true, type: String })
   plannedStartDate: string | null;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    example: '/api/projects/…/cover',
+  })
+  coverPhotoUrl: string | null;
+
+  @ApiProperty({ description: 'Investors holding slots' })
+  investorCount: number;
+
+  @ApiProperty({
+    description: 'Investors who reserved slots today (Bangladesh time)',
+  })
+  investingToday: number;
+
+  @ApiPropertyOptional({
+    description: 'Saved by you (investors only)',
+  })
+  favourite?: boolean;
+
   @ApiProperty({ enum: ProjectStage })
   stage: ProjectStage;
 
@@ -185,8 +205,30 @@ export class ReservationDto {
   @ApiProperty()
   reservedAt: Date;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'The deadline; stopped while onHold' })
   expiresAt: Date;
+
+  @ApiProperty({
+    description:
+      'A payment proof is under review: the clock is stopped and it cannot expire',
+  })
+  onHold: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Number,
+    description: 'Seconds left on the clock while on hold',
+  })
+  pausedRemainingSeconds: number | null;
+
+  @ApiProperty({ example: '50000.00', description: 'Accepted by Accounts' })
+  paid: string;
+
+  @ApiProperty({ example: '0.00', description: 'In proofs not reviewed yet' })
+  underReview: string;
+
+  @ApiProperty({ example: '50000.00', description: 'Still to send' })
+  remaining: string;
 
   @ApiPropertyOptional({ nullable: true, type: Date })
   closedAt: Date | null;

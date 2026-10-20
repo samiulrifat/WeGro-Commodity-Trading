@@ -74,4 +74,22 @@ export class Reservation {
 
   @Column({ type: 'timestamptz', nullable: true })
   closedAt: Date | null;
+
+  /**
+   * Seconds left when a payment proof stopped the clock (from the ledger);
+   * null while it runs. A reservation on hold never expires.
+   */
+  @Column({ type: 'int', nullable: true })
+  pausedRemaining: number | null;
+
+  /** Position of the last pause or resume applied; older ones are ignored. */
+  @Column({
+    type: 'bigint',
+    default: -1,
+    transformer: numericBigintTransformer,
+  })
+  holdEventBlock: number;
+
+  @Column({ type: 'int', default: -1 })
+  holdEventLog: number;
 }

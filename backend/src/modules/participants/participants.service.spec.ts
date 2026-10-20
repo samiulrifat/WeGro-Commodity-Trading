@@ -89,6 +89,9 @@ function world() {
       users.splice(users.indexOf(find(id)!), 1);
       return Promise.resolve({ affected: 1 });
     }),
+    find: jest.fn(({ where }: { where: Record<string, unknown> }) =>
+      Promise.resolve(users.filter((u) => matchesWhere(u as never, where))),
+    ),
   });
   const detailsRepo = fakeRepo({
     exists: jest.fn(({ where }: { where: Record<string, unknown> }) =>
@@ -103,6 +106,15 @@ function world() {
     }
     if (call.method === 'verifyParticipant') ledger.get(id)!.status = 2;
     if (call.method === 'rejectParticipant') ledger.get(id)!.status = 3;
+    if (call.method === 'reassignFarmers') {
+      // As the FieldOfficerAssigned events would, once applied.
+      const [, to, farmers] = call.args as [string, string, string[]];
+      for (const u of users) {
+        if (farmers.includes(uuidToBytes32(u.id))) {
+          u.fieldOfficerId = users.find((o) => uuidToBytes32(o.id) === to)!.id;
+        }
+      }
+    }
     return [];
   });
   // The receipt applier would copy ledger events into the users table.
@@ -122,6 +134,8 @@ function world() {
   };
   const contracts = {
     get: () => ({
+      // Small, so a hand-over takes several batches here.
+      MAX_REASSIGN: jest.fn(() => Promise.resolve(2n)),
       getParticipant: jest.fn((id: string) =>
         Promise.resolve(
           ledger.get(id) ?? {
@@ -143,6 +157,18 @@ function world() {
   const sms = { send: jest.fn(() => Promise.resolve()) };
   const dataSource = {
     transaction: jest.fn((work: (m: unknown) => unknown) => work(manager)),
+    // Open-work counts: only a field officer's farmers exist in this world.
+    manager: {
+      query: jest.fn((sql: string, [id]: string[]) =>
+        Promise.resolve([
+          {
+            count: sql.includes('field_officer_id')
+              ? users.filter((u) => u.fieldOfficerId === id).length
+              : 0,
+          },
+        ]),
+      ),
+    },
   };
   const service = new ParticipantsService(
     dataSource as never,
@@ -378,6 +404,107 @@ describe('ParticipantsService', () => {
       participant.id,
       expect.anything(),
     );
+  });
+
+  describe('revoking access', () => {
+    /** A verified person of `role`, registered by whoever manages them. */
+    async function verified(w: ReturnType<typeof world>, role: Role) {
+      const by = role === Role.FIELD_OFFICER ? superAdmin : admin;
+      const { participant } = await w.service.register(by, {
+        role,
+        ...person,
+        phone: `0171100${String(w.users.length).padStart(4, '0')}`,
+        nid: `58392047${String(w.users.length).padStart(2, '0')}`,
+      } as never);
+      await w.service.verify(by, participant.id);
+      return participant.id;
+    }
+
+    it('refuses to reject someone verified: their access is revoked instead', async () => {
+      const w = world();
+      const id = await verified(w, Role.INVESTOR);
+      await expect(w.service.reject(admin, id, 'Gone')).rejects.toMatchObject({
+        response: { code: 'REJECT_VERIFIED' },
+      });
+    });
+
+    it('revokes with a reason, ends their sessions, and restores on verifying again', async () => {
+      const w = world();
+      const id = await verified(w, Role.INVESTOR);
+      await expect(
+        w.service.revoke(admin, id, { reason: 'other' } as never),
+      ).rejects.toMatchObject({
+        response: { code: 'REVOCATION_NOTE_REQUIRED' },
+      });
+
+      const res = await w.service.revoke(admin, id, {
+        reason: 'left_platform',
+        note: 'Closed their account',
+      } as never);
+      expect(res).toMatchObject({
+        status: ParticipantStatus.REJECTED,
+        accessRevoked: true,
+        revocation: { reason: 'left_platform', note: 'Closed their account' },
+      });
+      expect(w.tokens.revokeAllForUser).toHaveBeenCalledWith(
+        id,
+        expect.anything(),
+      );
+      await expect(
+        w.service.revoke(admin, id, { reason: 'left_platform' } as never),
+      ).rejects.toMatchObject({ response: { code: 'ACCESS_NOT_ACTIVE' } });
+
+      const back = await w.service.verify(admin, id);
+      expect(back).toMatchObject({
+        status: ParticipantStatus.VERIFIED,
+        accessRevoked: false,
+        revocation: null,
+        statusReason: null,
+      });
+    });
+
+    it('moves a field officer’s farmers to another officer, in batches, before revoking', async () => {
+      const w = world();
+      const leaving = await verified(w, Role.FIELD_OFFICER);
+      const next = await verified(w, Role.FIELD_OFFICER);
+      const farmers = [];
+      for (let i = 0; i < 3; i++) farmers.push(await verified(w, Role.FARMER));
+      for (const f of farmers)
+        w.users.find((u) => u.id === f)!.fieldOfficerId = leaving;
+
+      await expect(
+        w.service.openWork(superAdmin, leaving),
+      ).resolves.toMatchObject({ farmersToMove: 3 });
+      await expect(
+        w.service.revoke(superAdmin, leaving, { reason: 'resigned' } as never),
+      ).rejects.toMatchObject({
+        response: { code: 'FIELD_OFFICER_HAS_FARMERS', details: { count: 3 } },
+      });
+      await expect(
+        w.service.revoke(superAdmin, leaving, {
+          reason: 'resigned',
+          replacementOfficerId: leaving,
+        } as never),
+      ).rejects.toThrow(BadRequestException);
+
+      const before = w.chain.sent.length;
+      await w.service.revoke(superAdmin, leaving, {
+        reason: 'resigned',
+        replacementOfficerId: next,
+      } as never);
+      expect(w.chain.methods().slice(before)).toEqual([
+        'reassignFarmers',
+        'reassignFarmers',
+        'rejectParticipant',
+      ]);
+      for (const f of farmers) {
+        expect(w.users.find((u) => u.id === f)!.fieldOfficerId).toBe(next);
+      }
+      // Admins do not manage staff.
+      await expect(
+        w.service.revoke(admin, next, { reason: 'resigned' } as never),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   it('only assigns a verified field officer to a farmer', async () => {

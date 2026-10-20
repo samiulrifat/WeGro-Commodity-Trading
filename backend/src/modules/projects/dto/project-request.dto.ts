@@ -300,6 +300,22 @@ export class ListProjectsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   farmerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Words of the title, the place or the crop',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
+  @ApiPropertyOptional({ description: 'Only those you saved (investors)' })
+  @IsOptional()
+  @Transform(
+    ({ value }: { value: unknown }) => value === true || value === 'true',
+  )
+  @IsBoolean()
+  favourites?: boolean;
 }
 
 export class ReserveSlotsDto {
@@ -335,4 +351,13 @@ export class ListReservationsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   projectId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Whose (staff): a mobile number, an NID, or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }

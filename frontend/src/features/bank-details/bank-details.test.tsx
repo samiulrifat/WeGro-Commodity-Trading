@@ -81,12 +81,12 @@ describe('bank details', () => {
     });
     await renderPage(<MyBankAccountCard />, '/account');
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Add bank details' }),
+      await screen.findByRole('button', { name: 'Add Bank Details' }),
     );
 
     // Nothing chosen: each missing piece is named.
     await userEvent.click(
-      screen.getByRole('button', { name: 'Send for verification' }),
+      screen.getByRole('button', { name: 'Submit for Verification' }),
     );
     expect(screen.getByText('Choose the bank.')).toBeTruthy();
     expect(screen.getByText('Choose the branch.')).toBeTruthy();
@@ -103,19 +103,19 @@ describe('bank details', () => {
     await choose('District', 'bog', 'BOGRA');
     await choose('Branch', 'bazar', 'BOGRA BAZAR');
     expect(
-      (screen.getByLabelText('Routing number') as HTMLInputElement).value,
+      (screen.getByLabelText('Routing Number') as HTMLInputElement).value,
     ).toBe('200100405');
 
     await userEvent.type(
-      screen.getByLabelText('Account number'),
+      screen.getByLabelText('Account Number'),
       '0123 4567 89',
     );
     await userEvent.type(
-      screen.getByLabelText('Account name'),
+      screen.getByLabelText('Account Name'),
       ' Rahima  Begum ',
     );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Send for verification' }),
+      screen.getByRole('button', { name: 'Submit for Verification' }),
     );
     await waitFor(() =>
       expect(sent.find((s) => s.method === 'PUT')?.body).toEqual({

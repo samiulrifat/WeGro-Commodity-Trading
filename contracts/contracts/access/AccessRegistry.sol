@@ -52,6 +52,13 @@ contract AccessRegistry is AccessControl {
     /// @notice A farmer's field officer: who onboarded them, or whom the admin assigned.
     mapping(bytes32 farmerId => bytes32 officerId) public fieldOfficerOf;
 
+    /// @notice How many farmers each field officer looks after now. One who
+    /// still has any cannot lose their role: their farmers are moved first.
+    mapping(bytes32 officerId => uint256) public farmerCountOf;
+
+    /// @notice Most farmers moved by one reassignFarmers call (gas per call stays bounded).
+    uint256 public constant MAX_REASSIGN = 200;
+
     event ParticipantRegistered(
         bytes32 indexed participantId,
         bytes32 indexed role,
@@ -91,6 +98,10 @@ contract AccessRegistry is AccessControl {
     error NotAFarmer(bytes32 participantId);
     error NotAFieldOfficer(bytes32 participantId);
     error NotSelfRegistrable(bytes32 role);
+    error OfficerHasFarmers(bytes32 officerId, uint256 count);
+    error FarmerNotWithOfficer(bytes32 farmerId, bytes32 officerId);
+    error SameFieldOfficer(bytes32 officerId);
+    error TooManyFarmers(uint256 count, uint256 max);
 
     /// @param superAdmin Platform operator key; manages staff, cannot be a participant.
     constructor(address superAdmin) {
@@ -159,9 +170,7 @@ contract AccessRegistry is AccessControl {
         _register(participantId, role, account, detailsHash);
 
         if (role == FARMER_ROLE && hasRole(FIELD_OFFICER_ROLE, msg.sender)) {
-            bytes32 officerId = participantOf[msg.sender];
-            fieldOfficerOf[participantId] = officerId;
-            emit FieldOfficerAssigned(participantId, officerId, msg.sender);
+            _setFieldOfficer(participantId, participantOf[msg.sender]);
         }
     }
 
@@ -184,11 +193,27 @@ contract AccessRegistry is AccessControl {
         Participant storage farmer = _participants[farmerId];
         if (farmer.status == Status.None) revert ParticipantNotFound(farmerId);
         if (farmer.role != FARMER_ROLE) revert NotAFarmer(farmerId);
-        Participant storage officer = _participants[officerId];
-        if (officer.status != Status.Verified || officer.role != FIELD_OFFICER_ROLE) revert NotAFieldOfficer(officerId);
+        _requireVerifiedOfficer(officerId);
+        _setFieldOfficer(farmerId, officerId);
+    }
 
-        fieldOfficerOf[farmerId] = officerId;
-        emit FieldOfficerAssigned(farmerId, officerId, msg.sender);
+    /// @notice Moves farmers from one field officer to another, as when an
+    /// officer leaves: each must be with `fromOfficerId` now. Super admin
+    /// (who manages the officers) or an admin; at most MAX_REASSIGN per call.
+    function reassignFarmers(bytes32 fromOfficerId, bytes32 toOfficerId, bytes32[] calldata farmerIds) external {
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender) && !hasRole(ADMIN_ROLE, msg.sender)) {
+            revert NotAuthorized(msg.sender);
+        }
+        uint256 n = farmerIds.length;
+        if (n == 0) revert ZeroValue();
+        if (n > MAX_REASSIGN) revert TooManyFarmers(n, MAX_REASSIGN);
+        if (fromOfficerId == toOfficerId) revert SameFieldOfficer(toOfficerId);
+        _requireVerifiedOfficer(toOfficerId);
+        for (uint256 i = 0; i < n; ++i) {
+            bytes32 farmerId = farmerIds[i];
+            if (fieldOfficerOf[farmerId] != fromOfficerId) revert FarmerNotWithOfficer(farmerId, fromOfficerId);
+            _setFieldOfficer(farmerId, toOfficerId);
+        }
     }
 
     /// @notice Verify (or re-verify) and grant the role to their key.
@@ -198,9 +223,14 @@ contract AccessRegistry is AccessControl {
         _grantRole(p.role, p.account);
     }
 
-    /// @notice Reject (or withdraw verification) and revoke the role.
+    /// @notice Reject (or withdraw verification) and revoke the role. A field
+    /// officer who still looks after farmers is refused: move them first.
     function rejectParticipant(bytes32 participantId) external {
         Participant storage p = _managed(participantId);
+        if (p.role == FIELD_OFFICER_ROLE) {
+            uint256 count = farmerCountOf[participantId];
+            if (count > 0) revert OfficerHasFarmers(participantId, count);
+        }
         _setStatus(participantId, p, Status.Rejected);
         _revokeRole(p.role, p.account);
     }
@@ -295,6 +325,20 @@ contract AccessRegistry is AccessControl {
         if (account == address(0)) revert ZeroAddress();
         if (accountUsed[account] || hasRole(DEFAULT_ADMIN_ROLE, account)) revert AccountAlreadyUsed(account);
         accountUsed[account] = true;
+    }
+
+    function _requireVerifiedOfficer(bytes32 officerId) private view {
+        Participant storage officer = _participants[officerId];
+        if (officer.status != Status.Verified || officer.role != FIELD_OFFICER_ROLE) revert NotAFieldOfficer(officerId);
+    }
+
+    /// @dev Points a farmer at an officer, keeping both officers' counts right.
+    function _setFieldOfficer(bytes32 farmerId, bytes32 officerId) private {
+        bytes32 previous = fieldOfficerOf[farmerId];
+        if (previous != bytes32(0)) --farmerCountOf[previous];
+        ++farmerCountOf[officerId];
+        fieldOfficerOf[farmerId] = officerId;
+        emit FieldOfficerAssigned(farmerId, officerId, msg.sender);
     }
 
     function _requireSuperAdmin() private view {

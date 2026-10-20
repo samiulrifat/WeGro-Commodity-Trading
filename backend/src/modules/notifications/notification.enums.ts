@@ -24,12 +24,20 @@ export enum NotificationKind {
   PARTICIPANT_REGISTERED = 'participant.registered',
   PARTICIPANT_VERIFIED = 'participant.verified',
   PARTICIPANT_REJECTED = 'participant.rejected',
+  /** A verified person's role was taken away (they left, were dismissed...). */
+  PARTICIPANT_ACCESS_REVOKED = 'participant.access-revoked',
   FARMER_ASSIGNED = 'farmer.assigned',
   RESERVATION_MADE = 'reservation.made',
   RESERVATION_CONFIRMED = 'reservation.confirmed',
   RESERVATION_EXPIRED = 'reservation.expired',
   RESERVATION_CANCELLED = 'reservation.cancelled',
   RESERVATION_EXPIRING = 'reservation.expiring',
+  /** An investor sent a payment proof: Accounts to review. */
+  PAYMENT_PROOF_SUBMITTED = 'payment-proof.submitted',
+  PAYMENT_PROOF_ACCEPTED = 'payment-proof.accepted',
+  PAYMENT_PROOF_REJECTED = 'payment-proof.rejected',
+  /** Money for a booking that ended unconfirmed was paid back. */
+  PAYMENT_REFUNDED = 'payment-proof.refunded',
   PROJECT_FUNDED = 'project.funded',
   PROJECT_ACTIVE = 'project.active',
   PROJECT_READY_FOR_SALE = 'project.ready-for-sale',

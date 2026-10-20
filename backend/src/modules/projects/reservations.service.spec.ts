@@ -78,9 +78,12 @@ describe('ReservationsService', () => {
       insert: jest.fn((r: Refund) => (refundRows.push(r), Promise.resolve({}))),
     });
     const dataSource = {
-      query: jest.fn(() =>
+      query: jest.fn((sql: string) =>
         Promise.resolve(
-          opts.holdings ?? [{ investor_id: INVESTOR, slots: '3' }],
+          // No payment proofs in these tests.
+          sql.includes('payment_proofs')
+            ? []
+            : (opts.holdings ?? [{ investor_id: INVESTOR, slots: '3' }]),
         ),
       ),
     };
@@ -108,6 +111,7 @@ describe('ReservationsService', () => {
       crypto as never,
       chain.tx as never,
       { apply: jest.fn(() => Promise.resolve()) } as never,
+      { apply: (qb: unknown) => qb } as never,
     );
     return {
       service,

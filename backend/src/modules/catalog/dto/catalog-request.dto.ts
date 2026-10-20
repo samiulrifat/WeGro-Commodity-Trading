@@ -236,7 +236,7 @@ export class MeasurementDto {
   })
   key: string;
 
-  @ApiProperty({ example: 'Plant height' })
+  @ApiProperty({ example: 'Plant Height' })
   @Text()
   @IsString()
   @MinLength(1)

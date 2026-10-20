@@ -186,6 +186,17 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "reservationId",
         "type": "uint256"
+      }
+    ],
+    "name": "ReservationNotOnHold",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
       },
       {
         "internalType": "enum ProjectLedger.ReservationStatus",
@@ -210,6 +221,17 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "ReservationNotYetExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ReservationOnHold",
     "type": "error"
   },
   {
@@ -477,6 +499,56 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "ReservationExpired",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "remaining",
+        "type": "uint64"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "pausedBy",
+        "type": "address"
+      }
+    ],
+    "name": "ReservationPaused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "expiresAt",
+        "type": "uint64"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "resumedBy",
+        "type": "address"
+      }
+    ],
+    "name": "ReservationResumed",
     "type": "event"
   },
   {
@@ -1057,6 +1129,38 @@ import type { NonPayableOverrides } from "../../common.js"
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
+      }
+    ],
+    "name": "pauseReservation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
+      }
+    ],
+    "name": "pausedRemaining",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "paymentRefHash",
         "type": "bytes32"
@@ -1167,6 +1271,19 @@ import type { NonPayableOverrides } from "../../common.js"
         "type": "uint256"
       }
     ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "reservationId",
+        "type": "uint256"
+      }
+    ],
+    "name": "resumeReservation",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

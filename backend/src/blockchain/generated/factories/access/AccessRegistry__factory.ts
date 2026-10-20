@@ -55,6 +55,22 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "farmerId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "officerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "FarmerNotWithOfficer",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "participantId",
         "type": "bytes32"
       }
@@ -99,6 +115,22 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "officerId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      }
+    ],
+    "name": "OfficerHasFarmers",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "participantId",
         "type": "bytes32"
       }
@@ -132,6 +164,17 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "officerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "SameFieldOfficer",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "participantId",
         "type": "bytes32"
       },
@@ -142,6 +185,22 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "StatusUnchanged",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "max",
+        "type": "uint256"
+      }
+    ],
+    "name": "TooManyFarmers",
     "type": "error"
   },
   {
@@ -527,6 +586,19 @@ import type { NonPayableOverrides } from "../../common.js"
   },
   {
     "inputs": [],
+    "name": "MAX_REASSIGN",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "OPERATIONS_ROLE",
     "outputs": [
       {
@@ -617,6 +689,25 @@ import type { NonPayableOverrides } from "../../common.js"
     "name": "changeAccount",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "officerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "farmerCountOf",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -848,6 +939,29 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "fromOfficerId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "toOfficerId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "farmerIds",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "reassignFarmers",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

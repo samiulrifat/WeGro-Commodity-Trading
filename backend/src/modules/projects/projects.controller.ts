@@ -1,5 +1,6 @@
 import { ApiPaged } from '../../common/swagger/envelope';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,15 +12,26 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
+  ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { ErrorCode } from '../../common/errors/error-code';
+import { MAX_PHOTO_BYTES } from '../field-records/photos.service';
 import { Paginated } from '../../common/dto/pagination.dto';
 import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -173,6 +185,69 @@ export class ProjectsController {
     @Param('id', uuid) id: string,
   ): Promise<ProjectDto> {
     return this.projects.advance(actor, id, 'cancelProject');
+  }
+
+  @Post(':id/cover')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_PHOTO_BYTES, files: 1 },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOkResponse({
+    type: ProjectDto,
+    description: 'JPEG, PNG or WebP up to 10 MB; drafts only',
+  })
+  setCover(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<ProjectDto> {
+    if (!file)
+      throw new BadRequestException({
+        message: 'Send the photo as the "file" field',
+        code: ErrorCode.PHOTO_FIELD_MISSING,
+      });
+    return this.projects.setCover(actor, id, file.buffer);
+  }
+
+  @Get(':id/cover')
+  @ApiProduces('image/jpeg', 'image/png', 'image/webp')
+  @ApiOkResponse({ description: 'The cover photo' })
+  cover(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    return this.projects.sendCover(actor, id, res);
+  }
+
+  @Put(':id/favourite')
+  @Roles(Role.INVESTOR)
+  @ApiOkResponse({ type: ProjectDto, description: 'Saved to your favourites' })
+  addFavourite(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+  ): Promise<ProjectDto> {
+    return this.projects.setFavourite(actor, id, true);
+  }
+
+  @Delete(':id/favourite')
+  @Roles(Role.INVESTOR)
+  @ApiOkResponse({ type: ProjectDto, description: 'Taken off your favourites' })
+  removeFavourite(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+  ): Promise<ProjectDto> {
+    return this.projects.setFavourite(actor, id, false);
   }
 
   @Get(':id/timeline')

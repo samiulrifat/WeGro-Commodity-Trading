@@ -63,6 +63,7 @@ describe('navigation', () => {
       'marketplace',
       'insurance',
       'trackRecords',
+      'catalog',
     ]);
     expect(labels('farmer')).toEqual([
       'myProjects',
@@ -72,13 +73,20 @@ describe('navigation', () => {
       'insurance',
       'statement',
       'trackRecord',
+      'catalog',
     ]);
-    expect(labels('investor')).toEqual(['projects', 'holdings', 'statement']);
+    expect(labels('investor')).toEqual([
+      'projects',
+      'holdings',
+      'statement',
+      'catalog',
+    ]);
     expect(labels('buyer')).toEqual([
       'marketplace',
       'offers',
       'requests',
       'receipts',
+      'catalog',
     ]);
     expect(labels('auditor')).toContain('audit');
     expect(labels('operations')).not.toContain('payouts');
@@ -138,7 +146,47 @@ describe('access', () => {
     expect(access(investor, 'holdings')).toBe('ok');
     expect(access(investor, undefined)).toBe('ok');
     expect(access(investor, 'payouts')).toBe('no-access');
-    expect(access(investor, 'catalog')).toBe('no-access');
+    expect(access(investor, 'catalog')).toBe('ok');
+    expect(access(investor, 'catalog', '/catalog/produce')).toBe('ok');
+    expect(access(investor, 'catalog', '/catalog/inputs')).toBe('no-access');
+  });
+
+  it('shows each role the catalog lists its work uses', () => {
+    const lists = (role: Role) =>
+      NAV[role].find((n) => n.area === 'catalog')?.pages?.map((p) => p.label);
+    const all = [
+      'units',
+      'produce',
+      'inputs',
+      'farmUpdateTypes',
+      'weatherEvents',
+    ];
+    for (const role of [
+      'super_admin',
+      'admin',
+      'operations',
+      'auditor',
+    ] as const) {
+      expect(lists(role)).toEqual(all);
+    }
+    for (const role of [
+      'farmer',
+      'investor',
+      'buyer',
+      'warehouse',
+      'bank',
+    ] as const) {
+      expect(lists(role)).toEqual(['produce']);
+    }
+    expect(lists('supplier')).toEqual(['inputs']);
+    expect(lists('field_officer')).toEqual([
+      'produce',
+      'inputs',
+      'farmUpdateTypes',
+      'weatherEvents',
+    ]);
+    expect(lists('insurer')).toEqual(['produce', 'weatherEvents']);
+    expect(lists('accounts')).toEqual(['produce', 'inputs']);
   });
 });
 

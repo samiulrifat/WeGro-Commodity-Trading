@@ -23,9 +23,9 @@ export declare namespace ProjectLedger {
     }
 
   export interface ProjectLedgerInterface extends Interface {
-    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "MAX_SLOTS" | "SHORT_TERM_MAX_MONTHS" | "activate" | "availableSlots" | "cancelProject" | "cancelReservation" | "close" | "confirmPayment" | "createProject" | "expireReservation" | "getHolders" | "getProject" | "getReservation" | "holdingOf" | "isLinkedContract" | "markPaidOut" | "markReadyForSale" | "nextReservationId" | "openForFunding" | "paymentRefUsed" | "recordRefund" | "refundDue" | "registry" | "reservationTtl" | "reserveSlots" | "setLinkedContract" | "setReservationTtl"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "MAX_SLOTS" | "SHORT_TERM_MAX_MONTHS" | "activate" | "availableSlots" | "cancelProject" | "cancelReservation" | "close" | "confirmPayment" | "createProject" | "expireReservation" | "getHolders" | "getProject" | "getReservation" | "holdingOf" | "isLinkedContract" | "markPaidOut" | "markReadyForSale" | "nextReservationId" | "openForFunding" | "pauseReservation" | "pausedRemaining" | "paymentRefUsed" | "recordRefund" | "refundDue" | "registry" | "reservationTtl" | "reserveSlots" | "resumeReservation" | "setLinkedContract" | "setReservationTtl"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "LinkedContractSet" | "ProjectCreated" | "ProjectStageChanged" | "RefundRecorded" | "RefundsRequired" | "ReservationCancelled" | "ReservationConfirmed" | "ReservationExpired" | "ReservationTtlUpdated" | "SlotsReserved"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "LinkedContractSet" | "ProjectCreated" | "ProjectStageChanged" | "RefundRecorded" | "RefundsRequired" | "ReservationCancelled" | "ReservationConfirmed" | "ReservationExpired" | "ReservationPaused" | "ReservationResumed" | "ReservationTtlUpdated" | "SlotsReserved"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BPS_DENOMINATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_SLOTS', values?: undefined): string;
@@ -47,12 +47,15 @@ encodeFunctionData(functionFragment: 'markPaidOut', values: [BytesLike]): string
 encodeFunctionData(functionFragment: 'markReadyForSale', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'nextReservationId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'openForFunding', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'pauseReservation', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'pausedRemaining', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'paymentRefUsed', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'recordRefund', values: [BytesLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'refundDue', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'registry', values?: undefined): string;
 encodeFunctionData(functionFragment: 'reservationTtl', values?: undefined): string;
 encodeFunctionData(functionFragment: 'reserveSlots', values: [BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'resumeReservation', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setLinkedContract', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setReservationTtl', values: [BigNumberish]): string;
 
@@ -76,12 +79,15 @@ decodeFunctionResult(functionFragment: 'markPaidOut', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'markReadyForSale', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextReservationId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'openForFunding', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'pauseReservation', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'pausedRemaining', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'paymentRefUsed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordRefund', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'refundDue', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registry', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reservationTtl', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reserveSlots', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'resumeReservation', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setLinkedContract', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setReservationTtl', data: BytesLike): Result;
   }
@@ -175,6 +181,30 @@ decodeFunctionResult(functionFragment: 'setReservationTtl', data: BytesLike): Re
       export type InputTuple = [reservationId: BigNumberish, projectId: BytesLike];
       export type OutputTuple = [reservationId: bigint, projectId: string];
       export interface OutputObject {reservationId: bigint, projectId: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReservationPausedEvent {
+      export type InputTuple = [reservationId: BigNumberish, remaining: BigNumberish, pausedBy: AddressLike];
+      export type OutputTuple = [reservationId: bigint, remaining: bigint, pausedBy: string];
+      export interface OutputObject {reservationId: bigint, remaining: bigint, pausedBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReservationResumedEvent {
+      export type InputTuple = [reservationId: BigNumberish, expiresAt: BigNumberish, resumedBy: AddressLike];
+      export type OutputTuple = [reservationId: bigint, expiresAt: bigint, resumedBy: string];
+      export interface OutputObject {reservationId: bigint, expiresAt: bigint, resumedBy: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -401,6 +431,22 @@ decodeFunctionResult(functionFragment: 'setReservationTtl', data: BytesLike): Re
     
 
     
+    pauseReservation: TypedContractMethod<
+      [reservationId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    pausedRemaining: TypedContractMethod<
+      [reservationId: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     paymentRefUsed: TypedContractMethod<
       [paymentRefHash: BytesLike, ],
       [boolean],
@@ -444,6 +490,14 @@ decodeFunctionResult(functionFragment: 'setReservationTtl', data: BytesLike): Re
     reserveSlots: TypedContractMethod<
       [projectId: BytesLike, slots: BigNumberish, ],
       [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    resumeReservation: TypedContractMethod<
+      [reservationId: BigNumberish, ],
+      [void],
       'nonpayable'
     >
     
@@ -567,6 +621,16 @@ getFunction(nameOrSignature: 'openForFunding'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'pauseReservation'): TypedContractMethod<
+      [reservationId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'pausedRemaining'): TypedContractMethod<
+      [reservationId: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'paymentRefUsed'): TypedContractMethod<
       [paymentRefHash: BytesLike, ],
       [boolean],
@@ -597,6 +661,11 @@ getFunction(nameOrSignature: 'reserveSlots'): TypedContractMethod<
       [bigint],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'resumeReservation'): TypedContractMethod<
+      [reservationId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setLinkedContract'): TypedContractMethod<
       [account: AddressLike, allowed: boolean, ],
       [void],
@@ -616,6 +685,8 @@ getEvent(key: 'RefundsRequired'): TypedContractEvent<RefundsRequiredEvent.InputT
 getEvent(key: 'ReservationCancelled'): TypedContractEvent<ReservationCancelledEvent.InputTuple, ReservationCancelledEvent.OutputTuple, ReservationCancelledEvent.OutputObject>;
 getEvent(key: 'ReservationConfirmed'): TypedContractEvent<ReservationConfirmedEvent.InputTuple, ReservationConfirmedEvent.OutputTuple, ReservationConfirmedEvent.OutputObject>;
 getEvent(key: 'ReservationExpired'): TypedContractEvent<ReservationExpiredEvent.InputTuple, ReservationExpiredEvent.OutputTuple, ReservationExpiredEvent.OutputObject>;
+getEvent(key: 'ReservationPaused'): TypedContractEvent<ReservationPausedEvent.InputTuple, ReservationPausedEvent.OutputTuple, ReservationPausedEvent.OutputObject>;
+getEvent(key: 'ReservationResumed'): TypedContractEvent<ReservationResumedEvent.InputTuple, ReservationResumedEvent.OutputTuple, ReservationResumedEvent.OutputObject>;
 getEvent(key: 'ReservationTtlUpdated'): TypedContractEvent<ReservationTtlUpdatedEvent.InputTuple, ReservationTtlUpdatedEvent.OutputTuple, ReservationTtlUpdatedEvent.OutputObject>;
 getEvent(key: 'SlotsReserved'): TypedContractEvent<SlotsReservedEvent.InputTuple, SlotsReservedEvent.OutputTuple, SlotsReservedEvent.OutputObject>;
 
@@ -651,6 +722,14 @@ getEvent(key: 'SlotsReserved'): TypedContractEvent<SlotsReservedEvent.InputTuple
 
       'ReservationExpired(uint256,bytes32)': TypedContractEvent<ReservationExpiredEvent.InputTuple, ReservationExpiredEvent.OutputTuple, ReservationExpiredEvent.OutputObject>;
       ReservationExpired: TypedContractEvent<ReservationExpiredEvent.InputTuple, ReservationExpiredEvent.OutputTuple, ReservationExpiredEvent.OutputObject>;
+    
+
+      'ReservationPaused(uint256,uint64,address)': TypedContractEvent<ReservationPausedEvent.InputTuple, ReservationPausedEvent.OutputTuple, ReservationPausedEvent.OutputObject>;
+      ReservationPaused: TypedContractEvent<ReservationPausedEvent.InputTuple, ReservationPausedEvent.OutputTuple, ReservationPausedEvent.OutputObject>;
+    
+
+      'ReservationResumed(uint256,uint64,address)': TypedContractEvent<ReservationResumedEvent.InputTuple, ReservationResumedEvent.OutputTuple, ReservationResumedEvent.OutputObject>;
+      ReservationResumed: TypedContractEvent<ReservationResumedEvent.InputTuple, ReservationResumedEvent.OutputTuple, ReservationResumedEvent.OutputObject>;
     
 
       'ReservationTtlUpdated(uint64,uint64)': TypedContractEvent<ReservationTtlUpdatedEvent.InputTuple, ReservationTtlUpdatedEvent.OutputTuple, ReservationTtlUpdatedEvent.OutputObject>;

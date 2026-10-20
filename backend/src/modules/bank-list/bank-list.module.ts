@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProjectsModule } from '../projects/projects.module';
+import { UsersModule } from '../users/users.module';
+import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { BankListController } from './bank-list.controller';
 import { BankListService } from './bank-list.service';
 import { BankListImport } from './entities/bank-list-import.entity';
@@ -16,8 +17,9 @@ import { ListedDistrict } from './entities/listed-district.entity';
       ListedDistrict,
       ListedBranch,
       BankListImport,
+      PersonalDetails,
     ]),
-    ProjectsModule,
+    UsersModule,
   ],
   controllers: [BankListController],
   providers: [BankListService],

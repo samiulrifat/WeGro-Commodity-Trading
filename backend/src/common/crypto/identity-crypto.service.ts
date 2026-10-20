@@ -64,6 +64,32 @@ export class IdentityCryptoService {
     return `${VERSION}.${Buffer.concat([iv, body, cipher.getAuthTag()]).toString('base64url')}`;
   }
 
+  /** Files (payment proofs): iv | ciphertext | tag, bound to `context` like text. */
+  encryptBytes(plain: Buffer, context: string): Buffer {
+    const iv = randomBytes(IV_BYTES);
+    const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+    cipher.setAAD(Buffer.from(context, 'utf8'));
+    const body = Buffer.concat([cipher.update(plain), cipher.final()]);
+    return Buffer.concat([iv, body, cipher.getAuthTag()]);
+  }
+
+  /** Throws if the file was altered, moved to another record, or made with another key. */
+  decryptBytes(sealed: Buffer, context: string): Buffer {
+    if (sealed.length < IV_BYTES + TAG_BYTES)
+      throw new Error('Ciphertext too short');
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.encryptionKey,
+      sealed.subarray(0, IV_BYTES),
+    );
+    decipher.setAAD(Buffer.from(context, 'utf8'));
+    decipher.setAuthTag(sealed.subarray(sealed.length - TAG_BYTES));
+    return Buffer.concat([
+      decipher.update(sealed.subarray(IV_BYTES, sealed.length - TAG_BYTES)),
+      decipher.final(),
+    ]);
+  }
+
   /** Throws if the value was altered, moved to another row or column, or made with another key. */
   decrypt(ciphertext: string, context: string): string {
     const dot = ciphertext.indexOf('.');

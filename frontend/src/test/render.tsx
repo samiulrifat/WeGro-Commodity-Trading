@@ -37,12 +37,28 @@ export function fakeServer(
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const request =
         input instanceof Request ? input : new Request(input, init);
-      const text = await request.clone().text();
-      const entry = {
-        method: request.method,
-        url: new URL(request.url),
-        body: text ? (JSON.parse(text) as unknown) : undefined,
-      };
+      // Multipart forms (uploads) as their fields, file names for files.
+      const multipart = (request.headers.get('content-type') ?? '').startsWith(
+        'multipart/form-data',
+      );
+      let body: unknown;
+      if (multipart) {
+        const form = await request.clone().formData();
+        const fields: Record<string, string[]> = {};
+        form.forEach((v, k) => {
+          (fields[k] ??= []).push(typeof v === 'string' ? v : v.name);
+        });
+        body = fields;
+      } else {
+        const text = await request.clone().text();
+        try {
+          body = text ? (JSON.parse(text) as unknown) : undefined;
+        } catch {
+          // jsdom's FormData does not serialise into a Request: kept as sent.
+          body = text;
+        }
+      }
+      const entry = { method: request.method, url: new URL(request.url), body };
       sent.push(entry);
       const reply = answer(entry) ?? {
         status: 404,

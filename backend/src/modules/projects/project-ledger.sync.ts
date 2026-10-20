@@ -28,6 +28,8 @@ const EVENTS = [
   'ReservationConfirmed',
   'ReservationExpired',
   'ReservationCancelled',
+  'ReservationPaused',
+  'ReservationResumed',
   'RefundsRequired',
   'RefundRecorded',
 ] as const;
@@ -77,7 +79,12 @@ export class ProjectLedgerSync implements OnModuleInit {
       await m
         .createQueryBuilder()
         .update(Reservation)
-        .set({ status: null })
+        .set({
+          status: null,
+          pausedRemaining: null,
+          holdEventBlock: -1,
+          holdEventLog: -1,
+        })
         .execute();
       await m
         .createQueryBuilder()
@@ -222,6 +229,40 @@ export class ProjectLedgerSync implements OnModuleInit {
         return;
       }
 
+      // The clock of a reservation with a payment proof under review, guarded
+      // by the event's position so a late replay never undoes a newer one.
+      case 'ReservationPaused':
+      case 'ReservationResumed': {
+        const paused = event.eventName === 'ReservationPaused';
+        await m
+          .createQueryBuilder()
+          .update(Reservation)
+          .set(
+            paused
+              ? {
+                  pausedRemaining: Number(a.remaining),
+                  holdEventBlock: event.blockNumber,
+                  holdEventLog: event.logIndex,
+                }
+              : {
+                  pausedRemaining: null,
+                  expiresAt: new Date(Number(a.expiresAt) * 1000),
+                  holdEventBlock: event.blockNumber,
+                  holdEventLog: event.logIndex,
+                },
+          )
+          .where('id = :id AND status = :pending', {
+            id: Number(a.reservationId),
+            pending: ReservationStatus.PENDING,
+          })
+          .andWhere('(hold_event_block, hold_event_log) < (:block, :log)', {
+            block: event.blockNumber,
+            log: event.logIndex,
+          })
+          .execute();
+        return;
+      }
+
       case 'RefundsRequired': {
         const id = toUuid(a.projectId);
         if (id)
@@ -291,7 +332,7 @@ export class ProjectLedgerSync implements OnModuleInit {
     const res = await m
       .createQueryBuilder()
       .update(Reservation)
-      .set({ status, closedAt: when, ...extra })
+      .set({ status, closedAt: when, pausedRemaining: null, ...extra })
       .where('id = :id AND status = :pending', {
         id,
         pending: ReservationStatus.PENDING,

@@ -14,6 +14,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { BankListModule } from './modules/bank-list/bank-list.module';
+import { PaymentAccountsModule } from './modules/payment-accounts/payment-accounts.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AUTH_THROTTLE } from './modules/auth/decorators';
@@ -73,6 +74,7 @@ import { WarehouseModule } from './modules/warehouse/warehouse.module';
     TradeModule,
     InsuranceModule,
     BankListModule,
+    PaymentAccountsModule,
     BankAccountsModule,
     SettlementModule,
     TrackRecordModule,

@@ -19,7 +19,7 @@ describe('Jobs on schedule (node + database)', () => {
 
   it('releases what is due by itself, and records the run', async () => {
     const reservation = await app.unpaidReservation('Scheduled expiry');
-    await app.travel(120 * 3600 + 1);
+    await app.travel(7 * 24 * 3600 + 1);
     let status = '';
     for (let i = 0; i < 40 && status !== 'expired'; i++) {
       await new Promise((r) => setTimeout(r, 500));

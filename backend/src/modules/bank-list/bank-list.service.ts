@@ -13,7 +13,8 @@ import { DataSource, type EntityManager, Repository } from 'typeorm';
 import { ErrorCode } from '../../common/errors/error-code';
 import { problem } from '../../common/errors/problem';
 import type { AuthUser } from '../auth/auth-user';
-import { ProjectViews } from '../projects/project-views';
+import { PersonalDetails } from '../users/entities/personal-details.entity';
+import { PersonalDetailsCodec } from '../users/personal-details.codec';
 import {
   BRANCHES_FILE,
   type BankListData,
@@ -75,7 +76,9 @@ export class BankListService implements OnApplicationBootstrap {
     private readonly branchesRepo: Repository<ListedBranch>,
     @InjectRepository(BankListImport)
     private readonly imports: Repository<BankListImport>,
-    private readonly views: ProjectViews,
+    @InjectRepository(PersonalDetails)
+    private readonly details: Repository<PersonalDetails>,
+    private readonly codec: PersonalDetailsCodec,
   ) {}
 
   /** Every bank, by name. */
@@ -171,16 +174,22 @@ export class BankListService implements OnApplicationBootstrap {
         source: null,
       };
     }
-    const names = last.importedById
-      ? await this.views.names([last.importedById])
-      : new Map<string, string>();
+    const importer = last.importedById
+      ? await this.details.findOne({
+          where: { userId: last.importedById },
+          select: { userId: true, fullNameEnc: true },
+        })
+      : null;
     return {
       bankCount: last.bankCount,
       districtCount: last.districtCount,
       branchCount: last.branchCount,
       importedAt: last.createdAt,
       importedBy: last.importedById
-        ? { id: last.importedById, name: names.get(last.importedById) ?? '' }
+        ? {
+            id: last.importedById,
+            name: importer ? this.codec.openName(importer) : '',
+          }
         : null,
       source: last.source,
     };

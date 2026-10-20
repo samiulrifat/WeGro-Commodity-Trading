@@ -9,6 +9,10 @@
  * every error the backend throws carries one of these, and every one is used.
  */
 export enum ErrorCode {
+  /** Only a verified person's access can be revoked */
+  ACCESS_NOT_ACTIVE = 'ACCESS_NOT_ACTIVE',
+  /** Your access to WeGro has been revoked */
+  ACCESS_REVOKED = 'ACCESS_REVOKED',
   /** Too many failed sign-in attempts. Try again in {minutes} minutes. */
   ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
   /** Your account is not verified */
@@ -75,6 +79,8 @@ export enum ErrorCode {
   BATCH_NOT_YOURS = 'BATCH_NOT_YOURS',
   /** {batch}: a batch of {input}, not {expected} */
   BATCH_WRONG_INPUT = 'BATCH_WRONG_INPUT',
+  /** Money was sent for this booking: ask WeGro to cancel it, and it is refunded */
+  BOOKING_HAS_PAYMENTS = 'BOOKING_HAS_PAYMENTS',
   /** An entry with this code already exists */
   CATALOG_CODE_EXISTS = 'CATALOG_CODE_EXISTS',
   /** The entry {code} is no longer in use */
@@ -191,6 +197,8 @@ export enum ErrorCode {
   FARM_UPDATE_WRONG_STAGE = 'FARM_UPDATE_WRONG_STAGE',
   /** Field officers register farmers only */
   FIELD_OFFICER_FARMERS_ONLY = 'FIELD_OFFICER_FARMERS_ONLY',
+  /** This field officer looks after {count} farmers: choose the field officer they move to */
+  FIELD_OFFICER_HAS_FARMERS = 'FIELD_OFFICER_HAS_FARMERS',
   /** officerId must be a verified field officer */
   FIELD_OFFICER_INVALID = 'FIELD_OFFICER_INVALID',
   /** Field record not found */
@@ -353,6 +361,10 @@ export enum ErrorCode {
   PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED',
   /** New password must differ from the current one */
   PASSWORD_UNCHANGED = 'PASSWORD_UNCHANGED',
+  /** This account is already listed */
+  PAYMENT_ACCOUNT_EXISTS = 'PAYMENT_ACCOUNT_EXISTS',
+  /** Payment account not found */
+  PAYMENT_ACCOUNT_NOT_FOUND = 'PAYMENT_ACCOUNT_NOT_FOUND',
   /** A different payment for this line is being recorded */
   PAYMENT_IN_PROGRESS = 'PAYMENT_IN_PROGRESS',
   /** The payment deadline for this deal has passed */
@@ -401,6 +413,28 @@ export enum ErrorCode {
   PROJECT_NOT_PUBLISHED = 'PROJECT_NOT_PUBLISHED',
   /** Published projects cannot be changed or deleted */
   PROJECT_PUBLISHED_LOCKED = 'PROJECT_PUBLISHED_LOCKED',
+  /** This booking has payment proofs: review them instead */
+  PROOFS_TO_REVIEW = 'PROOFS_TO_REVIEW',
+  /** This proof is already {status} */
+  PROOF_ALREADY_DECIDED = 'PROOF_ALREADY_DECIDED',
+  /** The amount must be above zero and at most {remaining}, what is left to pay */
+  PROOF_AMOUNT_INVALID = 'PROOF_AMOUNT_INVALID',
+  /** Choose the bank the money was paid from */
+  PROOF_BANK_REQUIRED = 'PROOF_BANK_REQUIRED',
+  /** The transfer date cannot be in the future */
+  PROOF_DATE_FUTURE = 'PROOF_DATE_FUTURE',
+  /** Attach 1 to {max} files */
+  PROOF_FILE_COUNT = 'PROOF_FILE_COUNT',
+  /** The file is missing */
+  PROOF_FILE_MISSING = 'PROOF_FILE_MISSING',
+  /** Each file must be 1 byte to {maxMb} MB */
+  PROOF_FILE_SIZE = 'PROOF_FILE_SIZE',
+  /** Proofs must be photos (JPEG, PNG, WebP) or PDFs */
+  PROOF_FILE_TYPE = 'PROOF_FILE_TYPE',
+  /** Payment proof not found */
+  PROOF_NOT_FOUND = 'PROOF_NOT_FOUND',
+  /** Only money accepted for a booking that ended unconfirmed is refunded */
+  PROOF_NOT_REFUNDABLE = 'PROOF_NOT_REFUNDABLE',
   /** Saved on the ledger, but the database copy could not be updated yet; it will be retried automatically. Do not repeat the action. */
   READ_MODEL_UPDATE_FAILED = 'READ_MODEL_UPDATE_FAILED',
   /** This receipt has expired; the site must re-check and extend it first */
@@ -427,6 +461,8 @@ export enum ErrorCode {
   REGISTRATION_NOT_ALLOWED = 'REGISTRATION_NOT_ALLOWED',
   /** Saved, but the ledger has not confirmed the registration yet. It will be confirmed automatically, or use sync. */
   REGISTRATION_UNCONFIRMED = 'REGISTRATION_UNCONFIRMED',
+  /** This person is verified: revoke their access instead */
+  REJECT_VERIFIED = 'REJECT_VERIFIED',
   /** This request is already cancelled */
   REQUEST_ALREADY_CANCELLED = 'REQUEST_ALREADY_CANCELLED',
   /** Request not found */
@@ -441,6 +477,8 @@ export enum ErrorCode {
   RESERVATION_WRONG_STATUS = 'RESERVATION_WRONG_STATUS',
   /** This claim is {status}: start the review first */
   REVIEW_NOT_STARTED = 'REVIEW_NOT_STARTED',
+  /** Write a note saying why when the reason is other */
+  REVOCATION_NOTE_REQUIRED = 'REVOCATION_NOTE_REQUIRED',
   /** Your role cannot do this */
   ROLE_NOT_ALLOWED = 'ROLE_NOT_ALLOWED',
   /** Round not found */

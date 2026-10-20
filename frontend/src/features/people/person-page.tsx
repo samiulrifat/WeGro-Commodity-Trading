@@ -94,13 +94,33 @@ export function PersonPage({ id }: { id: string }) {
         actions={manages && <PersonActions person={person} viewer={viewer} />}
       />
 
-      {person.status === 'rejected' && person.statusReason && (
+      {person.revocation && (
         <Alert>
           <CircleX />
-          <AlertTitle>{t('people.rejectedBecause')}</AlertTitle>
-          <AlertDescription>{person.statusReason}</AlertDescription>
+          <AlertTitle>{t('people.revocation.title')}</AlertTitle>
+          <AlertDescription className="grid gap-1">
+            <p>
+              {t('people.revocation.by', {
+                reason: t(
+                  `people.revocationReason.${person.revocation.reason}`,
+                ),
+                name: person.revocation.by?.name ?? '—',
+                at: person.revocation.at,
+              })}
+            </p>
+            {person.revocation.note && <p>{person.revocation.note}</p>}
+          </AlertDescription>
         </Alert>
       )}
+      {person.status === 'rejected' &&
+        !person.revocation &&
+        person.statusReason && (
+          <Alert>
+            <CircleX />
+            <AlertTitle>{t('people.rejectedBecause')}</AlertTitle>
+            <AlertDescription>{person.statusReason}</AlertDescription>
+          </Alert>
+        )}
       {person.chainState === 'submitted' && (
         <Alert polite>
           <Hourglass />

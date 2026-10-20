@@ -98,7 +98,17 @@ export type SubLabel =
   | 'registerPerson'
   | 'registerFarmer'
   | 'detailChanges'
-  | 'bankDetails';
+  | 'bankDetails'
+  | 'units'
+  | 'produce'
+  | 'inputs'
+  | 'farmUpdateTypes'
+  | 'weatherEvents'
+  | 'allProjects'
+  | 'drafts'
+  | 'paymentConfirmations'
+  | 'refunds'
+  | 'paymentAccounts';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -106,7 +116,17 @@ export type SubPath =
   | '/people/pending'
   | '/people/new'
   | '/people/changes'
-  | '/people/bank-details';
+  | '/people/bank-details'
+  | '/catalog/units'
+  | '/catalog/produce'
+  | '/catalog/inputs'
+  | '/catalog/farm-update-types'
+  | '/catalog/weather-events'
+  | '/projects'
+  | '/projects/drafts'
+  | '/projects/payments'
+  | '/projects/refunds'
+  | '/projects/payment-accounts';
 
 export interface SubPage {
   to: SubPath;
@@ -131,9 +151,32 @@ const item = (
 
 const sub = (to: SubPath, label: SubLabel): SubPage => ({ to, label });
 
+/** The catalog's lists, each role seeing those its work uses. */
+const UNITS = sub('/catalog/units', 'units');
+const PRODUCE = sub('/catalog/produce', 'produce');
+const INPUTS = sub('/catalog/inputs', 'inputs');
+const FARM_UPDATE_TYPES = sub('/catalog/farm-update-types', 'farmUpdateTypes');
+const WEATHER_EVENTS = sub('/catalog/weather-events', 'weatherEvents');
+const WHOLE_CATALOG = [
+  UNITS,
+  PRODUCE,
+  INPUTS,
+  FARM_UPDATE_TYPES,
+  WEATHER_EVENTS,
+];
+const catalog = (...pages: SubPage[]) => item('catalog', 'catalog', pages);
+
+/** The projects section: payments and refunds for those who handle money. */
+const ALL_PROJECTS = sub('/projects', 'allProjects');
+const DRAFTS = sub('/projects/drafts', 'drafts');
+const PAYMENTS = sub('/projects/payments', 'paymentConfirmations');
+const REFUNDS = sub('/projects/refunds', 'refunds');
+const PAYMENT_ACCOUNTS = sub('/projects/payment-accounts', 'paymentAccounts');
+const projects = (...pages: SubPage[]) => item('projects', 'projects', pages);
+
 const OFFICE: NavItem[] = [
   item('dashboard', 'dashboard'),
-  item('projects', 'projects'),
+  projects(ALL_PROJECTS, DRAFTS, PAYMENTS, REFUNDS),
   item('people', 'people', [
     sub('/people', 'allPeople'),
     sub('/people/pending', 'pendingPeople'),
@@ -147,7 +190,7 @@ const OFFICE: NavItem[] = [
   item('insurance', 'insurance'),
   item('payouts', 'payouts'),
   item('track-records', 'trackRecords'),
-  item('catalog', 'catalog'),
+  catalog(...WHOLE_CATALOG),
   item('audit', 'audit'),
   item('system', 'system'),
 ];
@@ -158,30 +201,36 @@ const OFFICE: NavItem[] = [
  * behind them too, or they are not this role's work).
  */
 export const NAV: Record<Role, readonly NavItem[]> = {
-  super_admin: OFFICE,
+  // The super admin also keeps WeGro's payment accounts.
+  super_admin: OFFICE.map((n) =>
+    n.area === 'projects'
+      ? projects(ALL_PROJECTS, DRAFTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS)
+      : n,
+  ),
   admin: OFFICE,
   operations: [
     item('dashboard', 'dashboard'),
     item('projects', 'projects'),
     item('vouchers', 'vouchers'),
-    item('catalog', 'catalog'),
+    catalog(...WHOLE_CATALOG),
     item('marketplace', 'marketplace'),
     item('warehouse', 'warehouse'),
     item('insurance', 'insurance'),
   ],
   accounts: [
     item('dashboard', 'dashboard'),
-    item('projects', 'projects'),
+    projects(ALL_PROJECTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS),
     item('vouchers', 'vouchers'),
     item('payouts', 'payouts'),
     item('marketplace', 'marketplace'),
     item('warehouse', 'warehouse'),
     item('insurance', 'insurance'),
+    catalog(PRODUCE, INPUTS),
   ],
   auditor: [
     item('dashboard', 'dashboard'),
     item('audit', 'audit'),
-    item('projects', 'projects'),
+    projects(ALL_PROJECTS, PAYMENTS, REFUNDS),
     item('people', 'people'),
     item('vouchers', 'vouchers'),
     item('warehouse', 'warehouse'),
@@ -189,6 +238,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('insurance', 'insurance'),
     item('payouts', 'payouts'),
     item('track-records', 'trackRecords'),
+    catalog(...WHOLE_CATALOG),
     item('system', 'system'),
   ],
   field_officer: [
@@ -203,6 +253,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('marketplace', 'marketplace'),
     item('insurance', 'insurance'),
     item('track-records', 'trackRecords'),
+    catalog(PRODUCE, INPUTS, FARM_UPDATE_TYPES, WEATHER_EVENTS),
   ],
   farmer: [
     item('projects', 'myProjects'),
@@ -212,25 +263,33 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('insurance', 'insurance'),
     item('statement', 'statement'),
     item('track-records', 'trackRecord'),
+    catalog(PRODUCE),
   ],
   investor: [
     item('projects', 'projects'),
     item('holdings', 'holdings'),
     item('statement', 'statement'),
+    catalog(PRODUCE),
   ],
-  supplier: [item('vouchers', 'vouchersSales'), item('batches', 'batches')],
+  supplier: [
+    item('vouchers', 'vouchersSales'),
+    item('batches', 'batches'),
+    catalog(INPUTS),
+  ],
   warehouse: [
     item('warehouse', 'receipts'),
     item('marketplace', 'marketplace'),
+    catalog(PRODUCE),
   ],
   buyer: [
     item('marketplace', 'marketplace'),
     item('offers', 'offers'),
     item('requests', 'requests'),
     item('warehouse', 'receipts'),
+    catalog(PRODUCE),
   ],
-  bank: [item('bank-farmers', 'farmers')],
-  insurer: [item('insurance', 'insurance')],
+  bank: [item('bank-farmers', 'farmers'), catalog(PRODUCE)],
+  insurer: [item('insurance', 'insurance'), catalog(PRODUCE, WEATHER_EVENTS)],
 };
 
 /** Someone not verified yet sees only where their registration stands. */

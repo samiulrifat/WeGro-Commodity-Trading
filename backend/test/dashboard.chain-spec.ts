@@ -331,8 +331,8 @@ describe('Dashboard (node + database)', () => {
   });
 
   it('flags what becomes urgent by the ledger clock', async () => {
-    // Reservations hold for 120 h, deals for 7 days.
-    await travel(100 * 3600);
+    // Reservations and deals both hold for 7 days (168 h): 20 h left.
+    await travel(148 * 3600);
     let d = await dashboard(t.accounts);
     expect(queue(d, 'reservations.pending').urgent).toEqual({
       expiringSoon: 1,

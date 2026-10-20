@@ -62,7 +62,7 @@ describe('the people list', () => {
     expect(within(rows[1]!).getByText('Rahima Begum')).toBeTruthy();
     expect(within(rows[1]!).getByText('Pending')).toBeTruthy();
     expect(within(rows[1]!).getByText('Flagged')).toBeTruthy();
-    expect(within(rows[2]!).getByText('Ledger confirming')).toBeTruthy();
+    expect(within(rows[2]!).getByText('Awaiting Ledger')).toBeTruthy();
 
     const box = screen.getByRole('searchbox', {
       name: 'Name, mobile number or NID',
@@ -85,16 +85,16 @@ describe('the people list', () => {
       body: { data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } },
     }));
     await renderPage(<People />, '/people?q=nobody');
-    expect(await screen.findByText('Nobody matches')).toBeTruthy();
+    expect(await screen.findByText('No Matching People')).toBeTruthy();
   });
 });
 
 describe('registering a farmer', () => {
   const fillIn = async () => {
-    await userEvent.type(screen.getByLabelText('Full name'), 'Abdul Hamid');
-    await userEvent.type(screen.getByLabelText('Mobile number'), '01712345678');
-    await userEvent.type(screen.getByLabelText('NID number'), '2612345678901');
-    await userEvent.type(screen.getByLabelText('Date of birth'), '1985-02-03');
+    await userEvent.type(screen.getByLabelText('Full Name'), 'Abdul Hamid');
+    await userEvent.type(screen.getByLabelText('Mobile Number'), '01712345678');
+    await userEvent.type(screen.getByLabelText('NID Number'), '2612345678901');
+    await userEvent.type(screen.getByLabelText('Date of Birth'), '1985-02-03');
     await userEvent.type(screen.getByLabelText('Address'), 'Village 1, Bogura');
     await userEvent.click(screen.getByRole('combobox', { name: 'District' }));
     await userEvent.click(
@@ -107,7 +107,7 @@ describe('registering a farmer', () => {
     const sent = fakeServer(() => undefined);
     await renderPage(<RegisterPerson />, '/people/new');
     await userEvent.click(
-      screen.getByRole('button', { name: 'Check details' }),
+      screen.getByRole('button', { name: 'Check Details' }),
     );
     expect(screen.getAllByText('Fill this in.')).toHaveLength(6);
     expect(sent).toHaveLength(0);
@@ -152,14 +152,14 @@ describe('registering a farmer', () => {
     });
     await renderPage(<RegisterPerson />, '/people/new');
     // A field officer registers farmers only: no role to choose.
-    expect(screen.queryByText('They will be')).toBeNull();
+    expect(screen.queryByText('Role', { selector: 'legend' })).toBeNull();
     await fillIn();
     await userEvent.click(
-      screen.getByRole('button', { name: 'Check details' }),
+      screen.getByRole('button', { name: 'Check Details' }),
     );
 
     expect(
-      await screen.findByText('Can be registered, with warnings'),
+      await screen.findByText('Can Be Registered with Warnings'),
     ).toBeTruthy();
     expect(
       screen.getByText(
@@ -178,7 +178,7 @@ describe('registering a farmer', () => {
       screen.getByRole('button', { name: 'Register Farmer' }),
     );
     expect(await screen.findByText('Kp7w-Xq3m-Rt9z')).toBeTruthy();
-    expect(screen.getByText('The SMS could not be sent')).toBeTruthy();
+    expect(screen.getByText('SMS Not Sent')).toBeTruthy();
     expect(screen.getByText('Give them this password in person.')).toBeTruthy();
   });
 
@@ -197,15 +197,11 @@ describe('registering a farmer', () => {
     await renderPage(<RegisterPerson />, '/people/new');
     await fillIn();
     await userEvent.click(
-      screen.getByRole('button', { name: 'Check details' }),
+      screen.getByRole('button', { name: 'Check Details' }),
     );
-    expect(
-      await screen.findByText('This cannot be registered as it is'),
-    ).toBeTruthy();
+    expect(await screen.findByText('Cannot Be Registered')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Register / })).toBeNull();
-    await userEvent.click(
-      screen.getByRole('button', { name: /Fix the details/ }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: /Fix Details/ }));
     expect(
       screen.getByText('This phone number is already registered.'),
     ).toBeTruthy();

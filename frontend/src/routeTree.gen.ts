@@ -35,6 +35,11 @@ import { Route as AppPeopleBankDetailsRouteImport } from './routes/_app/people/b
 import { Route as AppPeopleNewRouteImport } from './routes/_app/people/new'
 import { Route as AppPeoplePendingRouteImport } from './routes/_app/people/pending'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects/index'
+import { Route as AppProjectsDraftsRouteImport } from './routes/_app/projects/drafts'
+import { Route as AppProjectsNewRouteImport } from './routes/_app/projects/new'
+import { Route as AppProjectsPaymentAccountsRouteImport } from './routes/_app/projects/payment-accounts'
+import { Route as AppProjectsPaymentsRouteImport } from './routes/_app/projects/payments'
+import { Route as AppProjectsRefundsRouteImport } from './routes/_app/projects/refunds'
 import { Route as AppRequestsIndexRouteImport } from './routes/_app/requests/index'
 import { Route as AppStatementIndexRouteImport } from './routes/_app/statement/index'
 import { Route as AppSystemIndexRouteImport } from './routes/_app/system/index'
@@ -42,8 +47,21 @@ import { Route as AppTrackRecordsIndexRouteImport } from './routes/_app/track-re
 import { Route as AppVouchersIndexRouteImport } from './routes/_app/vouchers/index'
 import { Route as AppWarehouseIndexRouteImport } from './routes/_app/warehouse/index'
 import { Route as AppBankFarmersIndexRouteImport } from './routes/_app/bank/farmers/index'
+import { Route as AppCatalogFarmUpdateTypesIndexRouteImport } from './routes/_app/catalog/farm-update-types/index'
+import { Route as AppCatalogFarmUpdateTypesCodeRouteImport } from './routes/_app/catalog/farm-update-types/$code'
+import { Route as AppCatalogInputsIndexRouteImport } from './routes/_app/catalog/inputs/index'
+import { Route as AppCatalogInputsCodeRouteImport } from './routes/_app/catalog/inputs/$code'
+import { Route as AppCatalogProduceIndexRouteImport } from './routes/_app/catalog/produce/index'
+import { Route as AppCatalogProduceCodeRouteImport } from './routes/_app/catalog/produce/$code'
+import { Route as AppCatalogUnitsIndexRouteImport } from './routes/_app/catalog/units/index'
+import { Route as AppCatalogUnitsCodeRouteImport } from './routes/_app/catalog/units/$code'
+import { Route as AppCatalogWeatherEventsIndexRouteImport } from './routes/_app/catalog/weather-events/index'
+import { Route as AppCatalogWeatherEventsCodeRouteImport } from './routes/_app/catalog/weather-events/$code'
+import { Route as AppHoldingsBookingsBookingIdRouteImport } from './routes/_app/holdings/bookings/$bookingId'
 import { Route as AppPeopleChangesIndexRouteImport } from './routes/_app/people/changes/index'
 import { Route as AppPeopleChangesChangeIdRouteImport } from './routes/_app/people/changes/$changeId'
+import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/_app/projects/$projectId/index'
+import { Route as AppProjectsProjectIdEditRouteImport } from './routes/_app/projects/$projectId/edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -174,6 +192,32 @@ const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProjectsDraftsRoute = AppProjectsDraftsRouteImport.update({
+  id: '/projects/drafts',
+  path: '/projects/drafts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectsNewRoute = AppProjectsNewRouteImport.update({
+  id: '/projects/new',
+  path: '/projects/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectsPaymentAccountsRoute =
+  AppProjectsPaymentAccountsRouteImport.update({
+    id: '/projects/payment-accounts',
+    path: '/projects/payment-accounts',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppProjectsPaymentsRoute = AppProjectsPaymentsRouteImport.update({
+  id: '/projects/payments',
+  path: '/projects/payments',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectsRefundsRoute = AppProjectsRefundsRouteImport.update({
+  id: '/projects/refunds',
+  path: '/projects/refunds',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRequestsIndexRoute = AppRequestsIndexRouteImport.update({
   id: '/requests/',
   path: '/requests/',
@@ -209,6 +253,66 @@ const AppBankFarmersIndexRoute = AppBankFarmersIndexRouteImport.update({
   path: '/bank/farmers/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCatalogFarmUpdateTypesIndexRoute =
+  AppCatalogFarmUpdateTypesIndexRouteImport.update({
+    id: '/catalog/farm-update-types/',
+    path: '/catalog/farm-update-types/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppCatalogFarmUpdateTypesCodeRoute =
+  AppCatalogFarmUpdateTypesCodeRouteImport.update({
+    id: '/catalog/farm-update-types/$code',
+    path: '/catalog/farm-update-types/$code',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppCatalogInputsIndexRoute = AppCatalogInputsIndexRouteImport.update({
+  id: '/catalog/inputs/',
+  path: '/catalog/inputs/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogInputsCodeRoute = AppCatalogInputsCodeRouteImport.update({
+  id: '/catalog/inputs/$code',
+  path: '/catalog/inputs/$code',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogProduceIndexRoute = AppCatalogProduceIndexRouteImport.update({
+  id: '/catalog/produce/',
+  path: '/catalog/produce/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogProduceCodeRoute = AppCatalogProduceCodeRouteImport.update({
+  id: '/catalog/produce/$code',
+  path: '/catalog/produce/$code',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogUnitsIndexRoute = AppCatalogUnitsIndexRouteImport.update({
+  id: '/catalog/units/',
+  path: '/catalog/units/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogUnitsCodeRoute = AppCatalogUnitsCodeRouteImport.update({
+  id: '/catalog/units/$code',
+  path: '/catalog/units/$code',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogWeatherEventsIndexRoute =
+  AppCatalogWeatherEventsIndexRouteImport.update({
+    id: '/catalog/weather-events/',
+    path: '/catalog/weather-events/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppCatalogWeatherEventsCodeRoute =
+  AppCatalogWeatherEventsCodeRouteImport.update({
+    id: '/catalog/weather-events/$code',
+    path: '/catalog/weather-events/$code',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppHoldingsBookingsBookingIdRoute =
+  AppHoldingsBookingsBookingIdRouteImport.update({
+    id: '/holdings/bookings/$bookingId',
+    path: '/holdings/bookings/$bookingId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppPeopleChangesIndexRoute = AppPeopleChangesIndexRouteImport.update({
   id: '/people/changes/',
   path: '/people/changes/',
@@ -218,6 +322,18 @@ const AppPeopleChangesChangeIdRoute =
   AppPeopleChangesChangeIdRouteImport.update({
     id: '/people/changes/$changeId',
     path: '/people/changes/$changeId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppProjectsProjectIdIndexRoute =
+  AppProjectsProjectIdIndexRouteImport.update({
+    id: '/projects/$projectId/',
+    path: '/projects/$projectId/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppProjectsProjectIdEditRoute =
+  AppProjectsProjectIdEditRouteImport.update({
+    id: '/projects/$projectId/edit',
+    path: '/projects/$projectId/edit',
     getParentRoute: () => AppRoute,
   } as any)
 
@@ -235,6 +351,11 @@ export interface FileRoutesByFullPath {
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
   '/people/pending': typeof AppPeoplePendingRoute
+  '/projects/drafts': typeof AppProjectsDraftsRoute
+  '/projects/new': typeof AppProjectsNewRoute
+  '/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
+  '/projects/payments': typeof AppProjectsPaymentsRoute
+  '/projects/refunds': typeof AppProjectsRefundsRoute
   '/audit/': typeof AppAuditIndexRoute
   '/batches/': typeof AppBatchesIndexRoute
   '/catalog/': typeof AppCatalogIndexRoute
@@ -253,9 +374,22 @@ export interface FileRoutesByFullPath {
   '/track-records/': typeof AppTrackRecordsIndexRoute
   '/vouchers/': typeof AppVouchersIndexRoute
   '/warehouse/': typeof AppWarehouseIndexRoute
+  '/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
+  '/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
+  '/catalog/produce/$code': typeof AppCatalogProduceCodeRoute
+  '/catalog/units/$code': typeof AppCatalogUnitsCodeRoute
+  '/catalog/weather-events/$code': typeof AppCatalogWeatherEventsCodeRoute
+  '/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
+  '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/bank/farmers/': typeof AppBankFarmersIndexRoute
+  '/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
+  '/catalog/inputs/': typeof AppCatalogInputsIndexRoute
+  '/catalog/produce/': typeof AppCatalogProduceIndexRoute
+  '/catalog/units/': typeof AppCatalogUnitsIndexRoute
+  '/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
   '/people/changes/': typeof AppPeopleChangesIndexRoute
+  '/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
@@ -271,6 +405,11 @@ export interface FileRoutesByTo {
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
   '/people/pending': typeof AppPeoplePendingRoute
+  '/projects/drafts': typeof AppProjectsDraftsRoute
+  '/projects/new': typeof AppProjectsNewRoute
+  '/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
+  '/projects/payments': typeof AppProjectsPaymentsRoute
+  '/projects/refunds': typeof AppProjectsRefundsRoute
   '/audit': typeof AppAuditIndexRoute
   '/batches': typeof AppBatchesIndexRoute
   '/catalog': typeof AppCatalogIndexRoute
@@ -289,9 +428,22 @@ export interface FileRoutesByTo {
   '/track-records': typeof AppTrackRecordsIndexRoute
   '/vouchers': typeof AppVouchersIndexRoute
   '/warehouse': typeof AppWarehouseIndexRoute
+  '/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
+  '/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
+  '/catalog/produce/$code': typeof AppCatalogProduceCodeRoute
+  '/catalog/units/$code': typeof AppCatalogUnitsCodeRoute
+  '/catalog/weather-events/$code': typeof AppCatalogWeatherEventsCodeRoute
+  '/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
+  '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/bank/farmers': typeof AppBankFarmersIndexRoute
+  '/catalog/farm-update-types': typeof AppCatalogFarmUpdateTypesIndexRoute
+  '/catalog/inputs': typeof AppCatalogInputsIndexRoute
+  '/catalog/produce': typeof AppCatalogProduceIndexRoute
+  '/catalog/units': typeof AppCatalogUnitsIndexRoute
+  '/catalog/weather-events': typeof AppCatalogWeatherEventsIndexRoute
   '/people/changes': typeof AppPeopleChangesIndexRoute
+  '/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -309,6 +461,11 @@ export interface FileRoutesById {
   '/_app/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/_app/people/new': typeof AppPeopleNewRoute
   '/_app/people/pending': typeof AppPeoplePendingRoute
+  '/_app/projects/drafts': typeof AppProjectsDraftsRoute
+  '/_app/projects/new': typeof AppProjectsNewRoute
+  '/_app/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
+  '/_app/projects/payments': typeof AppProjectsPaymentsRoute
+  '/_app/projects/refunds': typeof AppProjectsRefundsRoute
   '/_app/audit/': typeof AppAuditIndexRoute
   '/_app/batches/': typeof AppBatchesIndexRoute
   '/_app/catalog/': typeof AppCatalogIndexRoute
@@ -327,9 +484,22 @@ export interface FileRoutesById {
   '/_app/track-records/': typeof AppTrackRecordsIndexRoute
   '/_app/vouchers/': typeof AppVouchersIndexRoute
   '/_app/warehouse/': typeof AppWarehouseIndexRoute
+  '/_app/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
+  '/_app/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
+  '/_app/catalog/produce/$code': typeof AppCatalogProduceCodeRoute
+  '/_app/catalog/units/$code': typeof AppCatalogUnitsCodeRoute
+  '/_app/catalog/weather-events/$code': typeof AppCatalogWeatherEventsCodeRoute
+  '/_app/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
+  '/_app/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/_app/bank/farmers/': typeof AppBankFarmersIndexRoute
+  '/_app/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
+  '/_app/catalog/inputs/': typeof AppCatalogInputsIndexRoute
+  '/_app/catalog/produce/': typeof AppCatalogProduceIndexRoute
+  '/_app/catalog/units/': typeof AppCatalogUnitsIndexRoute
+  '/_app/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
   '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
+  '/_app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -347,6 +517,11 @@ export interface FileRouteTypes {
     | '/people/bank-details'
     | '/people/new'
     | '/people/pending'
+    | '/projects/drafts'
+    | '/projects/new'
+    | '/projects/payment-accounts'
+    | '/projects/payments'
+    | '/projects/refunds'
     | '/audit/'
     | '/batches/'
     | '/catalog/'
@@ -365,9 +540,22 @@ export interface FileRouteTypes {
     | '/track-records/'
     | '/vouchers/'
     | '/warehouse/'
+    | '/catalog/farm-update-types/$code'
+    | '/catalog/inputs/$code'
+    | '/catalog/produce/$code'
+    | '/catalog/units/$code'
+    | '/catalog/weather-events/$code'
+    | '/holdings/bookings/$bookingId'
     | '/people/changes/$changeId'
+    | '/projects/$projectId/edit'
     | '/bank/farmers/'
+    | '/catalog/farm-update-types/'
+    | '/catalog/inputs/'
+    | '/catalog/produce/'
+    | '/catalog/units/'
+    | '/catalog/weather-events/'
     | '/people/changes/'
+    | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
@@ -383,6 +571,11 @@ export interface FileRouteTypes {
     | '/people/bank-details'
     | '/people/new'
     | '/people/pending'
+    | '/projects/drafts'
+    | '/projects/new'
+    | '/projects/payment-accounts'
+    | '/projects/payments'
+    | '/projects/refunds'
     | '/audit'
     | '/batches'
     | '/catalog'
@@ -401,9 +594,22 @@ export interface FileRouteTypes {
     | '/track-records'
     | '/vouchers'
     | '/warehouse'
+    | '/catalog/farm-update-types/$code'
+    | '/catalog/inputs/$code'
+    | '/catalog/produce/$code'
+    | '/catalog/units/$code'
+    | '/catalog/weather-events/$code'
+    | '/holdings/bookings/$bookingId'
     | '/people/changes/$changeId'
+    | '/projects/$projectId/edit'
     | '/bank/farmers'
+    | '/catalog/farm-update-types'
+    | '/catalog/inputs'
+    | '/catalog/produce'
+    | '/catalog/units'
+    | '/catalog/weather-events'
     | '/people/changes'
+    | '/projects/$projectId'
   id:
     | '__root__'
     | '/_app'
@@ -420,6 +626,11 @@ export interface FileRouteTypes {
     | '/_app/people/bank-details'
     | '/_app/people/new'
     | '/_app/people/pending'
+    | '/_app/projects/drafts'
+    | '/_app/projects/new'
+    | '/_app/projects/payment-accounts'
+    | '/_app/projects/payments'
+    | '/_app/projects/refunds'
     | '/_app/audit/'
     | '/_app/batches/'
     | '/_app/catalog/'
@@ -438,9 +649,22 @@ export interface FileRouteTypes {
     | '/_app/track-records/'
     | '/_app/vouchers/'
     | '/_app/warehouse/'
+    | '/_app/catalog/farm-update-types/$code'
+    | '/_app/catalog/inputs/$code'
+    | '/_app/catalog/produce/$code'
+    | '/_app/catalog/units/$code'
+    | '/_app/catalog/weather-events/$code'
+    | '/_app/holdings/bookings/$bookingId'
     | '/_app/people/changes/$changeId'
+    | '/_app/projects/$projectId/edit'
     | '/_app/bank/farmers/'
+    | '/_app/catalog/farm-update-types/'
+    | '/_app/catalog/inputs/'
+    | '/_app/catalog/produce/'
+    | '/_app/catalog/units/'
+    | '/_app/catalog/weather-events/'
     | '/_app/people/changes/'
+    | '/_app/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -636,6 +860,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/projects/drafts': {
+      id: '/_app/projects/drafts'
+      path: '/projects/drafts'
+      fullPath: '/projects/drafts'
+      preLoaderRoute: typeof AppProjectsDraftsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/new': {
+      id: '/_app/projects/new'
+      path: '/projects/new'
+      fullPath: '/projects/new'
+      preLoaderRoute: typeof AppProjectsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/payment-accounts': {
+      id: '/_app/projects/payment-accounts'
+      path: '/projects/payment-accounts'
+      fullPath: '/projects/payment-accounts'
+      preLoaderRoute: typeof AppProjectsPaymentAccountsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/payments': {
+      id: '/_app/projects/payments'
+      path: '/projects/payments'
+      fullPath: '/projects/payments'
+      preLoaderRoute: typeof AppProjectsPaymentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/refunds': {
+      id: '/_app/projects/refunds'
+      path: '/projects/refunds'
+      fullPath: '/projects/refunds'
+      preLoaderRoute: typeof AppProjectsRefundsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/requests/': {
       id: '/_app/requests/'
       path: '/requests'
@@ -685,6 +944,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankFarmersIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/catalog/farm-update-types/': {
+      id: '/_app/catalog/farm-update-types/'
+      path: '/catalog/farm-update-types'
+      fullPath: '/catalog/farm-update-types/'
+      preLoaderRoute: typeof AppCatalogFarmUpdateTypesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/farm-update-types/$code': {
+      id: '/_app/catalog/farm-update-types/$code'
+      path: '/catalog/farm-update-types/$code'
+      fullPath: '/catalog/farm-update-types/$code'
+      preLoaderRoute: typeof AppCatalogFarmUpdateTypesCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/inputs/': {
+      id: '/_app/catalog/inputs/'
+      path: '/catalog/inputs'
+      fullPath: '/catalog/inputs/'
+      preLoaderRoute: typeof AppCatalogInputsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/inputs/$code': {
+      id: '/_app/catalog/inputs/$code'
+      path: '/catalog/inputs/$code'
+      fullPath: '/catalog/inputs/$code'
+      preLoaderRoute: typeof AppCatalogInputsCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/produce/': {
+      id: '/_app/catalog/produce/'
+      path: '/catalog/produce'
+      fullPath: '/catalog/produce/'
+      preLoaderRoute: typeof AppCatalogProduceIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/produce/$code': {
+      id: '/_app/catalog/produce/$code'
+      path: '/catalog/produce/$code'
+      fullPath: '/catalog/produce/$code'
+      preLoaderRoute: typeof AppCatalogProduceCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/units/': {
+      id: '/_app/catalog/units/'
+      path: '/catalog/units'
+      fullPath: '/catalog/units/'
+      preLoaderRoute: typeof AppCatalogUnitsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/units/$code': {
+      id: '/_app/catalog/units/$code'
+      path: '/catalog/units/$code'
+      fullPath: '/catalog/units/$code'
+      preLoaderRoute: typeof AppCatalogUnitsCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/weather-events/': {
+      id: '/_app/catalog/weather-events/'
+      path: '/catalog/weather-events'
+      fullPath: '/catalog/weather-events/'
+      preLoaderRoute: typeof AppCatalogWeatherEventsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog/weather-events/$code': {
+      id: '/_app/catalog/weather-events/$code'
+      path: '/catalog/weather-events/$code'
+      fullPath: '/catalog/weather-events/$code'
+      preLoaderRoute: typeof AppCatalogWeatherEventsCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/holdings/bookings/$bookingId': {
+      id: '/_app/holdings/bookings/$bookingId'
+      path: '/holdings/bookings/$bookingId'
+      fullPath: '/holdings/bookings/$bookingId'
+      preLoaderRoute: typeof AppHoldingsBookingsBookingIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/people/changes/': {
       id: '/_app/people/changes/'
       path: '/people/changes'
@@ -699,6 +1035,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeopleChangesChangeIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/projects/$projectId/': {
+      id: '/_app/projects/$projectId/'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId/'
+      preLoaderRoute: typeof AppProjectsProjectIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/$projectId/edit': {
+      id: '/_app/projects/$projectId/edit'
+      path: '/projects/$projectId/edit'
+      fullPath: '/projects/$projectId/edit'
+      preLoaderRoute: typeof AppProjectsProjectIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -711,6 +1061,11 @@ interface AppRouteChildren {
   AppPeopleBankDetailsRoute: typeof AppPeopleBankDetailsRoute
   AppPeopleNewRoute: typeof AppPeopleNewRoute
   AppPeoplePendingRoute: typeof AppPeoplePendingRoute
+  AppProjectsDraftsRoute: typeof AppProjectsDraftsRoute
+  AppProjectsNewRoute: typeof AppProjectsNewRoute
+  AppProjectsPaymentAccountsRoute: typeof AppProjectsPaymentAccountsRoute
+  AppProjectsPaymentsRoute: typeof AppProjectsPaymentsRoute
+  AppProjectsRefundsRoute: typeof AppProjectsRefundsRoute
   AppAuditIndexRoute: typeof AppAuditIndexRoute
   AppBatchesIndexRoute: typeof AppBatchesIndexRoute
   AppCatalogIndexRoute: typeof AppCatalogIndexRoute
@@ -729,9 +1084,22 @@ interface AppRouteChildren {
   AppTrackRecordsIndexRoute: typeof AppTrackRecordsIndexRoute
   AppVouchersIndexRoute: typeof AppVouchersIndexRoute
   AppWarehouseIndexRoute: typeof AppWarehouseIndexRoute
+  AppCatalogFarmUpdateTypesCodeRoute: typeof AppCatalogFarmUpdateTypesCodeRoute
+  AppCatalogInputsCodeRoute: typeof AppCatalogInputsCodeRoute
+  AppCatalogProduceCodeRoute: typeof AppCatalogProduceCodeRoute
+  AppCatalogUnitsCodeRoute: typeof AppCatalogUnitsCodeRoute
+  AppCatalogWeatherEventsCodeRoute: typeof AppCatalogWeatherEventsCodeRoute
+  AppHoldingsBookingsBookingIdRoute: typeof AppHoldingsBookingsBookingIdRoute
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
+  AppProjectsProjectIdEditRoute: typeof AppProjectsProjectIdEditRoute
   AppBankFarmersIndexRoute: typeof AppBankFarmersIndexRoute
+  AppCatalogFarmUpdateTypesIndexRoute: typeof AppCatalogFarmUpdateTypesIndexRoute
+  AppCatalogInputsIndexRoute: typeof AppCatalogInputsIndexRoute
+  AppCatalogProduceIndexRoute: typeof AppCatalogProduceIndexRoute
+  AppCatalogUnitsIndexRoute: typeof AppCatalogUnitsIndexRoute
+  AppCatalogWeatherEventsIndexRoute: typeof AppCatalogWeatherEventsIndexRoute
   AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
+  AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -743,6 +1111,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppPeopleBankDetailsRoute: AppPeopleBankDetailsRoute,
   AppPeopleNewRoute: AppPeopleNewRoute,
   AppPeoplePendingRoute: AppPeoplePendingRoute,
+  AppProjectsDraftsRoute: AppProjectsDraftsRoute,
+  AppProjectsNewRoute: AppProjectsNewRoute,
+  AppProjectsPaymentAccountsRoute: AppProjectsPaymentAccountsRoute,
+  AppProjectsPaymentsRoute: AppProjectsPaymentsRoute,
+  AppProjectsRefundsRoute: AppProjectsRefundsRoute,
   AppAuditIndexRoute: AppAuditIndexRoute,
   AppBatchesIndexRoute: AppBatchesIndexRoute,
   AppCatalogIndexRoute: AppCatalogIndexRoute,
@@ -761,9 +1134,22 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackRecordsIndexRoute: AppTrackRecordsIndexRoute,
   AppVouchersIndexRoute: AppVouchersIndexRoute,
   AppWarehouseIndexRoute: AppWarehouseIndexRoute,
+  AppCatalogFarmUpdateTypesCodeRoute: AppCatalogFarmUpdateTypesCodeRoute,
+  AppCatalogInputsCodeRoute: AppCatalogInputsCodeRoute,
+  AppCatalogProduceCodeRoute: AppCatalogProduceCodeRoute,
+  AppCatalogUnitsCodeRoute: AppCatalogUnitsCodeRoute,
+  AppCatalogWeatherEventsCodeRoute: AppCatalogWeatherEventsCodeRoute,
+  AppHoldingsBookingsBookingIdRoute: AppHoldingsBookingsBookingIdRoute,
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
+  AppProjectsProjectIdEditRoute: AppProjectsProjectIdEditRoute,
   AppBankFarmersIndexRoute: AppBankFarmersIndexRoute,
+  AppCatalogFarmUpdateTypesIndexRoute: AppCatalogFarmUpdateTypesIndexRoute,
+  AppCatalogInputsIndexRoute: AppCatalogInputsIndexRoute,
+  AppCatalogProduceIndexRoute: AppCatalogProduceIndexRoute,
+  AppCatalogUnitsIndexRoute: AppCatalogUnitsIndexRoute,
+  AppCatalogWeatherEventsIndexRoute: AppCatalogWeatherEventsIndexRoute,
   AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
+  AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

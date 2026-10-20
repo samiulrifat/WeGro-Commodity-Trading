@@ -162,16 +162,22 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const id = uuid(e.args.participantId);
       const status = Number(e.args.newStatus);
       if (status !== 2 && status !== 3) return;
+      // Rejected after being verified: access revoked, not a registration turned down.
+      const revoked = status === 3 && Number(e.args.previousStatus) === 2;
       await x.send([id], {
         category: OUTCOME,
         kind:
           status === 2
             ? NotificationKind.PARTICIPANT_VERIFIED
-            : NotificationKind.PARTICIPANT_REJECTED,
+            : revoked
+              ? NotificationKind.PARTICIPANT_ACCESS_REVOKED
+              : NotificationKind.PARTICIPANT_REJECTED,
         title:
           status === 2
             ? 'Your account is verified'
-            : 'Your registration was not accepted',
+            : revoked
+              ? 'Your access to WeGro has been revoked'
+              : 'Your registration was not accepted',
         params: {},
         subject: id ? { type: 'participant', id } : null,
       });

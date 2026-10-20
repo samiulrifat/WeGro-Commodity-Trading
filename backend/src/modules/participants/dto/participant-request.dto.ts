@@ -20,6 +20,7 @@ import {
   ParticipantStatus,
 } from '../../users/roles';
 import { DISTRICT_CODES } from '../../../common/reference/bd-districts';
+import { RevocationReason } from '../revocation';
 
 /**
  * Raw input for the practice ID check. Types and lengths are bounded here;
@@ -97,6 +98,33 @@ export class RejectParticipantDto {
   @MinLength(3)
   @MaxLength(300)
   reason: string;
+}
+
+export class RevokeAccessDto {
+  @ApiProperty({ enum: RevocationReason, enumName: 'RevocationReason' })
+  @IsEnum(RevocationReason)
+  reason: RevocationReason;
+
+  @ApiPropertyOptional({
+    maxLength: 300,
+    description: 'Required when the reason is other. Kept off-chain',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value,
+  )
+  @IsString()
+  @MaxLength(300)
+  note?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'A field officer who still looks after farmers: the verified field officer they all move to',
+  })
+  @IsOptional()
+  @IsUUID()
+  replacementOfficerId?: string;
 }
 
 export class AssignFieldOfficerDto {

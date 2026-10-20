@@ -1,8 +1,7 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
-// Unpaid reservations hold slots for 5 days (120 hours).
-const FIVE_DAYS = 120n * 60n * 60n;
-// Unconfirmed voucher sales release their hold after 7 days.
+// Unpaid reservations hold slots for 7 days; unconfirmed voucher sales
+// release their hold after 7 days too.
 const SEVEN_DAYS = 7n * 24n * 60n * 60n;
 // Approved deals the buyer has not paid for can be expired after 7 days.
 const DEAL_TTL = SEVEN_DAYS;
@@ -10,7 +9,7 @@ const DEAL_TTL = SEVEN_DAYS;
 export default buildModule("PlatformModule", (m) => {
   // The deploying account is the super admin; it also links the contracts.
   const superAdmin = m.getAccount(0);
-  const reservationTtl = m.getParameter("reservationTtl", FIVE_DAYS);
+  const reservationTtl = m.getParameter("reservationTtl", SEVEN_DAYS);
   const saleTtl = m.getParameter("saleTtl", SEVEN_DAYS);
   const dealTtl = m.getParameter("dealTtl", DEAL_TTL);
 

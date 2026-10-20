@@ -11,7 +11,7 @@ The ledger behind the WeGro platform: nine Solidity contracts that hold every bu
 | Contract | Holds |
 |---|---|
 | `AccessRegistry` | People: role, status (pending, verified, rejected), account and details fingerprint; field officers of farmers |
-| `ProjectLedger` | Projects and their stages, slot reservations, confirmed investments and refunds |
+| `ProjectLedger` | Projects and their stages, slot reservations (whose clock stops while a payment proof is reviewed: `pauseReservation` by the investor or Accounts, `resumeReservation` by Accounts), confirmed investments and refunds |
 | `VoucherRegistry` | Input vouchers, suppliers' input batches, and sales against vouchers |
 | `FieldRecordLog` | Append-only farm records (fingerprints of the data and photo) |
 | `WarehouseReceipt` | Warehouse sites and their operators, and one-of-a-kind receipts for stored produce |
@@ -20,7 +20,7 @@ The ledger behind the WeGro platform: nine Solidity contracts that hold every bu
 | `SettlementLedger` | Project costs, staged and final payout rounds, and payment of each line |
 | `ConsentRegistry` | Banks and their officers, farmers' track records, and bank permissions with every view logged |
 
-`AccessGuarded` is the base each contract uses to check roles through `AccessRegistry`. `Roles` lists the twelve roles: investor, farmer, field officer, admin, accounts, operations, warehouse, bank, supplier, buyer, insurer and auditor. The deploying account holds the super admin role and registers staff. Admins register every other role; field officers register farmers only (who are then assigned to them). Investors and buyers who sign up in the app are registered and verified at once by the platform's key (`selfRegisterParticipant`).
+`AccessGuarded` is the base each contract uses to check roles through `AccessRegistry`. `Roles` lists the twelve roles: investor, farmer, field officer, admin, accounts, operations, warehouse, bank, supplier, buyer, insurer and auditor. The deploying account holds the super admin role and registers staff. Admins register every other role; field officers register farmers only (who are then assigned to them). Investors and buyers who sign up in the app are registered and verified at once by the platform's key (`selfRegisterParticipant`). Rejecting a verified participant revokes their role (access revoked); verifying again restores it. `farmerCountOf` counts each field officer's farmers, and an officer who still has any cannot be rejected: the super admin or an admin first moves them with `reassignFarmers` (at most `MAX_REASSIGN`, 200, per call; each farmer must be with the officer they move from).
 
 ## Commands
 
@@ -47,7 +47,7 @@ Three timeouts can be changed as Ignition parameters:
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `reservationTtl` | 5 days | How long an unpaid reservation holds slots |
+| `reservationTtl` | 7 days | How long an unpaid reservation holds slots (its clock stops while a payment proof is under review) |
 | `saleTtl` | 7 days | How long an unconfirmed voucher sale holds its quantity |
 | `dealTtl` | 7 days | How long an approved deal waits for the buyer's payment |
 

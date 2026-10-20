@@ -22,29 +22,29 @@ const sentCode = {
 async function upToCreate() {
   await userEvent.click(screen.getByRole('button', { name: /Investor/ }));
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await userEvent.type(screen.getByLabelText('Mobile number'), '01712345678');
-  await userEvent.click(screen.getByRole('button', { name: 'Send code' }));
+  await userEvent.type(screen.getByLabelText('Mobile Number'), '01712345678');
+  await userEvent.click(screen.getByRole('button', { name: 'Send Code' }));
   await userEvent.type(
-    await screen.findByLabelText('Code from the SMS'),
+    await screen.findByLabelText('SMS Code'),
     '123456',
   );
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await userEvent.type(screen.getByLabelText('Full name'), 'Nasrin Akter');
-  await userEvent.type(screen.getByLabelText('NID number'), '7123456789');
-  await userEvent.type(screen.getByLabelText('Date of birth'), '2015-06-01');
+  await userEvent.type(screen.getByLabelText('Full Name'), 'Nasrin Akter');
+  await userEvent.type(screen.getByLabelText('NID Number'), '7123456789');
+  await userEvent.type(screen.getByLabelText('Date of Birth'), '2015-06-01');
   await userEvent.type(screen.getByLabelText('Address'), 'Road 3, Khulna');
   await userEvent.click(screen.getByRole('combobox', { name: 'District' }));
   await userEvent.click(await screen.findByRole('option', { name: 'Khulna' }));
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   await userEvent.type(
-    screen.getByLabelText('New password', { exact: true }),
+    screen.getByLabelText('New Password', { exact: true }),
     'my-own-password-1',
   );
   await userEvent.type(
-    screen.getByLabelText('Type the new password again'),
+    screen.getByLabelText('Confirm New Password'),
     'my-own-password-1',
   );
-  await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 }
 
 async function signedOut() {
@@ -85,7 +85,7 @@ describe('signing up', () => {
     expect(
       await screen.findByText('Must be at least 18 years old.'),
     ).toBeTruthy();
-    expect(screen.getByLabelText('Date of birth')).toBeTruthy();
+    expect(screen.getByLabelText('Date of Birth')).toBeTruthy();
   });
 
   it('says the account is created when the ledger is still confirming it', async () => {
@@ -105,8 +105,8 @@ describe('signing up', () => {
     );
     await renderPage(<SignUpPage />, '/register');
     await upToCreate();
-    expect(await screen.findByText('Your account is created')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Go to sign in' })).toBeTruthy();
+    expect(await screen.findByText('Account Created')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Go to Sign In' })).toBeTruthy();
     expect(sent.at(-1)!.body).toMatchObject({
       role: 'investor',
       phone: '01712345678',

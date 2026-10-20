@@ -11,11 +11,9 @@ import { type FormEvent, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type ApiError, toApiError } from '@/api/errors';
-import type { District } from '@/api/generated/codes';
 import {
   type ParticipantDetailDto,
   useParticipantsAssignFieldOfficerMutation,
-  useParticipantsListQuery,
   useParticipantsRejectMutation,
   useParticipantsReplaceKeyMutation,
   useParticipantsResetPasswordMutation,
@@ -42,18 +40,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
-import { SearchBox } from '@/components/search-box';
-import { cn } from '@/lib/utils';
 import { errorText } from '@/i18n/text';
 import { IdCheckList } from './id-check';
 import type { IdCheck } from './person';
+import { OfficerPicker } from './officer-picker';
+import { RevokeAccessDialog } from './revoke-access';
 import { TemporaryPassword } from './temporary-password';
 
 type Person = ParticipantDetailDto;
-type Open = 'verify' | 'reject' | 'reset' | 'replace-key' | 'assign' | null;
+type Open =
+  'verify' | 'reject' | 'revoke' | 'reset' | 'replace-key' | 'assign' | null;
 
 /**
- * What the reader may do to this person (they manage them): verify, reject,
+ * What the reader may do to this person (they manage them): verify or
+ * reject a registration, revoke a verified person's access or restore it,
  * and under More: assign a field officer (farmers), reset the password,
  * replace the key, bring the record in line with the ledger.
  */
@@ -82,12 +82,20 @@ export function PersonActions({
     <>
       {person.status !== 'verified' && (
         <Button onClick={() => setOpen('verify')}>
-          <BadgeCheck /> {t('people.actions.verify')}
+          <BadgeCheck />{' '}
+          {person.accessRevoked
+            ? t('people.actions.restore')
+            : t('people.actions.verify')}
         </Button>
       )}
-      {person.status !== 'rejected' && (
+      {person.status === 'pending' && (
         <Button variant="destructive" onClick={() => setOpen('reject')}>
           <UserX /> {t('people.actions.reject')}
+        </Button>
+      )}
+      {person.status === 'verified' && (
+        <Button variant="destructive" onClick={() => setOpen('revoke')}>
+          <UserX /> {t('people.actions.revoke')}
         </Button>
       )}
       <DropdownMenu>
@@ -121,6 +129,13 @@ export function PersonActions({
 
       <VerifyDialog person={person} open={open === 'verify'} onClose={close} />
       <RejectDialog person={person} open={open === 'reject'} onClose={close} />
+      {person.status === 'verified' && (
+        <RevokeAccessDialog
+          person={person}
+          open={open === 'revoke'}
+          onClose={close}
+        />
+      )}
       <ResetDialog person={person} open={open === 'reset'} onClose={close} />
       <ReplaceKeyDialog
         person={person}
@@ -216,7 +231,11 @@ function VerifyDialog({
         id: person.id,
         verifyParticipantDto: flagged ? { acknowledgeFlags: true } : {},
       }).unwrap();
-      toast.success(t('people.actions.verified', { name: person.fullName }));
+      toast.success(
+        person.accessRevoked
+          ? t('people.actions.restored', { name: person.fullName })
+          : t('people.actions.verified', { name: person.fullName }),
+      );
       onClose();
     } catch (e) {
       setError(toApiError(e as never));
@@ -227,8 +246,16 @@ function VerifyDialog({
     <ActionDialog
       open={open}
       onClose={onClose}
-      title={t('people.actions.verifyTitle', { name: person.fullName })}
-      description={t('people.actions.verifyText')}
+      title={
+        person.accessRevoked
+          ? t('people.actions.restoreTitle', { name: person.fullName })
+          : t('people.actions.verifyTitle', { name: person.fullName })
+      }
+      description={
+        person.accessRevoked
+          ? t('people.actions.restoreText')
+          : t('people.actions.verifyText')
+      }
     >
       <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-5">
         {flagged && (
@@ -260,7 +287,9 @@ function VerifyDialog({
           <Button type="submit" disabled={verifying.isLoading}>
             {verifying.isLoading
               ? t('people.actions.working')
-              : t('people.actions.verify')}
+              : person.accessRevoked
+                ? t('people.actions.restore')
+                : t('people.actions.verify')}
           </Button>
         </DialogFooter>
       </form>
@@ -309,11 +338,7 @@ function RejectDialog({
       open={open}
       onClose={onClose}
       title={t('people.actions.rejectTitle', { name: person.fullName })}
-      description={
-        person.status === 'verified'
-          ? t('people.actions.rejectVerifiedText')
-          : t('people.actions.rejectText')
-      }
+      description={t('people.actions.rejectText')}
     >
       <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-5">
         <Field data-invalid={(tried && short) || undefined}>
@@ -476,18 +501,9 @@ function AssignDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [q, setQ] = useState<string | undefined>();
-  const officers = useParticipantsListQuery(
-    { role: 'field_officer', status: 'verified', q, limit: 20 },
-    { skip: !open },
-  );
   const [assign, assigning] = useParticipantsAssignFieldOfficerMutation();
   const [officerId, setOfficerId] = useState<string | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  const shown = (officers.data?.data ?? []).filter(
-    (o) => o.id !== person.fieldOfficer?.id,
-  );
-  const more = (officers.data?.meta.total ?? 0) > shown.length + 1;
 
   async function go() {
     if (!officerId) return;
@@ -515,47 +531,12 @@ function AssignDialog({
           : t('people.actions.assignNone')
       }
     >
-      <SearchBox
-        value={q}
-        onSearch={(next) => {
-          setQ(next);
-          setOfficerId(null);
-        }}
-        placeholder={t('people.actions.findOfficer')}
+      <OfficerPicker
+        open={open}
+        exclude={person.fieldOfficer ? [person.fieldOfficer.id] : []}
+        value={officerId}
+        onChange={setOfficerId}
       />
-      <fieldset className="grid max-h-72 gap-1.5 overflow-y-auto">
-        <legend className="sr-only">{t('people.fieldOfficer')}</legend>
-        {officers.isFetching && (
-          <p className="text-sm text-muted-foreground">{t('states.loading')}</p>
-        )}
-        {!officers.isFetching && shown.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t('people.noMatch')}</p>
-        )}
-        {shown.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            aria-pressed={officerId === o.id}
-            onClick={() => setOfficerId(o.id)}
-            className={cn(
-              'flex min-h-12 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-              officerId === o.id
-                ? 'border-ink bg-nav-active/40 ring-1 ring-ink'
-                : 'hover:bg-muted',
-            )}
-          >
-            <span className="font-medium">{o.fullName}</span>
-            <span className="text-sm text-muted-foreground">
-              {o.district ? t(`districts.${o.district as District}`) : ''}
-            </span>
-          </button>
-        ))}
-        {more && (
-          <p className="text-sm text-muted-foreground">
-            {t('people.actions.narrowOfficers')}
-          </p>
-        )}
-      </fieldset>
       <FormError error={error} />
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>

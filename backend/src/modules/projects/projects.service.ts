@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ContractTransaction } from 'ethers';
-import { DataSource, Repository } from 'typeorm';
+import type { Response } from 'express';
+import { Brackets, DataSource, Repository } from 'typeorm';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
@@ -41,7 +42,9 @@ import type {
   ProjectIntegrityDto,
   TimelineEntryDto,
 } from './dto/project-response.dto';
+import { PhotosService } from '../field-records/photos.service';
 import { Project } from './entities/project.entity';
+import { ProjectFavourite } from './entities/project-favourite.entity';
 import {
   CHAIN_DURATION_TYPE,
   ProjectChainState,
@@ -82,6 +85,7 @@ export class ProjectsService {
     private readonly tx: TransactionService,
     private readonly contracts: ContractsRegistry,
     private readonly receipts: ReceiptApplier,
+    private readonly photos: PhotosService,
   ) {}
 
   // --- Drafts ---
@@ -253,17 +257,93 @@ export class ProjectsService {
     if (q.farmerId && PROJECT_STAFF.has(actor.role)) {
       qb.andWhere('p.farmer_id = :fid', { fid: q.farmerId });
     }
+    if (q.favourites && actor.role === Role.INVESTOR) {
+      qb.andWhere(
+        'p.id IN (SELECT f.project_id FROM project_favourites f WHERE f.investor_id = :me)',
+        { me: actor.id },
+      );
+    }
+    // Every word must start a word of the title, the place, or the crop's name.
+    const words = searchWords(q.q);
+    words.forEach((w, i) => {
+      const crops = this.catalog.produceTypes
+        .list(true)
+        .filter((c) => matchesWord(c.name, w) || matchesWord(c.nameBn, w))
+        .map((c) => c.code);
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where(`p.title ~* :w${i}`, { [`w${i}`]: wordPattern(w) })
+            .orWhere(`p.location ~* :w${i}`)
+            .orWhere(`p.district_code ~* :w${i}`);
+          if (crops.length > 0) {
+            b.orWhere(`p.produce_code IN (:...c${i})`, { [`c${i}`]: crops });
+          }
+        }),
+      );
+    });
     const [rows, total] = await qb
       .orderBy('p.created_at', 'DESC')
       .addOrderBy('p.id', 'ASC')
       .skip(q.skip)
       .take(q.limit)
       .getManyAndCount();
-    return new Paginated(await this.views.many(rows), total, q);
+    return new Paginated(
+      await this.views.many(rows, viewerOf(actor)),
+      total,
+      q,
+    );
   }
 
   async findOne(actor: AuthUser, id: string): Promise<ProjectDto> {
-    return this.views.one(await this.visible(actor, id));
+    return this.views.one(await this.visible(actor, id), viewerOf(actor));
+  }
+
+  // --- Cover photo and favourites ---
+
+  /** The photo on the card and page; drafts only, like the terms. */
+  async setCover(
+    actor: AuthUser,
+    id: string,
+    data: Buffer,
+  ): Promise<ProjectDto> {
+    await this.findDraft(id);
+    const photo = await this.photos.store(data, actor.id);
+    await this.projects.update({ id }, { coverPhotoId: photo.id });
+    return this.views.one(await this.projects.findOneByOrFail({ id }));
+  }
+
+  async sendCover(actor: AuthUser, id: string, res: Response): Promise<void> {
+    const project = await this.visible(actor, id);
+    if (!project.coverPhotoId) {
+      throw new NotFoundException({
+        message: 'This project has no cover photo',
+        code: ErrorCode.PHOTO_NOT_FOUND,
+      });
+    }
+    await this.photos.send(await this.photos.find(project.coverPhotoId), res);
+  }
+
+  /** Saves a project to the investor's favourites, or takes it off. */
+  async setFavourite(
+    actor: AuthUser,
+    id: string,
+    favourite: boolean,
+  ): Promise<ProjectDto> {
+    const project = await this.visible(actor, id);
+    if (favourite) {
+      await this.dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(ProjectFavourite)
+        .values({ investorId: actor.id, projectId: id })
+        .orIgnore()
+        .execute();
+    } else {
+      await this.dataSource
+        .getRepository(ProjectFavourite)
+        .delete({ investorId: actor.id, projectId: id });
+    }
+    return this.views.one(project, actor.id);
   }
 
   /** The project as the actor may see it, or 404. */
@@ -501,4 +581,30 @@ function publishedConflict() {
     message: 'Published projects cannot be changed or deleted',
     code: ErrorCode.PROJECT_PUBLISHED_LOCKED,
   });
+}
+
+/** Investors see which projects they saved. */
+const viewerOf = (actor: AuthUser) =>
+  actor.role === Role.INVESTOR ? actor.id : undefined;
+
+/** Words typed in a search, at most five, as plain text. */
+function searchWords(q: string | undefined): string[] {
+  return (q ?? '')
+    .normalize('NFC')
+    .split(/[^\p{L}\p{M}\p{N}]+/u)
+    .filter((w) => w.length > 0)
+    .slice(0, 5);
+}
+
+/** A word start, for a case-insensitive Postgres regex: special characters escaped. */
+function wordPattern(word: string): string {
+  return `(^|[^[:alnum:]])${word.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`;
+}
+
+function matchesWord(text: string, word: string): boolean {
+  const w = word.toLowerCase();
+  return text
+    .toLowerCase()
+    .split(/[^\p{L}\p{M}\p{N}]+/u)
+    .some((t) => t.startsWith(w));
 }

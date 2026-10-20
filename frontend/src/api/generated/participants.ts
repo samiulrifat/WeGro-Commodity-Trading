@@ -78,6 +78,26 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Participants'],
       }),
+      participantsOpenWork: build.query<
+        ParticipantsOpenWorkApiResponse,
+        ParticipantsOpenWorkApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/participants/${queryArg.id}/open-work`,
+        }),
+        providesTags: ['Participants'],
+      }),
+      participantsRevoke: build.mutation<
+        ParticipantsRevokeApiResponse,
+        ParticipantsRevokeApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/participants/${queryArg.id}/revoke`,
+          method: 'POST',
+          body: queryArg.revokeAccessDto,
+        }),
+        invalidatesTags: ['Participants'],
+      }),
       participantsAssignFieldOfficer: build.mutation<
         ParticipantsAssignFieldOfficerApiResponse,
         ParticipantsAssignFieldOfficerApiArg
@@ -277,6 +297,21 @@ export type ParticipantsRejectApiArg = {
   id: string;
   rejectParticipantDto: RejectParticipantDto;
 };
+export type ParticipantsOpenWorkApiResponse =
+  /** status 200 What they still have open, to see before revoking access */ {
+    data: OpenWorkDto;
+  };
+export type ParticipantsOpenWorkApiArg = {
+  id: string;
+};
+export type ParticipantsRevokeApiResponse =
+  /** status 200 A verified person loses their role on the ledger and is signed out; their records stay. Verify restores access. */ {
+    data: ParticipantDetailDto;
+  };
+export type ParticipantsRevokeApiArg = {
+  id: string;
+  revokeAccessDto: RevokeAccessDto;
+};
 export type ParticipantsAssignFieldOfficerApiResponse = /** status 200  */ {
   data: ParticipantDetailDto;
 };
@@ -409,6 +444,19 @@ export type IdCheckDto = {
   outcome: 'passed' | 'flagged';
   checks: IdCheckItemDto[];
 };
+export type RevocationReason =
+  | 'resigned'
+  | 'dismissed'
+  | 'contract_ended'
+  | 'left_platform'
+  | 'terms_breach'
+  | 'other';
+export type RevocationDto = {
+  reason: RevocationReason;
+  note?: string | null;
+  at: string;
+  by?: PersonNameDto | null;
+};
 export type ParticipantDetailDto = {
   id: string;
   role:
@@ -432,6 +480,8 @@ export type ParticipantDetailDto = {
   district?: string | null;
   fieldOfficerId?: string | null;
   idCheckOutcome?: ('passed' | 'flagged') | null;
+  /** Rejected after being verified (left, dismissed...), rather than turned down at registration */
+  accessRevoked: boolean;
   createdAt: string;
   nid?: string | null;
   dateOfBirth?: string | null;
@@ -452,6 +502,8 @@ export type ParticipantDetailDto = {
   email?: string | null;
   registrationTx?: string | null;
   idCheck?: IdCheckDto | null;
+  /** Why and when their access was revoked (while it is) */
+  revocation?: RevocationDto | null;
 };
 export type RegisteredParticipantDto = {
   participant: ParticipantDetailDto;
@@ -574,6 +626,8 @@ export type ParticipantSummaryDto = {
   district?: string | null;
   fieldOfficerId?: string | null;
   idCheckOutcome?: ('passed' | 'flagged') | null;
+  /** Rejected after being verified (left, dismissed...), rather than turned down at registration */
+  accessRevoked: boolean;
   createdAt: string;
 };
 export type PageMetaDto = {
@@ -599,6 +653,36 @@ export type VerifyParticipantDto = {
 export type RejectParticipantDto = {
   /** Kept off-chain */
   reason: string;
+};
+export type OpenWorkKind =
+  | 'farmers_assigned'
+  | 'claims_open'
+  | 'vouchers_proposed'
+  | 'rounds_prepared'
+  | 'bank_details_entered'
+  | 'draft_projects'
+  | 'projects_running'
+  | 'holdings_running'
+  | 'offers_open'
+  | 'vouchers_to_fill'
+  | 'bank_assigned'
+  | 'site_assigned';
+export type OpenWorkItemDto = {
+  kind: OpenWorkKind;
+  count: number;
+};
+export type OpenWorkDto = {
+  /** What they still have open; empty when nothing is */
+  items: OpenWorkItemDto[];
+  /** A field officer’s farmers, who must move to another officer in the same step */
+  farmersToMove: number;
+};
+export type RevokeAccessDto = {
+  reason: RevocationReason;
+  /** Required when the reason is other. Kept off-chain */
+  note?: string;
+  /** A field officer who still looks after farmers: the verified field officer they all move to */
+  replacementOfficerId?: string;
 };
 export type AssignFieldOfficerDto = {
   officerId: string;
@@ -761,6 +845,9 @@ export const {
   useLazyParticipantsFindOneQuery,
   useParticipantsVerifyMutation,
   useParticipantsRejectMutation,
+  useParticipantsOpenWorkQuery,
+  useLazyParticipantsOpenWorkQuery,
+  useParticipantsRevokeMutation,
   useParticipantsAssignFieldOfficerMutation,
   useParticipantsReplaceKeyMutation,
   useParticipantsResetPasswordMutation,

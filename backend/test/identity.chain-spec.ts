@@ -664,13 +664,10 @@ describe('Identity (node + database)', () => {
       expect(moved.body.data.fieldOfficerId).toBe(second);
     });
 
-    it('rejects with a reason, revokes the role and signs the person out', async () => {
+    it('turns down a registration with a reason, and refuses that for someone verified', async () => {
       const body = person(Role.INSURER);
       const res = await register(admin.token, body).expect(201);
       const id = res.body.data.participant.id;
-      await verify(admin.token, id).expect(200);
-      const session = await login(body.phone, res.body.data.temporaryPassword);
-
       const rejected = await http
         .post(`/api/participants/${id}/reject`)
         .auth(admin.token, { type: 'bearer' })
@@ -679,6 +676,46 @@ describe('Identity (node + database)', () => {
       expect(rejected.body.data).toMatchObject({
         status: 'rejected',
         statusReason: 'Documents did not match',
+        accessRevoked: false,
+        revocation: null,
+      });
+      const refused = await http
+        .post('/api/auth/login')
+        .send({ phone: body.phone, password: res.body.data.temporaryPassword })
+        .expect(403);
+      expect(refused.body.code).toBe('ACCOUNT_REJECTED');
+
+      const other = person(Role.INSURER);
+      const made = await register(admin.token, other).expect(201);
+      await verify(admin.token, made.body.data.participant.id).expect(200);
+      const notThat = await http
+        .post(`/api/participants/${made.body.data.participant.id}/reject`)
+        .auth(admin.token, { type: 'bearer' })
+        .send({ reason: 'No longer works with us' })
+        .expect(409);
+      expect(notThat.body.code).toBe('REJECT_VERIFIED');
+    });
+
+    it('revokes a verified person’s access with why, signs them out, and restores it', async () => {
+      const body = person(Role.INSURER);
+      const res = await register(admin.token, body).expect(201);
+      const id = res.body.data.participant.id;
+      await verify(admin.token, id).expect(200);
+      const session = await login(body.phone, res.body.data.temporaryPassword);
+
+      const revoked = await http
+        .post(`/api/participants/${id}/revoke`)
+        .auth(admin.token, { type: 'bearer' })
+        .send({ reason: 'contract_ended', note: '  Policy year over  ' })
+        .expect(200);
+      expect(revoked.body.data).toMatchObject({
+        status: 'rejected',
+        accessRevoked: true,
+        revocation: {
+          reason: 'contract_ended',
+          note: 'Policy year over',
+          by: { id: admin.id },
+        },
       });
       await expect(
         contracts.get('AccessRegistry').isVerified(uuidToBytes32(id)),
@@ -687,10 +724,81 @@ describe('Identity (node + database)', () => {
         .get('/api/auth/me')
         .auth(session.token, { type: 'bearer' })
         .expect(401);
-      await http
+      const refused = await http
         .post('/api/auth/login')
         .send({ phone: body.phone, password: res.body.data.temporaryPassword })
         .expect(403);
+      expect(refused.body.code).toBe('ACCESS_REVOKED');
+
+      const restored = await verify(admin.token, id).expect(200);
+      expect(restored.body.data).toMatchObject({
+        status: 'verified',
+        accessRevoked: false,
+        revocation: null,
+      });
+      await login(body.phone, res.body.data.temporaryPassword);
+    });
+
+    it('moves a leaving field officer’s farmers to another, then revokes, ledger and all', async () => {
+      const access = contracts.get('AccessRegistry');
+      const make = async (role: Role, token: string) => {
+        const res = await register(token, person(role)).expect(201);
+        const id: string = res.body.data.participant.id;
+        await verify(token, id).expect(200);
+        return id;
+      };
+      const leaving = await make(Role.FIELD_OFFICER, superToken);
+      const next = await make(Role.FIELD_OFFICER, superToken);
+      const farmers: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        const f = await make(Role.FARMER, admin.token);
+        await http
+          .put(`/api/participants/${f}/field-officer`)
+          .auth(admin.token, { type: 'bearer' })
+          .send({ officerId: leaving })
+          .expect(200);
+        farmers.push(f);
+      }
+
+      const work = await http
+        .get(`/api/participants/${leaving}/open-work`)
+        .auth(superToken, { type: 'bearer' })
+        .expect(200);
+      expect(work.body.data).toEqual({
+        items: [{ kind: 'farmers_assigned', count: 2 }],
+        farmersToMove: 2,
+      });
+      const blocked = await http
+        .post(`/api/participants/${leaving}/revoke`)
+        .auth(superToken, { type: 'bearer' })
+        .send({ reason: 'resigned' })
+        .expect(422);
+      expect(blocked.body).toMatchObject({
+        code: 'FIELD_OFFICER_HAS_FARMERS',
+        details: { count: 2 },
+      });
+      await expect(access.farmerCountOf(uuidToBytes32(leaving))).resolves.toBe(
+        2n,
+      );
+
+      await http
+        .post(`/api/participants/${leaving}/revoke`)
+        .auth(superToken, { type: 'bearer' })
+        .send({ reason: 'resigned', replacementOfficerId: next })
+        .expect(200);
+      for (const f of farmers) {
+        await expect(access.fieldOfficerOf(uuidToBytes32(f))).resolves.toBe(
+          uuidToBytes32(next),
+        );
+        const row = await db.getRepository(User).findOneByOrFail({ id: f });
+        expect(row.fieldOfficerId).toBe(next);
+      }
+      await expect(access.farmerCountOf(uuidToBytes32(leaving))).resolves.toBe(
+        0n,
+      );
+      await expect(access.isVerified(uuidToBytes32(leaving))).resolves.toBe(
+        false,
+      );
     });
 
     it('lets only the super admin manage staff', async () => {

@@ -152,7 +152,7 @@ describe('Audit (node + database)', () => {
         .post(`/projects/${project}/reservations`, { slots: 1 })
         .expect(201)
     ).body.data.id;
-    await travel(120 * 3600 + 1);
+    await travel(7 * 24 * 3600 + 1);
     await chain.app.get(ReservationExpiryJob).run();
     await as(t.admin)
       .post(`/participants/${newcomer.id}/replace-key`)

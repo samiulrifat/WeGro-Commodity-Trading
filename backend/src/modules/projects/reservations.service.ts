@@ -22,6 +22,7 @@ import { Paginated } from '../../common/dto/pagination.dto';
 import { IdentityCryptoService } from '../../common/crypto/identity-crypto.service';
 import type { EnvironmentVariables } from '../../config/env.validation';
 import type { AuthUser } from '../auth/auth-user';
+import { PersonSearch } from '../users/person-search';
 import { Role } from '../users/roles';
 import type { ListReservationsQueryDto } from './dto/project-request.dto';
 import type {
@@ -72,6 +73,7 @@ export class ReservationsService {
     private readonly crypto: IdentityCryptoService,
     private readonly tx: TransactionService,
     private readonly receipts: ReceiptApplier,
+    private readonly search: PersonSearch,
   ) {
     this.paymentRefSecret = config.get('PAYMENT_REF_SECRET', { infer: true });
   }
@@ -107,7 +109,11 @@ export class ReservationsService {
     return this.findOne(actor, Number(event!.args.reservationId));
   }
 
-  /** The investor's own pending reservation, or any for an admin. */
+  /**
+   * The investor's own pending reservation while they have sent nothing
+   * (no proof waiting or accepted), or any for an admin: money already
+   * received is then refunded by Accounts.
+   */
   async cancel(actor: AuthUser, id: number): Promise<ReservationDto> {
     const reservation = await this.load(id);
     if (actor.role === Role.INVESTOR && reservation.investorId !== actor.id) {
@@ -115,6 +121,16 @@ export class ReservationsService {
         message: 'Reservation not found',
         code: ErrorCode.RESERVATION_NOT_FOUND,
       });
+    }
+    if (actor.role === Role.INVESTOR) {
+      const { paid, underReview } = (await this.payments([id])).get(id) ?? NONE;
+      if (paid > 0n || underReview > 0n) {
+        throw new ConflictException({
+          message:
+            'Money was sent for this booking: ask WeGro to cancel it, and it is refunded',
+          code: ErrorCode.BOOKING_HAS_PAYMENTS,
+        });
+      }
     }
     if (reservation.status !== ReservationStatus.PENDING) {
       throw new ConflictException({
@@ -164,16 +180,35 @@ export class ReservationsService {
   // --- Accounts ---
 
   /**
-   * Issues the reserved slots once Accounts has the money. The reference is
-   * saved encrypted first; the ledger gets its keyed hash, which it refuses
-   * to accept twice.
+   * Issues the reserved slots once Accounts has the money, for a booking
+   * paid without proofs in the app (proofs are accepted one by one instead,
+   * which confirms the booking when they add up).
    */
   async confirm(
     actor: AuthUser,
     id: number,
     paymentReference: string,
   ): Promise<ReservationDto> {
-    const ref = normalise(paymentReference);
+    const { paid, underReview } = (await this.payments([id])).get(id) ?? NONE;
+    if (paid > 0n || underReview > 0n) {
+      throw new ConflictException({
+        message: 'This booking has payment proofs: review them instead',
+        code: ErrorCode.PROOFS_TO_REVIEW,
+      });
+    }
+    return this.confirmWith(actor, id, normalise(paymentReference));
+  }
+
+  /**
+   * The reference is saved encrypted first; the ledger gets its keyed hash,
+   * which it refuses to accept twice. `ref` is already normalised (several
+   * proofs' references are combined by the caller).
+   */
+  async confirmWith(
+    actor: AuthUser,
+    id: number,
+    ref: string,
+  ): Promise<ReservationDto> {
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const reservation = await this.load(id);
     if (reservation.status !== ReservationStatus.PENDING) {
@@ -315,6 +350,8 @@ export class ReservationsService {
       qb.andWhere('r.investor_id = :me', { me: actor.id });
     if (q.status) qb.andWhere('r.status = :status', { status: q.status });
     if (q.projectId) qb.andWhere('r.project_id = :pid', { pid: q.projectId });
+    if (actor.role !== Role.INVESTOR)
+      this.search.apply(qb, 'r.investor_id', q.q);
     const [rows, total] = await qb
       .orderBy('r.id', 'DESC')
       .skip(q.skip)
@@ -404,29 +441,81 @@ export class ReservationsService {
     }));
   }
 
+  /**
+   * Accepted and still-reviewed proof amounts per reservation, in one
+   * grouped query.
+   */
+  async payments(
+    ids: number[],
+  ): Promise<Map<number, { paid: bigint; underReview: bigint }>> {
+    if (ids.length === 0) return new Map();
+    const rows: Array<{
+      reservation_id: string;
+      paid: string;
+      review: string;
+    }> = await this.dataSource.query(
+      `SELECT reservation_id,
+                COALESCE(SUM(amount) FILTER (WHERE status = 'accepted'), 0) AS paid,
+                COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0) AS review
+           FROM payment_proofs
+          WHERE reservation_id = ANY($1::bigint[])
+          GROUP BY reservation_id`,
+      [ids],
+    );
+    return new Map(
+      rows.map((r) => [
+        Number(r.reservation_id),
+        { paid: BigInt(r.paid), underReview: BigInt(r.review) },
+      ]),
+    );
+  }
+
+  /** Stops the clock with the investor's own key, as their proof arrives. */
+  async pauseOnLedger(actor: AuthUser, id: number): Promise<void> {
+    await this.send(actor, (c) => c.pauseReservation.populateTransaction(id));
+  }
+
+  /** Accounts restarts the clock once no proof is under review. */
+  async resumeOnLedger(actor: AuthUser, id: number): Promise<void> {
+    await this.send(actor, (c) => c.resumeReservation.populateTransaction(id));
+  }
+
   private async reservationViews(
     actor: AuthUser,
     rows: Reservation[],
   ): Promise<ReservationDto[]> {
-    const names = await this.views.names(rows.map((r) => r.investorId));
+    const [names, payments] = await Promise.all([
+      this.views.names(rows.map((r) => r.investorId)),
+      this.payments(rows.map((r) => r.id)),
+    ]);
     const seesPayments = SEES_PAYMENTS.has(actor.role);
-    return rows.map((r) => ({
-      id: r.id,
-      projectId: r.projectId,
-      projectTitle: r.project!.title,
-      investor: { id: r.investorId, fullName: names.get(r.investorId) ?? '' },
-      slots: r.slots,
-      amount: poishaToTaka(r.project!.slotPrice * BigInt(r.slots)),
-      status: r.status!,
-      reservedAt: r.reservedAt,
-      expiresAt: r.expiresAt,
-      closedAt: r.closedAt,
-      ...(seesPayments && {
-        paymentReference: r.paymentRefEnc
-          ? this.crypto.decrypt(r.paymentRefEnc, reservationContext(r.id))
-          : null,
-      }),
-    }));
+    return rows.map((r) => {
+      const amount = r.project!.slotPrice * BigInt(r.slots);
+      const { paid, underReview } = payments.get(r.id) ?? NONE;
+      const left = amount - paid - underReview;
+      return {
+        id: r.id,
+        projectId: r.projectId,
+        projectTitle: r.project!.title,
+        investor: { id: r.investorId, fullName: names.get(r.investorId) ?? '' },
+        slots: r.slots,
+        amount: poishaToTaka(r.project!.slotPrice * BigInt(r.slots)),
+        status: r.status!,
+        reservedAt: r.reservedAt,
+        expiresAt: r.expiresAt,
+        onHold: r.pausedRemaining !== null,
+        pausedRemainingSeconds: r.pausedRemaining,
+        paid: poishaToTaka(paid),
+        underReview: poishaToTaka(underReview),
+        remaining: poishaToTaka(left > 0n ? left : 0n),
+        closedAt: r.closedAt,
+        ...(seesPayments && {
+          paymentReference: r.paymentRefEnc
+            ? this.crypto.decrypt(r.paymentRefEnc, reservationContext(r.id))
+            : null,
+        }),
+      };
+    });
   }
 
   private async load(id: number): Promise<Reservation> {
@@ -447,6 +536,8 @@ export class ReservationsService {
     await this.receipts.apply(result);
   }
 }
+
+const NONE = { paid: 0n, underReview: 0n };
 
 const reservationContext = (id: number) => `reservations.payment_ref:${id}`;
 const refundContext = (projectId: string, investorId: string) =>

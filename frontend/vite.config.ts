@@ -81,6 +81,9 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       setupFiles: ['src/test/setup.ts'],
+      // Page tests type and click through whole flows: more than 5 s when
+      // every file runs at once on a busy machine.
+      testTimeout: 15_000,
     },
     server: { port: 5173, strictPort: true, proxy },
     // `npm run preview`: the production build, offline worker included.

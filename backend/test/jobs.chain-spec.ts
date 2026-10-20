@@ -43,7 +43,7 @@ describe('Jobs (node + database)', () => {
 
     it('lets only the super admin run a job now, and keeps the run', async () => {
       const reservation = await app.unpaidReservation('Manual expiry');
-      await app.travel(120 * 3600 + 1);
+      await app.travel(7 * 24 * 3600 + 1);
       await app
         .as(app.t.admin)
         .post('/jobs/reservation-expiry/run')

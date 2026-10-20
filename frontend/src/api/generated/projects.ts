@@ -28,6 +28,8 @@ const injectedRtkApi = api
             produceCode: queryArg.produceCode,
             districtCode: queryArg.districtCode,
             farmerId: queryArg.farmerId,
+            q: queryArg.q,
+            favourites: queryArg.favourites,
           },
         }),
         providesTags: ['Projects'],
@@ -110,6 +112,43 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Projects'],
       }),
+      projectsSetCover: build.mutation<
+        ProjectsSetCoverApiResponse,
+        ProjectsSetCoverApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/projects/${queryArg.id}/cover`,
+          method: 'POST',
+          body: queryArg.body,
+        }),
+        invalidatesTags: ['Projects'],
+      }),
+      projectsCover: build.query<ProjectsCoverApiResponse, ProjectsCoverApiArg>(
+        {
+          query: (queryArg) => ({ url: `/api/projects/${queryArg.id}/cover` }),
+          providesTags: ['Projects'],
+        },
+      ),
+      projectsAddFavourite: build.mutation<
+        ProjectsAddFavouriteApiResponse,
+        ProjectsAddFavouriteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/projects/${queryArg.id}/favourite`,
+          method: 'PUT',
+        }),
+        invalidatesTags: ['Projects'],
+      }),
+      projectsRemoveFavourite: build.mutation<
+        ProjectsRemoveFavouriteApiResponse,
+        ProjectsRemoveFavouriteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/projects/${queryArg.id}/favourite`,
+          method: 'DELETE',
+        }),
+        invalidatesTags: ['Projects'],
+      }),
       projectsTimeline: build.query<
         ProjectsTimelineApiResponse,
         ProjectsTimelineApiArg
@@ -173,6 +212,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
             status: queryArg.status,
             projectId: queryArg.projectId,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Projects'],
@@ -244,6 +284,10 @@ export type ProjectsListApiArg = {
   districtCode?: District;
   /** Staff only */
   farmerId?: string;
+  /** Words of the title, the place or the crop */
+  q?: string;
+  /** Only those you saved (investors) */
+  favourites?: boolean;
 };
 export type ProjectsFindOneApiResponse = /** status 200  */ {
   data: ProjectDto;
@@ -295,6 +339,34 @@ export type ProjectsCancelApiResponse =
 export type ProjectsCancelApiArg = {
   id: string;
 };
+export type ProjectsSetCoverApiResponse =
+  /** status 200 JPEG, PNG or WebP up to 10 MB; drafts only */ {
+    data: ProjectDto;
+  };
+export type ProjectsSetCoverApiArg = {
+  id: string;
+  body: {
+    file?: Blob;
+  };
+};
+export type ProjectsCoverApiResponse = unknown;
+export type ProjectsCoverApiArg = {
+  id: string;
+};
+export type ProjectsAddFavouriteApiResponse =
+  /** status 200 Saved to your favourites */ {
+    data: ProjectDto;
+  };
+export type ProjectsAddFavouriteApiArg = {
+  id: string;
+};
+export type ProjectsRemoveFavouriteApiResponse =
+  /** status 200 Taken off your favourites */ {
+    data: ProjectDto;
+  };
+export type ProjectsRemoveFavouriteApiArg = {
+  id: string;
+};
 export type ProjectsTimelineApiResponse = /** status 200  */ {
   data: TimelineEntryDto[];
 };
@@ -342,6 +414,8 @@ export type ReservationsListApiArg = {
   limit?: number;
   status?: 'pending' | 'confirmed' | 'expired' | 'cancelled';
   projectId?: string;
+  /** Whose (staff): a mobile number, an NID, or whole words of their name */
+  q?: string;
 };
 export type ReservationsFindOneApiResponse = /** status 200  */ {
   data: ReservationDto;
@@ -420,6 +494,13 @@ export type ProjectDto = {
   insured: boolean;
   estimatedReturn: EstimatedReturnDto;
   plannedStartDate?: string | null;
+  coverPhotoUrl?: string | null;
+  /** Investors holding slots */
+  investorCount: number;
+  /** Investors who reserved slots today (Bangladesh time) */
+  investingToday: number;
+  /** Saved by you (investors only) */
+  favourite?: boolean;
   stage:
     | 'draft'
     | 'open_for_funding'
@@ -603,7 +684,18 @@ export type ReservationDto = {
   amount: string;
   status: 'pending' | 'confirmed' | 'expired' | 'cancelled';
   reservedAt: string;
+  /** The deadline; stopped while onHold */
   expiresAt: string;
+  /** A payment proof is under review: the clock is stopped and it cannot expire */
+  onHold: boolean;
+  /** Seconds left on the clock while on hold */
+  pausedRemainingSeconds?: number | null;
+  /** Accepted by Accounts */
+  paid: string;
+  /** In proofs not reviewed yet */
+  underReview: string;
+  /** Still to send */
+  remaining: string;
   closedAt?: string | null;
   /** Accounts, admin and auditor only */
   paymentReference?: string | null;
@@ -654,6 +746,11 @@ export const {
   useProjectsReadyForSaleMutation,
   useProjectsCloseMutation,
   useProjectsCancelMutation,
+  useProjectsSetCoverMutation,
+  useProjectsCoverQuery,
+  useLazyProjectsCoverQuery,
+  useProjectsAddFavouriteMutation,
+  useProjectsRemoveFavouriteMutation,
   useProjectsTimelineQuery,
   useLazyProjectsTimelineQuery,
   useProjectsIntegrityQuery,

@@ -24,6 +24,8 @@ const TITLES: Readonly<Record<string, string>> = {
   ReservationConfirmed: 'Reservation paid and slots issued',
   ReservationExpired: 'Reservation expired unpaid',
   ReservationCancelled: 'Reservation cancelled',
+  ReservationPaused: 'Payment proof received; reservation clock stopped',
+  ReservationResumed: 'Reservation clock running again',
   RefundsRequired: 'Project cancelled; refunds due',
   RefundRecorded: 'Refund paid',
   ReservationTtlUpdated: 'Reservation time limit changed',

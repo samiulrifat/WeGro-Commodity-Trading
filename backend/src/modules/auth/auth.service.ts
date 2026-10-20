@@ -288,9 +288,16 @@ export function assertMaySignIn(user: User): void {
     });
   }
   if (user.status === ParticipantStatus.REJECTED) {
-    throw new ForbiddenException({
-      message: 'This account was not approved',
-      code: ErrorCode.ACCOUNT_REJECTED,
-    });
+    throw new ForbiddenException(
+      user.accessRevokedAt
+        ? {
+            message: 'Your access to WeGro has been revoked',
+            code: ErrorCode.ACCESS_REVOKED,
+          }
+        : {
+            message: 'This account was not approved',
+            code: ErrorCode.ACCOUNT_REJECTED,
+          },
+    );
   }
 }

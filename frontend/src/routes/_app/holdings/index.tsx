@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ComingSoon } from '@/app/pages';
+import { HoldingsPage } from '@/features/projects/holdings-page';
 
 export const Route = createFileRoute('/_app/holdings/')({
   staticData: { area: 'holdings' },
-  component: () => <ComingSoon area="holdings" />,
+  component: () => <HoldingsPage />,
 });

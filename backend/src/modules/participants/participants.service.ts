@@ -55,11 +55,13 @@ import {
 import type {
   ListParticipantsQueryDto,
   RegisterParticipantDto,
+  RevokeAccessDto,
 } from './dto/participant-request.dto';
 import type { SignUpDto } from './dto/sign-up.dto';
 import type {
   IntegrityReportDto,
   LedgerParticipantDto,
+  OpenWorkDto,
   ParticipantDetailDto,
   ParticipantSummaryDto,
   RegisteredParticipantDto,
@@ -72,6 +74,8 @@ import {
   normalisePhone,
   runIdCheck,
 } from './id-check/id-check';
+import { openWorkOf } from './open-work';
+import { OpenWorkKind, RevocationReason } from './revocation';
 import { temporaryPasswordText } from './temporary-password-sms';
 import { ErrorCode } from '../../common/errors/error-code';
 
@@ -456,11 +460,24 @@ export class ParticipantsService {
         c.verifyParticipant.populateTransaction(uuidToBytes32(id)),
       ),
     );
-    await this.users.update({ id }, { statusReason: null });
+    // Verifying again restores revoked access: the revocation is history now.
+    await this.users.update(
+      { id },
+      {
+        statusReason: null,
+        accessRevokedAt: null,
+        revocationReason: null,
+        accessRevokedById: null,
+      },
+    );
     return this.findOne(actor, id);
   }
 
-  /** Rejects (or withdraws verification), revokes the role on-chain and ends their sessions. */
+  /**
+   * Turns down a registration: rejects them on-chain (no role) and ends
+   * their sessions. Someone already verified has their access revoked
+   * instead, with why.
+   */
   async reject(
     actor: AuthUser,
     id: string,
@@ -475,17 +492,133 @@ export class ParticipantsService {
         code: ErrorCode.ALREADY_REJECTED,
       });
     }
+    if (user.status === ParticipantStatus.VERIFIED) {
+      throw new ConflictException({
+        message: 'This person is verified: revoke their access instead',
+        code: ErrorCode.REJECT_VERIFIED,
+      });
+    }
+    await this.rejectOnLedger(actor, id, { statusReason: reason });
+    return this.findOne(actor, id);
+  }
+
+  /**
+   * Revokes a verified person's access (they left, were dismissed...): their
+   * role is revoked on-chain and their sessions end at once; their records
+   * stay. A field officer's farmers move to `replacementOfficerId` first,
+   * in batches the ledger accepts, since the ledger refuses an officer who
+   * still has any. Verifying them again restores access.
+   */
+  async revoke(
+    actor: AuthUser,
+    id: string,
+    dto: RevokeAccessDto,
+  ): Promise<ParticipantDetailDto> {
+    const { user } = await this.loadParticipant(id);
+    assertCanManage(actor, user.role);
+    assertConfirmed(user);
+    if (user.status !== ParticipantStatus.VERIFIED) {
+      throw new ConflictException({
+        message: "Only a verified person's access can be revoked",
+        code: ErrorCode.ACCESS_NOT_ACTIVE,
+      });
+    }
+    const note = dto.note ? dto.note : null;
+    if (dto.reason === RevocationReason.OTHER && !note) {
+      throw new UnprocessableEntityException({
+        message: 'Write a note saying why when the reason is other',
+        code: ErrorCode.REVOCATION_NOTE_REQUIRED,
+      });
+    }
+    if (user.role === Role.FIELD_OFFICER) {
+      await this.handOverFarmers(actor, id, dto.replacementOfficerId);
+    }
+    await this.rejectOnLedger(actor, id, {
+      statusReason: note,
+      revocationReason: dto.reason,
+      accessRevokedAt: new Date(),
+      accessRevokedById: actor.id,
+    });
+    return this.findOne(actor, id);
+  }
+
+  /** What the person still has open, to see before revoking their access. */
+  async openWork(actor: AuthUser, id: string): Promise<OpenWorkDto> {
+    const { user } = await this.loadParticipant(id);
+    assertCanManage(actor, user.role);
+    const items = await openWorkOf(this.dataSource.manager, id, user.role);
+    return {
+      items,
+      farmersToMove:
+        items.find((i) => i.kind === OpenWorkKind.FARMERS_ASSIGNED)?.count ?? 0,
+    };
+  }
+
+  /** Moves every farmer of `officerId` to the replacement, MAX_REASSIGN at a time. */
+  private async handOverFarmers(
+    actor: AuthUser,
+    officerId: string,
+    replacementId: string | undefined,
+  ): Promise<void> {
+    const farmers = await this.users.find({
+      where: { fieldOfficerId: officerId },
+      select: { id: true },
+      order: { id: 'ASC' },
+    });
+    if (farmers.length === 0) return;
+    if (!replacementId) {
+      throw new UnprocessableEntityException({
+        message: `This field officer looks after ${farmers.length} farmers: choose the field officer they move to`,
+        code: ErrorCode.FIELD_OFFICER_HAS_FARMERS,
+        details: { count: farmers.length },
+      });
+    }
+    const replacement = await this.users.findOne({
+      where: { id: replacementId },
+    });
+    if (
+      replacementId === officerId ||
+      !replacement ||
+      replacement.role !== Role.FIELD_OFFICER ||
+      replacement.status !== ParticipantStatus.VERIFIED ||
+      replacement.chainState !== ChainState.CONFIRMED
+    ) {
+      throw new BadRequestException({
+        message: 'officerId must be a verified field officer',
+        code: ErrorCode.FIELD_OFFICER_INVALID,
+      });
+    }
+    const batch = Number(
+      await this.contracts.get('AccessRegistry').MAX_REASSIGN(),
+    );
+    const from = uuidToBytes32(officerId);
+    const to = uuidToBytes32(replacementId);
+    for (let i = 0; i < farmers.length; i += batch) {
+      const ids = farmers.slice(i, i + batch).map((f) => uuidToBytes32(f.id));
+      await this.applyReceipt(
+        await this.tx.send(actor.keyIndex, 'AccessRegistry', (c) =>
+          c.reassignFarmers.populateTransaction(from, to, ids),
+        ),
+      );
+    }
+  }
+
+  /** Rejects on-chain (the role goes), records why, and ends every session. */
+  private async rejectOnLedger(
+    actor: AuthUser,
+    id: string,
+    patch: Partial<User>,
+  ): Promise<void> {
     const result = await this.tx.send(actor.keyIndex, 'AccessRegistry', (c) =>
       c.rejectParticipant.populateTransaction(uuidToBytes32(id)),
     );
     await this.dataSource.transaction(async (m) => {
       await this.receipts.apply(result, m);
-      await m.update(User, { id }, { statusReason: reason });
+      await m.update(User, { id }, patch);
       await m.increment(User, { id }, 'tokenVersion', 1);
       await this.tokens.revokeAllForUser(id, m);
     });
     await this.receipts.announce(result);
-    return this.findOne(actor, id);
   }
 
   async assignFieldOfficer(
@@ -790,10 +923,13 @@ export class ParticipantsService {
     const visibility: Visibility =
       actor.role === Role.AUDITOR ? 'masked' : 'full';
     const plain = this.codec.open(details);
+    const revoked = isRevoked(user);
     const names = await this.namesOf(
-      [user.fieldOfficerId, user.registeredById].filter(
-        (x): x is string => x !== null,
-      ),
+      [
+        user.fieldOfficerId,
+        user.registeredById,
+        revoked ? user.accessRevokedById : null,
+      ].filter((x): x is string => x !== null),
     );
     const person = (pid: string | null) =>
       pid === null ? null : { id: pid, name: names.get(pid) ?? '' };
@@ -814,6 +950,14 @@ export class ParticipantsService {
       email: visibility === 'full' ? email : email && maskEmail(email),
       registrationTx: user.registrationTx,
       idCheck: details.idCheck,
+      revocation: revoked
+        ? {
+            reason: user.revocationReason!,
+            note: user.statusReason,
+            at: user.accessRevokedAt!,
+            by: person(user.accessRevokedById),
+          }
+        : null,
     });
   }
 
@@ -846,6 +990,7 @@ export class ParticipantsService {
       district: details.district,
       fieldOfficerId: user.fieldOfficerId,
       idCheckOutcome: details.idCheck?.outcome ?? null,
+      accessRevoked: isRevoked(user),
       createdAt: user.createdAt,
     };
   }
@@ -969,6 +1114,17 @@ export function isSelfRegistered(
     user.role !== Role.SUPER_ADMIN &&
     !isStaffRole(user.role) &&
     user.registeredById === null
+  );
+}
+
+/** Rejected after being verified: their access was revoked. */
+export function isRevoked(
+  user: Pick<User, 'status' | 'accessRevokedAt' | 'revocationReason'>,
+): boolean {
+  return (
+    user.status === ParticipantStatus.REJECTED &&
+    user.accessRevokedAt !== null &&
+    user.revocationReason !== null
   );
 }
 

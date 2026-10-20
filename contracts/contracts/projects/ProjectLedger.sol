@@ -98,6 +98,10 @@ contract ProjectLedger is AccessGuarded {
     mapping(bytes32 projectId => mapping(bytes32 investorId => bool)) private _refunded;
     mapping(bytes32 paymentRefHash => bool) public paymentRefUsed;
 
+    /// @notice Time left on a pending reservation whose payment proof is under
+    /// review: while set (non-zero) its clock is stopped and it cannot expire.
+    mapping(uint256 reservationId => uint64) public pausedRemaining;
+
     event ProjectCreated(
         bytes32 indexed projectId,
         bytes32 indexed farmerId,
@@ -129,6 +133,10 @@ contract ProjectLedger is AccessGuarded {
     event RefundRecorded(bytes32 indexed projectId, bytes32 indexed investorId, bytes32 paymentRefHash);
     event LinkedContractSet(address indexed account, bool allowed);
     event ReservationTtlUpdated(uint64 previousTtl, uint64 newTtl);
+    /// @notice A payment proof came in before the deadline: the clock stops.
+    event ReservationPaused(uint256 indexed reservationId, uint64 remaining, address indexed pausedBy);
+    /// @notice No proof is under review any more: the clock runs again from where it stopped.
+    event ReservationResumed(uint256 indexed reservationId, uint64 expiresAt, address indexed resumedBy);
 
     error ZeroValue();
     error ProjectExists(bytes32 projectId);
@@ -148,6 +156,8 @@ contract ProjectLedger is AccessGuarded {
     error NothingToRefund(bytes32 projectId, bytes32 investorId);
     error AlreadyRefunded(bytes32 projectId, bytes32 investorId);
     error NotAuthorized(address account);
+    error ReservationOnHold(uint256 reservationId);
+    error ReservationNotOnHold(uint256 reservationId);
 
     constructor(AccessRegistry registry_, uint64 reservationTtl_) AccessGuarded(registry_) {
         if (reservationTtl_ == 0) revert ZeroValue();
@@ -284,9 +294,13 @@ contract ProjectLedger is AccessGuarded {
     }
 
     /// @notice Issue reserved slots after payment. Funded once all slots are issued.
+    /// A paused reservation (payment under review) is confirmed whatever the time.
     function confirmPayment(uint256 reservationId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
         Reservation storage r = _pending(reservationId);
-        if (block.timestamp >= r.expiresAt) revert ReservationHasExpired(reservationId);
+        if (pausedRemaining[reservationId] == 0 && block.timestamp >= r.expiresAt) {
+            revert ReservationHasExpired(reservationId);
+        }
+        delete pausedRemaining[reservationId];
         Project storage p = _projects[r.projectId];
         if (p.stage != Stage.OpenForFunding) revert WrongStage(r.projectId, p.stage);
         _useRef(paymentRefHash);
@@ -306,20 +320,50 @@ contract ProjectLedger is AccessGuarded {
         }
     }
 
-    /// @notice Release an expired reservation. Callable by anyone.
+    /// @notice Stops a pending reservation's clock while a payment proof is
+    /// reviewed: the investor who made it (sending the proof) or Accounts,
+    /// before its deadline.
+    function pauseReservation(uint256 reservationId) external {
+        Reservation storage r = _pending(reservationId);
+        bool ownReservation = _hasRole(Roles.INVESTOR) && r.investorId == _callerId();
+        if (!ownReservation && !_hasRole(Roles.ACCOUNTS)) revert NotAuthorized(msg.sender);
+        if (pausedRemaining[reservationId] != 0) revert ReservationOnHold(reservationId);
+        if (block.timestamp >= r.expiresAt) revert ReservationHasExpired(reservationId);
+        uint64 remaining = r.expiresAt - uint64(block.timestamp);
+        pausedRemaining[reservationId] = remaining;
+        emit ReservationPaused(reservationId, remaining, msg.sender);
+    }
+
+    /// @notice Accounts restarts the clock once no proof is under review: the
+    /// deadline moves on by the time it was stopped.
+    function resumeReservation(uint256 reservationId) external onlyRole(Roles.ACCOUNTS) {
+        Reservation storage r = _pending(reservationId);
+        uint64 remaining = pausedRemaining[reservationId];
+        if (remaining == 0) revert ReservationNotOnHold(reservationId);
+        delete pausedRemaining[reservationId];
+        r.expiresAt = uint64(block.timestamp) + remaining;
+        emit ReservationResumed(reservationId, r.expiresAt, msg.sender);
+    }
+
+    /// @notice Release an expired reservation. Callable by anyone; not one on hold.
     function expireReservation(uint256 reservationId) external {
         Reservation storage r = _pending(reservationId);
+        if (pausedRemaining[reservationId] != 0) revert ReservationOnHold(reservationId);
         if (block.timestamp < r.expiresAt) revert ReservationNotYetExpired(reservationId, r.expiresAt);
         r.status = ReservationStatus.Expired;
         _projects[r.projectId].reservedSlots -= r.slots;
         emit ReservationExpired(reservationId, r.projectId);
     }
 
-    /// @notice Investor cancels their own pending reservation; admin can cancel any.
+    /// @notice Investor cancels their own pending reservation, but not while a
+    /// payment proof is under review; admin can cancel any.
     function cancelReservation(uint256 reservationId) external {
         Reservation storage r = _pending(reservationId);
         bool ownReservation = _hasRole(Roles.INVESTOR) && r.investorId == _callerId();
-        if (!ownReservation && !_hasRole(Roles.ADMIN)) revert NotAuthorized(msg.sender);
+        bool admin = _hasRole(Roles.ADMIN);
+        if (!ownReservation && !admin) revert NotAuthorized(msg.sender);
+        if (!admin && pausedRemaining[reservationId] != 0) revert ReservationOnHold(reservationId);
+        delete pausedRemaining[reservationId];
         r.status = ReservationStatus.Cancelled;
         _projects[r.projectId].reservedSlots -= r.slots;
         emit ReservationCancelled(reservationId, r.projectId, msg.sender);

@@ -10,3 +10,8 @@ if (!('location' in globalThis)) {
 if (typeof window !== 'undefined') {
   window.scrollTo = () => undefined;
 }
+
+// jsdom has no PointerEvent; Base UI's radios create one when clicked.
+if (typeof window !== 'undefined' && !('PointerEvent' in window)) {
+  Object.defineProperty(window, 'PointerEvent', { value: MouseEvent });
+}

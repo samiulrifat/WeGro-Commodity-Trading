@@ -348,7 +348,8 @@ describe('Projects (node + database)', () => {
       const job = chain.app.get(ReservationExpiryJob);
       await expect(job.run()).resolves.toBe(0); // not due yet
 
-      await chainTimeTravel(120 * 3600 + 1);
+      // The hold is 7 days.
+      await chainTimeTravel(7 * 24 * 3600 + 1);
       await expect(job.run()).resolves.toBe(1);
       const res = await as(investor).get(`/reservations/${id}`).expect(200);
       expect(res.body.data.status).toBe('expired');

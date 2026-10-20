@@ -146,7 +146,7 @@ describe('Notifications (node + database)', () => {
 
     const reminders = chain.app.get(ReminderJob);
     await expect(reminders.run()).resolves.toBe(0); // not within 24 h yet
-    await travel(100 * 3600);
+    await travel(148 * 3600); // 20 h left of the 7-day hold
     await expect(reminders.run()).resolves.toBe(1);
     await expect(reminders.run()).resolves.toBe(0); // never twice
     const [reminder] = await ofKind(t.investor, 'reservation.expiring');

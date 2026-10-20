@@ -3,6 +3,7 @@ import { ChainState } from '../../users/entities/user.entity';
 import { ParticipantStatus, Role } from '../../users/roles';
 import { PersonNameDto } from '../../../common/swagger/refs';
 import { IdCheckReason } from '../id-check/id-check';
+import { OpenWorkKind, RevocationReason } from '../revocation';
 
 export class IdCheckItemDto {
   @ApiProperty({ example: 'NID_BIRTH_YEAR', description: 'The rule' })
@@ -70,8 +71,50 @@ export class ParticipantSummaryDto {
   @ApiPropertyOptional({ nullable: true, enum: ['passed', 'flagged'] })
   idCheckOutcome: 'passed' | 'flagged' | 'failed' | null;
 
+  @ApiProperty({
+    description:
+      'Rejected after being verified (left, dismissed...), rather than turned down at registration',
+  })
+  accessRevoked: boolean;
+
   @ApiProperty()
   createdAt: Date;
+}
+
+export class RevocationDto {
+  @ApiProperty({ enum: RevocationReason, enumName: 'RevocationReason' })
+  reason: RevocationReason;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  note: string | null;
+
+  @ApiProperty()
+  at: Date;
+
+  @ApiPropertyOptional({ nullable: true, type: PersonNameDto })
+  by: PersonNameDto | null;
+}
+
+export class OpenWorkItemDto {
+  @ApiProperty({ enum: OpenWorkKind, enumName: 'OpenWorkKind' })
+  kind: OpenWorkKind;
+
+  @ApiProperty({ minimum: 1 })
+  count: number;
+}
+
+export class OpenWorkDto {
+  @ApiProperty({
+    type: [OpenWorkItemDto],
+    description: 'What they still have open; empty when nothing is',
+  })
+  items: OpenWorkItemDto[];
+
+  @ApiProperty({
+    description:
+      'A field officer’s farmers, who must move to another officer in the same step',
+  })
+  farmersToMove: number;
 }
 
 /** Full record. Personal fields (phone included) are masked for roles that do not need them (auditor). */
@@ -134,6 +177,13 @@ export class ParticipantDetailDto extends ParticipantSummaryDto {
 
   @ApiPropertyOptional({ nullable: true, type: IdCheckDto })
   idCheck: IdCheckDto | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: RevocationDto,
+    description: 'Why and when their access was revoked (while it is)',
+  })
+  revocation: RevocationDto | null;
 }
 
 export class RegisteredParticipantDto {

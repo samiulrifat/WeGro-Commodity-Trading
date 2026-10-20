@@ -10,6 +10,7 @@ import {
 import { blockNumberTransformer } from '../../../blockchain/indexer/chain-event.entity';
 import { BaseEntity } from '../../../database/base.entity';
 import { Language } from '../language';
+import type { RevocationReason } from '../../participants/revocation';
 import { ParticipantStatus, Role } from '../roles';
 import { PersonalDetails } from './personal-details.entity';
 
@@ -113,9 +114,23 @@ export class User extends BaseEntity {
   @JoinColumn({ name: 'field_officer_id' })
   fieldOfficer?: User | null;
 
-  /** Why the person was rejected; kept off-chain. */
+  /** Why the person was rejected, or a note on why their access was revoked; kept off-chain. */
   @Column({ type: 'varchar', length: 300, nullable: true })
   statusReason: string | null;
+
+  /**
+   * Set when a verified person's access was revoked (left, dismissed...),
+   * as against being turned down at registration; cleared on restoring it.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  accessRevokedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  revocationReason: RevocationReason | null;
+
+  /** Who revoked it. */
+  @Column({ type: 'uuid', nullable: true })
+  accessRevokedById: string | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   statusChangedAt: Date | null;

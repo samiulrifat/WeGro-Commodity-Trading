@@ -26,10 +26,12 @@ import {
   ListParticipantsQueryDto,
   RegisterParticipantDto,
   RejectParticipantDto,
+  RevokeAccessDto,
   VerifyParticipantDto,
 } from './dto/participant-request.dto';
 import {
   IntegrityReportDto,
+  OpenWorkDto,
   ParticipantDetailDto,
   ParticipantSummaryDto,
   RegisteredParticipantDto,
@@ -118,6 +120,35 @@ export class ParticipantsController {
     @Body() dto: RejectParticipantDto,
   ): Promise<ParticipantDetailDto> {
     return this.participants.reject(actor, id, dto.reason);
+  }
+
+  @Get(':id/open-work')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @ApiOkResponse({
+    type: OpenWorkDto,
+    description: 'What they still have open, to see before revoking access',
+  })
+  openWork(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+  ): Promise<OpenWorkDto> {
+    return this.participants.openWork(actor, id);
+  }
+
+  @Post(':id/revoke')
+  @HttpCode(HttpStatus.OK)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @ApiOkResponse({
+    type: ParticipantDetailDto,
+    description:
+      'A verified person loses their role on the ledger and is signed out; their records stay. Verify restores access.',
+  })
+  revoke(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+    @Body() dto: RevokeAccessDto,
+  ): Promise<ParticipantDetailDto> {
+    return this.participants.revoke(actor, id, dto);
   }
 
   @Put(':id/field-officer')
