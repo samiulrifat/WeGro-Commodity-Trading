@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
+import { canRunProjects } from './permissions';
 
 type Move =
   'publish' | 'activate' | 'readyForSale' | 'close' | 'cancel' | 'remove';
@@ -66,7 +67,7 @@ export function StaffPanel({ project: p }: { project: ProjectDto }) {
   const role = useAppSelector((s) => s.session.user!.role);
   return (
     <>
-      {role === 'admin' && <Moves project={p} />}
+      {canRunProjects(role) && <Moves project={p} />}
       {LEDGER_CHECKERS.has(role) && p.chainState !== 'local' && (
         <LedgerCheck project={p} />
       )}

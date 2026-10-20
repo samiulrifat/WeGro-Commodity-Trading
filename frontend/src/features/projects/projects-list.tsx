@@ -25,6 +25,7 @@ import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/lib/utils';
 import { ProjectCard } from './project-card';
 import { type ProjectsSearch, STAGES, type Tab } from './projects-search';
+import { canRunProjects } from './permissions';
 
 const PAGE_SIZE = 12;
 const ANY = '';
@@ -101,7 +102,7 @@ export function ProjectsList({
           meta ? t('projects.count', { count: meta.total }) : undefined
         }
         actions={
-          role === 'admin' && (
+          canRunProjects(role) && (
             <Link to="/projects/new" className={buttonVariants()}>
               <Plus /> {t('projects.new')}
             </Link>

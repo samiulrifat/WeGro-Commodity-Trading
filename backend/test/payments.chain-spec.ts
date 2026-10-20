@@ -209,6 +209,35 @@ describe('Payments (node + database)', () => {
     });
   });
 
+  describe('the super admin', () => {
+    it('drafts, publishes and cancels a project like an admin', async () => {
+      const superAdmin = await demoToken(http, Role.SUPER_ADMIN);
+      const res = await as(superAdmin)
+        .post('/projects', {
+          title: `Super admin lentil ${RUN}`,
+          produceCode: 'LENTIL',
+          districtCode: 'BOGURA',
+          location: 'Sherpur upazila',
+          farmerId,
+          durationType: 'short_term',
+          durationMonths: 4,
+          fundingTarget: '50000',
+          slotPrice: '10000',
+          estimatedReturnMinBps: 600,
+          estimatedReturnMaxBps: 900,
+        })
+        .expect(201);
+      const id = res.body.data.id;
+      const published = await as(superAdmin)
+        .post(`/projects/${id}/publish`)
+        .expect(200);
+      expect(published.body.data.stage).toBe('open_for_funding');
+      await as(superAdmin).post(`/projects/${id}/cancel`).expect(200);
+      // Still not Accounts' to do.
+      await as(accounts).post(`/projects/${id}/publish`).expect(403);
+    });
+  });
+
   describe('proofs', () => {
     let booking: number;
     let first: string;

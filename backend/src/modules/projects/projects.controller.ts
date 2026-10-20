@@ -73,7 +73,7 @@ export class ProjectsController {
   ) {}
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiCreatedResponse({
     type: ProjectDto,
     description: 'A draft, editable until published',
@@ -105,7 +105,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @ApiOkResponse({ type: ProjectDto, description: 'Drafts only' })
   update(
     @Param('id', uuid) id: string,
@@ -115,7 +115,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Drafts only' })
   remove(@Param('id', uuid) id: string): Promise<void> {
@@ -123,7 +123,7 @@ export class ProjectsController {
   }
 
   @Post(':id/publish')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -137,7 +137,7 @@ export class ProjectsController {
   }
 
   @Post(':id/activate')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -152,7 +152,7 @@ export class ProjectsController {
   }
 
   @Post(':id/ready-for-sale')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ProjectDto })
   readyForSale(
@@ -163,7 +163,7 @@ export class ProjectsController {
   }
 
   @Post(':id/close')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ProjectDto })
   close(
@@ -174,7 +174,7 @@ export class ProjectsController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -188,7 +188,7 @@ export class ProjectsController {
   }
 
   @Post(':id/cover')
-  @Roles(Role.ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('file', {
@@ -370,7 +370,7 @@ export class ReservationsController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.INVESTOR, Role.ADMIN)
+  @Roles(Role.INVESTOR, Role.SUPER_ADMIN, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ReservationDto })
   cancel(

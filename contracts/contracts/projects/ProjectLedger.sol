@@ -172,7 +172,7 @@ contract ProjectLedger is AccessGuarded {
         emit LinkedContractSet(account, allowed);
     }
 
-    function setReservationTtl(uint64 newTtl) external onlyRole(Roles.ADMIN) {
+    function setReservationTtl(uint64 newTtl) external onlyAdmin {
         if (newTtl == 0) revert ZeroValue();
         emit ReservationTtlUpdated(reservationTtl, newTtl);
         reservationTtl = newTtl;
@@ -180,7 +180,7 @@ contract ProjectLedger is AccessGuarded {
 
     // --- Project setup ---
 
-    function createProject(bytes32 projectId, ProjectTerms calldata terms) external onlyRole(Roles.ADMIN) {
+    function createProject(bytes32 projectId, ProjectTerms calldata terms) external onlyAdmin {
         if (projectId == bytes32(0) || terms.produceCode == bytes32(0) || terms.termsHash == bytes32(0)) {
             revert ZeroValue();
         }
@@ -208,7 +208,7 @@ contract ProjectLedger is AccessGuarded {
         emit ProjectStageChanged(projectId, Stage.None, Stage.Draft, msg.sender);
     }
 
-    function openForFunding(bytes32 projectId) external onlyRole(Roles.ADMIN) {
+    function openForFunding(bytes32 projectId) external onlyAdmin {
         _advance(projectId, Stage.Draft, Stage.OpenForFunding);
     }
 
@@ -231,12 +231,12 @@ contract ProjectLedger is AccessGuarded {
         _advance(projectId, Stage.ReadyForSale, Stage.PaidOut);
     }
 
-    function close(bytes32 projectId) external onlyRole(Roles.ADMIN) {
+    function close(bytes32 projectId) external onlyAdmin {
         _advance(projectId, Stage.PaidOut, Stage.Closed);
     }
 
     /// @notice Cancel before Active. Slot holders are owed refunds, recorded via `recordRefund`.
-    function cancelProject(bytes32 projectId) external onlyRole(Roles.ADMIN) {
+    function cancelProject(bytes32 projectId) external onlyAdmin {
         Project storage p = _existing(projectId);
         Stage current = p.stage;
         if (current != Stage.Draft && current != Stage.OpenForFunding && current != Stage.Funded) {
@@ -356,11 +356,11 @@ contract ProjectLedger is AccessGuarded {
     }
 
     /// @notice Investor cancels their own pending reservation, but not while a
-    /// payment proof is under review; admin can cancel any.
+    /// payment proof is under review; an admin or the super admin can cancel any.
     function cancelReservation(uint256 reservationId) external {
         Reservation storage r = _pending(reservationId);
         bool ownReservation = _hasRole(Roles.INVESTOR) && r.investorId == _callerId();
-        bool admin = _hasRole(Roles.ADMIN);
+        bool admin = _isAdmin();
         if (!ownReservation && !admin) revert NotAuthorized(msg.sender);
         if (!admin && pausedRemaining[reservationId] != 0) revert ReservationOnHold(reservationId);
         delete pausedRemaining[reservationId];
@@ -421,7 +421,7 @@ contract ProjectLedger is AccessGuarded {
     }
 
     function _requireAdminOrLinked() private view {
-        if (!_hasRole(Roles.ADMIN) && !isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
+        if (!_isAdmin() && !isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
     }
 
     function _useRef(bytes32 paymentRefHash) private {

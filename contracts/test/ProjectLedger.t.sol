@@ -180,6 +180,27 @@ contract ProjectLedgerTest is Test {
         ledger.createProject(PROJECT, t);
     }
 
+    function test_SuperAdminRunsProjectsLikeAnAdmin() public {
+        ProjectLedger.ProjectTerms memory t = _maizeTerms();
+        vm.startPrank(superAdmin);
+        vm.expectEmit(address(ledger));
+        emit ProjectLedger.ProjectStageChanged(PROJECT, ProjectLedger.Stage.None, ProjectLedger.Stage.Draft, superAdmin);
+        ledger.createProject(PROJECT, t);
+        ledger.openForFunding(PROJECT);
+        vm.stopPrank();
+        uint256 id = _reserve(NASRIN, 4);
+        vm.startPrank(superAdmin);
+        // Any booking, like an admin, and the project itself.
+        ledger.cancelReservation(id);
+        ledger.cancelProject(PROJECT);
+        vm.stopPrank();
+        assertEq(uint8(ledger.getProject(PROJECT).stage), uint8(ProjectLedger.Stage.Cancelled));
+        // Others still cannot.
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, accounts, ADMIN));
+        ledger.createProject(keccak256("OTHER"), t);
+    }
+
     function test_CreateTwiceReverts() public {
         _create(_maizeTerms());
         ProjectLedger.ProjectTerms memory t = _maizeTerms();
