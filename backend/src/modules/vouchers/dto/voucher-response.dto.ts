@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BatchStatus, SaleStatus, VoucherStatus } from '../voucher.enums';
 
-class RefDto {
+export class RefDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
@@ -40,6 +40,15 @@ export class VoucherSaleDto {
 
   @ApiProperty({ type: RefDto })
   supplier: RefDto;
+
+  @ApiProperty({ type: RefDto, description: "The voucher's farmer" })
+  farmer: RefDto;
+
+  @ApiProperty({ type: RefDto, description: "The voucher's project" })
+  project: RefDto;
+
+  @ApiProperty({ type: InputRefDto })
+  input: InputRefDto;
 
   @ApiProperty()
   quantity: number;

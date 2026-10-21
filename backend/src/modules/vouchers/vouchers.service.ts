@@ -9,12 +9,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ContractTransaction } from 'ethers';
 import {
+  Brackets,
   DataSource,
   In,
   type Repository,
   type SelectQueryBuilder,
 } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
+import { PersonSearch } from '../users/person-search';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
 import type { VoucherRegistry } from '../../blockchain/generated';
@@ -34,11 +36,13 @@ import { isExpired } from './batch-dates';
 import { BatchesService } from './batches.service';
 import type {
   ListSalesQueryDto,
+  ListSuppliersQueryDto,
   ListVouchersQueryDto,
   ProposeVoucherDto,
   RecordSaleDto,
 } from './dto/voucher-request.dto';
 import type {
+  RefDto,
   VoucherDetailDto,
   VoucherDto,
   VoucherSaleDto,
@@ -90,6 +94,7 @@ export class VouchersService {
     private readonly receipts: ReceiptApplier,
     private readonly contracts: ContractsRegistry,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {}
 
   // --- Vouchers ---
@@ -271,6 +276,7 @@ export class VouchersService {
     if (q.status) qb.andWhere('v.status = :st', { st: q.status });
     if (q.inputTypeCode)
       qb.andWhere('v.input_type_code = :it', { it: q.inputTypeCode });
+    this.searchVouchers(qb, q.q);
     const now = await this.clock.now();
     if (q.inactive) {
       qb.andWhere(
@@ -421,12 +427,89 @@ export class VouchersService {
     }
     if (q.status) qb.andWhere('s.status = :st', { st: q.status });
     if (q.voucherId) qb.andWhere('s.voucher_id = :vid', { vid: q.voucherId });
+    this.searchSales(qb, q.q);
     const [rows, total] = await qb
       .orderBy('s.id', 'DESC')
       .skip(q.skip)
       .take(q.limit)
       .getManyAndCount();
     return new Paginated(await this.saleDtos(rows), total, q);
+  }
+
+  /**
+   * Suppliers a voucher may name (verified, on the ledger): ids and names
+   * only, for those who propose vouchers without seeing everyone's records.
+   */
+  async suppliersToChoose(
+    q: ListSuppliersQueryDto,
+  ): Promise<Paginated<RefDto>> {
+    const qb = this.users
+      .createQueryBuilder('u')
+      .select(['u.id'])
+      .where('u.role = :role AND u.status = :status', {
+        role: Role.SUPPLIER,
+        status: ParticipantStatus.VERIFIED,
+      })
+      .andWhere('u.chain_state = :confirmed', {
+        confirmed: ChainState.CONFIRMED,
+      });
+    const person = this.search.condition('u.id', q.q, 'Supplier');
+    if (person) qb.andWhere(person.sql, person.params);
+    const [rows, total] = await qb
+      .orderBy('u.createdAt', 'ASC')
+      .addOrderBy('u.id', 'ASC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
+    const names = await this.views.names(rows.map((u) => u.id));
+    return new Paginated(
+      rows.map((u) => ({ id: u.id, name: names.get(u.id) ?? '' })),
+      total,
+      q,
+    );
+  }
+
+  // --- Search ---
+
+  /** Every word starting a word of the project's title, or the farmer found as a person. */
+  private searchVouchers(
+    qb: SelectQueryBuilder<Voucher>,
+    q: string | undefined,
+  ) {
+    const text = (q ?? '').trim();
+    if (!text) return;
+    const words = text.split(/\s+/).slice(0, 5);
+    const title = words.map((_, i) => `p.title ~* :vw${i}`).join(' AND ');
+    const farmer = this.search.condition('v.farmer_id', text, 'Farmer');
+    qb.andWhere(
+      new Brackets((b) => {
+        b.where(
+          `v.project_id IN (SELECT p.id FROM projects p WHERE ${title})`,
+          Object.fromEntries(words.map((w, i) => [`vw${i}`, wordStart(w)])),
+        );
+        if (farmer) b.orWhere(farmer.sql, farmer.params);
+      }),
+    );
+  }
+
+  /** A sale number, or the supplier or farmer found as a person. */
+  private searchSales(
+    qb: SelectQueryBuilder<VoucherSale>,
+    q: string | undefined,
+  ) {
+    const text = (q ?? '').trim();
+    if (!text) return;
+    const number = /^#?(\d{1,12})$/.exec(text);
+    const supplier = this.search.condition('s.supplier_id', text, 'Supplier');
+    const farmer = this.search.condition('v.farmer_id', text, 'Farmer');
+    qb.andWhere(
+      new Brackets((b) => {
+        b.where('1 = 0');
+        if (number) b.orWhere('s.id = :saleNo', { saleNo: Number(number[1]) });
+        if (supplier) b.orWhere(supplier.sql, supplier.params);
+        if (farmer) b.orWhere(farmer.sql, farmer.params);
+      }),
+    );
   }
 
   // --- Rules ---
@@ -700,19 +783,45 @@ export class VouchersService {
       list.push({ id: l.batch_id, lotNumber: l.lot_number });
       batches.set(key, list);
     }
-    const names = await this.views.names(rows.map((s) => s.supplierId));
-    return rows.map((s) => ({
-      id: s.id,
-      voucherId: s.voucherId,
-      supplier: { id: s.supplierId, name: names.get(s.supplierId) ?? '' },
-      quantity: s.quantity,
-      amount: poishaToTaka(s.amount),
-      status: s.status!,
-      recordedAt: s.recordedAt,
-      expiresAt: s.expiresAt,
-      closedAt: s.closedAt,
-      batches: batches.get(s.id) ?? [],
-    }));
+    const vouchers = await this.vouchers.find({
+      where: { id: In([...new Set(rows.map((s) => s.voucherId))]) },
+      select: {
+        id: true,
+        projectId: true,
+        farmerId: true,
+        inputTypeCode: true,
+      },
+    });
+    const voucherOf = new Map(vouchers.map((v) => [v.id, v]));
+    const [names, projects] = await Promise.all([
+      this.views.names([
+        ...rows.map((s) => s.supplierId),
+        ...vouchers.map((v) => v.farmerId),
+      ]),
+      this.projects.find({
+        where: { id: In([...new Set(vouchers.map((v) => v.projectId))]) },
+        select: { id: true, title: true },
+      }),
+    ]);
+    const titles = new Map(projects.map((p) => [p.id, p.title]));
+    return rows.map((s) => {
+      const v = voucherOf.get(s.voucherId)!;
+      return {
+        id: s.id,
+        voucherId: s.voucherId,
+        supplier: { id: s.supplierId, name: names.get(s.supplierId) ?? '' },
+        farmer: { id: v.farmerId, name: names.get(v.farmerId) ?? '' },
+        project: { id: v.projectId, name: titles.get(v.projectId) ?? '' },
+        input: this.batches.inputRef(v.inputTypeCode),
+        quantity: s.quantity,
+        amount: poishaToTaka(s.amount),
+        status: s.status!,
+        recordedAt: s.recordedAt,
+        expiresAt: s.expiresAt,
+        closedAt: s.closedAt,
+        batches: batches.get(s.id) ?? [],
+      };
+    });
   }
 }
 
@@ -732,4 +841,9 @@ export function inactiveSince(
     v.lastActivityAt.getTime() + v.inactivityLimitDays * DAY_MS,
   );
   return deadline <= now ? deadline : null;
+}
+
+/** A word start for a case-insensitive Postgres regex, special characters escaped. */
+function wordStart(word: string): string {
+  return `(^|[^[:alnum:]])${word.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`;
 }

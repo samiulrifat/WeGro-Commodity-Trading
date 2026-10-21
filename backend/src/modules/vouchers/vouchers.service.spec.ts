@@ -122,6 +122,7 @@ describe('VouchersService', () => {
     const vouchers = fakeRepo({
       findOneBy: jest.fn(() => Promise.resolve(voucher)),
       findOneByOrFail: jest.fn(() => Promise.resolve(voucher)),
+      find: jest.fn(() => Promise.resolve(voucher ? [voucher] : [])),
       createQueryBuilder: jest.fn(
         () => fakeQueryBuilder({ getOne: voucher }).qb,
       ),
@@ -161,6 +162,7 @@ describe('VouchersService', () => {
       { apply: jest.fn(() => Promise.resolve()) } as never,
       { get: () => registry } as never,
       fakeClock(NOW) as never,
+      { condition: () => null } as never,
     );
     return { service, chain, inserted, deleted, vouchers };
   };

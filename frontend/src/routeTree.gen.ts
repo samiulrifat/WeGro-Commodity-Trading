@@ -21,6 +21,7 @@ import { Route as AppNotificationsRouteImport } from './routes/_app/notification
 import { Route as AppStatusRouteImport } from './routes/_app/status'
 import { Route as AppAuditIndexRouteImport } from './routes/_app/audit/index'
 import { Route as AppBatchesIndexRouteImport } from './routes/_app/batches/index'
+import { Route as AppBatchesBatchIdRouteImport } from './routes/_app/batches/$batchId'
 import { Route as AppCatalogIndexRouteImport } from './routes/_app/catalog/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/_app/dashboard/index'
 import { Route as AppFarmUpdatesIndexRouteImport } from './routes/_app/farm-updates/index'
@@ -45,7 +46,11 @@ import { Route as AppStatementIndexRouteImport } from './routes/_app/statement/i
 import { Route as AppSystemIndexRouteImport } from './routes/_app/system/index'
 import { Route as AppTrackRecordsIndexRouteImport } from './routes/_app/track-records/index'
 import { Route as AppVouchersIndexRouteImport } from './routes/_app/vouchers/index'
+import { Route as AppVouchersVoucherIdRouteImport } from './routes/_app/vouchers/$voucherId'
+import { Route as AppVouchersPendingRouteImport } from './routes/_app/vouchers/pending'
+import { Route as AppVouchersSalesRouteImport } from './routes/_app/vouchers/sales'
 import { Route as AppWarehouseIndexRouteImport } from './routes/_app/warehouse/index'
+import { Route as VerifyBatchBatchIdRouteImport } from './routes/verify/batch.$batchId'
 import { Route as AppBankFarmersIndexRouteImport } from './routes/_app/bank/farmers/index'
 import { Route as AppCatalogFarmUpdateTypesIndexRouteImport } from './routes/_app/catalog/farm-update-types/index'
 import { Route as AppCatalogFarmUpdateTypesCodeRouteImport } from './routes/_app/catalog/farm-update-types/$code'
@@ -62,6 +67,8 @@ import { Route as AppPeopleChangesIndexRouteImport } from './routes/_app/people/
 import { Route as AppPeopleChangesChangeIdRouteImport } from './routes/_app/people/changes/$changeId'
 import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/_app/projects/$projectId/index'
 import { Route as AppProjectsProjectIdEditRouteImport } from './routes/_app/projects/$projectId/edit'
+import { Route as AppVouchersBatchesIndexRouteImport } from './routes/_app/vouchers/batches/index'
+import { Route as AppVouchersBatchesBatchIdRouteImport } from './routes/_app/vouchers/batches/$batchId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -120,6 +127,11 @@ const AppAuditIndexRoute = AppAuditIndexRouteImport.update({
 const AppBatchesIndexRoute = AppBatchesIndexRouteImport.update({
   id: '/batches/',
   path: '/batches/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBatchesBatchIdRoute = AppBatchesBatchIdRouteImport.update({
+  id: '/batches/$batchId',
+  path: '/batches/$batchId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCatalogIndexRoute = AppCatalogIndexRouteImport.update({
@@ -243,10 +255,30 @@ const AppVouchersIndexRoute = AppVouchersIndexRouteImport.update({
   path: '/vouchers/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVouchersVoucherIdRoute = AppVouchersVoucherIdRouteImport.update({
+  id: '/vouchers/$voucherId',
+  path: '/vouchers/$voucherId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVouchersPendingRoute = AppVouchersPendingRouteImport.update({
+  id: '/vouchers/pending',
+  path: '/vouchers/pending',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVouchersSalesRoute = AppVouchersSalesRouteImport.update({
+  id: '/vouchers/sales',
+  path: '/vouchers/sales',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppWarehouseIndexRoute = AppWarehouseIndexRouteImport.update({
   id: '/warehouse/',
   path: '/warehouse/',
   getParentRoute: () => AppRoute,
+} as any)
+const VerifyBatchBatchIdRoute = VerifyBatchBatchIdRouteImport.update({
+  id: '/verify/batch/$batchId',
+  path: '/verify/batch/$batchId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppBankFarmersIndexRoute = AppBankFarmersIndexRouteImport.update({
   id: '/bank/farmers/',
@@ -336,6 +368,17 @@ const AppProjectsProjectIdEditRoute =
     path: '/projects/$projectId/edit',
     getParentRoute: () => AppRoute,
   } as any)
+const AppVouchersBatchesIndexRoute = AppVouchersBatchesIndexRouteImport.update({
+  id: '/vouchers/batches/',
+  path: '/vouchers/batches/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVouchersBatchesBatchIdRoute =
+  AppVouchersBatchesBatchIdRouteImport.update({
+    id: '/vouchers/batches/$batchId',
+    path: '/vouchers/batches/$batchId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -347,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
+  '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
@@ -356,6 +400,10 @@ export interface FileRoutesByFullPath {
   '/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
   '/projects/payments': typeof AppProjectsPaymentsRoute
   '/projects/refunds': typeof AppProjectsRefundsRoute
+  '/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
+  '/vouchers/pending': typeof AppVouchersPendingRoute
+  '/vouchers/sales': typeof AppVouchersSalesRoute
+  '/verify/batch/$batchId': typeof VerifyBatchBatchIdRoute
   '/audit/': typeof AppAuditIndexRoute
   '/batches/': typeof AppBatchesIndexRoute
   '/catalog/': typeof AppCatalogIndexRoute
@@ -382,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/bank/farmers/': typeof AppBankFarmersIndexRoute
   '/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/catalog/inputs/': typeof AppCatalogInputsIndexRoute
@@ -390,6 +439,7 @@ export interface FileRoutesByFullPath {
   '/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
   '/people/changes/': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
@@ -401,6 +451,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
   '/': typeof AppIndexRoute
+  '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
@@ -410,6 +461,10 @@ export interface FileRoutesByTo {
   '/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
   '/projects/payments': typeof AppProjectsPaymentsRoute
   '/projects/refunds': typeof AppProjectsRefundsRoute
+  '/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
+  '/vouchers/pending': typeof AppVouchersPendingRoute
+  '/vouchers/sales': typeof AppVouchersSalesRoute
+  '/verify/batch/$batchId': typeof VerifyBatchBatchIdRoute
   '/audit': typeof AppAuditIndexRoute
   '/batches': typeof AppBatchesIndexRoute
   '/catalog': typeof AppCatalogIndexRoute
@@ -436,6 +491,7 @@ export interface FileRoutesByTo {
   '/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/bank/farmers': typeof AppBankFarmersIndexRoute
   '/catalog/farm-update-types': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/catalog/inputs': typeof AppCatalogInputsIndexRoute
@@ -444,6 +500,7 @@ export interface FileRoutesByTo {
   '/catalog/weather-events': typeof AppCatalogWeatherEventsIndexRoute
   '/people/changes': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
+  '/vouchers/batches': typeof AppVouchersBatchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -457,6 +514,7 @@ export interface FileRoutesById {
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/status': typeof AppStatusRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/_app/people/$personId': typeof AppPeoplePersonIdRoute
   '/_app/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/_app/people/new': typeof AppPeopleNewRoute
@@ -466,6 +524,10 @@ export interface FileRoutesById {
   '/_app/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
   '/_app/projects/payments': typeof AppProjectsPaymentsRoute
   '/_app/projects/refunds': typeof AppProjectsRefundsRoute
+  '/_app/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
+  '/_app/vouchers/pending': typeof AppVouchersPendingRoute
+  '/_app/vouchers/sales': typeof AppVouchersSalesRoute
+  '/verify/batch/$batchId': typeof VerifyBatchBatchIdRoute
   '/_app/audit/': typeof AppAuditIndexRoute
   '/_app/batches/': typeof AppBatchesIndexRoute
   '/_app/catalog/': typeof AppCatalogIndexRoute
@@ -492,6 +554,7 @@ export interface FileRoutesById {
   '/_app/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/_app/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/_app/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/_app/bank/farmers/': typeof AppBankFarmersIndexRoute
   '/_app/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/_app/catalog/inputs/': typeof AppCatalogInputsIndexRoute
@@ -500,6 +563,7 @@ export interface FileRoutesById {
   '/_app/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
   '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
   '/_app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/_app/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -513,6 +577,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/notifications'
     | '/status'
+    | '/batches/$batchId'
     | '/people/$personId'
     | '/people/bank-details'
     | '/people/new'
@@ -522,6 +587,10 @@ export interface FileRouteTypes {
     | '/projects/payment-accounts'
     | '/projects/payments'
     | '/projects/refunds'
+    | '/vouchers/$voucherId'
+    | '/vouchers/pending'
+    | '/vouchers/sales'
+    | '/verify/batch/$batchId'
     | '/audit/'
     | '/batches/'
     | '/catalog/'
@@ -548,6 +617,7 @@ export interface FileRouteTypes {
     | '/holdings/bookings/$bookingId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
+    | '/vouchers/batches/$batchId'
     | '/bank/farmers/'
     | '/catalog/farm-update-types/'
     | '/catalog/inputs/'
@@ -556,6 +626,7 @@ export interface FileRouteTypes {
     | '/catalog/weather-events/'
     | '/people/changes/'
     | '/projects/$projectId/'
+    | '/vouchers/batches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
@@ -567,6 +638,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/status'
     | '/'
+    | '/batches/$batchId'
     | '/people/$personId'
     | '/people/bank-details'
     | '/people/new'
@@ -576,6 +648,10 @@ export interface FileRouteTypes {
     | '/projects/payment-accounts'
     | '/projects/payments'
     | '/projects/refunds'
+    | '/vouchers/$voucherId'
+    | '/vouchers/pending'
+    | '/vouchers/sales'
+    | '/verify/batch/$batchId'
     | '/audit'
     | '/batches'
     | '/catalog'
@@ -602,6 +678,7 @@ export interface FileRouteTypes {
     | '/holdings/bookings/$bookingId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
+    | '/vouchers/batches/$batchId'
     | '/bank/farmers'
     | '/catalog/farm-update-types'
     | '/catalog/inputs'
@@ -610,6 +687,7 @@ export interface FileRouteTypes {
     | '/catalog/weather-events'
     | '/people/changes'
     | '/projects/$projectId'
+    | '/vouchers/batches'
   id:
     | '__root__'
     | '/_app'
@@ -622,6 +700,7 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/status'
     | '/_app/'
+    | '/_app/batches/$batchId'
     | '/_app/people/$personId'
     | '/_app/people/bank-details'
     | '/_app/people/new'
@@ -631,6 +710,10 @@ export interface FileRouteTypes {
     | '/_app/projects/payment-accounts'
     | '/_app/projects/payments'
     | '/_app/projects/refunds'
+    | '/_app/vouchers/$voucherId'
+    | '/_app/vouchers/pending'
+    | '/_app/vouchers/sales'
+    | '/verify/batch/$batchId'
     | '/_app/audit/'
     | '/_app/batches/'
     | '/_app/catalog/'
@@ -657,6 +740,7 @@ export interface FileRouteTypes {
     | '/_app/holdings/bookings/$bookingId'
     | '/_app/people/changes/$changeId'
     | '/_app/projects/$projectId/edit'
+    | '/_app/vouchers/batches/$batchId'
     | '/_app/bank/farmers/'
     | '/_app/catalog/farm-update-types/'
     | '/_app/catalog/inputs/'
@@ -665,6 +749,7 @@ export interface FileRouteTypes {
     | '/_app/catalog/weather-events/'
     | '/_app/people/changes/'
     | '/_app/projects/$projectId/'
+    | '/_app/vouchers/batches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -674,6 +759,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   RegisterRoute: typeof RegisterRoute
   SignInRoute: typeof SignInRoute
+  VerifyBatchBatchIdRoute: typeof VerifyBatchBatchIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -760,6 +846,13 @@ declare module '@tanstack/react-router' {
       path: '/batches'
       fullPath: '/batches/'
       preLoaderRoute: typeof AppBatchesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/batches/$batchId': {
+      id: '/_app/batches/$batchId'
+      path: '/batches/$batchId'
+      fullPath: '/batches/$batchId'
+      preLoaderRoute: typeof AppBatchesBatchIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/catalog/': {
@@ -930,12 +1023,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVouchersIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/vouchers/$voucherId': {
+      id: '/_app/vouchers/$voucherId'
+      path: '/vouchers/$voucherId'
+      fullPath: '/vouchers/$voucherId'
+      preLoaderRoute: typeof AppVouchersVoucherIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vouchers/pending': {
+      id: '/_app/vouchers/pending'
+      path: '/vouchers/pending'
+      fullPath: '/vouchers/pending'
+      preLoaderRoute: typeof AppVouchersPendingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vouchers/sales': {
+      id: '/_app/vouchers/sales'
+      path: '/vouchers/sales'
+      fullPath: '/vouchers/sales'
+      preLoaderRoute: typeof AppVouchersSalesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/warehouse/': {
       id: '/_app/warehouse/'
       path: '/warehouse'
       fullPath: '/warehouse/'
       preLoaderRoute: typeof AppWarehouseIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/verify/batch/$batchId': {
+      id: '/verify/batch/$batchId'
+      path: '/verify/batch/$batchId'
+      fullPath: '/verify/batch/$batchId'
+      preLoaderRoute: typeof VerifyBatchBatchIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/bank/farmers/': {
       id: '/_app/bank/farmers/'
@@ -1049,6 +1170,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsProjectIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/vouchers/batches/': {
+      id: '/_app/vouchers/batches/'
+      path: '/vouchers/batches'
+      fullPath: '/vouchers/batches/'
+      preLoaderRoute: typeof AppVouchersBatchesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/vouchers/batches/$batchId': {
+      id: '/_app/vouchers/batches/$batchId'
+      path: '/vouchers/batches/$batchId'
+      fullPath: '/vouchers/batches/$batchId'
+      preLoaderRoute: typeof AppVouchersBatchesBatchIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -1057,6 +1192,7 @@ interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppStatusRoute: typeof AppStatusRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppBatchesBatchIdRoute: typeof AppBatchesBatchIdRoute
   AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
   AppPeopleBankDetailsRoute: typeof AppPeopleBankDetailsRoute
   AppPeopleNewRoute: typeof AppPeopleNewRoute
@@ -1066,6 +1202,9 @@ interface AppRouteChildren {
   AppProjectsPaymentAccountsRoute: typeof AppProjectsPaymentAccountsRoute
   AppProjectsPaymentsRoute: typeof AppProjectsPaymentsRoute
   AppProjectsRefundsRoute: typeof AppProjectsRefundsRoute
+  AppVouchersVoucherIdRoute: typeof AppVouchersVoucherIdRoute
+  AppVouchersPendingRoute: typeof AppVouchersPendingRoute
+  AppVouchersSalesRoute: typeof AppVouchersSalesRoute
   AppAuditIndexRoute: typeof AppAuditIndexRoute
   AppBatchesIndexRoute: typeof AppBatchesIndexRoute
   AppCatalogIndexRoute: typeof AppCatalogIndexRoute
@@ -1092,6 +1231,7 @@ interface AppRouteChildren {
   AppHoldingsBookingsBookingIdRoute: typeof AppHoldingsBookingsBookingIdRoute
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
   AppProjectsProjectIdEditRoute: typeof AppProjectsProjectIdEditRoute
+  AppVouchersBatchesBatchIdRoute: typeof AppVouchersBatchesBatchIdRoute
   AppBankFarmersIndexRoute: typeof AppBankFarmersIndexRoute
   AppCatalogFarmUpdateTypesIndexRoute: typeof AppCatalogFarmUpdateTypesIndexRoute
   AppCatalogInputsIndexRoute: typeof AppCatalogInputsIndexRoute
@@ -1100,6 +1240,7 @@ interface AppRouteChildren {
   AppCatalogWeatherEventsIndexRoute: typeof AppCatalogWeatherEventsIndexRoute
   AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
   AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
+  AppVouchersBatchesIndexRoute: typeof AppVouchersBatchesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1107,6 +1248,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
   AppStatusRoute: AppStatusRoute,
   AppIndexRoute: AppIndexRoute,
+  AppBatchesBatchIdRoute: AppBatchesBatchIdRoute,
   AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
   AppPeopleBankDetailsRoute: AppPeopleBankDetailsRoute,
   AppPeopleNewRoute: AppPeopleNewRoute,
@@ -1116,6 +1258,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppProjectsPaymentAccountsRoute: AppProjectsPaymentAccountsRoute,
   AppProjectsPaymentsRoute: AppProjectsPaymentsRoute,
   AppProjectsRefundsRoute: AppProjectsRefundsRoute,
+  AppVouchersVoucherIdRoute: AppVouchersVoucherIdRoute,
+  AppVouchersPendingRoute: AppVouchersPendingRoute,
+  AppVouchersSalesRoute: AppVouchersSalesRoute,
   AppAuditIndexRoute: AppAuditIndexRoute,
   AppBatchesIndexRoute: AppBatchesIndexRoute,
   AppCatalogIndexRoute: AppCatalogIndexRoute,
@@ -1142,6 +1287,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppHoldingsBookingsBookingIdRoute: AppHoldingsBookingsBookingIdRoute,
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
   AppProjectsProjectIdEditRoute: AppProjectsProjectIdEditRoute,
+  AppVouchersBatchesBatchIdRoute: AppVouchersBatchesBatchIdRoute,
   AppBankFarmersIndexRoute: AppBankFarmersIndexRoute,
   AppCatalogFarmUpdateTypesIndexRoute: AppCatalogFarmUpdateTypesIndexRoute,
   AppCatalogInputsIndexRoute: AppCatalogInputsIndexRoute,
@@ -1150,6 +1296,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCatalogWeatherEventsIndexRoute: AppCatalogWeatherEventsIndexRoute,
   AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
   AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
+  AppVouchersBatchesIndexRoute: AppVouchersBatchesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -1161,6 +1308,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   RegisterRoute: RegisterRoute,
   SignInRoute: SignInRoute,
+  VerifyBatchBatchIdRoute: VerifyBatchBatchIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

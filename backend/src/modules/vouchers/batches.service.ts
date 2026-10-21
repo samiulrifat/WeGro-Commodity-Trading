@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { Brackets, QueryFailedError, Repository } from 'typeorm';
+import { PersonSearch } from '../users/person-search';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
@@ -57,6 +58,7 @@ export class BatchesService {
     private readonly receipts: ReceiptApplier,
     private readonly contracts: ContractsRegistry,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {
     this.appUrl = config
       .get('PUBLIC_APP_URL', { infer: true })
@@ -143,6 +145,22 @@ export class BatchesService {
       qb.where('b.supplier_id = :me', { me: actor.id });
     if (q.inputTypeCode)
       qb.andWhere('b.input_type_code = :c', { c: q.inputTypeCode });
+    const text = (q.q ?? '').trim();
+    if (text) {
+      // Staff and officers may also find a supplier's batches by the supplier.
+      const supplier =
+        actor.role === Role.SUPPLIER
+          ? null
+          : this.search.condition('b.supplier_id', text, 'Supplier');
+      qb.andWhere(
+        new Brackets((w) => {
+          w.where('b.lot_number ILIKE :like', {
+            like: `%${escapeLike(text)}%`,
+          }).orWhere('b.manufacturer ILIKE :like');
+          if (supplier) w.orWhere(supplier.sql, supplier.params);
+        }),
+      );
+    }
     const [rows, total] = await qb
       .orderBy('b.created_at', 'DESC')
       .addOrderBy('b.id', 'ASC')
@@ -269,3 +287,6 @@ export function batchFingerprint(
     notes: b.notes,
   });
 }
+
+/** Typed text matched literally inside LIKE. */
+const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');

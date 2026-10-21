@@ -33,6 +33,7 @@ import {
   InactivityLimitDto,
   ListBatchesQueryDto,
   ListSalesQueryDto,
+  ListSuppliersQueryDto,
   ListVouchersQueryDto,
   ProposeVoucherDto,
   RecordSaleDto,
@@ -41,6 +42,7 @@ import {
 import {
   BatchDto,
   BatchVerificationDto,
+  RefDto,
   VoucherDetailDto,
   VoucherDto,
   VoucherSaleDto,
@@ -112,6 +114,14 @@ export class VouchersController {
     @Param('projectId', uuid) projectId: string,
   ): Promise<VoucherSummaryDto> {
     return this.vouchers.summary(projectId);
+  }
+
+  @Get('voucher-suppliers')
+  @ApiPaged()
+  @Roles(...STAFF)
+  @ApiOkResponse({ type: [RefDto] })
+  suppliers(@Query() query: ListSuppliersQueryDto): Promise<Paginated<RefDto>> {
+    return this.vouchers.suppliersToChoose(query);
   }
 
   @Get('vouchers')

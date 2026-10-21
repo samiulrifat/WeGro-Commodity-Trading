@@ -71,6 +71,7 @@ describe('BatchesService', () => {
       { apply: jest.fn(() => Promise.resolve()) } as never,
       contracts as never,
       fakeClock(NOW) as never,
+      { condition: () => null } as never,
     );
     return { service, batches, rows, chain };
   };

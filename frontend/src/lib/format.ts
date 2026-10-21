@@ -226,3 +226,7 @@ export function formatRelative(
   }
   return localDigits(rtf.format(0, 'second'), lang);
 }
+
+/** Today in Bangladesh, as a date field takes it (YYYY-MM-DD). */
+export const todayBd = () =>
+  new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);

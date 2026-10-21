@@ -24,6 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFormat } from '@/i18n/use-format';
+import { todayBd } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { usePaymentProofsSubmitMutation } from './api';
 import { toPoisha, typedTaka } from './project-math';
@@ -38,10 +39,6 @@ const TYPES = new Set([
   'image/webp',
   'application/pdf',
 ]);
-
-/** Today in Bangladesh, as the date field takes it. */
-const todayBd = () =>
-  new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
 
 /**
  * Sending proof of a transfer: how much (at most what is left), when, how,

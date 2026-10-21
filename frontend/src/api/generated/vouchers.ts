@@ -26,6 +26,20 @@ const injectedRtkApi = api
         }),
         providesTags: ['Vouchers'],
       }),
+      vouchersSuppliers: build.query<
+        VouchersSuppliersApiResponse,
+        VouchersSuppliersApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/voucher-suppliers`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Vouchers'],
+      }),
       vouchersList: build.query<VouchersListApiResponse, VouchersListApiArg>({
         query: (queryArg) => ({
           url: `/api/vouchers`,
@@ -36,6 +50,7 @@ const injectedRtkApi = api
             status: queryArg.status,
             inactive: queryArg.inactive,
             inputTypeCode: queryArg.inputTypeCode,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Vouchers'],
@@ -120,6 +135,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
             status: queryArg.status,
             voucherId: queryArg.voucherId,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Vouchers'],
@@ -162,6 +178,7 @@ const injectedRtkApi = api
             page: queryArg.page,
             limit: queryArg.limit,
             inputTypeCode: queryArg.inputTypeCode,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Vouchers'],
@@ -192,6 +209,16 @@ export type VouchersSummaryApiResponse =
 export type VouchersSummaryApiArg = {
   projectId: string;
 };
+export type VouchersSuppliersApiResponse = /** status 200  */ {
+  data: RefDto[];
+  meta: PageMetaDto;
+};
+export type VouchersSuppliersApiArg = {
+  page?: number;
+  limit?: number;
+  /** A mobile number, an NID or whole words of the name (every word must be in it) */
+  q?: string;
+};
 export type VouchersListApiResponse = /** status 200  */ {
   data: VoucherDto[];
   meta: PageMetaDto;
@@ -204,6 +231,8 @@ export type VouchersListApiArg = {
   /** Only vouchers past their inactivity limit */
   inactive?: boolean;
   inputTypeCode?: string;
+  /** Words of the project title, or the farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type VouchersFindOneApiResponse = /** status 200  */ {
   data: VoucherDetailDto;
@@ -259,6 +288,8 @@ export type VouchersListSalesApiArg = {
   limit?: number;
   status?: 'pending' | 'confirmed' | 'cancelled' | 'expired';
   voucherId?: string;
+  /** The sale number, or the supplier or farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type VouchersConfirmSaleApiResponse = /** status 200  */ {
   data: VoucherSaleDto;
@@ -286,6 +317,8 @@ export type BatchesListApiArg = {
   page?: number;
   limit?: number;
   inputTypeCode?: string;
+  /** Lot number or manufacturer (and, for staff, the supplier) */
+  q?: string;
 };
 export type BatchesFindOneApiResponse = /** status 200  */ {
   data: BatchDto;
@@ -311,6 +344,11 @@ export type VoucherSaleDto = {
   id: number;
   voucherId: string;
   supplier: RefDto;
+  /** The voucher's farmer */
+  farmer: RefDto;
+  /** The voucher's project */
+  project: RefDto;
+  input: InputRefDto;
   quantity: number;
   amount: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
@@ -363,6 +401,13 @@ export type VoucherSummaryDto = {
   /** In sales awaiting confirmation */
   pendingSales: string;
 };
+export type PageMetaDto = {
+  page: number;
+  limit: number;
+  /** Matching items on all pages */
+  total: number;
+  totalPages: number;
+};
 export type VoucherDto = {
   id: string;
   project: RefDto;
@@ -384,13 +429,6 @@ export type VoucherDto = {
   /** When the inactivity limit was passed, if it was */
   inactiveSince?: string | null;
   voidedAmount?: string | null;
-};
-export type PageMetaDto = {
-  page: number;
-  limit: number;
-  /** Matching items on all pages */
-  total: number;
-  totalPages: number;
 };
 export type InactivityLimitDto = {
   /** Days without activity before the voucher is flagged; null removes the limit */
@@ -434,6 +472,8 @@ export const {
   useVouchersProposeMutation,
   useVouchersSummaryQuery,
   useLazyVouchersSummaryQuery,
+  useVouchersSuppliersQuery,
+  useLazyVouchersSuppliersQuery,
   useVouchersListQuery,
   useLazyVouchersListQuery,
   useVouchersFindOneQuery,

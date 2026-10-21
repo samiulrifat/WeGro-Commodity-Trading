@@ -108,7 +108,11 @@ export type SubLabel =
   | 'drafts'
   | 'paymentConfirmations'
   | 'refunds'
-  | 'paymentAccounts';
+  | 'paymentAccounts'
+  | 'allVouchers'
+  | 'pendingVouchers'
+  | 'inputSales'
+  | 'inputBatches';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -126,7 +130,11 @@ export type SubPath =
   | '/projects/drafts'
   | '/projects/payments'
   | '/projects/refunds'
-  | '/projects/payment-accounts';
+  | '/projects/payment-accounts'
+  | '/vouchers'
+  | '/vouchers/pending'
+  | '/vouchers/sales'
+  | '/vouchers/batches';
 
 export interface SubPage {
   to: SubPath;
@@ -174,6 +182,18 @@ const REFUNDS = sub('/projects/refunds', 'refunds');
 const PAYMENT_ACCOUNTS = sub('/projects/payment-accounts', 'paymentAccounts');
 const projects = (...pages: SubPage[]) => item('projects', 'projects', pages);
 
+/** Vouchers: approval for the office, sales for officers and suppliers. */
+const ALL_VOUCHERS = sub('/vouchers', 'allVouchers');
+const PENDING_VOUCHERS = sub('/vouchers/pending', 'pendingVouchers');
+const INPUT_SALES = sub('/vouchers/sales', 'inputSales');
+const INPUT_BATCHES = sub('/vouchers/batches', 'inputBatches');
+const OFFICE_VOUCHERS = item('vouchers', 'vouchers', [
+  ALL_VOUCHERS,
+  PENDING_VOUCHERS,
+  INPUT_SALES,
+  INPUT_BATCHES,
+]);
+
 const OFFICE: NavItem[] = [
   item('dashboard', 'dashboard'),
   projects(ALL_PROJECTS, DRAFTS, PAYMENTS, REFUNDS),
@@ -184,7 +204,7 @@ const OFFICE: NavItem[] = [
     sub('/people/changes', 'detailChanges'),
     sub('/people/bank-details', 'bankDetails'),
   ]),
-  item('vouchers', 'vouchers'),
+  OFFICE_VOUCHERS,
   item('warehouse', 'warehouse'),
   item('marketplace', 'marketplace'),
   item('insurance', 'insurance'),
@@ -211,7 +231,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
   operations: [
     item('dashboard', 'dashboard'),
     item('projects', 'projects'),
-    item('vouchers', 'vouchers'),
+    OFFICE_VOUCHERS,
     catalog(...WHOLE_CATALOG),
     item('marketplace', 'marketplace'),
     item('warehouse', 'warehouse'),
@@ -220,7 +240,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
   accounts: [
     item('dashboard', 'dashboard'),
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS),
-    item('vouchers', 'vouchers'),
+    OFFICE_VOUCHERS,
     item('payouts', 'payouts'),
     item('marketplace', 'marketplace'),
     item('warehouse', 'warehouse'),
@@ -232,7 +252,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('audit', 'audit'),
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS),
     item('people', 'people'),
-    item('vouchers', 'vouchers'),
+    OFFICE_VOUCHERS,
     item('warehouse', 'warehouse'),
     item('marketplace', 'marketplace'),
     item('insurance', 'insurance'),
@@ -248,7 +268,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
       sub('/people/new', 'registerFarmer'),
     ]),
     item('projects', 'projects'),
-    item('vouchers', 'vouchers'),
+    item('vouchers', 'vouchers', [ALL_VOUCHERS, INPUT_SALES, INPUT_BATCHES]),
     item('warehouse', 'warehouse'),
     item('marketplace', 'marketplace'),
     item('insurance', 'insurance'),
@@ -272,7 +292,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     catalog(PRODUCE),
   ],
   supplier: [
-    item('vouchers', 'vouchersSales'),
+    item('vouchers', 'vouchersSales', [ALL_VOUCHERS, INPUT_SALES]),
     item('batches', 'batches'),
     catalog(INPUTS),
   ],

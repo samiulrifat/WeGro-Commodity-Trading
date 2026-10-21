@@ -201,3 +201,40 @@
     line-height: 1.65;
   }
 }
+
+/*
+ * Printing (components/print-sheet.tsx): only the sheet goes on paper.
+ * Label sheets fill A4 like the common 21-per-sheet stickers (3 × 7 of
+ * 63.5 × 38.1 mm), so the page carries no margin of its own.
+ */
+.print-sheet {
+  display: none;
+}
+@page labels {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  body.printing > :not(.print-sheet) {
+    display: none !important;
+  }
+  body.printing > .print-sheet {
+    display: block;
+    color: #000;
+    background: #fff;
+  }
+  .label-sheet {
+    page: labels;
+  }
+  .label-page {
+    display: grid;
+    grid-template-columns: repeat(3, 63.5mm);
+    grid-auto-rows: 38.1mm;
+    column-gap: 2.5mm;
+    padding: 15.1mm 7.2mm 0;
+    break-after: page;
+  }
+  .label-page:last-child {
+    break-after: auto;
+  }
+}

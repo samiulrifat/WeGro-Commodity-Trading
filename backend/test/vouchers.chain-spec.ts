@@ -507,6 +507,87 @@ describe('Vouchers (node + database)', () => {
       await as(t.investor).get(`/vouchers/${voucherId}`).expect(403);
     });
 
+    it('lets Operations pick suppliers without seeing everyone', async () => {
+      const picked = await as(t.operations)
+        .get(`/voucher-suppliers?q=${encodeURIComponent('second SUPPLIER')}`)
+        .expect(200);
+      expect(picked.body.data).toEqual([
+        { id: otherSupplier.id, name: 'Second Supplier' },
+      ]);
+      const all = (await as(t.operations).get('/voucher-suppliers?limit=100'))
+        .body.data;
+      expect(all.map((s: { id: string }) => s.id)).toEqual(
+        expect.arrayContaining([id.supplier, otherSupplier.id]),
+      );
+      expect(Object.keys(all[0]).sort()).toEqual(['id', 'name']);
+      await as(t.operations).get('/participants').expect(403);
+      await as(t.supplier).get('/voucher-suppliers').expect(403);
+    });
+
+    it('finds vouchers, sales and batches by what people know of them', async () => {
+      const found = async (token: string, path: string, q: string) =>
+        (
+          await as(token)
+            .get(`${path}?q=${encodeURIComponent(q)}`)
+            .expect(200)
+        ).body.data.map((r: { id: string | number }) => r.id);
+      const v = (await as(t.accounts).get(`/vouchers/${voucherId}`).expect(200))
+        .body.data;
+
+      // Vouchers: words of the project title from their start, or the farmer.
+      expect(await found(t.accounts, '/vouchers', 'MAIZE vouch')).toContain(
+        voucherId,
+      );
+      expect(await found(t.accounts, '/vouchers', 'aize')).not.toContain(
+        voucherId,
+      );
+      expect(await found(t.accounts, '/vouchers', v.farmer.name)).toContain(
+        voucherId,
+      );
+      expect(await found(t.accounts, '/vouchers', 'Second Supplier')).toEqual(
+        [],
+      );
+      // A supplier searching never reaches vouchers that do not name them.
+      expect(
+        await found(otherSupplier.token, '/vouchers', 'maize'),
+      ).not.toContain(voucherId);
+
+      // Sales: by number, by supplier, by farmer; with whose and what.
+      const sales = (
+        await as(t.accounts).get(`/voucher-sales?voucherId=${voucherId}`)
+      ).body.data;
+      const s = sales[0];
+      expect(s).toMatchObject({
+        farmer: { id: id.farmer, name: v.farmer.name },
+        project: { id: projectId, name: 'Maize for vouchers' },
+        input: { code: v.input.code },
+      });
+      expect(await found(t.accounts, '/voucher-sales', `#${s.id}`)).toEqual([
+        s.id,
+      ]);
+      expect(
+        await found(t.accounts, '/voucher-sales', s.supplier.name),
+      ).toContain(s.id);
+      expect(
+        await found(t.accounts, '/voucher-sales', v.farmer.name),
+      ).toContain(s.id);
+      expect(
+        await found(t.accounts, '/voucher-sales', 'Second Supplier'),
+      ).not.toContain(s.id);
+
+      // Batches: lot number or manufacturer; staff also by supplier.
+      expect(await found(t.supplier, '/batches', `kf-${RUN}`)).toContain(
+        batchId,
+      );
+      expect(await found(t.supplier, '/batches', '100%_')).toEqual([]);
+      expect(await found(t.operations, '/batches', s.supplier.name)).toContain(
+        batchId,
+      );
+      expect(await found(otherSupplier.token, '/batches', `KF-${RUN}`)).toEqual(
+        [],
+      );
+    });
+
     it("serves the farmer's voucher QR to those who may see the voucher", async () => {
       const qr = await as(t.farmer)
         .get(`/vouchers/${voucherId}/qr.svg`)

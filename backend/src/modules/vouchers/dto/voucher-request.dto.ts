@@ -109,6 +109,14 @@ export class ListVouchersQueryDto extends PaginationQueryDto {
   @IsOptional()
   @Matches(CODE_PATTERN)
   inputTypeCode?: string;
+  @ApiPropertyOptional({
+    description:
+      'Words of the project title, or the farmer: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 export class RecordSaleDto {
@@ -142,6 +150,25 @@ export class ListSalesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   voucherId?: string;
+  @ApiPropertyOptional({
+    description:
+      'The sale number, or the supplier or farmer: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+}
+
+export class ListSuppliersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    description:
+      'A mobile number, an NID or whole words of the name (every word must be in it)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 export class RegisterBatchDto {
@@ -206,4 +233,11 @@ export class ListBatchesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @Matches(CODE_PATTERN)
   inputTypeCode?: string;
+  @ApiPropertyOptional({
+    description: 'Lot number or manufacturer (and, for staff, the supplier)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
