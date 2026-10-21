@@ -193,7 +193,7 @@ describe('Vouchers (node + database)', () => {
           supplierIds: [id.supplier, id.supplier],
         })
         .expect(400);
-      await as(t.admin)
+      await as(t.accounts)
         .post(`/projects/${projectId}/vouchers`, {
           inputTypeCode: 'TSP',
           quantity: 1,
@@ -237,6 +237,32 @@ describe('Vouchers (node + database)', () => {
       await as(t.accounts)
         .post(`/vouchers/${proposed.body.data.id}/reject`)
         .expect(409);
+    });
+
+    it('lets an admin or the super admin propose too, but only Accounts approves', async () => {
+      const body = {
+        inputTypeCode: 'UREA',
+        quantity: 2,
+        unitPrice: '27.50',
+        supplierIds: [id.supplier],
+      };
+      for (const token of [t.accounts, t.supplier, t.field_officer]) {
+        await as(token)
+          .post(`/projects/${projectId}/vouchers`, body)
+          .expect(403);
+      }
+      for (const token of [t.admin, t.super_admin]) {
+        const res = await as(token)
+          .post(`/projects/${projectId}/vouchers`, body)
+          .expect(201);
+        expect(res.body.data.status).toBe('proposed');
+        await as(token)
+          .post(`/vouchers/${res.body.data.id}/approve`)
+          .expect(403);
+        await as(t.accounts)
+          .post(`/vouchers/${res.body.data.id}/reject`)
+          .expect(200);
+      }
     });
   });
 

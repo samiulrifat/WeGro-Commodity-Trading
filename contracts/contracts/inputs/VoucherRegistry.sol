@@ -157,8 +157,9 @@ contract VoucherRegistry is AccessGuarded {
 
     // --- Vouchers ---
 
-    /// @notice Operations proposes a voucher for the project's farmer at today's
-    /// market unit price, usable only at the listed suppliers.
+    /// @notice Operations (or an admin, or the super admin) proposes a voucher
+    /// for the project's farmer at today's market unit price, usable only at
+    /// the listed suppliers. Accounts alone approves it.
     function proposeVoucher(
         bytes32 voucherId,
         bytes32 projectId,
@@ -166,7 +167,8 @@ contract VoucherRegistry is AccessGuarded {
         uint256 quantity,
         uint256 unitPrice,
         bytes32[] calldata supplierIds
-    ) external onlyRole(Roles.OPERATIONS) {
+    ) external {
+        if (!_hasRole(Roles.OPERATIONS) && !_isAdmin()) revert MissingRole(msg.sender, Roles.OPERATIONS);
         if (voucherId == bytes32(0) || inputType == bytes32(0) || quantity == 0 || unitPrice == 0) revert ZeroValue();
         if (_vouchers[voucherId].status != VoucherStatus.None) revert VoucherExists(voucherId);
         if (supplierIds.length == 0 || supplierIds.length > MAX_SUPPLIERS_PER_VOUCHER) revert BadSupplierList();

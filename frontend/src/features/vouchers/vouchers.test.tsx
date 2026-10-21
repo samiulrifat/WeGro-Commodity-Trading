@@ -248,6 +248,32 @@ describe('proposing', () => {
   });
 });
 
+describe('who proposes', () => {
+  it('shows Propose Voucher to Operations, admins and the super admin, not Accounts', async () => {
+    const page = {
+      data: [],
+      meta: { page: 1, limit: 12, total: 0, totalPages: 0 },
+    };
+    for (const [role, shown] of [
+      ['operations', true],
+      ['admin', true],
+      ['super_admin', true],
+      ['accounts', false],
+    ] as const) {
+      await signedInAs(role);
+      fakeServer(({ url }) =>
+        url.pathname === '/api/vouchers' ? { body: page } : undefined,
+      );
+      await renderPage(<VouchersList search={{}} />, '/vouchers');
+      await screen.findByText('No Vouchers Yet');
+      expect(!!screen.queryByRole('button', { name: 'Propose Voucher' })).toBe(
+        shown,
+      );
+      cleanup();
+    }
+  });
+});
+
 describe('voucher page', () => {
   it('lets Accounts approve a proposed voucher', async () => {
     await signedInAs('accounts');

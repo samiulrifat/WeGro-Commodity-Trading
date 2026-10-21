@@ -95,3 +95,7 @@ export const voucherValue = (quantity: number, unitPrice: string) =>
 /** Whether a lot is past its expiry day (in Bangladesh). */
 export const isExpired = (b: Pick<BatchDto, 'expiresOn'>) =>
   !!b.expiresOn && b.expiresOn < todayBd();
+
+const PROPOSERS = new Set(['operations', 'admin', 'super_admin']);
+/** Who proposes vouchers (and discards one the ledger never got); Accounts approves. */
+export const canProposeVouchers = (role: string) => PROPOSERS.has(role);

@@ -21,6 +21,7 @@ import { useAppSelector } from '@/store/hooks';
 import { ProposeDialog } from './propose-dialog';
 import { VoucherStatus } from './status';
 import {
+  canProposeVouchers,
   usedShare,
   type VoucherListSearch,
   type VoucherTab,
@@ -94,7 +95,7 @@ export function VouchersList({
             : t(`vouchers.intro.${introKey(role)}`)
         }
         actions={
-          role === 'operations' && (
+          canProposeVouchers(role) && (
             <Button onClick={() => setProposing(true)}>
               <Plus /> {t('vouchers.propose')}
             </Button>

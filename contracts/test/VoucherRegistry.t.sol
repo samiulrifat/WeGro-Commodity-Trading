@@ -216,14 +216,28 @@ contract VoucherRegistryTest is Test {
         assertEq(uint8(_stage()), uint8(ProjectLedger.Stage.Funded)); // not yet Active
     }
 
-    function test_OnlyOperationsProposes() public {
+    function test_OnlyOperationsAndAdminsPropose() public {
         bytes32[] memory s = _suppliers();
-        address[2] memory others = [admin, accounts];
+        address[3] memory others = [accounts, imran, kamal];
         for (uint256 i = 0; i < others.length; i++) {
             vm.prank(others[i]);
             vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, others[i], OPERATIONS));
             vouchers.proposeVoucher(VOUCHER, PROJECT, SEED, 500, PRICE, s);
         }
+        vm.prank(admin);
+        vouchers.proposeVoucher(VOUCHER, PROJECT, SEED, 500, PRICE, s);
+        vm.prank(superAdmin);
+        vouchers.proposeVoucher(keccak256("voucher-2"), PROJECT, SEED, 500, PRICE, s);
+        assertEq(uint8(vouchers.getVoucher(VOUCHER).status), uint8(VoucherRegistry.VoucherStatus.Proposed));
+        assertEq(vouchers.committedValue(PROJECT), 2 * 500 * PRICE);
+    }
+
+    function test_AnAdminWhoProposesCannotApprove() public {
+        vm.prank(admin);
+        vouchers.proposeVoucher(VOUCHER, PROJECT, SEED, 500, PRICE, _suppliers());
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, admin, ACCOUNTS));
+        vouchers.approveVoucher(VOUCHER);
     }
 
     function test_ProposeRejectsBadInput() public {

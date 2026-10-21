@@ -19,6 +19,7 @@ import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
 import { ProposeDialog } from './propose-dialog';
 import { VoucherStatus } from './status';
+import { canProposeVouchers } from './voucher-search';
 
 const STAFF = new Set([
   'super_admin',
@@ -45,7 +46,7 @@ export function ProjectVouchers({ project: p }: { project: ProjectDto }) {
   return (
     <VouchersCard
       project={p}
-      canPropose={role === 'operations' && PROPOSABLE.has(p.stage)}
+      canPropose={canProposeVouchers(role) && PROPOSABLE.has(p.stage)}
     />
   );
 }

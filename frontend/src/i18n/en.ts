@@ -1846,7 +1846,7 @@ export const en = {
   vouchers: {
     forSupplier: 'Vouchers You Can Fill',
     mine: 'My Vouchers',
-    pendingIntro: 'Vouchers Operations proposed; approve them or reject them.',
+    pendingIntro: 'Proposed vouchers; approve them or reject them.',
     intro: {
       supplier:
         'Vouchers that name you as a supplier. When a farmer shows a voucher QR, scan it with your phone camera and record the sale.',
@@ -1855,7 +1855,7 @@ export const en = {
       officer:
         'Vouchers of your farmers. Confirm each sale once the farmer has received the goods.',
       office:
-        'Input vouchers for funded projects: proposed by Operations, approved by Accounts, filled by suppliers.',
+        'Input vouchers for funded projects: proposed by Operations or an admin, approved by Accounts, filled by suppliers.',
     },
     propose: 'Propose Voucher',
     proposeText:

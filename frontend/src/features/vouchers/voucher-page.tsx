@@ -50,7 +50,7 @@ import { latinDigits } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { SaleItem } from './sales-list';
 import { VoucherStatus } from './status';
-import { usedShare } from './voucher-search';
+import { canProposeVouchers, usedShare } from './voucher-search';
 
 type Move = 'approve' | 'reject' | 'cancel' | 'discard';
 const OPEN = new Set(['proposed', 'active']);
@@ -259,8 +259,7 @@ function movesFor(role: string, v: VoucherDetailDto): Move[] {
   if (role === 'accounts' && v.status === 'proposed')
     out.push('approve', 'reject');
   if (role === 'admin' && OPEN.has(v.status)) out.push('cancel');
-  if ((role === 'operations' || role === 'admin') && v.status === 'submitted')
-    out.push('discard');
+  if (canProposeVouchers(role) && v.status === 'submitted') out.push('discard');
   return out;
 }
 

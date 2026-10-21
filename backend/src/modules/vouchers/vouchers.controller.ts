@@ -73,7 +73,7 @@ const STAFF = [
   Role.AUDITOR,
 ];
 
-/** Input vouchers (VoucherRegistry): Operations proposes, Accounts approves, suppliers sell. */
+/** Input vouchers (VoucherRegistry): Operations or an admin proposes, Accounts approves, suppliers sell. */
 @ApiTags('Vouchers')
 @ApiBearerAuth()
 @Controller()
@@ -90,7 +90,7 @@ export class VouchersController {
   }
 
   @Post('projects/:projectId/vouchers')
-  @Roles(Role.OPERATIONS)
+  @Roles(Role.OPERATIONS, Role.ADMIN, Role.SUPER_ADMIN)
   @ApiCreatedResponse({
     type: VoucherDetailDto,
     description: 'Proposed; usable once Accounts approves',
@@ -214,7 +214,7 @@ export class VouchersController {
   }
 
   @Delete('vouchers/:id')
-  @Roles(Role.OPERATIONS, Role.ADMIN)
+  @Roles(Role.OPERATIONS, Role.ADMIN, Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({
     description: 'Only a proposal the ledger never received',
