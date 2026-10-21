@@ -1,5 +1,6 @@
 import { baseApi } from '@/api/base-api';
 import { apiUrl, renewSession } from '@/api/http';
+import { deviceCache } from '@/lib/device-cache';
 import { storage } from '@/lib/storage';
 import { LAST_USER_KEY } from '@/store/session-listener';
 import {
@@ -98,4 +99,5 @@ export async function signOut(store: AppStore): Promise<void> {
 export function forgetSession(store: AppStore): void {
   store.dispatch(sessionEnded('signedOut'));
   store.dispatch(baseApi.util.resetApiState());
+  deviceCache.clearAll();
 }

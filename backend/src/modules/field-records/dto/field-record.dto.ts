@@ -6,6 +6,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
@@ -19,6 +20,7 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { CODE_PATTERN } from '../../catalog/catalog.enums';
+import { ProjectStage } from '../../projects/project.enums';
 
 /** One farm update as saved on the officer's phone. */
 export class FieldRecordDraftDto {
@@ -125,6 +127,28 @@ export class ListFieldRecordsQueryDto extends PaginationQueryDto {
   entryTypeCode?: string;
 }
 
+/** Farm updates across projects: an officer's own, or every one for staff. */
+export class ListAllFieldRecordsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ example: 'GROWTH_CHECK' })
+  @IsOptional()
+  @Matches(CODE_PATTERN)
+  entryTypeCode?: string;
+
+  @ApiPropertyOptional({ enum: ['submitted', 'recorded'] })
+  @IsOptional()
+  @IsIn(['submitted', 'recorded'])
+  status?: 'submitted' | 'recorded';
+
+  @ApiPropertyOptional({
+    description:
+      'Words of the project title, or the farmer: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+}
+
 // --- Responses ---
 
 export class MeasurementValueDto {
@@ -175,6 +199,12 @@ export class FieldRecordDto {
 
   @ApiProperty({ format: 'uuid' })
   projectId: string;
+
+  @ApiProperty({ example: 'Maize in Bogura' })
+  projectTitle: string;
+
+  @ApiProperty({ type: PersonNameDto, description: "The project's farmer" })
+  farmer: { id: string; name: string };
 
   @ApiProperty({ example: 'GROWTH_CHECK' })
   entryTypeCode: string;
@@ -302,4 +332,37 @@ export class FieldRecordVerificationDto {
 
   @ApiProperty({ type: [String] })
   mismatches: string[];
+}
+
+/** A project an officer may record farm updates for, as the phone keeps it offline. */
+export class OfficerProjectDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty()
+  title: string;
+
+  @ApiProperty({
+    enum: [
+      ProjectStage.FUNDED,
+      ProjectStage.ACTIVE,
+      ProjectStage.READY_FOR_SALE,
+    ],
+  })
+  stage: ProjectStage;
+
+  @ApiProperty({ type: PersonNameDto })
+  farmer: { id: string; name: string };
+
+  @ApiProperty({ example: 'Shibganj' })
+  location: string;
+
+  @ApiProperty({ example: 'Bogura' })
+  district: string;
+
+  @ApiProperty({ example: 'Maize' })
+  produceName: string;
+
+  @ApiProperty({ example: 'ভুট্টা' })
+  produceNameBn: string;
 }

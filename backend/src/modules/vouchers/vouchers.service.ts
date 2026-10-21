@@ -25,6 +25,7 @@ import { TransactionService } from '../../blockchain/tx/transaction.service';
 import { codeToBytes32, uuidToBytes32 } from '../../blockchain/utils/ids';
 import { poishaToTaka, takaToPoisha } from '../../blockchain/utils/money';
 import { Paginated } from '../../common/dto/pagination.dto';
+import { searchWords, wordPattern } from '../../common/search/words';
 import type { AuthUser } from '../auth/auth-user';
 import { CatalogService } from '../catalog/catalog.service';
 import { Project } from '../projects/entities/project.entity';
@@ -478,14 +479,16 @@ export class VouchersService {
   ) {
     const text = (q ?? '').trim();
     if (!text) return;
-    const words = text.split(/\s+/).slice(0, 5);
-    const title = words.map((_, i) => `p.title ~* :vw${i}`).join(' AND ');
+    const words = searchWords(text);
+    const title = words.length
+      ? words.map((_, i) => `p.title ~* :vw${i}`).join(' AND ')
+      : '1 = 0';
     const farmer = this.search.condition('v.farmer_id', text, 'Farmer');
     qb.andWhere(
       new Brackets((b) => {
         b.where(
           `v.project_id IN (SELECT p.id FROM projects p WHERE ${title})`,
-          Object.fromEntries(words.map((w, i) => [`vw${i}`, wordStart(w)])),
+          Object.fromEntries(words.map((w, i) => [`vw${i}`, wordPattern(w)])),
         );
         if (farmer) b.orWhere(farmer.sql, farmer.params);
       }),
@@ -841,9 +844,4 @@ export function inactiveSince(
     v.lastActivityAt.getTime() + v.inactivityLimitDays * DAY_MS,
   );
   return deadline <= now ? deadline : null;
-}
-
-/** A word start for a case-insensitive Postgres regex, special characters escaped. */
-function wordStart(word: string): string {
-  return `(^|[^[:alnum:]])${word.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`;
 }

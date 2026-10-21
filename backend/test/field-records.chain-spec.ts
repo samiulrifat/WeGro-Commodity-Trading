@@ -407,6 +407,65 @@ describe('Field records (node + database)', () => {
       );
     });
 
+    it("gives an officer their farmers' open projects to keep offline", async () => {
+      const mine = (
+        await as(t.field_officer).get('/field-records/my-projects').expect(200)
+      ).body.data;
+      const p = mine.find((x: { id: string }) => x.id === projectId);
+      expect(p).toMatchObject({
+        title: 'Maize field log',
+        farmer: { id: farmerId, name: 'Demo Farmer' },
+        location: 'Shibganj',
+        district: 'Bogura',
+        produceName: 'Maize',
+      });
+      expect(['funded', 'active', 'ready_for_sale']).toContain(p.stage);
+      const theirs = (
+        await as(otherOfficer).get('/field-records/my-projects').expect(200)
+      ).body.data;
+      expect(theirs.map((x: { id: string }) => x.id)).not.toContain(projectId);
+      await as(t.investor).get('/field-records/my-projects').expect(403);
+    });
+
+    it('lists farm updates across projects: an officer their own, staff all, searchable', async () => {
+      const ids = async (token: string, q = '') =>
+        (
+          await as(token)
+            .get(`/field-records?limit=100&q=${encodeURIComponent(q)}`)
+            .expect(200)
+        ).body.data.map((r: { id: string }) => r.id);
+      const list = (
+        await as(t.field_officer).get('/field-records?limit=100').expect(200)
+      ).body.data;
+      expect(list.length).toBeGreaterThan(0);
+      const officerId = list[0].recordedBy.id;
+      expect(
+        list.every(
+          (r: { recordedBy: { id: string } }) => r.recordedBy.id === officerId,
+        ),
+      ).toBe(true);
+      const growth = list.find(
+        (r: { projectId: string; entryTypeCode: string }) =>
+          r.projectId === projectId && r.entryTypeCode === 'GROWTH_CHECK',
+      );
+      expect(growth).toMatchObject({
+        projectTitle: 'Maize field log',
+        farmer: { id: farmerId, name: 'Demo Farmer' },
+      });
+      expect(growth.location.exact).toBe(true);
+
+      expect(await ids(t.field_officer, 'MAIZE field')).toContain(growth.id);
+      expect(await ids(t.field_officer, 'aize')).not.toContain(growth.id);
+      expect(await ids(t.field_officer, 'Demo Farmer')).toContain(growth.id);
+      expect(await ids(t.field_officer, 'Other Officer')).not.toContain(
+        growth.id,
+      );
+      expect(await ids(otherOfficer)).not.toContain(growth.id);
+      expect(await ids(t.auditor, 'maize log')).toContain(growth.id);
+      await as(t.investor).get('/field-records').expect(403);
+      await as(t.farmer).get('/field-records').expect(403);
+    });
+
     it('verifies data and photo against the ledger, and catches tampering', async () => {
       const id = (
         await as(t.auditor)

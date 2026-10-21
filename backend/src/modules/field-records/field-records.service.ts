@@ -5,7 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
@@ -18,6 +18,11 @@ import {
   ZERO_BYTES32,
 } from '../../blockchain/utils/ids';
 import { Paginated } from '../../common/dto/pagination.dto';
+import { searchWords, wordPattern } from '../../common/search/words';
+import {
+  BD_DISTRICTS,
+  isDistrictCode,
+} from '../../common/reference/bd-districts';
 import type { AuthUser } from '../auth/auth-user';
 import { CatalogService } from '../catalog/catalog.service';
 import { Project } from '../projects/entities/project.entity';
@@ -25,12 +30,15 @@ import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { ProjectsService } from '../projects/projects.service';
 import { User } from '../users/entities/user.entity';
+import { PersonSearch } from '../users/person-search';
 import { Role } from '../users/roles';
 import type {
   FieldRecordDraftDto,
   FieldRecordDto,
   FieldRecordVerificationDto,
+  ListAllFieldRecordsQueryDto,
   ListFieldRecordsQueryDto,
+  OfficerProjectDto,
   SyncResultDto,
 } from './dto/field-record.dto';
 import { FieldRecord } from './entities/field-record.entity';
@@ -89,6 +97,7 @@ export class FieldRecordsService {
     private readonly receipts: ReceiptApplier,
     private readonly contracts: ContractsRegistry,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {}
 
   // --- Sync ---
@@ -409,7 +418,7 @@ export class FieldRecordsService {
     projectId: string,
     q: ListFieldRecordsQueryDto,
   ): Promise<Paginated<FieldRecordDto>> {
-    const project = await this.projects.visible(actor, projectId);
+    await this.projects.visible(actor, projectId);
     const qb = this.records
       .createQueryBuilder('r')
       .where('r.project_id = :pid', { pid: projectId });
@@ -422,7 +431,81 @@ export class FieldRecordsService {
       .skip(q.skip)
       .take(q.limit)
       .getManyAndCount();
-    return new Paginated(await this.dtos(actor, project, rows), total, q);
+    return new Paginated(await this.dtos(actor, rows), total, q);
+  }
+
+  /**
+   * Farm updates across projects, newest observation first: a field
+   * officer's own (drafts on the ledger's way included), or every one for
+   * staff. Searched by words of the project title or the farmer.
+   */
+  async listAll(
+    actor: AuthUser,
+    q: ListAllFieldRecordsQueryDto,
+  ): Promise<Paginated<FieldRecordDto>> {
+    const qb = this.records
+      .createQueryBuilder('r')
+      .innerJoin(Project, 'p', 'p.id = r.project_id');
+    if (actor.role === Role.FIELD_OFFICER) {
+      qb.where('r.recorded_by_id = :me', { me: actor.id });
+    }
+    if (q.status) qb.andWhere('r.status = :st', { st: q.status });
+    if (q.entryTypeCode)
+      qb.andWhere('r.entry_type_code = :t', { t: q.entryTypeCode });
+    const text = (q.q ?? '').trim();
+    if (text) {
+      const words = searchWords(text);
+      const farmer = this.search.condition('p.farmer_id', text, 'Farmer');
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where(
+            words.length
+              ? words.map((_, i) => `p.title ~* :tw${i}`).join(' AND ')
+              : '1 = 0',
+            Object.fromEntries(words.map((w, i) => [`tw${i}`, wordPattern(w)])),
+          );
+          if (farmer) b.orWhere(farmer.sql, farmer.params);
+        }),
+      );
+    }
+    const [rows, total] = await qb
+      .orderBy('r.observed_at', 'DESC')
+      .addOrderBy('r.id', 'ASC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
+    return new Paginated(await this.dtos(actor, rows), total, q);
+  }
+
+  /**
+   * The officer's farmers' projects that take farm updates now: what the
+   * phone keeps so an update can be started without internet.
+   */
+  async officerProjects(actor: AuthUser): Promise<OfficerProjectDto[]> {
+    const projects = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin(User, 'f', 'f.id = p.farmer_id')
+      .where('f.field_officer_id = :me', { me: actor.id })
+      .andWhere('p.stage IN (:...stages)', { stages: OPEN_STAGES })
+      .orderBy('p.title', 'ASC')
+      .addOrderBy('p.id', 'ASC')
+      .getMany();
+    const names = await this.views.names(projects.map((p) => p.farmerId));
+    return projects.map((p) => {
+      const produce = this.catalog.produceTypes.get(p.produceCode);
+      return {
+        id: p.id,
+        title: p.title,
+        stage: p.stage,
+        farmer: { id: p.farmerId, name: names.get(p.farmerId) ?? '' },
+        location: p.location,
+        district: isDistrictCode(p.districtCode)
+          ? BD_DISTRICTS[p.districtCode].name
+          : p.districtCode,
+        produceName: produce?.name ?? p.produceCode,
+        produceNameBn: produce?.nameBn ?? p.produceCode,
+      };
+    });
   }
 
   async findOne(actor: AuthUser, id: string): Promise<FieldRecordDto> {
@@ -520,24 +603,33 @@ export class FieldRecordsService {
 
   private async one(actor: AuthUser, id: string): Promise<FieldRecordDto> {
     const record = await this.visibleRecord(actor, id);
-    const project = await this.projects.visible(actor, record.projectId);
-    return (await this.dtos(actor, project, [record]))[0];
+    return (await this.dtos(actor, [record]))[0];
   }
 
+  /** One query each for corrections, projects and names, whatever the page size. */
   private async dtos(
     actor: AuthUser,
-    project: Project,
     rows: FieldRecord[],
   ): Promise<FieldRecordDto[]> {
     if (rows.length === 0) return [];
-    const [corrections, names, exact] = await Promise.all([
+    const [corrections, projects] = await Promise.all([
       this.records.find({
         where: { correctsEntryId: In(rows.map((r) => r.id)) },
         select: { id: true, correctsEntryId: true },
         order: { observedAt: 'ASC' },
       }),
-      this.views.names(rows.map((r) => r.recordedById)),
-      this.seesExactLocation(actor, project),
+      this.projectRepo.find({
+        where: { id: In([...new Set(rows.map((r) => r.projectId))]) },
+        select: { id: true, title: true, farmerId: true },
+      }),
+    ]);
+    const byId = new Map(projects.map((p) => [p.id, p]));
+    const [names, exactFor] = await Promise.all([
+      this.views.names([
+        ...rows.map((r) => r.recordedById),
+        ...projects.map((p) => p.farmerId),
+      ]),
+      this.exactLocations(actor, projects),
     ]);
     const correctedBy = new Map<string, string[]>();
     for (const c of corrections) {
@@ -548,9 +640,15 @@ export class FieldRecordsService {
     return rows.map((r) => {
       const type = this.catalog.fieldRecordTypes.get(r.entryTypeCode);
       const defs = new Map((type?.measurements ?? []).map((m) => [m.key, m]));
+      const project = byId.get(r.projectId);
       return {
         id: r.id,
         projectId: r.projectId,
+        projectTitle: project?.title ?? '',
+        farmer: {
+          id: project?.farmerId ?? '',
+          name: names.get(project?.farmerId ?? '') ?? '',
+        },
         entryTypeCode: r.entryTypeCode,
         entryTypeName: type?.name ?? r.entryTypeCode,
         entryTypeNameBn: type?.nameBn ?? r.entryTypeCode,
@@ -569,7 +667,7 @@ export class FieldRecordsService {
         location:
           r.latitude === null || r.longitude === null
             ? null
-            : exact
+            : exactFor.has(r.projectId)
               ? {
                   latitude: r.latitude,
                   longitude: r.longitude,
@@ -605,18 +703,32 @@ export class FieldRecordsService {
     });
   }
 
-  private async seesExactLocation(
+  /** Of these projects, those whose exact locations the reader sees. */
+  private async exactLocations(
     actor: AuthUser,
-    project: Project,
-  ): Promise<boolean> {
-    if (EXACT_LOCATION.has(actor.role)) return true;
-    if (actor.role === Role.FARMER) return project.farmerId === actor.id;
-    if (actor.role === Role.FIELD_OFFICER) {
-      return this.users.exists({
-        where: { id: project.farmerId, fieldOfficerId: actor.id },
-      });
+    projects: Pick<Project, 'id' | 'farmerId'>[],
+  ): Promise<Set<string>> {
+    if (EXACT_LOCATION.has(actor.role))
+      return new Set(projects.map((p) => p.id));
+    if (actor.role === Role.FARMER) {
+      return new Set(
+        projects.filter((p) => p.farmerId === actor.id).map((p) => p.id),
+      );
     }
-    return false;
+    if (actor.role === Role.FIELD_OFFICER && projects.length > 0) {
+      const mine = await this.users.find({
+        where: {
+          id: In([...new Set(projects.map((p) => p.farmerId))]),
+          fieldOfficerId: actor.id,
+        },
+        select: { id: true },
+      });
+      const farmers = new Set(mine.map((u) => u.id));
+      return new Set(
+        projects.filter((p) => farmers.has(p.farmerId)).map((p) => p.id),
+      );
+    }
+    return new Set();
   }
 }
 

@@ -21,6 +21,8 @@ import { Photo } from './photo.entity';
 @Entity('field_records')
 @Index('ix_field_records_project_observed', ['projectId', 'observedAt'])
 @Index('ix_field_records_corrects', ['correctsEntryId'])
+@Index('ix_field_records_recorder_observed', ['recordedById', 'observedAt'])
+@Index('ix_field_records_observed', ['observedAt'])
 @Check('ck_field_records_status', `"status" IN ('submitted', 'recorded')`)
 @Check(
   'ck_field_records_location',

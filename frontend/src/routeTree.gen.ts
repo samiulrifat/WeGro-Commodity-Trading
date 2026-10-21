@@ -25,6 +25,8 @@ import { Route as AppBatchesBatchIdRouteImport } from './routes/_app/batches/$ba
 import { Route as AppCatalogIndexRouteImport } from './routes/_app/catalog/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/_app/dashboard/index'
 import { Route as AppFarmUpdatesIndexRouteImport } from './routes/_app/farm-updates/index'
+import { Route as AppFarmUpdatesDraftsRouteImport } from './routes/_app/farm-updates/drafts'
+import { Route as AppFarmUpdatesSentRouteImport } from './routes/_app/farm-updates/sent'
 import { Route as AppHoldingsIndexRouteImport } from './routes/_app/holdings/index'
 import { Route as AppInsuranceIndexRouteImport } from './routes/_app/insurance/index'
 import { Route as AppMarketplaceIndexRouteImport } from './routes/_app/marketplace/index'
@@ -147,6 +149,16 @@ const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
 const AppFarmUpdatesIndexRoute = AppFarmUpdatesIndexRouteImport.update({
   id: '/farm-updates/',
   path: '/farm-updates/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFarmUpdatesDraftsRoute = AppFarmUpdatesDraftsRouteImport.update({
+  id: '/farm-updates/drafts',
+  path: '/farm-updates/drafts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFarmUpdatesSentRoute = AppFarmUpdatesSentRouteImport.update({
+  id: '/farm-updates/sent',
+  path: '/farm-updates/sent',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHoldingsIndexRoute = AppHoldingsIndexRouteImport.update({
@@ -391,6 +403,8 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
+  '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
+  '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
@@ -452,6 +466,8 @@ export interface FileRoutesByTo {
   '/status': typeof AppStatusRoute
   '/': typeof AppIndexRoute
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
+  '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
+  '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
@@ -515,6 +531,8 @@ export interface FileRoutesById {
   '/_app/status': typeof AppStatusRoute
   '/_app/': typeof AppIndexRoute
   '/_app/batches/$batchId': typeof AppBatchesBatchIdRoute
+  '/_app/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
+  '/_app/farm-updates/sent': typeof AppFarmUpdatesSentRoute
   '/_app/people/$personId': typeof AppPeoplePersonIdRoute
   '/_app/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/_app/people/new': typeof AppPeopleNewRoute
@@ -578,6 +596,8 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/status'
     | '/batches/$batchId'
+    | '/farm-updates/drafts'
+    | '/farm-updates/sent'
     | '/people/$personId'
     | '/people/bank-details'
     | '/people/new'
@@ -639,6 +659,8 @@ export interface FileRouteTypes {
     | '/status'
     | '/'
     | '/batches/$batchId'
+    | '/farm-updates/drafts'
+    | '/farm-updates/sent'
     | '/people/$personId'
     | '/people/bank-details'
     | '/people/new'
@@ -701,6 +723,8 @@ export interface FileRouteTypes {
     | '/_app/status'
     | '/_app/'
     | '/_app/batches/$batchId'
+    | '/_app/farm-updates/drafts'
+    | '/_app/farm-updates/sent'
     | '/_app/people/$personId'
     | '/_app/people/bank-details'
     | '/_app/people/new'
@@ -874,6 +898,20 @@ declare module '@tanstack/react-router' {
       path: '/farm-updates'
       fullPath: '/farm-updates/'
       preLoaderRoute: typeof AppFarmUpdatesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/farm-updates/drafts': {
+      id: '/_app/farm-updates/drafts'
+      path: '/farm-updates/drafts'
+      fullPath: '/farm-updates/drafts'
+      preLoaderRoute: typeof AppFarmUpdatesDraftsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/farm-updates/sent': {
+      id: '/_app/farm-updates/sent'
+      path: '/farm-updates/sent'
+      fullPath: '/farm-updates/sent'
+      preLoaderRoute: typeof AppFarmUpdatesSentRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/holdings/': {
@@ -1193,6 +1231,8 @@ interface AppRouteChildren {
   AppStatusRoute: typeof AppStatusRoute
   AppIndexRoute: typeof AppIndexRoute
   AppBatchesBatchIdRoute: typeof AppBatchesBatchIdRoute
+  AppFarmUpdatesDraftsRoute: typeof AppFarmUpdatesDraftsRoute
+  AppFarmUpdatesSentRoute: typeof AppFarmUpdatesSentRoute
   AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
   AppPeopleBankDetailsRoute: typeof AppPeopleBankDetailsRoute
   AppPeopleNewRoute: typeof AppPeopleNewRoute
@@ -1249,6 +1289,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppStatusRoute: AppStatusRoute,
   AppIndexRoute: AppIndexRoute,
   AppBatchesBatchIdRoute: AppBatchesBatchIdRoute,
+  AppFarmUpdatesDraftsRoute: AppFarmUpdatesDraftsRoute,
+  AppFarmUpdatesSentRoute: AppFarmUpdatesSentRoute,
   AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
   AppPeopleBankDetailsRoute: AppPeopleBankDetailsRoute,
   AppPeopleNewRoute: AppPeopleNewRoute,

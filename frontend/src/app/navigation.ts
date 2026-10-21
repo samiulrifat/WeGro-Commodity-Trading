@@ -112,7 +112,10 @@ export type SubLabel =
   | 'allVouchers'
   | 'pendingVouchers'
   | 'inputSales'
-  | 'inputBatches';
+  | 'inputBatches'
+  | 'newUpdate'
+  | 'updateDrafts'
+  | 'sentUpdates';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -134,7 +137,10 @@ export type SubPath =
   | '/vouchers'
   | '/vouchers/pending'
   | '/vouchers/sales'
-  | '/vouchers/batches';
+  | '/vouchers/batches'
+  | '/farm-updates'
+  | '/farm-updates/drafts'
+  | '/farm-updates/sent';
 
 export interface SubPage {
   to: SubPath;
@@ -262,7 +268,11 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('system', 'system'),
   ],
   field_officer: [
-    item('farm-updates', 'farmUpdates'),
+    item('farm-updates', 'farmUpdates', [
+      sub('/farm-updates', 'newUpdate'),
+      sub('/farm-updates/drafts', 'updateDrafts'),
+      sub('/farm-updates/sent', 'sentUpdates'),
+    ]),
     item('people', 'farmers', [
       sub('/people', 'myFarmers'),
       sub('/people/new', 'registerFarmer'),

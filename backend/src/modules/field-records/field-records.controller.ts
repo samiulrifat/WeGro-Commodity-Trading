@@ -31,7 +31,9 @@ import { Role } from '../users/roles';
 import {
   FieldRecordDto,
   FieldRecordVerificationDto,
+  ListAllFieldRecordsQueryDto,
   ListFieldRecordsQueryDto,
+  OfficerProjectDto,
   PhotoDto,
   SyncFieldRecordsDto,
   SyncResultDto,
@@ -122,6 +124,39 @@ export class FieldRecordsController {
     @Query() query: ListFieldRecordsQueryDto,
   ): Promise<Paginated<FieldRecordDto>> {
     return this.records.list(actor, projectId, query);
+  }
+
+  @Get('field-records')
+  @ApiPaged()
+  @Roles(
+    Role.FIELD_OFFICER,
+    Role.SUPER_ADMIN,
+    Role.ADMIN,
+    Role.OPERATIONS,
+    Role.ACCOUNTS,
+    Role.AUDITOR,
+  )
+  @ApiOkResponse({
+    type: [FieldRecordDto],
+    description:
+      "Newest observation first: a field officer's own, or every one for staff",
+  })
+  listAll(
+    @CurrentUser() actor: AuthUser,
+    @Query() query: ListAllFieldRecordsQueryDto,
+  ): Promise<Paginated<FieldRecordDto>> {
+    return this.records.listAll(actor, query);
+  }
+
+  @Get('field-records/my-projects')
+  @Roles(Role.FIELD_OFFICER)
+  @ApiOkResponse({
+    type: [OfficerProjectDto],
+    description:
+      "Your farmers' projects that take farm updates now (funded to ready for sale)",
+  })
+  myProjects(@CurrentUser() actor: AuthUser): Promise<OfficerProjectDto[]> {
+    return this.records.officerProjects(actor);
   }
 
   @Get('field-records/:id')

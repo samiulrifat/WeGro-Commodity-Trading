@@ -114,7 +114,10 @@ describe('FieldRecordsService', () => {
     const service = new FieldRecordsService(
       records as never,
       users as never,
-      fakeRepo({ findOneBy: jest.fn(() => Promise.resolve(project)) }) as never,
+      fakeRepo({
+        findOneBy: jest.fn(() => Promise.resolve(project)),
+        find: jest.fn(() => Promise.resolve([project])),
+      }) as never,
       catalog as never,
       photos as never,
       { visible: jest.fn(() => Promise.resolve(project)) } as never,
@@ -123,6 +126,7 @@ describe('FieldRecordsService', () => {
       receipts as never,
       { get: () => ledger } as never,
       fakeClock(NOW) as never,
+      { condition: () => null } as never,
     );
     return { service, rows, records, chain, ledger, photos };
   };

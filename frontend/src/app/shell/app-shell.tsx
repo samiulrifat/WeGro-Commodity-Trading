@@ -1,6 +1,7 @@
 import { Outlet, useMatches, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBackgroundSending } from '@/features/farm-updates/hooks';
 import { useAppSelector } from '@/store/hooks';
 import { access, homeOf, navFor } from '../navigation';
 import { NoAccessPage } from '../pages';
@@ -18,6 +19,7 @@ export function AppShell() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const session = useAppSelector((s) => s.session);
+  useBackgroundSending();
   const { area, page } = useMatches({
     select: (matches) => {
       const data = matches.findLast((m) => m.staticData.area)?.staticData;

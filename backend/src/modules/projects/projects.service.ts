@@ -23,6 +23,11 @@ import {
   uuidToBytes32,
 } from '../../blockchain/utils/ids';
 import { takaToPoisha } from '../../blockchain/utils/money';
+import {
+  matchesWord,
+  searchWords,
+  wordPattern,
+} from '../../common/search/words';
 import { Paginated } from '../../common/dto/pagination.dto';
 import type { AuthUser } from '../auth/auth-user';
 import {
@@ -586,25 +591,3 @@ function publishedConflict() {
 /** Investors see which projects they saved. */
 const viewerOf = (actor: AuthUser) =>
   actor.role === Role.INVESTOR ? actor.id : undefined;
-
-/** Words typed in a search, at most five, as plain text. */
-function searchWords(q: string | undefined): string[] {
-  return (q ?? '')
-    .normalize('NFC')
-    .split(/[^\p{L}\p{M}\p{N}]+/u)
-    .filter((w) => w.length > 0)
-    .slice(0, 5);
-}
-
-/** A word start, for a case-insensitive Postgres regex: special characters escaped. */
-function wordPattern(word: string): string {
-  return `(^|[^[:alnum:]])${word.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`;
-}
-
-function matchesWord(text: string, word: string): boolean {
-  const w = word.toLowerCase();
-  return text
-    .toLowerCase()
-    .split(/[^\p{L}\p{M}\p{N}]+/u)
-    .some((t) => t.startsWith(w));
-}

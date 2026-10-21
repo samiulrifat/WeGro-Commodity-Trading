@@ -8,6 +8,8 @@ import type {
   FieldRecordsUploadApiArg,
   FieldRecordsUploadApiResponse,
 } from '@/api/generated/field-records';
+// The generated endpoints first, so the multipart versions below replace them.
+import '@/api/generated/field-records';
 import { baseApi } from './base-api';
 import { apiFetch, apiUrl } from './http';
 

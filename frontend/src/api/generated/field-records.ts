@@ -42,6 +42,29 @@ const injectedRtkApi = api
         }),
         providesTags: ['Field records'],
       }),
+      fieldRecordsListAll: build.query<
+        FieldRecordsListAllApiResponse,
+        FieldRecordsListAllApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/field-records`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            entryTypeCode: queryArg.entryTypeCode,
+            status: queryArg.status,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Field records'],
+      }),
+      fieldRecordsMyProjects: build.query<
+        FieldRecordsMyProjectsApiResponse,
+        FieldRecordsMyProjectsApiArg
+      >({
+        query: () => ({ url: `/api/field-records/my-projects` }),
+        providesTags: ['Field records'],
+      }),
       fieldRecordsFindOne: build.query<
         FieldRecordsFindOneApiResponse,
         FieldRecordsFindOneApiArg
@@ -89,6 +112,24 @@ export type FieldRecordsListApiArg = {
   limit?: number;
   entryTypeCode?: string;
 };
+export type FieldRecordsListAllApiResponse =
+  /** status 200 Newest observation first: a field officer's own, or every one for staff */ {
+    data: FieldRecordDto[];
+    meta: PageMetaDto;
+  };
+export type FieldRecordsListAllApiArg = {
+  page?: number;
+  limit?: number;
+  entryTypeCode?: string;
+  status?: 'submitted' | 'recorded';
+  /** Words of the project title, or the farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
+};
+export type FieldRecordsMyProjectsApiResponse =
+  /** status 200 Your farmers' projects that take farm updates now (funded to ready for sale) */ {
+    data: OfficerProjectDto[];
+  };
+export type FieldRecordsMyProjectsApiArg = void;
 export type FieldRecordsFindOneApiResponse = /** status 200  */ {
   data: FieldRecordDto;
 };
@@ -107,6 +148,10 @@ export type PhotoDto = {
   mimeType: string;
   sizeBytes: number;
   photoHash: string;
+};
+export type PersonNameDto = {
+  id: string;
+  name: string;
 };
 export type MeasurementValueDto = {
   key: string;
@@ -128,13 +173,12 @@ export type PhotoRefDto = {
   /** SHA-256 of the file, as on the ledger */
   photoHash: string;
 };
-export type PersonNameDto = {
-  id: string;
-  name: string;
-};
 export type FieldRecordDto = {
   id: string;
   projectId: string;
+  projectTitle: string;
+  /** The project's farmer */
+  farmer: PersonNameDto;
   entryTypeCode: string;
   entryTypeName: string;
   entryTypeNameBn: string;
@@ -201,6 +245,16 @@ export type PageMetaDto = {
   total: number;
   totalPages: number;
 };
+export type OfficerProjectDto = {
+  id: string;
+  title: string;
+  stage: 'funded' | 'active' | 'ready_for_sale';
+  farmer: PersonNameDto;
+  location: string;
+  district: string;
+  produceName: string;
+  produceNameBn: string;
+};
 export type FieldRecordVerificationDto = {
   /** Data and photo both reproduce the ledger fingerprints */
   matches: boolean;
@@ -217,6 +271,10 @@ export const {
   useFieldRecordsSyncMutation,
   useFieldRecordsListQuery,
   useLazyFieldRecordsListQuery,
+  useFieldRecordsListAllQuery,
+  useLazyFieldRecordsListAllQuery,
+  useFieldRecordsMyProjectsQuery,
+  useLazyFieldRecordsMyProjectsQuery,
   useFieldRecordsFindOneQuery,
   useLazyFieldRecordsFindOneQuery,
   useFieldRecordsVerifyQuery,
