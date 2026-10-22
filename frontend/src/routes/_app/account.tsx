@@ -28,7 +28,7 @@ export const Route = createFileRoute('/_app/account')({
 function AccountPage() {
   const { t } = useTranslation();
   const role = useAppSelector((s) => s.session.user?.role);
-  const payee = role === 'farmer' || role === 'investor';
+  const payee = role === 'farmer' || role === 'investor' || role === 'seller';
   return (
     <div className="grid gap-6">
       <PageHeader title={t('account.title')} />

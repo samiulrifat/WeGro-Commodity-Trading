@@ -17,7 +17,11 @@ import { Role } from '../../users/roles';
 import { RegisterParticipantDto } from './participant-request.dto';
 
 /** The roles someone may sign up as; every other role is registered for them. */
-export const SELF_REGISTRABLE_ROLES = [Role.INVESTOR, Role.BUYER] as const;
+export const SELF_REGISTRABLE_ROLES = [
+  Role.INVESTOR,
+  Role.BUYER,
+  Role.SELLER,
+] as const;
 export type SelfRegistrableRole = (typeof SELF_REGISTRABLE_ROLES)[number];
 
 /** Signing up, step 1: send a code to my number. */

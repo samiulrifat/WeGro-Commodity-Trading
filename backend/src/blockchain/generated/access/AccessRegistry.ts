@@ -13,7 +13,7 @@ export declare namespace AccessRegistry {
     }
 
   export interface AccessRegistryInterface extends Interface {
-    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "MAX_REASSIGN" | "OPERATIONS_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "farmerCountOf" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "reassignFarmers" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
+    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "MAX_REASSIGN" | "OPERATIONS_ROLE" | "SELLER_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "farmerCountOf" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "reassignFarmers" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantRegistered" | "ParticipantSelfRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
 
@@ -29,6 +29,7 @@ encodeFunctionData(functionFragment: 'INSURER_ROLE', values?: undefined): string
 encodeFunctionData(functionFragment: 'INVESTOR_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_REASSIGN', values?: undefined): string;
 encodeFunctionData(functionFragment: 'OPERATIONS_ROLE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'SELLER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'SUPPLIER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'WAREHOUSE_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'accountUsed', values: [AddressLike]): string;
@@ -67,6 +68,7 @@ decodeFunctionResult(functionFragment: 'INSURER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'INVESTOR_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_REASSIGN', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'OPERATIONS_ROLE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'SELLER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'SUPPLIER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'WAREHOUSE_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'accountUsed', data: BytesLike): Result;
@@ -333,6 +335,14 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
     
 
     
+    SELLER_ROLE: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     SUPPLIER_ROLE: TypedContractMethod<
       [],
       [string],
@@ -591,6 +601,11 @@ getFunction(nameOrSignature: 'MAX_REASSIGN'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'OPERATIONS_ROLE'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'SELLER_ROLE'): TypedContractMethod<
       [],
       [string],
       'view'

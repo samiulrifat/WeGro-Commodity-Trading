@@ -33,6 +33,7 @@ const OTHERS: ParticipantRole[] = [
   Role.SUPPLIER,
   Role.BUYER,
   Role.INSURER,
+  Role.SELLER,
 ];
 
 const LABEL: Record<Role, string> = {
@@ -49,6 +50,7 @@ const LABEL: Record<Role, string> = {
   [Role.BUYER]: 'Buyer',
   [Role.INSURER]: 'Insurer',
   [Role.AUDITOR]: 'Auditor',
+  [Role.SELLER]: 'Seller',
 };
 
 /**

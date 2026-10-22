@@ -195,6 +195,8 @@ export enum ErrorCode {
   FARMER_NOT_FOUND = 'FARMER_NOT_FOUND',
   /** Farm updates are recorded from funding until the produce is ready for sale */
   FARM_UPDATE_WRONG_STAGE = 'FARM_UPDATE_WRONG_STAGE',
+  /** Fee slabs must have rising caps, a fee each, and no cap on the last */
+  FEE_SLABS_INVALID = 'FEE_SLABS_INVALID',
   /** Field officers register farmers only */
   FIELD_OFFICER_FARMERS_ONLY = 'FIELD_OFFICER_FARMERS_ONLY',
   /** This field officer looks after {count} farmers: choose the field officer they move to */
@@ -295,6 +297,8 @@ export enum ErrorCode {
   NOT_CONFIRMED = 'NOT_CONFIRMED',
   /** Only {available} slots are available */
   NOT_ENOUGH_SLOTS = 'NOT_ENOUGH_SLOTS',
+  /** Only an external seller's deal is paid out to its seller */
+  NOT_EXTERNAL_DEAL = 'NOT_EXTERNAL_DEAL',
   /** Only the farmer's field officer can do this */
   NOT_FARMERS_OFFICER = 'NOT_FARMERS_OFFICER',
   /** Not found */
@@ -345,6 +349,8 @@ export enum ErrorCode {
   OBSERVED_AT_INVALID = 'OBSERVED_AT_INVALID',
   /** occurredOn cannot be in the future */
   OCCURRED_IN_FUTURE = 'OCCURRED_IN_FUTURE',
+  /** Offers are decided by WeGro's admins, or by the seller on their own listing */
+  OFFER_DECIDE_NOT_ALLOWED = 'OFFER_DECIDE_NOT_ALLOWED',
   /** Offer not found */
   OFFER_NOT_FOUND = 'OFFER_NOT_FOUND',
   /** This offer is {status} */

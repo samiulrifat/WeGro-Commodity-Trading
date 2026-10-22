@@ -36,7 +36,11 @@ import { BankListService } from '../bank-list/bank-list.service';
 import { PersonSearch } from '../users/person-search';
 
 /** Only payees have bank accounts. */
-const PAYEE_ROLES: ReadonlySet<Role> = new Set([Role.FARMER, Role.INVESTOR]);
+const PAYEE_ROLES: ReadonlySet<Role> = new Set([
+  Role.FARMER,
+  Role.INVESTOR,
+  Role.SELLER,
+]);
 /** See full account numbers; others with access see the last four digits. */
 const SEES_FULL: ReadonlySet<Role> = new Set([
   Role.SUPER_ADMIN,

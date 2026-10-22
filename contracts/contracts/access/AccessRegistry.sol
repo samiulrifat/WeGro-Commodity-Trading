@@ -23,6 +23,7 @@ contract AccessRegistry is AccessControl {
     bytes32 public constant INSURER_ROLE = Roles.INSURER;
     bytes32 public constant AUDITOR_ROLE = Roles.AUDITOR;
     bytes32 public constant OPERATIONS_ROLE = Roles.OPERATIONS;
+    bytes32 public constant SELLER_ROLE = Roles.SELLER;
 
     /// @dev None = never registered.
     enum Status {
@@ -122,7 +123,8 @@ contract AccessRegistry is AccessControl {
             role == BANK_ROLE ||
             role == SUPPLIER_ROLE ||
             role == BUYER_ROLE ||
-            role == INSURER_ROLE;
+            role == INSURER_ROLE ||
+            role == SELLER_ROLE;
     }
 
     /// @notice Staff roles, managed only by the super admin.
@@ -176,14 +178,14 @@ contract AccessRegistry is AccessControl {
         }
     }
 
-    /// @notice An investor or buyer who registered themselves (their number
+    /// @notice An investor, buyer or seller who registered themselves (their number
     /// confirmed by the platform): registered and verified at once, signed by
     /// the platform's key. Marked by ParticipantSelfRegistered.
     function selfRegisterParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
         external
     {
         _requireSuperAdmin();
-        if (role != INVESTOR_ROLE && role != BUYER_ROLE) revert NotSelfRegistrable(role);
+        if (role != INVESTOR_ROLE && role != BUYER_ROLE && role != SELLER_ROLE) revert NotSelfRegistrable(role);
         Participant storage p = _register(participantId, role, account, detailsHash);
         _setStatus(participantId, p, Status.Verified);
         _grantRole(role, account);

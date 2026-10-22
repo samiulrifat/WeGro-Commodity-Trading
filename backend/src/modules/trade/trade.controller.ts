@@ -9,6 +9,7 @@ import {
   ParseEnumPipe,
   ParseIntPipe,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -27,6 +28,8 @@ import { Role } from '../users/roles';
 import {
   BuyerRequestDto,
   ConfirmDeliveryDto,
+  FeeScheduleDto,
+  ListExternalDto,
   ListingDto,
   ListListingsQueryDto,
   ListOffersQueryDto,
@@ -37,6 +40,8 @@ import {
   OfferDto,
   PaymentReferenceDto,
   PostRequestDto,
+  RejectListingDto,
+  SetFeeSlabsDto,
 } from './dto/trade.dto';
 import { RequestsService } from './requests.service';
 import { DeliverySide } from './trade.enums';
@@ -58,6 +63,7 @@ const OFFER_READERS = [
   Role.FARMER,
   Role.FIELD_OFFICER,
   Role.WAREHOUSE,
+  Role.SELLER,
 ];
 
 /** The marketplace (TradeLedger): listings, offers, deals, payment and delivery. */
@@ -80,15 +86,92 @@ export class TradeController {
     description: 'Open listings by default',
   })
   listListings(
+    @CurrentUser() actor: AuthUser,
     @Query() query: ListListingsQueryDto,
   ): Promise<Paginated<ListingDto>> {
-    return this.trade.listListings(query);
+    return this.trade.listListings(actor, query);
   }
 
   @Get('listings/:id')
   @ApiOkResponse({ type: ListingDto })
-  listing(@Param('id', ledgerId) id: number): Promise<ListingDto> {
-    return this.trade.listingOne(id);
+  listing(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ledgerId) id: number,
+  ): Promise<ListingDto> {
+    return this.trade.listingOne(id, actor);
+  }
+
+  @Get('listings/:id/photos/:index')
+  @ApiFile('image/jpeg', 'image/png', 'image/webp')
+  async listingPhoto(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ledgerId) id: number,
+    @Param('index', ledgerId) index: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    const photo = await this.trade.listingPhoto(actor, id, index);
+    await this.photos.send(photo, res);
+  }
+
+  @Post('listings/external')
+  @Roles(Role.SELLER)
+  @ApiCreatedResponse({
+    type: ListingDto,
+    description: 'Your own produce; buyers see it once an admin approves it',
+  })
+  listExternal(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: ListExternalDto,
+  ): Promise<ListingDto> {
+    return this.trade.listExternal(actor, dto);
+  }
+
+  @Post('listings/:id/approve')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: ListingDto,
+    description: 'An external seller’s listing goes live',
+  })
+  approveListing(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ledgerId) id: number,
+  ): Promise<ListingDto> {
+    return this.trade.approveListing(actor, id);
+  }
+
+  @Post('listings/:id/reject')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: ListingDto })
+  rejectListing(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ledgerId) id: number,
+    @Body() dto: RejectListingDto,
+  ): Promise<ListingDto> {
+    return this.trade.rejectListing(actor, id, dto.reason);
+  }
+
+  @Get('marketplace/fees')
+  @ApiOkResponse({
+    type: FeeScheduleDto,
+    description: 'Fixed platform fee per side, by the deal total',
+  })
+  fees(): Promise<FeeScheduleDto> {
+    return this.trade.feeSchedule();
+  }
+
+  @Put('marketplace/fees')
+  @Roles(Role.SUPER_ADMIN)
+  @ApiOkResponse({
+    type: FeeScheduleDto,
+    description: 'For deals approved from now on',
+  })
+  setFees(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: SetFeeSlabsDto,
+  ): Promise<FeeScheduleDto> {
+    return this.trade.setFeeSchedule(actor, dto);
   }
 
   @Post('listings/receipt')
@@ -118,7 +201,7 @@ export class TradeController {
   }
 
   @Post('listings/:id/cancel')
-  @Roles(Role.ADMIN, Role.FIELD_OFFICER)
+  @Roles(Role.ADMIN, Role.FIELD_OFFICER, Role.SELLER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ListingDto,
@@ -180,7 +263,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/reject')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SELLER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: OfferDto })
   reject(
@@ -191,7 +274,7 @@ export class TradeController {
   }
 
   @Post('offers/:id/approve')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SELLER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: OfferDto,
@@ -233,8 +316,24 @@ export class TradeController {
     return this.trade.confirmPayment(actor, id, dto.paymentReference);
   }
 
+  @Post('offers/:id/seller-payout')
+  @Roles(Role.ACCOUNTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: OfferDto,
+    description:
+      'The external seller was paid the deal amount less the seller fee',
+  })
+  sellerPayout(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ledgerId) id: number,
+    @Body() dto: PaymentReferenceDto,
+  ): Promise<OfferDto> {
+    return this.trade.recordSellerPayout(actor, id, dto.paymentReference);
+  }
+
   @Post('offers/:id/delivery')
-  @Roles(Role.BUYER, Role.WAREHOUSE, Role.FIELD_OFFICER)
+  @Roles(Role.BUYER, Role.WAREHOUSE, Role.FIELD_OFFICER, Role.SELLER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: OfferDto,
@@ -265,7 +364,7 @@ export class TradeController {
 
   @Get('buyer-requests')
   @ApiPaged()
-  @Roles(Role.BUYER, Role.FIELD_OFFICER, ...STAFF)
+  @Roles(Role.BUYER, Role.SELLER, Role.FIELD_OFFICER, ...STAFF)
   @ApiOkResponse({
     type: [BuyerRequestDto],
     description: 'Open requests by default, each with matching listings',

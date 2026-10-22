@@ -20,12 +20,21 @@ import {WarehouseReceipt} from "../warehouse/WarehouseReceipt.sol";
 /// officer) each confirm delivery. Delivered deals add to the project's sale income.
 /// A listing whose whole quantity is paid for closes as SoldOut. The final payout waits
 /// until a project has no open listing and no undelivered deal. Amounts are in poisha.
+///
+/// External sellers (Seller role) list catalog produce of their own: such a listing has
+/// no project, waits for an admin's approval, and its seller decides offers and hands
+/// the goods over. After delivery, Accounts pays the seller the deal amount less the
+/// seller fee. Every approved deal carries a fixed platform fee by its total (slabs set
+/// by the super admin): the buyer always pays it; the seller only on external listings,
+/// so a project's sale income is never reduced.
 contract TradeLedger is AccessGuarded {
     enum ListingStatus {
         None,
         Open,
         Cancelled,
-        SoldOut // every unit paid for
+        SoldOut, // every unit paid for
+        Pending, // an external seller's listing, waiting for an admin
+        Rejected // an external seller's listing an admin turned down
     }
 
     enum OfferStatus {
@@ -37,14 +46,15 @@ contract TradeLedger is AccessGuarded {
         Cancelled, // an approved deal the buyer never paid
         Paid,
         Delivered,
-        Expired // an approved deal left unpaid past its deadline
+        Expired, // an approved deal left unpaid past its deadline
+        SellerPaid // external listing: the seller was paid after delivery
     }
 
     struct Listing {
         bytes32 projectId;
         bytes32 farmerId;
         bytes32 receiptId; // 0 = perishable, listed from the project
-        bytes32 seller; // farmer's participant id, or WEGRO
+        bytes32 seller; // farmer's participant id, WEGRO, or an external seller's id
         bytes32 produceCode;
         uint256 quantity; // listed in total
         uint256 available; // not yet reserved by an approved offer
@@ -52,6 +62,7 @@ contract TradeLedger is AccessGuarded {
         uint32 unpaidDeals;
         ListingStatus status;
         uint64 createdAt;
+        bytes32 detailsHash; // external listing: its description, district and photos; else 0
     }
 
     struct Offer {
@@ -64,6 +75,8 @@ contract TradeLedger is AccessGuarded {
         uint64 paymentDueAt; // set on approval; payment must be confirmed before it
         bytes32 paymentRefHash;
         bytes32 receiptPartId; // receipt split off to the buyer on payment
+        uint256 buyerFee; // fixed on approval, by the deal total
+        uint256 sellerFee; // fixed on approval; 0 on WeGro's own listings
     }
 
     struct Delivery {
@@ -103,6 +116,14 @@ contract TradeLedger is AccessGuarded {
     mapping(bytes32 projectId => uint256) public saleIncome;
     /// @notice Open listings plus approved-but-undelivered deals per project.
     mapping(bytes32 projectId => uint256) public openTrades;
+    /// @notice Platform fees earned: buyer fees on payment, seller fees on payout.
+    uint256 public feesEarned;
+
+    /// @notice Fee slabs: a deal total up to caps[i] pays fees[i]; above the last
+    /// cap, the last fee. One fee per side.
+    uint256[] private _feeCaps;
+    uint256[] private _feeAmounts;
+    uint256 public constant MAX_FEE_SLABS = 20;
 
     event ListingCreated(
         uint256 indexed listingId,
@@ -115,6 +136,13 @@ contract TradeLedger is AccessGuarded {
         address listedBy
     );
     event ListingCancelled(uint256 indexed listingId, uint256 unsold, address indexed cancelledBy);
+    event ExternalListingCreated(uint256 indexed listingId, bytes32 indexed seller, bytes32 detailsHash);
+    event ListingApproved(uint256 indexed listingId, address indexed approvedBy);
+    event ListingRejected(uint256 indexed listingId, address indexed rejectedBy);
+    event FeeSlabsSet(uint256[] caps, uint256[] fees);
+    event SellerPaid(
+        uint256 indexed offerId, bytes32 indexed seller, uint256 amount, bytes32 paymentRefHash, address paidBy
+    );
     event ListingSoldOut(uint256 indexed listingId);
     event OfferMade(
         uint256 indexed offerId, uint256 indexed listingId, bytes32 indexed buyerId, uint256 quantity, uint256 unitPrice
@@ -122,7 +150,12 @@ contract TradeLedger is AccessGuarded {
     event OfferWithdrawn(uint256 indexed offerId);
     event OfferRejected(uint256 indexed offerId, address indexed rejectedBy);
     event OfferApproved(
-        uint256 indexed offerId, uint256 indexed listingId, address indexed approvedBy, uint64 paymentDueAt
+        uint256 indexed offerId,
+        uint256 indexed listingId,
+        address indexed approvedBy,
+        uint64 paymentDueAt,
+        uint256 buyerFee,
+        uint256 sellerFee
     );
     event DealCancelled(uint256 indexed offerId, address indexed cancelledBy);
     event DealExpired(uint256 indexed offerId);
@@ -160,6 +193,9 @@ contract TradeLedger is AccessGuarded {
     error PaymentOverdue(uint256 offerId, uint64 paymentDueAt);
     error DealNotYetDue(uint256 offerId, uint64 paymentDueAt);
     error NotAuthorized(address account);
+    error NotExternal(uint256 listingId);
+    error NotPendingListing(uint256 listingId);
+    error BadFeeSlabs();
 
     constructor(AccessRegistry registry_, ProjectLedger projectLedger_, WarehouseReceipt receipts_, uint64 dealTtl_)
         AccessGuarded(registry_)
@@ -170,6 +206,39 @@ contract TradeLedger is AccessGuarded {
         receipts = receipts_;
         WEGRO = receipts_.WEGRO();
         dealTtl = dealTtl_;
+        // The agreed starting slabs, per side (poisha): up to Tk 5,000 pays Tk 20;
+        // to 25,000, Tk 75; to 1,00,000, Tk 250; to 5,00,000, Tk 750; above, Tk 1,500.
+        uint256[] memory caps = new uint256[](4);
+        caps[0] = 5_000_00;
+        caps[1] = 25_000_00;
+        caps[2] = 100_000_00;
+        caps[3] = 500_000_00;
+        uint256[] memory fees = new uint256[](5);
+        fees[0] = 20_00;
+        fees[1] = 75_00;
+        fees[2] = 250_00;
+        fees[3] = 750_00;
+        fees[4] = 1_500_00;
+        _setFeeSlabs(caps, fees);
+    }
+
+    /// @notice The super admin sets the fee slabs; deals already approved keep theirs.
+    function setFeeSlabs(uint256[] calldata caps, uint256[] calldata fees) external {
+        if (!_isSuperAdmin()) revert NotAuthorized(msg.sender);
+        _setFeeSlabs(caps, fees);
+    }
+
+    /// @notice The fee one side pays on a deal of this total.
+    function feeFor(uint256 total) public view returns (uint256) {
+        uint256 n = _feeCaps.length;
+        for (uint256 i = 0; i < n; ++i) {
+            if (total <= _feeCaps[i]) return _feeAmounts[i];
+        }
+        return _feeAmounts.length == 0 ? 0 : _feeAmounts[n];
+    }
+
+    function getFeeSlabs() external view returns (uint256[] memory caps, uint256[] memory fees) {
+        return (_feeCaps, _feeAmounts);
     }
 
     /// @notice Applies to deals approved from now on; existing deadlines stay.
@@ -189,7 +258,15 @@ contract TradeLedger is AccessGuarded {
 
         receipts.setListed(receiptId, true); // must be Issued and not expired
         listingId = _createListing(
-            r.projectId, p.terms.farmerId, receiptId, r.owner, r.produceCode, r.quantity, askingUnitPrice
+            r.projectId,
+            p.terms.farmerId,
+            receiptId,
+            r.owner,
+            r.produceCode,
+            r.quantity,
+            askingUnitPrice,
+            ListingStatus.Open,
+            bytes32(0)
         );
     }
 
@@ -212,20 +289,69 @@ contract TradeLedger is AccessGuarded {
             revert NotAuthorized(msg.sender);
         }
         listingId = _createListing(
-            projectId, p.terms.farmerId, bytes32(0), seller, p.terms.produceCode, quantity, askingUnitPrice
+            projectId,
+            p.terms.farmerId,
+            bytes32(0),
+            seller,
+            p.terms.produceCode,
+            quantity,
+            askingUnitPrice,
+            ListingStatus.Open,
+            bytes32(0)
         );
+    }
+
+    /// @notice An external seller lists produce of their own. Buyers see it once
+    /// an admin approves it.
+    function listExternal(bytes32 produceCode, uint256 quantity, uint256 askingUnitPrice, bytes32 detailsHash)
+        external
+        onlyRole(Roles.SELLER)
+        returns (uint256 listingId)
+    {
+        if (produceCode == bytes32(0) || quantity == 0 || askingUnitPrice == 0 || detailsHash == bytes32(0)) {
+            revert ZeroValue();
+        }
+        bytes32 seller = _callerId();
+        listingId = _createListing(
+            bytes32(0),
+            bytes32(0),
+            bytes32(0),
+            seller,
+            produceCode,
+            quantity,
+            askingUnitPrice,
+            ListingStatus.Pending,
+            detailsHash
+        );
+        emit ExternalListingCreated(listingId, seller, detailsHash);
+    }
+
+    /// @notice An admin lets an external seller's listing go live.
+    function approveListing(uint256 listingId) external onlyRole(Roles.ADMIN) {
+        Listing storage l = _pendingListing(listingId);
+        l.status = ListingStatus.Open;
+        emit ListingApproved(listingId, msg.sender);
+    }
+
+    /// @notice An admin turns an external seller's listing down.
+    function rejectListing(uint256 listingId) external onlyRole(Roles.ADMIN) {
+        Listing storage l = _pendingListing(listingId);
+        l.status = ListingStatus.Rejected;
+        emit ListingRejected(listingId, msg.sender);
     }
 
     /// @notice Stop selling what is left: the seller's side or an admin. Needs no
     /// unpaid deals (an admin cancels those first). An unsold receipt goes back to
     /// its owner with the remaining quantity; paid deals carry on to delivery.
     function cancelListing(uint256 listingId) external {
-        Listing storage l = _openListing(listingId);
+        Listing storage l = _listings[listingId];
+        if (l.status == ListingStatus.None) revert ListingNotFound(listingId);
+        if (l.status != ListingStatus.Open && l.status != ListingStatus.Pending) revert ListingClosed(listingId);
         if (!_hasRole(Roles.ADMIN) && !_isSellerSide(l)) revert NotAuthorized(msg.sender);
         if (l.unpaidDeals != 0) revert DealsPending(listingId, l.unpaidDeals);
 
         l.status = ListingStatus.Cancelled;
-        openTrades[l.projectId]--;
+        _untrack(l.projectId);
         if (l.receiptId != bytes32(0)) receipts.setListed(l.receiptId, false);
         emit ListingCancelled(listingId, l.available, msg.sender);
     }
@@ -253,7 +379,9 @@ contract TradeLedger is AccessGuarded {
             madeAt: uint64(block.timestamp),
             paymentDueAt: 0,
             paymentRefHash: bytes32(0),
-            receiptPartId: bytes32(0)
+            receiptPartId: bytes32(0),
+            buyerFee: 0,
+            sellerFee: 0
         });
         emit OfferMade(offerId, listingId, buyerId, quantity, unitPrice);
     }
@@ -265,24 +393,33 @@ contract TradeLedger is AccessGuarded {
         emit OfferWithdrawn(offerId);
     }
 
-    function rejectOffer(uint256 offerId) external onlyRole(Roles.ADMIN) {
+    /// @notice The listing's decider turns an offer down: a WeGro admin, or the
+    /// external seller on their own listing.
+    function rejectOffer(uint256 offerId) external {
         Offer storage o = _offerIn(offerId, OfferStatus.Pending);
+        _requireDecider(_listings[o.listingId]);
         o.status = OfferStatus.Rejected;
         emit OfferRejected(offerId, msg.sender);
     }
 
-    /// @notice A WeGro admin approves an offer: its quantity is reserved for that buyer.
-    function approveOffer(uint256 offerId) external onlyRole(Roles.ADMIN) {
+    /// @notice The listing's decider (a WeGro admin, or the external seller)
+    /// approves an offer: its quantity is reserved for that buyer, and the
+    /// platform fees are fixed by the deal total.
+    function approveOffer(uint256 offerId) external {
         Offer storage o = _offerIn(offerId, OfferStatus.Pending);
         Listing storage l = _openListing(o.listingId);
+        _requireDecider(l);
         if (o.quantity > l.available) revert ExceedsAvailable(o.quantity, l.available);
 
         l.available -= o.quantity;
         l.unpaidDeals++;
-        openTrades[l.projectId]++;
+        _track(l.projectId);
+        uint256 fee = feeFor(o.quantity * o.unitPrice);
+        o.buyerFee = fee;
+        o.sellerFee = _isExternal(l) ? fee : 0;
         o.status = OfferStatus.Approved;
         o.paymentDueAt = uint64(block.timestamp) + dealTtl;
-        emit OfferApproved(offerId, o.listingId, msg.sender, o.paymentDueAt);
+        emit OfferApproved(offerId, o.listingId, msg.sender, o.paymentDueAt, o.buyerFee, o.sellerFee);
     }
 
     /// @notice An admin cancels an approved deal the buyer never paid; its
@@ -314,18 +451,19 @@ contract TradeLedger is AccessGuarded {
         l.unpaidDeals--;
         o.status = OfferStatus.Paid;
         o.paymentRefHash = paymentRefHash;
+        feesEarned += o.buyerFee;
         if (l.receiptId != bytes32(0)) o.receiptPartId = receipts.sellPart(l.receiptId, o.quantity, o.buyerId);
         emit BuyerPaymentConfirmed(offerId, paymentRefHash, o.receiptPartId, msg.sender);
 
         if (l.available == 0 && l.unpaidDeals == 0) {
             l.status = ListingStatus.SoldOut;
-            openTrades[l.projectId]--;
+            _untrack(l.projectId);
             emit ListingSoldOut(o.listingId);
         }
     }
 
     /// @notice The buyer, and the handler (an operator of the receipt's warehouse
-    /// site, or the farmer's field officer for perishables), each confirm the
+    /// site, the farmer's field officer for perishables, or the external seller), each confirm the
     /// quantity and quality delivered. Both done: Delivered, receipt part Collected.
     function confirmDelivery(uint256 offerId, uint256 quantity, bytes32 qualityHash) external {
         if (quantity == 0 || qualityHash == bytes32(0)) revert ZeroValue();
@@ -352,13 +490,28 @@ contract TradeLedger is AccessGuarded {
         if (d.buyerQuantity != 0 && d.handlerQuantity != 0) {
             o.status = OfferStatus.Delivered;
             uint256 amount = o.quantity * o.unitPrice;
-            saleIncome[l.projectId] += amount;
-            openTrades[l.projectId]--;
+            if (!_isExternal(l)) saleIncome[l.projectId] += amount;
+            _untrack(l.projectId);
             if (o.receiptPartId != bytes32(0)) receipts.collectSold(o.receiptPartId, d.handlerId);
             emit DealDelivered(offerId, l.projectId, amount);
         }
     }
 
+
+    /// @notice Accounts paid an external seller for a delivered deal: the deal
+    /// amount less the seller fee (the reference only as a hash).
+    function recordSellerPayout(uint256 offerId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
+        Offer storage o = _offerIn(offerId, OfferStatus.Delivered);
+        Listing storage l = _listings[o.listingId];
+        if (!_isExternal(l)) revert NotExternal(o.listingId);
+        if (paymentRefHash == bytes32(0)) revert ZeroValue();
+        if (paymentRefUsed[paymentRefHash]) revert PaymentRefAlreadyUsed(paymentRefHash);
+        paymentRefUsed[paymentRefHash] = true;
+
+        o.status = OfferStatus.SellerPaid;
+        feesEarned += o.sellerFee;
+        emit SellerPaid(offerId, l.seller, o.quantity * o.unitPrice - o.sellerFee, paymentRefHash, msg.sender);
+    }
 
     function postRequest(bytes32 produceCode, uint256 quantity, uint256 maxUnitPrice, uint64 validUntil)
         external
@@ -422,7 +575,9 @@ contract TradeLedger is AccessGuarded {
         bytes32 seller,
         bytes32 produceCode,
         uint256 quantity,
-        uint256 askingUnitPrice
+        uint256 askingUnitPrice,
+        ListingStatus status,
+        bytes32 detailsHash
     ) private returns (uint256 listingId) {
         listingId = nextListingId++;
         _listings[listingId] = Listing({
@@ -435,10 +590,11 @@ contract TradeLedger is AccessGuarded {
             available: quantity,
             askingUnitPrice: askingUnitPrice,
             unpaidDeals: 0,
-            status: ListingStatus.Open,
-            createdAt: uint64(block.timestamp)
+            status: status,
+            createdAt: uint64(block.timestamp),
+            detailsHash: detailsHash
         });
-        openTrades[projectId]++;
+        _track(projectId);
         emit ListingCreated(listingId, projectId, receiptId, seller, produceCode, quantity, askingUnitPrice, msg.sender);
     }
 
@@ -447,8 +603,48 @@ contract TradeLedger is AccessGuarded {
         Listing storage l = _listings[o.listingId];
         l.available += o.quantity;
         l.unpaidDeals--;
-        openTrades[l.projectId]--;
+        _untrack(l.projectId);
         o.status = status;
+    }
+
+    /// @dev Open trades count per project, for settlement; external listings have none.
+    function _track(bytes32 projectId) private {
+        if (projectId != bytes32(0)) openTrades[projectId]++;
+    }
+
+    function _untrack(bytes32 projectId) private {
+        if (projectId != bytes32(0)) openTrades[projectId]--;
+    }
+
+    function _setFeeSlabs(uint256[] memory caps, uint256[] memory fees) private {
+        if (fees.length != caps.length + 1 || fees.length > MAX_FEE_SLABS) revert BadFeeSlabs();
+        for (uint256 i = 1; i < caps.length; ++i) {
+            if (caps[i] <= caps[i - 1]) revert BadFeeSlabs();
+        }
+        if (caps.length > 0 && caps[0] == 0) revert BadFeeSlabs();
+        _feeCaps = caps;
+        _feeAmounts = fees;
+        emit FeeSlabsSet(caps, fees);
+    }
+
+    /// @dev An external seller's listing: it belongs to no project.
+    function _isExternal(Listing storage l) private view returns (bool) {
+        return l.projectId == bytes32(0);
+    }
+
+    /// @dev Who decides offers: the external seller on their listing, else a WeGro admin.
+    function _requireDecider(Listing storage l) private view {
+        if (!_isExternal(l)) {
+            _checkRole(Roles.ADMIN);
+        } else if (!_hasRole(Roles.SELLER) || _callerId() != l.seller) {
+            revert NotAuthorized(msg.sender);
+        }
+    }
+
+    function _pendingListing(uint256 listingId) private view returns (Listing storage l) {
+        l = _listings[listingId];
+        if (l.status == ListingStatus.None) revert ListingNotFound(listingId);
+        if (l.status != ListingStatus.Pending) revert NotPendingListing(listingId);
     }
 
     function _activeProject(bytes32 projectId) private view returns (ProjectLedger.Project memory p) {
@@ -461,11 +657,14 @@ contract TradeLedger is AccessGuarded {
     }
 
     function _isSellerSide(Listing storage l) private view returns (bool) {
+        if (_isExternal(l)) return _hasRole(Roles.SELLER) && _callerId() == l.seller;
         return l.seller == WEGRO ? _hasRole(Roles.ADMIN) : _isFarmersOfficer(l.farmerId);
     }
 
-    /// @dev Receipt: an operator of the issuing site. Perishable: the farmer's officer.
+    /// @dev Receipt: an operator of the issuing site. Perishable: the farmer's
+    /// officer. External: the seller.
     function _isHandler(Listing storage l, bytes32 caller) private view returns (bool) {
+        if (_isExternal(l)) return _hasRole(Roles.SELLER) && caller == l.seller;
         if (l.receiptId == bytes32(0)) return _isFarmersOfficer(l.farmerId);
         bytes32 siteId = receipts.getReceipt(l.receiptId).siteId;
         return _hasRole(Roles.WAREHOUSE) && receipts.siteOf(caller) == siteId;

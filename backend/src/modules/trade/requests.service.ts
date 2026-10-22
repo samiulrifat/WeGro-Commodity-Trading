@@ -1,3 +1,5 @@
+import { matchesWord, searchWords } from '../../common/search/words';
+import { PersonSearch } from '../users/person-search';
 import {
   ConflictException,
   Injectable,
@@ -5,7 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
 import { TransactionService } from '../../blockchain/tx/transaction.service';
@@ -29,6 +31,7 @@ import type {
 } from './dto/trade.dto';
 import { BuyerRequest } from './entities/buyer-request.entity';
 import { Listing } from './entities/listing.entity';
+import { ListingDetails } from './entities/listing-details.entity';
 import { ListingStatus, RequestStatus } from './trade.enums';
 import { TradeService } from './trade.service';
 import { ErrorCode } from '../../common/errors/error-code';
@@ -50,6 +53,7 @@ export class RequestsService {
     private readonly tx: TransactionService,
     private readonly applier: ReceiptApplier,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {}
 
   async post(actor: AuthUser, dto: PostRequestDto): Promise<BuyerRequestDto> {
@@ -111,6 +115,28 @@ export class RequestsService {
       qb.andWhere('r.produce_code = :pc', { pc: q.produceCode });
     if (q.mine && actor.role === Role.BUYER)
       qb.andWhere('r.buyer_id = :me', { me: actor.id });
+    const text = (q.q ?? '').trim();
+    if (text) {
+      const words = searchWords(text);
+      const codes = this.catalog.produceTypes
+        .list(true)
+        .filter((p) =>
+          words.every(
+            (w) => matchesWord(p.name, w) || matchesWord(p.nameBn, w),
+          ),
+        )
+        .map((p) => p.code);
+      const buyer = this.search.condition('r.buyer_id', text, 'Buyer');
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where('1 = 0');
+          if (words.length > 0 && codes.length > 0) {
+            b.orWhere('r.produce_code IN (:...rcodes)', { rcodes: codes });
+          }
+          if (buyer) b.orWhere(buyer.sql, buyer.params);
+        }),
+      );
+    }
     const [rows, total] = await qb
       .orderBy('r.posted_at', 'DESC')
       .addOrderBy('r.id', 'DESC')
@@ -152,13 +178,31 @@ export class RequestsService {
       .orderBy('l.asking_unit_price', 'ASC')
       .addOrderBy('l.id', 'ASC')
       .getMany();
-    const projects = open.length
-      ? await this.projects.find({
-          where: { id: In([...new Set(open.map((l) => l.projectId))]) },
-          select: { id: true, districtCode: true },
-        })
-      : [];
-    const district = new Map(projects.map((p) => [p.id, p.districtCode]));
+    const projectIds = [
+      ...new Set(open.flatMap((l) => (l.projectId ? [l.projectId] : []))),
+    ];
+    const detailIds = open.flatMap((l) => (l.detailsId ? [l.detailsId] : []));
+    const [projects, details] = await Promise.all([
+      projectIds.length
+        ? this.projects.find({
+            where: { id: In(projectIds) },
+            select: { id: true, districtCode: true },
+          })
+        : [],
+      detailIds.length
+        ? this.listings.manager.getRepository(ListingDetails).find({
+            where: { id: In(detailIds) },
+            select: { id: true, districtCode: true },
+          })
+        : [],
+    ]);
+    // Where each listing's produce is: its project's district, or the seller's.
+    const districtOf = new Map([
+      ...projects.map((p) => [p.id, p.districtCode] as const),
+      ...details.map((d) => [d.id, d.districtCode] as const),
+    ]);
+    const district = (l: Listing) =>
+      districtOf.get(l.projectId ?? l.detailsId ?? '') ?? '';
     const byProduce = new Map<string, Listing[]>();
     for (const l of open) {
       const list = byProduce.get(l.produceCode) ?? [];
@@ -189,7 +233,7 @@ export class RequestsService {
         status,
         postedAt: r.postedAt,
         matchingListings: matches.map((l) => {
-          const code = district.get(l.projectId) ?? '';
+          const code = district(l);
           return {
             id: l.id,
             available: l.available,

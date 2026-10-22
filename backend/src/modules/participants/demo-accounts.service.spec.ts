@@ -23,6 +23,7 @@ const OTHERS = [
   Role.SUPPLIER,
   Role.BUYER,
   Role.INSURER,
+  Role.SELLER,
 ];
 
 /** Users in memory; registering adds a pending one, verifying verifies it. */

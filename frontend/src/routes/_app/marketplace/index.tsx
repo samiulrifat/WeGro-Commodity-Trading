@@ -1,7 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ComingSoon } from '@/app/pages';
+import { ListingsList } from '@/features/marketplace/listings-list';
+import { parseMarketSearch } from '@/features/marketplace/market-utils';
 
 export const Route = createFileRoute('/_app/marketplace/')({
   staticData: { area: 'marketplace' },
-  component: () => <ComingSoon area="marketplace" />,
+  validateSearch: parseMarketSearch,
+  component: function Listings() {
+    return <ListingsList search={Route.useSearch()} mode="browse" />;
+  },
 });

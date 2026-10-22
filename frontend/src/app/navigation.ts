@@ -134,7 +134,15 @@ export type SubLabel =
   | 'allReceipts'
   | 'handovers'
   | 'sites'
-  | 'mySite';
+  | 'mySite'
+  | 'listings'
+  | 'myListings'
+  | 'listingApprovals'
+  | 'deals'
+  | 'deliveries'
+  | 'sellerPayouts'
+  | 'buyerRequests'
+  | 'platformFees';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -162,7 +170,15 @@ export type SubPath =
   | '/farm-updates/sent'
   | '/warehouse'
   | '/warehouse/handovers'
-  | '/warehouse/sites';
+  | '/warehouse/sites'
+  | '/marketplace'
+  | '/marketplace/mine'
+  | '/marketplace/approvals'
+  | '/marketplace/deals'
+  | '/marketplace/deliveries'
+  | '/marketplace/payouts'
+  | '/marketplace/requests'
+  | '/marketplace/fees';
 
 export interface SubPage {
   to: SubPath;
@@ -222,6 +238,26 @@ const WAREHOUSE = item('warehouse', 'warehouse', [
   HANDOVERS,
   sub('/warehouse/sites', 'sites'),
 ]);
+/** The marketplace: each role sees the pages its part in a sale uses. */
+const LISTINGS = sub('/marketplace', 'listings');
+const MY_LISTINGS = sub('/marketplace/mine', 'myListings');
+const APPROVALS = sub('/marketplace/approvals', 'listingApprovals');
+const DEALS = sub('/marketplace/deals', 'deals');
+const DELIVERIES = sub('/marketplace/deliveries', 'deliveries');
+const SELLER_PAYOUTS = sub('/marketplace/payouts', 'sellerPayouts');
+const BUYER_REQUESTS = sub('/marketplace/requests', 'buyerRequests');
+const FEES = sub('/marketplace/fees', 'platformFees');
+const marketplace = (...pages: SubPage[]) =>
+  item('marketplace', 'marketplace', pages);
+const WHOLE_MARKETPLACE = [
+  LISTINGS,
+  APPROVALS,
+  DEALS,
+  DELIVERIES,
+  SELLER_PAYOUTS,
+  BUYER_REQUESTS,
+  FEES,
+];
 const OFFICE_VOUCHERS = item('vouchers', 'vouchers', [
   ALL_VOUCHERS,
   PENDING_VOUCHERS,
@@ -241,7 +277,7 @@ const OFFICE: NavItem[] = [
   ]),
   OFFICE_VOUCHERS,
   WAREHOUSE,
-  item('marketplace', 'marketplace'),
+  marketplace(...WHOLE_MARKETPLACE),
   item('insurance', 'insurance'),
   item('payouts', 'payouts'),
   item('track-records', 'trackRecords'),
@@ -268,7 +304,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('projects', 'projects'),
     OFFICE_VOUCHERS,
     catalog(...WHOLE_CATALOG),
-    item('marketplace', 'marketplace'),
+    marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS, FEES),
     WAREHOUSE,
     item('insurance', 'insurance'),
   ],
@@ -277,7 +313,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS),
     OFFICE_VOUCHERS,
     item('payouts', 'payouts'),
-    item('marketplace', 'marketplace'),
+    marketplace(LISTINGS, DEALS, SELLER_PAYOUTS, BUYER_REQUESTS, FEES),
     WAREHOUSE,
     item('insurance', 'insurance'),
     catalog(PRODUCE, INPUTS),
@@ -289,7 +325,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('people', 'people'),
     OFFICE_VOUCHERS,
     WAREHOUSE,
-    item('marketplace', 'marketplace'),
+    marketplace(...WHOLE_MARKETPLACE),
     item('insurance', 'insurance'),
     item('payouts', 'payouts'),
     item('track-records', 'trackRecords'),
@@ -309,7 +345,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('projects', 'projects'),
     item('vouchers', 'vouchers', [ALL_VOUCHERS, INPUT_SALES, INPUT_BATCHES]),
     WAREHOUSE,
-    item('marketplace', 'marketplace'),
+    marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS),
     item('insurance', 'insurance'),
     item('track-records', 'trackRecords'),
     catalog(PRODUCE, INPUTS, FARM_UPDATE_TYPES, WEATHER_EVENTS),
@@ -318,7 +354,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('projects', 'myProjects'),
     item('vouchers', 'vouchers'),
     item('warehouse', 'warehouse'),
-    item('marketplace', 'marketplace'),
+    marketplace(LISTINGS, DEALS),
     item('insurance', 'insurance'),
     item('statement', 'statement'),
     item('track-records', 'trackRecord'),
@@ -340,14 +376,19 @@ export const NAV: Record<Role, readonly NavItem[]> = {
       RECEIPTS,
       sub('/warehouse/sites', 'mySite'),
     ]),
-    item('marketplace', 'marketplace'),
+    marketplace(LISTINGS, DEALS, DELIVERIES),
     catalog(PRODUCE),
   ],
   buyer: [
-    item('marketplace', 'marketplace'),
+    marketplace(LISTINGS, FEES),
     item('offers', 'offers'),
     item('requests', 'requests'),
     item('warehouse', 'receipts'),
+    catalog(PRODUCE),
+  ],
+  // Outside sellers land on their own listings.
+  seller: [
+    marketplace(MY_LISTINGS, LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS, FEES),
     catalog(PRODUCE),
   ],
   bank: [item('bank-farmers', 'farmers'), catalog(PRODUCE)],
@@ -363,10 +404,10 @@ export function navFor(user: User): readonly NavItem[] {
   return user.status === 'verified' ? NAV[user.role] : PENDING;
 }
 
-/** Where someone lands after signing in. */
-export function homeOf(user: User): (typeof AREAS)[Area]['to'] {
+/** Where someone lands after signing in: their first section's first page. */
+export function homeOf(user: User): (typeof AREAS)[Area]['to'] | SubPath {
   const [first] = navFor(user);
-  return AREAS[first?.area ?? 'status'].to;
+  return first?.pages?.[0]?.to ?? AREAS[first?.area ?? 'status'].to;
 }
 
 export type Access = 'ok' | 'sign-in' | 'change-password' | 'no-access';

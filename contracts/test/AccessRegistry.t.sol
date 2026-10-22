@@ -251,9 +251,22 @@ contract AccessRegistryTest is Test {
         assertTrue(registry.isVerifiedAs(keccak256("BUY-SELF"), buyer));
     }
 
+    function test_SellersSignUpThemselvesToo() public {
+        bytes32 seller = registry.SELLER_ROLE();
+        bytes32 id = keccak256("SELLER-SELF");
+        address karim = makeAddr("karim");
+        vm.expectEmit(address(registry));
+        emit AccessRegistry.ParticipantSelfRegistered(id);
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(id, seller, karim, keccak256("karim"));
+        assertTrue(registry.isVerifiedAs(id, seller));
+        assertTrue(registry.isPlatformRole(seller));
+        assertFalse(registry.isStaffRole(seller));
+    }
+
     function test_SelfRegistrationGuards() public {
         bytes32 investor = registry.INVESTOR_ROLE();
-        // Only investors and buyers.
+        // Only investors, buyers and sellers.
         vm.startPrank(superAdmin);
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotSelfRegistrable.selector, FARMER));
         registry.selfRegisterParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);

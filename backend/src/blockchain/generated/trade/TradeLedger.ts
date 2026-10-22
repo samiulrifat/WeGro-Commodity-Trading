@@ -11,14 +11,14 @@ export declare namespace TradeLedger {
     export type DeliveryStructOutput = [buyerQuantity: bigint, buyerQualityHash: string, handlerQuantity: bigint, handlerQualityHash: string, handlerId: string] & {buyerQuantity: bigint, buyerQualityHash: string, handlerQuantity: bigint, handlerQualityHash: string, handlerId: string }
   
 
-    export type ListingStruct = {projectId: BytesLike, farmerId: BytesLike, receiptId: BytesLike, seller: BytesLike, produceCode: BytesLike, quantity: BigNumberish, available: BigNumberish, askingUnitPrice: BigNumberish, unpaidDeals: BigNumberish, status: BigNumberish, createdAt: BigNumberish}
+    export type ListingStruct = {projectId: BytesLike, farmerId: BytesLike, receiptId: BytesLike, seller: BytesLike, produceCode: BytesLike, quantity: BigNumberish, available: BigNumberish, askingUnitPrice: BigNumberish, unpaidDeals: BigNumberish, status: BigNumberish, createdAt: BigNumberish, detailsHash: BytesLike}
 
-    export type ListingStructOutput = [projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint] & {projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint }
+    export type ListingStructOutput = [projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint, detailsHash: string] & {projectId: string, farmerId: string, receiptId: string, seller: string, produceCode: string, quantity: bigint, available: bigint, askingUnitPrice: bigint, unpaidDeals: bigint, status: bigint, createdAt: bigint, detailsHash: string }
   
 
-    export type OfferStruct = {listingId: BigNumberish, buyerId: BytesLike, quantity: BigNumberish, unitPrice: BigNumberish, status: BigNumberish, madeAt: BigNumberish, paymentDueAt: BigNumberish, paymentRefHash: BytesLike, receiptPartId: BytesLike}
+    export type OfferStruct = {listingId: BigNumberish, buyerId: BytesLike, quantity: BigNumberish, unitPrice: BigNumberish, status: BigNumberish, madeAt: BigNumberish, paymentDueAt: BigNumberish, paymentRefHash: BytesLike, receiptPartId: BytesLike, buyerFee: BigNumberish, sellerFee: BigNumberish}
 
-    export type OfferStructOutput = [listingId: bigint, buyerId: string, quantity: bigint, unitPrice: bigint, status: bigint, madeAt: bigint, paymentDueAt: bigint, paymentRefHash: string, receiptPartId: string] & {listingId: bigint, buyerId: string, quantity: bigint, unitPrice: bigint, status: bigint, madeAt: bigint, paymentDueAt: bigint, paymentRefHash: string, receiptPartId: string }
+    export type OfferStructOutput = [listingId: bigint, buyerId: string, quantity: bigint, unitPrice: bigint, status: bigint, madeAt: bigint, paymentDueAt: bigint, paymentRefHash: string, receiptPartId: string, buyerFee: bigint, sellerFee: bigint] & {listingId: bigint, buyerId: string, quantity: bigint, unitPrice: bigint, status: bigint, madeAt: bigint, paymentDueAt: bigint, paymentRefHash: string, receiptPartId: string, buyerFee: bigint, sellerFee: bigint }
   
 
     export type BuyerRequestStruct = {buyerId: BytesLike, produceCode: BytesLike, quantity: BigNumberish, maxUnitPrice: BigNumberish, validUntil: BigNumberish, cancelled: boolean}
@@ -28,11 +28,13 @@ export declare namespace TradeLedger {
     }
 
   export interface TradeLedgerInterface extends Interface {
-    getFunction(nameOrSignature: "WEGRO" | "approveOffer" | "cancelDeal" | "cancelListing" | "cancelRequest" | "confirmBuyerPayment" | "confirmDelivery" | "dealTtl" | "expireDeal" | "getDelivery" | "getListing" | "getOffer" | "getRequest" | "isRequestOpen" | "listProduce" | "listReceipt" | "makeOffer" | "nextListingId" | "nextOfferId" | "nextRequestId" | "openTrades" | "paymentRefUsed" | "postRequest" | "projectLedger" | "receipts" | "registry" | "rejectOffer" | "saleIncome" | "setDealTtl" | "withdrawOffer"): FunctionFragment;
+    getFunction(nameOrSignature: "MAX_FEE_SLABS" | "WEGRO" | "approveListing" | "approveOffer" | "cancelDeal" | "cancelListing" | "cancelRequest" | "confirmBuyerPayment" | "confirmDelivery" | "dealTtl" | "expireDeal" | "feeFor" | "feesEarned" | "getDelivery" | "getFeeSlabs" | "getListing" | "getOffer" | "getRequest" | "isRequestOpen" | "listExternal" | "listProduce" | "listReceipt" | "makeOffer" | "nextListingId" | "nextOfferId" | "nextRequestId" | "openTrades" | "paymentRefUsed" | "postRequest" | "projectLedger" | "receipts" | "recordSellerPayout" | "registry" | "rejectListing" | "rejectOffer" | "saleIncome" | "setDealTtl" | "setFeeSlabs" | "withdrawOffer"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "BuyerPaymentConfirmed" | "DealCancelled" | "DealDelivered" | "DealExpired" | "DealTtlUpdated" | "DeliveryConfirmed" | "ListingCancelled" | "ListingCreated" | "ListingSoldOut" | "OfferApproved" | "OfferMade" | "OfferRejected" | "OfferWithdrawn" | "RequestCancelled" | "RequestPosted"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "BuyerPaymentConfirmed" | "DealCancelled" | "DealDelivered" | "DealExpired" | "DealTtlUpdated" | "DeliveryConfirmed" | "ExternalListingCreated" | "FeeSlabsSet" | "ListingApproved" | "ListingCancelled" | "ListingCreated" | "ListingRejected" | "ListingSoldOut" | "OfferApproved" | "OfferMade" | "OfferRejected" | "OfferWithdrawn" | "RequestCancelled" | "RequestPosted" | "SellerPaid"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'WEGRO', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'MAX_FEE_SLABS', values?: undefined): string;
+encodeFunctionData(functionFragment: 'WEGRO', values?: undefined): string;
+encodeFunctionData(functionFragment: 'approveListing', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveOffer', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cancelDeal', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cancelListing', values: [BigNumberish]): string;
@@ -41,11 +43,15 @@ encodeFunctionData(functionFragment: 'confirmBuyerPayment', values: [BigNumberis
 encodeFunctionData(functionFragment: 'confirmDelivery', values: [BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'dealTtl', values?: undefined): string;
 encodeFunctionData(functionFragment: 'expireDeal', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'feeFor', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'feesEarned', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getDelivery', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getFeeSlabs', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getListing', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getOffer', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRequest', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isRequestOpen', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'listExternal', values: [BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'listProduce', values: [BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'listReceipt', values: [BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'makeOffer', values: [BigNumberish, BigNumberish, BigNumberish]): string;
@@ -57,13 +63,18 @@ encodeFunctionData(functionFragment: 'paymentRefUsed', values: [BytesLike]): str
 encodeFunctionData(functionFragment: 'postRequest', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'projectLedger', values?: undefined): string;
 encodeFunctionData(functionFragment: 'receipts', values?: undefined): string;
+encodeFunctionData(functionFragment: 'recordSellerPayout', values: [BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'registry', values?: undefined): string;
+encodeFunctionData(functionFragment: 'rejectListing', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'rejectOffer', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'saleIncome', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'setDealTtl', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setFeeSlabs', values: [BigNumberish[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'withdrawOffer', values: [BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'WEGRO', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'MAX_FEE_SLABS', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'WEGRO', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'approveListing', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveOffer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelDeal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelListing', data: BytesLike): Result;
@@ -72,11 +83,15 @@ decodeFunctionResult(functionFragment: 'confirmBuyerPayment', data: BytesLike): 
 decodeFunctionResult(functionFragment: 'confirmDelivery', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dealTtl', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'expireDeal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'feeFor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'feesEarned', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getDelivery', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getFeeSlabs', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getListing', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOffer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRequest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isRequestOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'listExternal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'listProduce', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'listReceipt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'makeOffer', data: BytesLike): Result;
@@ -88,10 +103,13 @@ decodeFunctionResult(functionFragment: 'paymentRefUsed', data: BytesLike): Resul
 decodeFunctionResult(functionFragment: 'postRequest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'projectLedger', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receipts', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordSellerPayout', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registry', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'rejectListing', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rejectOffer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'saleIncome', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDealTtl', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setFeeSlabs', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result;
   }
 
@@ -168,6 +186,42 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
   
 
+    export namespace ExternalListingCreatedEvent {
+      export type InputTuple = [listingId: BigNumberish, seller: BytesLike, detailsHash: BytesLike];
+      export type OutputTuple = [listingId: bigint, seller: string, detailsHash: string];
+      export interface OutputObject {listingId: bigint, seller: string, detailsHash: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace FeeSlabsSetEvent {
+      export type InputTuple = [caps: BigNumberish[], fees: BigNumberish[]];
+      export type OutputTuple = [caps: bigint[], fees: bigint[]];
+      export interface OutputObject {caps: bigint[], fees: bigint[] };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ListingApprovedEvent {
+      export type InputTuple = [listingId: BigNumberish, approvedBy: AddressLike];
+      export type OutputTuple = [listingId: bigint, approvedBy: string];
+      export interface OutputObject {listingId: bigint, approvedBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ListingCancelledEvent {
       export type InputTuple = [listingId: BigNumberish, unsold: BigNumberish, cancelledBy: AddressLike];
       export type OutputTuple = [listingId: bigint, unsold: bigint, cancelledBy: string];
@@ -192,6 +246,18 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
   
 
+    export namespace ListingRejectedEvent {
+      export type InputTuple = [listingId: BigNumberish, rejectedBy: AddressLike];
+      export type OutputTuple = [listingId: bigint, rejectedBy: string];
+      export interface OutputObject {listingId: bigint, rejectedBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ListingSoldOutEvent {
       export type InputTuple = [listingId: BigNumberish];
       export type OutputTuple = [listingId: bigint];
@@ -205,9 +271,9 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
   
 
     export namespace OfferApprovedEvent {
-      export type InputTuple = [offerId: BigNumberish, listingId: BigNumberish, approvedBy: AddressLike, paymentDueAt: BigNumberish];
-      export type OutputTuple = [offerId: bigint, listingId: bigint, approvedBy: string, paymentDueAt: bigint];
-      export interface OutputObject {offerId: bigint, listingId: bigint, approvedBy: string, paymentDueAt: bigint };
+      export type InputTuple = [offerId: BigNumberish, listingId: BigNumberish, approvedBy: AddressLike, paymentDueAt: BigNumberish, buyerFee: BigNumberish, sellerFee: BigNumberish];
+      export type OutputTuple = [offerId: bigint, listingId: bigint, approvedBy: string, paymentDueAt: bigint, buyerFee: bigint, sellerFee: bigint];
+      export interface OutputObject {offerId: bigint, listingId: bigint, approvedBy: string, paymentDueAt: bigint, buyerFee: bigint, sellerFee: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -276,6 +342,18 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
   
 
+    export namespace SellerPaidEvent {
+      export type InputTuple = [offerId: BigNumberish, seller: BytesLike, amount: BigNumberish, paymentRefHash: BytesLike, paidBy: AddressLike];
+      export type OutputTuple = [offerId: bigint, seller: string, amount: bigint, paymentRefHash: string, paidBy: string];
+      export interface OutputObject {offerId: bigint, seller: string, amount: bigint, paymentRefHash: string, paidBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
   export interface TradeLedger extends BaseContract {
     
     connect(runner?: ContractRunner | null): TradeLedger;
@@ -310,10 +388,26 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
     
     
+    MAX_FEE_SLABS: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     WEGRO: TypedContractMethod<
       [],
       [string],
       'view'
+    >
+    
+
+    
+    approveListing: TypedContractMethod<
+      [listingId: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -382,9 +476,33 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
     
 
     
+    feeFor: TypedContractMethod<
+      [total: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    feesEarned: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getDelivery: TypedContractMethod<
       [offerId: BigNumberish, ],
       [TradeLedger.DeliveryStructOutput],
+      'view'
+    >
+    
+
+    
+    getFeeSlabs: TypedContractMethod<
+      [],
+      [[bigint[], bigint[]] & {caps: bigint[], fees: bigint[] }],
       'view'
     >
     
@@ -418,6 +536,14 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
       [requestId: BigNumberish, ],
       [boolean],
       'view'
+    >
+    
+
+    
+    listExternal: TypedContractMethod<
+      [produceCode: BytesLike, quantity: BigNumberish, askingUnitPrice: BigNumberish, detailsHash: BytesLike, ],
+      [bigint],
+      'nonpayable'
     >
     
 
@@ -510,10 +636,26 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
     
 
     
+    recordSellerPayout: TypedContractMethod<
+      [offerId: BigNumberish, paymentRefHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     registry: TypedContractMethod<
       [],
       [string],
       'view'
+    >
+    
+
+    
+    rejectListing: TypedContractMethod<
+      [listingId: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -542,6 +684,14 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
     
 
     
+    setFeeSlabs: TypedContractMethod<
+      [caps: BigNumberish[], fees: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     withdrawOffer: TypedContractMethod<
       [offerId: BigNumberish, ],
       [void],
@@ -552,10 +702,20 @@ decodeFunctionResult(functionFragment: 'withdrawOffer', data: BytesLike): Result
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'WEGRO'): TypedContractMethod<
+    getFunction(nameOrSignature: 'MAX_FEE_SLABS'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'WEGRO'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'approveListing'): TypedContractMethod<
+      [listingId: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'approveOffer'): TypedContractMethod<
       [offerId: BigNumberish, ],
@@ -597,9 +757,24 @@ getFunction(nameOrSignature: 'expireDeal'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'feeFor'): TypedContractMethod<
+      [total: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'feesEarned'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getDelivery'): TypedContractMethod<
       [offerId: BigNumberish, ],
       [TradeLedger.DeliveryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getFeeSlabs'): TypedContractMethod<
+      [],
+      [[bigint[], bigint[]] & {caps: bigint[], fees: bigint[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'getListing'): TypedContractMethod<
@@ -621,6 +796,11 @@ getFunction(nameOrSignature: 'isRequestOpen'): TypedContractMethod<
       [requestId: BigNumberish, ],
       [boolean],
       'view'
+    >;
+getFunction(nameOrSignature: 'listExternal'): TypedContractMethod<
+      [produceCode: BytesLike, quantity: BigNumberish, askingUnitPrice: BigNumberish, detailsHash: BytesLike, ],
+      [bigint],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'listProduce'): TypedContractMethod<
       [projectId: BytesLike, quantity: BigNumberish, askingUnitPrice: BigNumberish, ],
@@ -677,10 +857,20 @@ getFunction(nameOrSignature: 'receipts'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'recordSellerPayout'): TypedContractMethod<
+      [offerId: BigNumberish, paymentRefHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'registry'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'rejectListing'): TypedContractMethod<
+      [listingId: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'rejectOffer'): TypedContractMethod<
       [offerId: BigNumberish, ],
@@ -697,6 +887,11 @@ getFunction(nameOrSignature: 'setDealTtl'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setFeeSlabs'): TypedContractMethod<
+      [caps: BigNumberish[], fees: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'withdrawOffer'): TypedContractMethod<
       [offerId: BigNumberish, ],
       [void],
@@ -709,8 +904,12 @@ getEvent(key: 'DealDelivered'): TypedContractEvent<DealDeliveredEvent.InputTuple
 getEvent(key: 'DealExpired'): TypedContractEvent<DealExpiredEvent.InputTuple, DealExpiredEvent.OutputTuple, DealExpiredEvent.OutputObject>;
 getEvent(key: 'DealTtlUpdated'): TypedContractEvent<DealTtlUpdatedEvent.InputTuple, DealTtlUpdatedEvent.OutputTuple, DealTtlUpdatedEvent.OutputObject>;
 getEvent(key: 'DeliveryConfirmed'): TypedContractEvent<DeliveryConfirmedEvent.InputTuple, DeliveryConfirmedEvent.OutputTuple, DeliveryConfirmedEvent.OutputObject>;
+getEvent(key: 'ExternalListingCreated'): TypedContractEvent<ExternalListingCreatedEvent.InputTuple, ExternalListingCreatedEvent.OutputTuple, ExternalListingCreatedEvent.OutputObject>;
+getEvent(key: 'FeeSlabsSet'): TypedContractEvent<FeeSlabsSetEvent.InputTuple, FeeSlabsSetEvent.OutputTuple, FeeSlabsSetEvent.OutputObject>;
+getEvent(key: 'ListingApproved'): TypedContractEvent<ListingApprovedEvent.InputTuple, ListingApprovedEvent.OutputTuple, ListingApprovedEvent.OutputObject>;
 getEvent(key: 'ListingCancelled'): TypedContractEvent<ListingCancelledEvent.InputTuple, ListingCancelledEvent.OutputTuple, ListingCancelledEvent.OutputObject>;
 getEvent(key: 'ListingCreated'): TypedContractEvent<ListingCreatedEvent.InputTuple, ListingCreatedEvent.OutputTuple, ListingCreatedEvent.OutputObject>;
+getEvent(key: 'ListingRejected'): TypedContractEvent<ListingRejectedEvent.InputTuple, ListingRejectedEvent.OutputTuple, ListingRejectedEvent.OutputObject>;
 getEvent(key: 'ListingSoldOut'): TypedContractEvent<ListingSoldOutEvent.InputTuple, ListingSoldOutEvent.OutputTuple, ListingSoldOutEvent.OutputObject>;
 getEvent(key: 'OfferApproved'): TypedContractEvent<OfferApprovedEvent.InputTuple, OfferApprovedEvent.OutputTuple, OfferApprovedEvent.OutputObject>;
 getEvent(key: 'OfferMade'): TypedContractEvent<OfferMadeEvent.InputTuple, OfferMadeEvent.OutputTuple, OfferMadeEvent.OutputObject>;
@@ -718,6 +917,7 @@ getEvent(key: 'OfferRejected'): TypedContractEvent<OfferRejectedEvent.InputTuple
 getEvent(key: 'OfferWithdrawn'): TypedContractEvent<OfferWithdrawnEvent.InputTuple, OfferWithdrawnEvent.OutputTuple, OfferWithdrawnEvent.OutputObject>;
 getEvent(key: 'RequestCancelled'): TypedContractEvent<RequestCancelledEvent.InputTuple, RequestCancelledEvent.OutputTuple, RequestCancelledEvent.OutputObject>;
 getEvent(key: 'RequestPosted'): TypedContractEvent<RequestPostedEvent.InputTuple, RequestPostedEvent.OutputTuple, RequestPostedEvent.OutputObject>;
+getEvent(key: 'SellerPaid'): TypedContractEvent<SellerPaidEvent.InputTuple, SellerPaidEvent.OutputTuple, SellerPaidEvent.OutputObject>;
 
     filters: {
       
@@ -745,6 +945,18 @@ getEvent(key: 'RequestPosted'): TypedContractEvent<RequestPostedEvent.InputTuple
       DeliveryConfirmed: TypedContractEvent<DeliveryConfirmedEvent.InputTuple, DeliveryConfirmedEvent.OutputTuple, DeliveryConfirmedEvent.OutputObject>;
     
 
+      'ExternalListingCreated(uint256,bytes32,bytes32)': TypedContractEvent<ExternalListingCreatedEvent.InputTuple, ExternalListingCreatedEvent.OutputTuple, ExternalListingCreatedEvent.OutputObject>;
+      ExternalListingCreated: TypedContractEvent<ExternalListingCreatedEvent.InputTuple, ExternalListingCreatedEvent.OutputTuple, ExternalListingCreatedEvent.OutputObject>;
+    
+
+      'FeeSlabsSet(uint256[],uint256[])': TypedContractEvent<FeeSlabsSetEvent.InputTuple, FeeSlabsSetEvent.OutputTuple, FeeSlabsSetEvent.OutputObject>;
+      FeeSlabsSet: TypedContractEvent<FeeSlabsSetEvent.InputTuple, FeeSlabsSetEvent.OutputTuple, FeeSlabsSetEvent.OutputObject>;
+    
+
+      'ListingApproved(uint256,address)': TypedContractEvent<ListingApprovedEvent.InputTuple, ListingApprovedEvent.OutputTuple, ListingApprovedEvent.OutputObject>;
+      ListingApproved: TypedContractEvent<ListingApprovedEvent.InputTuple, ListingApprovedEvent.OutputTuple, ListingApprovedEvent.OutputObject>;
+    
+
       'ListingCancelled(uint256,uint256,address)': TypedContractEvent<ListingCancelledEvent.InputTuple, ListingCancelledEvent.OutputTuple, ListingCancelledEvent.OutputObject>;
       ListingCancelled: TypedContractEvent<ListingCancelledEvent.InputTuple, ListingCancelledEvent.OutputTuple, ListingCancelledEvent.OutputObject>;
     
@@ -753,11 +965,15 @@ getEvent(key: 'RequestPosted'): TypedContractEvent<RequestPostedEvent.InputTuple
       ListingCreated: TypedContractEvent<ListingCreatedEvent.InputTuple, ListingCreatedEvent.OutputTuple, ListingCreatedEvent.OutputObject>;
     
 
+      'ListingRejected(uint256,address)': TypedContractEvent<ListingRejectedEvent.InputTuple, ListingRejectedEvent.OutputTuple, ListingRejectedEvent.OutputObject>;
+      ListingRejected: TypedContractEvent<ListingRejectedEvent.InputTuple, ListingRejectedEvent.OutputTuple, ListingRejectedEvent.OutputObject>;
+    
+
       'ListingSoldOut(uint256)': TypedContractEvent<ListingSoldOutEvent.InputTuple, ListingSoldOutEvent.OutputTuple, ListingSoldOutEvent.OutputObject>;
       ListingSoldOut: TypedContractEvent<ListingSoldOutEvent.InputTuple, ListingSoldOutEvent.OutputTuple, ListingSoldOutEvent.OutputObject>;
     
 
-      'OfferApproved(uint256,uint256,address,uint64)': TypedContractEvent<OfferApprovedEvent.InputTuple, OfferApprovedEvent.OutputTuple, OfferApprovedEvent.OutputObject>;
+      'OfferApproved(uint256,uint256,address,uint64,uint256,uint256)': TypedContractEvent<OfferApprovedEvent.InputTuple, OfferApprovedEvent.OutputTuple, OfferApprovedEvent.OutputObject>;
       OfferApproved: TypedContractEvent<OfferApprovedEvent.InputTuple, OfferApprovedEvent.OutputTuple, OfferApprovedEvent.OutputObject>;
     
 
@@ -779,6 +995,10 @@ getEvent(key: 'RequestPosted'): TypedContractEvent<RequestPostedEvent.InputTuple
 
       'RequestPosted(uint256,bytes32,bytes32,uint256,uint256,uint64)': TypedContractEvent<RequestPostedEvent.InputTuple, RequestPostedEvent.OutputTuple, RequestPostedEvent.OutputObject>;
       RequestPosted: TypedContractEvent<RequestPostedEvent.InputTuple, RequestPostedEvent.OutputTuple, RequestPostedEvent.OutputObject>;
+    
+
+      'SellerPaid(uint256,bytes32,uint256,bytes32,address)': TypedContractEvent<SellerPaidEvent.InputTuple, SellerPaidEvent.OutputTuple, SellerPaidEvent.OutputObject>;
+      SellerPaid: TypedContractEvent<SellerPaidEvent.InputTuple, SellerPaidEvent.OutputTuple, SellerPaidEvent.OutputObject>;
     
     };
   }

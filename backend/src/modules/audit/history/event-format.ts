@@ -59,6 +59,11 @@ const TITLES: Readonly<Record<string, string>> = {
   ReceiptCollected: 'Goods collected from the warehouse',
   // TradeLedger
   ListingCreated: 'Listed for sale',
+  ExternalListingCreated: 'Listed by an outside seller',
+  ListingApproved: 'Listing approved',
+  ListingRejected: 'Listing turned down',
+  SellerPaid: 'Seller paid',
+  FeeSlabsSet: 'Platform fees changed',
   ListingCancelled: 'Listing cancelled',
   ListingSoldOut: 'Listing sold out',
   OfferMade: 'Offer made',

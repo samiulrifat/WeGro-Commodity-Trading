@@ -43,8 +43,12 @@ import { ConsentStatus } from '../../track-record/track-record.enums';
 import { BuyerRequest } from '../../trade/entities/buyer-request.entity';
 import { Delivery } from '../../trade/entities/delivery.entity';
 import { Listing } from '../../trade/entities/listing.entity';
+import { ListingDetails } from '../../trade/entities/listing-details.entity';
 import { Offer } from '../../trade/entities/offer.entity';
-import { deliveryFingerprint } from '../../trade/trade.service';
+import {
+  deliveryFingerprint,
+  listingFingerprint,
+} from '../../trade/trade.service';
 import { DeliverySide, RequestStatus } from '../../trade/trade.enums';
 import { batchFingerprint } from '../../vouchers/batches.service';
 import { InputBatch } from '../../vouchers/entities/input-batch.entity';
@@ -70,7 +74,14 @@ export interface Verification {
 /** Chain enum index -> database status name, for the ledgers' status enums. */
 const VOUCHER_STATUS = ['none', 'proposed', 'active', 'rejected', 'cancelled'];
 const SALE_STATUS = ['none', 'pending', 'confirmed', 'cancelled', 'expired'];
-const LISTING_STATUS = ['none', 'open', 'cancelled', 'sold_out'];
+const LISTING_STATUS = [
+  'none',
+  'open',
+  'cancelled',
+  'sold_out',
+  'pending',
+  'rejected',
+];
 const OFFER_STATUS = [
   'none',
   'pending',
@@ -81,6 +92,7 @@ const OFFER_STATUS = [
   'paid',
   'delivered',
   'expired',
+  'seller_paid',
 ];
 const RECEIPT_STATUS = [
   'none',
@@ -307,8 +319,26 @@ export class VerifyService {
     if (Number(c.status) === 0) return missing();
     const m = new Mismatches();
     m.check('status', l.status, LISTING_STATUS[Number(c.status)]);
-    m.check('projectId', uuidToBytes32(l.projectId), c.projectId);
+    m.check(
+      'projectId',
+      l.projectId ? uuidToBytes32(l.projectId) : ZERO_BYTES32,
+      c.projectId,
+    );
     m.check('receiptId', l.receiptId ?? ZERO_BYTES32, c.receiptId);
+    if (l.projectId === null) {
+      // An external seller's listing: the seller and what they wrote.
+      const d = l.detailsId
+        ? await this.dataSource
+            .getRepository(ListingDetails)
+            .findOneBy({ id: l.detailsId })
+        : null;
+      m.check('seller', uuidToBytes32(l.sellerId!), c.seller);
+      m.fingerprint(
+        d ? listingFingerprint(d) : ZERO_BYTES32,
+        d?.detailsHash ?? ZERO_BYTES32,
+        c.detailsHash,
+      );
+    }
     m.check('quantity', BigInt(l.quantity), c.quantity);
     m.check('available', BigInt(l.available), c.available);
     m.check('askingUnitPrice', l.askingUnitPrice, c.askingUnitPrice);
@@ -335,6 +365,8 @@ export class VerifyService {
     m.check('unitPrice', o.unitPrice, c.unitPrice);
     m.check('paymentRef', o.paymentRefHash ?? ZERO_BYTES32, c.paymentRefHash);
     m.check('receiptPartId', o.receiptPartId ?? ZERO_BYTES32, c.receiptPartId);
+    m.check('buyerFee', o.buyerFee ?? 0n, c.buyerFee);
+    m.check('sellerFee', o.sellerFee ?? 0n, c.sellerFee);
     for (const side of [DeliverySide.BUYER, DeliverySide.HANDLER]) {
       const row = deliveries.find((x) => x.side === side);
       const [ledgerQty, ledgerHash] =

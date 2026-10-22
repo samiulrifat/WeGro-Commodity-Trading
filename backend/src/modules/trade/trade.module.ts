@@ -11,6 +11,7 @@ import { DealExpiryJob } from './deal-expiry.job';
 import { BuyerRequest } from './entities/buyer-request.entity';
 import { Delivery } from './entities/delivery.entity';
 import { Listing } from './entities/listing.entity';
+import { ListingDetails } from './entities/listing-details.entity';
 import { Offer } from './entities/offer.entity';
 import { RequestsService } from './requests.service';
 import { TradeController } from './trade.controller';
@@ -22,6 +23,7 @@ import { TradeService } from './trade.service';
   imports: [
     TypeOrmModule.forFeature([
       Listing,
+      ListingDetails,
       Offer,
       Delivery,
       BuyerRequest,

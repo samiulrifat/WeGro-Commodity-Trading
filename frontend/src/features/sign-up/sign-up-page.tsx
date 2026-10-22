@@ -5,6 +5,7 @@ import {
   HandCoins,
   Hourglass,
   ShoppingBasket,
+  Store,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -65,10 +66,11 @@ const DETAILS: readonly DetailField[] = [
 const ROLES: ReadonlyArray<{ role: Role; icon: typeof HandCoins }> = [
   { role: 'investor', icon: HandCoins },
   { role: 'buyer', icon: ShoppingBasket },
+  { role: 'seller', icon: Store },
 ];
 
 /**
- * Signing up as an investor or buyer, in steps: who they are, their number
+ * Signing up as an investor, buyer or seller, in steps: who they are, their number
  * (confirmed by an SMS code), their details, their password and, if they
  * like, an email address. They are registered and verified at once and
  * signed in; an email given is then confirmed by a code (or later, in My

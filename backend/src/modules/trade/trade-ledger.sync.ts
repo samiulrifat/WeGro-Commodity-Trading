@@ -25,6 +25,10 @@ const EVENTS = [
   'DealDelivered',
   'RequestPosted',
   'RequestCancelled',
+  'ExternalListingCreated',
+  'ListingApproved',
+  'ListingRejected',
+  'SellerPaid',
 ] as const;
 
 /**
@@ -51,6 +55,7 @@ export class TradeLedgerSync implements OnModuleInit {
         `UPDATE "deliveries" SET "status" = 'submitted', "recorded_at" = NULL`,
       );
       await m.query(`UPDATE "buyer_requests" SET "status" = NULL`);
+      await m.query(`UPDATE "listings" SET "decided_at" = NULL`);
     });
   }
 
@@ -60,6 +65,27 @@ export class TradeLedgerSync implements OnModuleInit {
     const offerId = a.offerId === undefined ? 0 : Number(a.offerId);
     switch (event.eventName) {
       case 'ListingCreated': {
+        if (a.projectId === ZERO_BYTES32) {
+          // An external seller's own produce: no project, waiting for an admin.
+          const sellerId = toUuid(a.seller);
+          if (!sellerId) return;
+          await m.query(
+            `INSERT INTO "listings" ("id", "project_id", "farmer_id", "receipt_id", "seller_is_wegro", "seller_id",
+               "produce_code", "quantity", "available", "asking_unit_price", "unpaid_deals", "status", "created_at")
+             SELECT $1, NULL, NULL, NULL, false, $2, $3, $4, $4, $5, 0, 'pending', $6
+              WHERE EXISTS (SELECT 1 FROM "users" WHERE "id" = $2)
+             ON CONFLICT ("id") DO UPDATE SET "status" = 'pending' WHERE "listings"."status" IS NULL`,
+            [
+              Number(a.listingId),
+              sellerId,
+              bytes32ToCode(String(a.produceCode)),
+              String(a.quantity),
+              String(a.askingUnitPrice),
+              when,
+            ],
+          );
+          return;
+        }
         const projectId = toUuid(a.projectId);
         if (!projectId) return;
         const wegro = a.seller === WEGRO_OWNER;
@@ -87,15 +113,54 @@ export class TradeLedgerSync implements OnModuleInit {
         return;
       }
 
+      case 'ExternalListingCreated':
+        // What the seller wrote (saved before sending, same fingerprint).
+        await m.query(
+          `UPDATE "listing_details" SET "listing_id" = $1
+            WHERE "details_hash" = $2 AND "listing_id" IS NULL`,
+          [Number(a.listingId), String(a.detailsHash)],
+        );
+        await m.query(
+          `UPDATE "listings" SET "details_id" = d."id"
+             FROM "listing_details" d
+            WHERE "listings"."id" = $1 AND d."details_hash" = $2`,
+          [Number(a.listingId), String(a.detailsHash)],
+        );
+        return;
+
+      case 'ListingApproved':
+      case 'ListingRejected':
+        await m.query(
+          `UPDATE "listings" SET "status" = $2::varchar, "decided_at" = $3,
+                  "closed_at" = CASE WHEN $2::varchar = 'rejected' THEN $3 ELSE "closed_at" END
+            WHERE "id" = $1 AND "status" = 'pending'`,
+          [
+            Number(a.listingId),
+            event.eventName === 'ListingApproved' ? 'open' : 'rejected',
+            when,
+          ],
+        );
+        return;
+
+      case 'SellerPaid':
+        await this.move(m, offerId, 'delivered', 'seller_paid', when, {
+          sql: `, "seller_payout_ref_hash" = $5, "seller_paid_at" = $4`,
+          params: [String(a.paymentRefHash)],
+        });
+        return;
+
       case 'ListingCancelled':
+        await m.query(
+          `UPDATE "listings" SET "status" = 'cancelled', "closed_at" = $2
+            WHERE "id" = $1 AND "status" IN ('open', 'pending')`,
+          [Number(a.listingId), when],
+        );
+        return;
+
       case 'ListingSoldOut':
         await m.query(
           `UPDATE "listings" SET "status" = $2, "closed_at" = $3 WHERE "id" = $1 AND "status" = 'open'`,
-          [
-            Number(a.listingId),
-            event.eventName === 'ListingSoldOut' ? 'sold_out' : 'cancelled',
-            when,
-          ],
+          [Number(a.listingId), 'sold_out', when],
         );
         return;
 
@@ -133,8 +198,12 @@ export class TradeLedgerSync implements OnModuleInit {
 
       case 'OfferApproved': {
         const moved = await this.move(m, offerId, 'pending', 'approved', when, {
-          sql: `, "payment_due_at" = to_timestamp($5)`,
-          params: [Number(a.paymentDueAt)],
+          sql: `, "payment_due_at" = to_timestamp($5), "buyer_fee" = $6, "seller_fee" = $7`,
+          params: [
+            Number(a.paymentDueAt),
+            String(a.buyerFee),
+            String(a.sellerFee),
+          ],
         });
         if (moved) {
           await m.query(

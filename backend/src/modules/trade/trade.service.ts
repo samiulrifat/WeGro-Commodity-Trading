@@ -8,7 +8,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ContractTransaction } from 'ethers';
+import { randomUUID } from 'node:crypto';
 import {
+  Brackets,
   In,
   IsNull,
   Not,
@@ -17,12 +19,13 @@ import {
   type SelectQueryBuilder,
 } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
+import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
 import type { TradeLedger } from '../../blockchain/generated';
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
 import { TransactionService } from '../../blockchain/tx/transaction.service';
 import { fingerprint } from '../../blockchain/utils/fingerprint';
-import { uuidToBytes32 } from '../../blockchain/utils/ids';
+import { codeToBytes32, uuidToBytes32 } from '../../blockchain/utils/ids';
 import { poishaToTaka, takaToPoisha } from '../../blockchain/utils/money';
 import {
   hashPaymentRef,
@@ -30,6 +33,11 @@ import {
 } from '../../blockchain/utils/payment-ref';
 import { IdentityCryptoService } from '../../common/crypto/identity-crypto.service';
 import { Paginated } from '../../common/dto/pagination.dto';
+import {
+  matchesWord,
+  searchWords,
+  wordPattern,
+} from '../../common/search/words';
 import {
   BD_DISTRICTS,
   isDistrictCode,
@@ -45,6 +53,7 @@ import { Project } from '../projects/entities/project.entity';
 import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { User } from '../users/entities/user.entity';
+import { PersonSearch } from '../users/person-search';
 import { actsAs, Role } from '../users/roles';
 import { WarehouseOperator } from '../warehouse/entities/warehouse-operator.entity';
 import { WarehouseReceipt } from '../warehouse/entities/warehouse-receipt.entity';
@@ -52,6 +61,8 @@ import { ReceiptStatus } from '../warehouse/warehouse.enums';
 import type {
   ConfirmDeliveryDto,
   DeliveryViewDto,
+  FeeScheduleDto,
+  ListExternalDto,
   ListingDto,
   ListListingsQueryDto,
   ListOffersQueryDto,
@@ -60,9 +71,15 @@ import type {
   MakeOfferDto,
   OfferDto,
   ProduceRefDto,
+  SellerDto,
+  SetFeeSlabsDto,
 } from './dto/trade.dto';
 import { Delivery } from './entities/delivery.entity';
 import { Listing } from './entities/listing.entity';
+import {
+  ListingDetails,
+  type ListingPhoto,
+} from './entities/listing-details.entity';
 import { Offer } from './entities/offer.entity';
 import { DeliverySide, ListingStatus, OfferStatus } from './trade.enums';
 import { ErrorCode } from '../../common/errors/error-code';
@@ -73,6 +90,11 @@ const STAFF: ReadonlySet<Role> = new Set([
   Role.OPERATIONS,
   Role.ACCOUNTS,
   Role.AUDITOR,
+]);
+/** Listing statuses only staff and the listing's own seller see. */
+const HIDDEN: ReadonlySet<ListingStatus> = new Set([
+  ListingStatus.PENDING,
+  ListingStatus.REJECTED,
 ]);
 const SEES_PAYMENTS: ReadonlySet<Role> = new Set([
   Role.SUPER_ADMIN,
@@ -93,6 +115,8 @@ export class TradeService {
   constructor(
     config: ConfigService<EnvironmentVariables, true>,
     @InjectRepository(Listing) private readonly listings: Repository<Listing>,
+    @InjectRepository(ListingDetails)
+    private readonly details: Repository<ListingDetails>,
     @InjectRepository(Offer) private readonly offers: Repository<Offer>,
     @InjectRepository(Delivery)
     private readonly deliveries: Repository<Delivery>,
@@ -108,7 +132,9 @@ export class TradeService {
     private readonly crypto: IdentityCryptoService,
     private readonly tx: TransactionService,
     private readonly applier: ReceiptApplier,
+    private readonly contracts: ContractsRegistry,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {
     this.paymentRefSecret = config.get('PAYMENT_REF_SECRET', { infer: true });
   }
@@ -158,6 +184,7 @@ export class TradeService {
       Number(
         result.events.find((e) => e.name === 'ListingCreated')!.args.listingId,
       ),
+      actor,
     );
   }
 
@@ -191,12 +218,92 @@ export class TradeService {
       Number(
         result.events.find((e) => e.name === 'ListingCreated')!.args.listingId,
       ),
+      actor,
     );
+  }
+
+  /**
+   * An external seller lists produce of their own: saved here with its
+   * photos and description, its fingerprint on the ledger. Buyers see it
+   * once an admin approves it.
+   */
+  async listExternal(
+    actor: AuthUser,
+    dto: ListExternalDto,
+  ): Promise<ListingDto> {
+    this.catalog.produceTypes.requireActive(dto.produceCode);
+    const photos: ListingPhoto[] = [];
+    for (const id of dto.photoIds) {
+      const photo = await this.photos.find(id).catch(() => null);
+      if (!photo || photo.uploadedById !== actor.id) {
+        throw new UnprocessableEntityException({
+          message: 'photoIds must be photos you uploaded',
+          code: ErrorCode.PHOTO_NOT_YOURS,
+        });
+      }
+      photos.push({ id: photo.id, hash: photoHash(photo.sha256) });
+    }
+    const row = this.details.create({
+      id: randomUUID(),
+      sellerId: actor.id,
+      produceCode: dto.produceCode,
+      quantity: dto.quantity,
+      askingUnitPrice: takaToPoisha(dto.askingUnitPrice),
+      districtCode: dto.districtCode,
+      description: dto.description ?? null,
+      photos,
+      listingId: null,
+    });
+    row.detailsHash = listingFingerprint(row);
+    await this.details.insert(row);
+    let result: Awaited<ReturnType<TradeService['send']>>;
+    try {
+      result = await this.send(actor, (c) =>
+        c.listExternal.populateTransaction(
+          codeToBytes32(dto.produceCode),
+          dto.quantity,
+          row.askingUnitPrice,
+          row.detailsHash,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof ContractRevertException)
+        await this.details.delete({ id: row.id });
+      throw error;
+    }
+    return this.listingOne(
+      Number(
+        result.events.find((e) => e.name === 'ListingCreated')!.args.listingId,
+      ),
+      actor,
+    );
+  }
+
+  /** An admin lets an external seller's listing go live. */
+  async approveListing(actor: AuthUser, id: number): Promise<ListingDto> {
+    await this.pendingListing(id);
+    await this.send(actor, (c) => c.approveListing.populateTransaction(id));
+    return this.listingOne(id, actor);
+  }
+
+  /** An admin turns an external seller's listing down, saying why. */
+  async rejectListing(
+    actor: AuthUser,
+    id: number,
+    reason: string,
+  ): Promise<ListingDto> {
+    await this.pendingListing(id);
+    await this.send(actor, (c) => c.rejectListing.populateTransaction(id));
+    await this.listings.update({ id }, { rejectReason: reason });
+    return this.listingOne(id, actor);
   }
 
   /** Stops selling what is left; unpaid deals must be cancelled or expire first. */
   async cancelListing(actor: AuthUser, id: number): Promise<ListingDto> {
-    const listing = await this.openListing(id);
+    const listing = await this.listingIn(id, [
+      ListingStatus.OPEN,
+      ListingStatus.PENDING,
+    ]);
     if (
       !actsAs(actor.role, Role.ADMIN) &&
       !(await this.isSellerSide(actor, listing))
@@ -214,24 +321,49 @@ export class TradeService {
       });
     }
     await this.send(actor, (c) => c.cancelListing.populateTransaction(id));
-    return this.listingOne(id);
+    return this.listingOne(id, actor);
   }
 
-  async listListings(q: ListListingsQueryDto): Promise<Paginated<ListingDto>> {
+  /**
+   * Open listings for everyone; a seller's own in every status (`mine`);
+   * those waiting for approval or turned down only for staff. Searched by
+   * produce or project words, or the seller as a person.
+   */
+  async listListings(
+    actor: AuthUser,
+    q: ListListingsQueryDto,
+  ): Promise<Paginated<ListingDto>> {
     const qb = this.listings
       .createQueryBuilder('l')
-      .where('l.status = :st', { st: q.status ?? ListingStatus.OPEN });
+      .where('l.status IS NOT NULL');
+    if (q.mine) {
+      qb.andWhere('l.seller_id = :me AND l.project_id IS NULL', {
+        me: actor.id,
+      });
+      if (q.status) qb.andWhere('l.status = :st', { st: q.status });
+    } else {
+      const status = q.status ?? ListingStatus.OPEN;
+      if (HIDDEN.has(status) && !STAFF.has(actor.role)) {
+        qb.andWhere('FALSE');
+      }
+      qb.andWhere('l.status = :st', { st: status });
+    }
     if (q.produceCode)
       qb.andWhere('l.produce_code = :pc', { pc: q.produceCode });
     if (q.projectId) qb.andWhere('l.project_id = :pid', { pid: q.projectId });
+    if (q.source === 'warehouse') qb.andWhere('l.receipt_id IS NOT NULL');
+    if (q.source === 'fresh') {
+      qb.andWhere('l.receipt_id IS NULL AND l.project_id IS NOT NULL');
+    }
+    if (q.source === 'seller') qb.andWhere('l.project_id IS NULL');
     if (q.districtCode) {
       qb.andWhere(
-        'EXISTS (SELECT 1 FROM projects p WHERE p.id = l.project_id AND p.district_code = :dc)',
-        {
-          dc: q.districtCode,
-        },
+        `(EXISTS (SELECT 1 FROM projects p WHERE p.id = l.project_id AND p.district_code = :dc)
+          OR EXISTS (SELECT 1 FROM listing_details d WHERE d.id = l.details_id AND d.district_code = :dc))`,
+        { dc: q.districtCode },
       );
     }
+    this.searchListings(qb, q.q);
     const [rows, total] = await qb
       .orderBy('l.created_at', 'DESC')
       .addOrderBy('l.id', 'DESC')
@@ -241,14 +373,65 @@ export class TradeService {
     return new Paginated(await this.listingDtos(rows), total, q);
   }
 
-  async listingOne(id: number): Promise<ListingDto> {
-    const listing = await this.listings.findOneBy({ id });
-    if (!listing || listing.status === null)
+  /** A listing; one waiting for approval or turned down only for staff and its seller. */
+  async listingOne(id: number, actor: AuthUser): Promise<ListingDto> {
+    return (await this.listingDtos([await this.visibleListing(id, actor)]))[0];
+  }
+
+  /** A photo of an external listing, for whoever may see the listing. */
+  async listingPhoto(
+    actor: AuthUser,
+    id: number,
+    index: number,
+  ): Promise<Photo> {
+    const listing = await this.visibleListing(id, actor);
+    const details = listing.detailsId
+      ? await this.details.findOneBy({ id: listing.detailsId })
+      : null;
+    const photo = details?.photos[index];
+    if (!photo)
       throw new NotFoundException({
-        message: 'Listing not found',
+        message: 'No such photo',
         code: ErrorCode.LISTING_NOT_FOUND,
       });
-    return (await this.listingDtos([listing]))[0];
+    return this.photos.find(photo.id);
+  }
+
+  // --- Platform fees ---
+
+  /** The slabs as the ledger has them now: one read, always current. */
+  async feeSchedule(): Promise<FeeScheduleDto> {
+    const [caps, fees] = await this.ledger().getFeeSlabs();
+    return {
+      slabs: fees.map((fee, i) => ({
+        upTo: i < caps.length ? poishaToTaka(caps[i]) : null,
+        fee: poishaToTaka(fee),
+      })),
+    };
+  }
+
+  /** The super admin sets the slabs; deals already approved keep their fees. */
+  async setFeeSchedule(
+    actor: AuthUser,
+    dto: SetFeeSlabsDto,
+  ): Promise<FeeScheduleDto> {
+    const last = dto.slabs[dto.slabs.length - 1];
+    const caps = dto.slabs
+      .slice(0, -1)
+      .map((x) => (x.upTo ? takaToPoisha(x.upTo) : 0n));
+    const rising = caps.every((c, i) => c > 0n && (i === 0 || c > caps[i - 1]));
+    if (!rising || (last.upTo !== undefined && last.upTo !== null)) {
+      throw new UnprocessableEntityException({
+        message:
+          'Each slab but the last needs a cap above the one before; the last has none',
+        code: ErrorCode.FEE_SLABS_INVALID,
+      });
+    }
+    const fees = dto.slabs.map((x) => takaToPoisha(x.fee));
+    await this.send(actor, (c) =>
+      c.setFeeSlabs.populateTransaction(caps, fees),
+    );
+    return this.feeSchedule();
   }
 
   // --- Offers and deals ---
@@ -291,7 +474,11 @@ export class TradeService {
   }
 
   async rejectOffer(actor: AuthUser, id: number): Promise<OfferDto> {
-    await this.offerIn(id, [OfferStatus.PENDING]);
+    const offer = await this.offerIn(id, [OfferStatus.PENDING]);
+    this.requireDecider(
+      actor,
+      await this.listings.findOneByOrFail({ id: offer.listingId }),
+    );
     await this.send(actor, (c) => c.rejectOffer.populateTransaction(id));
     return this.offerOne(actor, id);
   }
@@ -300,6 +487,7 @@ export class TradeService {
   async approveOffer(actor: AuthUser, id: number): Promise<OfferDto> {
     const offer = await this.offerIn(id, [OfferStatus.PENDING]);
     const listing = await this.openListing(offer.listingId);
+    this.requireDecider(actor, listing);
     if (offer.quantity > listing.available) {
       throw new ConflictException({
         message: `Only ${listing.available} still available`,
@@ -397,8 +585,90 @@ export class TradeService {
   }
 
   /**
+   * Accounts paid an external seller for a delivered deal: the amount less
+   * the seller fee. The reference is kept encrypted; the ledger gets its
+   * keyed hash and refuses one used before.
+   */
+  async recordSellerPayout(
+    actor: AuthUser,
+    id: number,
+    paymentReference: string,
+  ): Promise<OfferDto> {
+    let ref: string;
+    try {
+      ref = normalisePaymentRef(paymentReference);
+    } catch (error) {
+      throw new UnprocessableEntityException({
+        message: (error as Error).message,
+        code: ErrorCode.PAYMENT_REF_INVALID,
+      });
+    }
+    const hash = hashPaymentRef(ref, this.paymentRefSecret);
+    const offer = await this.offerIn(id, [OfferStatus.DELIVERED]);
+    const listing = await this.listings.findOneByOrFail({
+      id: offer.listingId,
+    });
+    if (listing.projectId !== null) {
+      throw new ConflictException({
+        message: "Only an external seller's deal is paid out to its seller",
+        code: ErrorCode.NOT_EXTERNAL_DEAL,
+      });
+    }
+    try {
+      const saved = await this.offers
+        .createQueryBuilder()
+        .update()
+        .set({
+          sellerPayoutRefEnc: this.crypto.encrypt(ref, payoutContext(id)),
+          sellerPayoutRefHash: hash,
+          sellerPaidById: actor.id,
+        })
+        .where("id = :id AND status = 'delivered'", { id })
+        .andWhere(
+          '(seller_payout_ref_hash IS NULL OR seller_payout_ref_hash = :hash)',
+          { hash },
+        )
+        .execute();
+      if (saved.affected !== 1)
+        throw new ConflictException({
+          message: 'This payout is already being recorded',
+          code: ErrorCode.DEAL_CONFIRMING,
+        });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '23505'
+      ) {
+        throw new ConflictException({
+          message: 'This payment reference was already used',
+          code: ErrorCode.PAYMENT_REF_ALREADY_USED,
+        });
+      }
+      throw error;
+    }
+    try {
+      await this.send(actor, (c) =>
+        c.recordSellerPayout.populateTransaction(id, hash),
+      );
+    } catch (error) {
+      if (error instanceof ContractRevertException) {
+        await this.offers.update(
+          { id, sellerPayoutRefHash: hash, status: OfferStatus.DELIVERED },
+          {
+            sellerPayoutRefEnc: null,
+            sellerPayoutRefHash: null,
+            sellerPaidById: null,
+          },
+        );
+      }
+      throw error;
+    }
+    return this.offerOne(actor, id);
+  }
+
+  /**
    * The buyer, or the handler (an operator of the receipt's warehouse site;
-   * the farmer's field officer for fresh produce), confirms quantity and
+   * the farmer's field officer for fresh produce; the external seller), confirms quantity and
    * condition. Both recorded: delivered. Mismatching quantities are recorded
    * as given and flagged; the ledger counts the deal at its agreed quantity.
    */
@@ -497,6 +767,10 @@ export class TradeService {
         'EXISTS (SELECT 1 FROM deliveries d WHERE d.offer_id = o.id AND d.quantity <> o.quantity)',
       );
     }
+    if (q.payoutDue) {
+      qb.andWhere("o.status = 'delivered' AND l.project_id IS NULL");
+    }
+    this.searchOffers(qb, q.q);
     const [rows, total] = await qb
       .orderBy('o.id', 'DESC')
       .skip(q.skip)
@@ -555,13 +829,24 @@ export class TradeService {
   }
 
   private async openListing(id: number): Promise<Listing> {
+    return this.listingIn(id, [ListingStatus.OPEN]);
+  }
+
+  private async pendingListing(id: number): Promise<Listing> {
+    return this.listingIn(id, [ListingStatus.PENDING]);
+  }
+
+  private async listingIn(
+    id: number,
+    allowed: ListingStatus[],
+  ): Promise<Listing> {
     const listing = await this.listings.findOneBy({ id });
     if (!listing || listing.status === null)
       throw new NotFoundException({
         message: 'Listing not found',
         code: ErrorCode.LISTING_NOT_FOUND,
       });
-    if (listing.status !== ListingStatus.OPEN) {
+    if (!allowed.includes(listing.status)) {
       throw new ConflictException({
         message: `This listing is ${listing.status}`,
         code: ErrorCode.LISTING_WRONG_STATUS,
@@ -569,6 +854,94 @@ export class TradeService {
       });
     }
     return listing;
+  }
+
+  /** Waiting for approval or turned down: only staff and its own seller see it. */
+  private async visibleListing(id: number, actor: AuthUser): Promise<Listing> {
+    const listing = await this.listings.findOneBy({ id });
+    const hidden =
+      !!listing?.status &&
+      HIDDEN.has(listing.status) &&
+      !STAFF.has(actor.role) &&
+      listing.sellerId !== actor.id;
+    if (!listing || listing.status === null || hidden)
+      throw new NotFoundException({
+        message: 'Listing not found',
+        code: ErrorCode.LISTING_NOT_FOUND,
+      });
+    return listing;
+  }
+
+  /** Offers on WeGro's listings are decided by an admin; on a seller's, by that seller. */
+  private requireDecider(actor: AuthUser, l: Listing): void {
+    const allowed =
+      l.projectId === null
+        ? actor.role === Role.SELLER && l.sellerId === actor.id
+        : actsAs(actor.role, Role.ADMIN);
+    if (!allowed)
+      throw new ForbiddenException({
+        message:
+          "Offers are decided by WeGro's admins, or by the seller on their own listing",
+        code: ErrorCode.OFFER_DECIDE_NOT_ALLOWED,
+      });
+  }
+
+  /** Produce or project words, or the seller as a person. */
+  private searchListings(qb: SelectQueryBuilder<Listing>, q?: string): void {
+    const text = (q ?? '').trim();
+    if (!text) return;
+    const words = searchWords(text);
+    const codes = this.catalog.produceTypes
+      .list(true)
+      .filter((p) =>
+        words.every((w) => matchesWord(p.name, w) || matchesWord(p.nameBn, w)),
+      )
+      .map((p) => p.code);
+    const seller = this.search.condition('l.seller_id', text, 'Seller');
+    qb.andWhere(
+      new Brackets((b) => {
+        b.where('1 = 0');
+        if (words.length > 0 && codes.length > 0) {
+          b.orWhere('l.produce_code IN (:...qcodes)', { qcodes: codes });
+        }
+        if (words.length > 0) {
+          b.orWhere(
+            `l.project_id IN (SELECT p.id FROM projects p WHERE ${words
+              .map((_, i) => `p.title ~* :lw${i}`)
+              .join(' AND ')})`,
+            Object.fromEntries(words.map((w, i) => [`lw${i}`, wordPattern(w)])),
+          );
+        }
+        if (seller) b.orWhere(seller.sql, seller.params);
+      }),
+    );
+  }
+
+  /** The offer number (#12), produce words, or the buyer or seller as a person. */
+  private searchOffers(qb: SelectQueryBuilder<Offer>, q?: string): void {
+    const text = (q ?? '').trim();
+    if (!text) return;
+    const number = /^#?(\d{1,12})$/.exec(text);
+    const words = searchWords(text);
+    const codes = this.catalog.produceTypes
+      .list(true)
+      .filter((p) =>
+        words.every((w) => matchesWord(p.name, w) || matchesWord(p.nameBn, w)),
+      )
+      .map((p) => p.code);
+    const buyer = this.search.condition('o.buyer_id', text, 'Buyer');
+    const seller = this.search.condition('l.seller_id', text, 'Seller');
+    qb.andWhere(
+      new Brackets((b) => {
+        b.where('1 = 0');
+        if (number) b.orWhere('o.id = :ono', { ono: Number(number[1]) });
+        if (words.length > 0 && codes.length > 0) {
+          b.orWhere('l.produce_code IN (:...ocodes)', { ocodes: codes });
+        }
+        if (buyer) b.orWhere(buyer.sql, buyer.params);
+        if (seller) b.orWhere(seller.sql, seller.params);
+      }),
+    );
   }
 
   private async offerIn(id: number, allowed: OfferStatus[]): Promise<Offer> {
@@ -598,14 +971,23 @@ export class TradeService {
   }
 
   private async isSellerSide(actor: AuthUser, l: Listing): Promise<boolean> {
+    if (l.projectId === null) {
+      return actor.role === Role.SELLER && l.sellerId === actor.id;
+    }
     return l.sellerIsWegro
       ? actsAs(actor.role, Role.ADMIN)
-      : this.isOfficerOf(actor, l.farmerId);
+      : this.isOfficerOf(actor, l.farmerId!);
   }
 
-  /** Receipt: an operator of the issuing site. Fresh produce: the farmer's officer. */
+  /**
+   * Receipt: an operator of the issuing site. Fresh produce: the farmer's
+   * officer. External: the seller.
+   */
   private async isHandler(actor: AuthUser, l: Listing): Promise<boolean> {
-    if (!l.receiptId) return this.isOfficerOf(actor, l.farmerId);
+    if (l.projectId === null) {
+      return actor.role === Role.SELLER && l.sellerId === actor.id;
+    }
+    if (!l.receiptId) return this.isOfficerOf(actor, l.farmerId!);
     if (actor.role !== Role.WAREHOUSE) return false;
     const [receipt, operator] = await Promise.all([
       this.receipts.findOne({
@@ -632,6 +1014,11 @@ export class TradeService {
       case Role.BUYER:
         qb.andWhere('o.buyer_id = :me', { me: actor.id });
         return;
+      case Role.SELLER:
+        qb.andWhere('l.seller_id = :me AND l.project_id IS NULL', {
+          me: actor.id,
+        });
+        return;
       case Role.FARMER:
         qb.andWhere('l.farmer_id = :me', { me: actor.id });
         return;
@@ -653,6 +1040,10 @@ export class TradeService {
       default:
         qb.andWhere('FALSE');
     }
+  }
+
+  private ledger(): TradeLedger {
+    return this.contracts.get('TradeLedger');
   }
 
   private async send(
@@ -677,22 +1068,32 @@ export class TradeService {
     };
   }
 
+  /** One query each for projects, details and names, whatever the page size. */
   private async listingDtos(rows: Listing[]): Promise<ListingDto[]> {
     if (rows.length === 0) return [];
-    const projects = await this.projects.find({
-      where: { id: In([...new Set(rows.map((l) => l.projectId))]) },
-      select: { id: true, title: true, districtCode: true },
-    });
+    const projectIds = [
+      ...new Set(rows.flatMap((l) => (l.projectId ? [l.projectId] : []))),
+    ];
+    const detailIds = rows.flatMap((l) => (l.detailsId ? [l.detailsId] : []));
+    const [projects, details] = await Promise.all([
+      projectIds.length
+        ? this.projects.find({
+            where: { id: In(projectIds) },
+            select: { id: true, title: true, districtCode: true },
+          })
+        : [],
+      detailIds.length ? this.details.findBy({ id: In(detailIds) }) : [],
+    ]);
     const byId = new Map(projects.map((p) => [p.id, p]));
-    const names = await this.views.names(
-      rows.flatMap((l) => (l.sellerId ? [l.sellerId] : [])),
-    );
+    const detailsOf = new Map(details.map((d) => [d.id, d]));
+    const sellers = await this.sellerRefs(rows);
     return rows.map((l) => {
-      const p = byId.get(l.projectId);
-      const district = p?.districtCode ?? '';
+      const p = l.projectId ? byId.get(l.projectId) : undefined;
+      const d = l.detailsId ? detailsOf.get(l.detailsId) : undefined;
+      const district = p?.districtCode ?? d?.districtCode ?? '';
       return {
         id: l.id,
-        project: { id: l.projectId, name: p?.title ?? '' },
+        project: l.projectId ? { id: l.projectId, name: p?.title ?? '' } : null,
         district: {
           code: district,
           name: isDistrictCode(district)
@@ -700,15 +1101,13 @@ export class TradeService {
             : district,
         },
         produce: this.produceRef(l.produceCode),
-        source: l.receiptId ? ('warehouse' as const) : ('fresh' as const),
+        source: !l.projectId
+          ? ('seller' as const)
+          : l.receiptId
+            ? ('warehouse' as const)
+            : ('fresh' as const),
         receiptId: l.receiptId,
-        seller: l.sellerIsWegro
-          ? { kind: 'wegro' as const, id: null, name: 'WeGro' }
-          : {
-              kind: 'farmer' as const,
-              id: l.sellerId,
-              name: names.get(l.sellerId!) ?? '',
-            },
+        seller: sellers(l),
         quantity: l.quantity,
         available: l.available,
         askingUnitPrice: poishaToTaka(l.askingUnitPrice),
@@ -716,8 +1115,33 @@ export class TradeService {
         status: l.status!,
         createdAt: l.createdAt,
         closedAt: l.closedAt,
+        description: d?.description ?? null,
+        photos: (d?.photos ?? []).map(
+          (_, i) => `/api/listings/${l.id}/photos/${i}`,
+        ),
+        rejectReason: l.rejectReason,
+        decidedAt: l.decidedAt,
       };
     });
+  }
+
+  /** Who sells each listing: WeGro, the farmer, or the external seller (names in one query). */
+  private async sellerRefs(
+    rows: Pick<Listing, 'projectId' | 'sellerIsWegro' | 'sellerId'>[],
+  ): Promise<
+    (l: Pick<Listing, 'projectId' | 'sellerIsWegro' | 'sellerId'>) => SellerDto
+  > {
+    const names = await this.views.names(
+      rows.flatMap((l) => (l.sellerId ? [l.sellerId] : [])),
+    );
+    return (l) =>
+      l.sellerIsWegro
+        ? { kind: 'wegro', id: null, name: 'WeGro' }
+        : {
+            kind: l.projectId ? 'farmer' : 'seller',
+            id: l.sellerId,
+            name: names.get(l.sellerId!) ?? '',
+          };
   }
 
   /** One query each for listings, deliveries and names, whatever the page size. */
@@ -727,13 +1151,22 @@ export class TradeService {
     const [listings, deliveries, now] = await Promise.all([
       this.listings.find({
         where: { id: In([...new Set(rows.map((o) => o.listingId))]) },
-        select: { id: true, produceCode: true },
+        select: {
+          id: true,
+          produceCode: true,
+          projectId: true,
+          sellerIsWegro: true,
+          sellerId: true,
+        },
       }),
       this.deliveries.findBy({ offerId: In(ids) }),
       this.clock.now(),
     ]);
-    const produceOf = new Map(listings.map((l) => [l.id, l.produceCode]));
-    const names = await this.views.names(rows.map((o) => o.buyerId));
+    const listingOf = new Map(listings.map((l) => [l.id, l]));
+    const [names, sellerOf] = await Promise.all([
+      this.views.names(rows.map((o) => o.buyerId)),
+      this.sellerRefs(listings),
+    ]);
     const bySide = new Map(
       deliveries.map((d) => [`${d.offerId}:${d.side}`, d]),
     );
@@ -755,10 +1188,13 @@ export class TradeService {
     return rows.map((o) => {
       const buyerDelivery = view(o, DeliverySide.BUYER);
       const handlerDelivery = view(o, DeliverySide.HANDLER);
+      const listing = listingOf.get(o.listingId);
+      const external = !!listing && listing.projectId === null;
+      const amount = o.unitPrice * BigInt(o.quantity);
       return {
         id: o.id,
         listingId: o.listingId,
-        produce: this.produceRef(produceOf.get(o.listingId) ?? ''),
+        produce: this.produceRef(listing?.produceCode ?? ''),
         buyer: { id: o.buyerId, name: names.get(o.buyerId) ?? '' },
         quantity: o.quantity,
         unitPrice: poishaToTaka(o.unitPrice),
@@ -778,9 +1214,25 @@ export class TradeService {
           (d) => d && d.quantity !== o.quantity,
         ),
         deliveredAt: o.deliveredAt,
+        seller: listing
+          ? sellerOf(listing)
+          : { kind: 'wegro' as const, id: null, name: 'WeGro' },
+        external,
+        buyerFee: o.buyerFee == null ? null : poishaToTaka(o.buyerFee),
+        sellerFee: o.sellerFee == null ? null : poishaToTaka(o.sellerFee),
+        buyerPays:
+          o.buyerFee == null ? null : poishaToTaka(amount + o.buyerFee),
+        sellerReceives:
+          external && o.sellerFee != null
+            ? poishaToTaka(amount - o.sellerFee)
+            : null,
+        sellerPaidAt: o.sellerPaidAt ?? null,
         ...(seesPayments && {
           paymentReference: o.paymentRefEnc
             ? this.crypto.decrypt(o.paymentRefEnc, offerContext(o.id))
+            : null,
+          sellerPayoutReference: o.sellerPayoutRefEnc
+            ? this.crypto.decrypt(o.sellerPayoutRefEnc, payoutContext(o.id))
             : null,
         }),
       };
@@ -789,6 +1241,34 @@ export class TradeService {
 }
 
 const offerContext = (id: number) => `offers.payment_ref:${id}`;
+const payoutContext = (id: number) => `offers.seller_payout_ref:${id}`;
+
+/** The ledger's detailsHash of an external listing: everything the seller wrote, bound to its id. */
+export function listingFingerprint(
+  d: Pick<
+    ListingDetails,
+    | 'id'
+    | 'sellerId'
+    | 'produceCode'
+    | 'quantity'
+    | 'askingUnitPrice'
+    | 'districtCode'
+    | 'description'
+    | 'photos'
+  >,
+): string {
+  return fingerprint('trade.external_listing', {
+    v: 1,
+    detailsId: d.id,
+    sellerId: d.sellerId,
+    produceCode: d.produceCode,
+    quantity: d.quantity,
+    askingUnitPrice: d.askingUnitPrice.toString(),
+    districtCode: d.districtCode,
+    description: d.description,
+    photoHashes: d.photos.map((p) => p.hash),
+  });
+}
 
 /** The ledger's qualityHash: what this side confirmed, bound to the deal and side. */
 export function deliveryFingerprint(

@@ -1,7 +1,11 @@
 import { PlaceDto } from '../../../common/swagger/refs';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -14,6 +18,8 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { DISTRICT_CODES } from '../../../common/reference/bd-districts';
@@ -72,6 +78,89 @@ export class ListProduceDto {
   askingUnitPrice: string;
 }
 
+/** An external seller's own produce; buyers see it once an admin approves. */
+export class ListExternalDto {
+  @ApiProperty({ example: 'POTATO', description: 'From the produce catalog' })
+  @Matches(CODE_PATTERN)
+  produceCode: string;
+
+  @ApiProperty({ example: 2000, description: 'In the produce’s catalog unit' })
+  @IsInt()
+  @Min(1)
+  @Max(MAX_QTY)
+  quantity: number;
+
+  @ApiProperty({ example: '25.00' })
+  @Taka()
+  askingUnitPrice: string;
+
+  @ApiProperty({ enum: DISTRICT_CODES, enumName: 'District' })
+  @IsIn(DISTRICT_CODES)
+  districtCode: string;
+
+  @ApiPropertyOptional({ maxLength: 1000, type: String })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.normalize('NFC').trim() || null : value,
+  )
+  @IsString()
+  @MaxLength(1000)
+  description?: string | null;
+
+  @ApiProperty({
+    type: [String],
+    description: '1 to 3 photos you uploaded (POST /photos)',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  photoIds: string[];
+}
+
+export class RejectListingDto {
+  @ApiProperty({ example: 'Photos do not show the produce' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.normalize('NFC').trim() : value,
+  )
+  @IsString()
+  @MinLength(5)
+  @MaxLength(500)
+  reason: string;
+}
+
+export class FeeSlabInputDto {
+  @ApiPropertyOptional({
+    example: '5000.00',
+    nullable: true,
+    type: String,
+    description:
+      'Deal totals up to this; null for the last slab (everything above)',
+  })
+  @IsOptional()
+  @Taka()
+  upTo?: string | null;
+
+  @ApiProperty({ example: '20.00', description: 'Fee per side, taka' })
+  @Taka()
+  fee: string;
+}
+
+export class SetFeeSlabsDto {
+  @ApiProperty({
+    type: [FeeSlabInputDto],
+    description:
+      'Rising caps; the last slab has none. Applies to deals approved from now on',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => FeeSlabInputDto)
+  slabs: FeeSlabInputDto[];
+}
+
 export class ListListingsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ListingStatus, default: ListingStatus.OPEN })
   @IsOptional()
@@ -92,6 +181,28 @@ export class ListListingsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   projectId?: string;
+
+  @ApiPropertyOptional({ enum: ['warehouse', 'fresh', 'seller'] })
+  @IsOptional()
+  @IsIn(['warehouse', 'fresh', 'seller'])
+  source?: 'warehouse' | 'fresh' | 'seller';
+
+  @ApiPropertyOptional({
+    description: 'Sellers: your own listings, in every status',
+  })
+  @IsOptional()
+  @Bool()
+  @IsBoolean()
+  mine?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Words of the produce name or the project title, or the seller: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 export class MakeOfferDto {
@@ -130,6 +241,23 @@ export class ListOffersQueryDto extends PaginationQueryDto {
   @Bool()
   @IsBoolean()
   discrepancy?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Delivered external sellers’ deals waiting for their payout',
+  })
+  @IsOptional()
+  @Bool()
+  @IsBoolean()
+  payoutDue?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'The offer number (#12), words of the produce name, or the buyer or seller: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 export class ConfirmDeliveryDto {
@@ -207,6 +335,14 @@ export class ListRequestsQueryDto extends PaginationQueryDto {
   @Bool()
   @IsBoolean()
   mine?: boolean;
+  @ApiPropertyOptional({
+    description:
+      'Words of the produce name, or the buyer: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 // --- Responses ---
@@ -220,8 +356,8 @@ class TradePartyDto {
 }
 
 export class SellerDto {
-  @ApiProperty({ enum: ['wegro', 'farmer'] })
-  kind: 'wegro' | 'farmer';
+  @ApiProperty({ enum: ['wegro', 'farmer', 'seller'] })
+  kind: 'wegro' | 'farmer' | 'seller';
 
   @ApiPropertyOptional({ nullable: true, type: String })
   id: string | null;
@@ -234,8 +370,12 @@ export class ListingDto {
   @ApiProperty()
   id: number;
 
-  @ApiProperty({ type: TradePartyDto })
-  project: TradePartyDto;
+  @ApiPropertyOptional({
+    type: TradePartyDto,
+    nullable: true,
+    description: 'Null for an external seller’s listing',
+  })
+  project: TradePartyDto | null;
 
   @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };
@@ -243,8 +383,8 @@ export class ListingDto {
   @ApiProperty({ type: ProduceRefDto })
   produce: ProduceRefDto;
 
-  @ApiProperty({ enum: ['warehouse', 'fresh'] })
-  source: 'warehouse' | 'fresh';
+  @ApiProperty({ enum: ['warehouse', 'fresh', 'seller'] })
+  source: 'warehouse' | 'fresh' | 'seller';
 
   @ApiPropertyOptional({ nullable: true, type: String })
   receiptId: string | null;
@@ -272,6 +412,38 @@ export class ListingDto {
 
   @ApiPropertyOptional({ nullable: true, type: Date })
   closedAt: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  description: string | null;
+
+  @ApiProperty({
+    type: [String],
+    description: 'External listing photos (API paths)',
+  })
+  photos: string[];
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Why an admin turned it down',
+  })
+  rejectReason: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Date })
+  decidedAt: Date | null;
+}
+
+export class FeeSlabDto {
+  @ApiPropertyOptional({ nullable: true, type: String, example: '5000.00' })
+  upTo: string | null;
+
+  @ApiProperty({ example: '20.00' })
+  fee: string;
+}
+
+export class FeeScheduleDto {
+  @ApiProperty({ type: [FeeSlabDto] })
+  slabs: FeeSlabDto[];
 }
 
 export class DeliveryViewDto {
@@ -361,6 +533,46 @@ export class OfferDto {
     description: 'Accounts, admins and auditors',
   })
   paymentReference?: string | null;
+
+  @ApiProperty({ type: SellerDto })
+  seller: SellerDto;
+
+  @ApiProperty({ description: 'On an external seller’s listing' })
+  external: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Platform fee the buyer pays on top; set on approval',
+  })
+  buyerFee: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  sellerFee: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'What the buyer pays: the amount plus the buyer fee',
+  })
+  buyerPays: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'External listing: what the seller is paid after delivery',
+  })
+  sellerReceives: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Date })
+  sellerPaidAt: Date | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Accounts, admins and auditors',
+  })
+  sellerPayoutReference?: string | null;
 }
 
 export class MatchingListingDto {

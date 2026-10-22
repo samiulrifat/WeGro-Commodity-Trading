@@ -625,6 +625,19 @@ import type { NonPayableOverrides } from "../../common.js"
   },
   {
     "inputs": [],
+    "name": "SELLER_ROLE",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "SUPPLIER_ROLE",
     "outputs": [
       {

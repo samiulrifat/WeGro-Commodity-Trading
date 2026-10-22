@@ -58,7 +58,7 @@ import type {
   RegisterParticipantDto,
   RevokeAccessDto,
 } from './dto/participant-request.dto';
-import type { SignUpDto } from './dto/sign-up.dto';
+import { SELF_REGISTRABLE_ROLES, type SignUpDto } from './dto/sign-up.dto';
 import type {
   IntegrityReportDto,
   LedgerParticipantDto,
@@ -773,7 +773,7 @@ export class ParticipantsService {
       .innerJoinAndSelect('u.details', 'd')
       .where('u.chain_state = :submitted', { submitted: ChainState.SUBMITTED })
       .andWhere('u.registered_by_id IS NULL')
-      .andWhere('u.role IN (:...roles)', { roles: [Role.INVESTOR, Role.BUYER] })
+      .andWhere('u.role IN (:...roles)', { roles: [...SELF_REGISTRABLE_ROLES] })
       .andWhere("u.created_at < now() - interval '1 minute'")
       .orderBy('u.created_at', 'ASC')
       .take(limit)

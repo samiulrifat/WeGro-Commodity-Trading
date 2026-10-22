@@ -25,6 +25,7 @@ contract TradeLedgerTest is Test {
     address dalia = makeAddr("dalia"); // Dhaka site
     address sabbir = makeAddr("sabbir"); // buyer
     address mitu = makeAddr("mitu"); // buyer
+    address karim = makeAddr("karim"); // an external seller
 
     uint256 constant TK = 100;
 
@@ -34,6 +35,8 @@ contract TradeLedgerTest is Test {
     bytes32 constant DALIA = keccak256("WAREHOUSE-0002");
     bytes32 constant SABBIR = keccak256("BUYER-0001");
     bytes32 constant MITU = keccak256("BUYER-0002");
+    bytes32 constant KARIM = keccak256("SELLER-0001");
+    bytes32 constant POTATO = "POTATO";
 
     bytes32 constant BOGURA = "WH-BOGURA-01";
     bytes32 constant DHAKA = "WH-DHAKA-02";
@@ -78,6 +81,7 @@ contract TradeLedgerTest is Test {
         _person(DALIA, registry.WAREHOUSE_ROLE(), dalia);
         _person(SABBIR, BUYER, sabbir);
         _person(MITU, BUYER, mitu);
+        _person(KARIM, registry.SELLER_ROLE(), karim);
         receipts.registerSite(BOGURA, keccak256("bogura"));
         receipts.registerSite(DHAKA, keccak256("dhaka"));
         receipts.assignOperator(HABIB, BOGURA);
@@ -178,6 +182,168 @@ contract TradeLedgerTest is Test {
         new TradeLedger(registry, ledger, receipts, 0);
     }
 
+    // --- platform fees -------------------------------------------------------------------
+
+    function test_FeeIsFixedBySlabOfTheDealTotal() public view {
+        assertEq(trade.feeFor(1 * TK), 20 * TK);
+        assertEq(trade.feeFor(5_000 * TK), 20 * TK);
+        assertEq(trade.feeFor(5_000 * TK + 1), 75 * TK);
+        assertEq(trade.feeFor(25_000 * TK), 75 * TK);
+        assertEq(trade.feeFor(100_000 * TK), 250 * TK);
+        assertEq(trade.feeFor(500_000 * TK), 750 * TK);
+        assertEq(trade.feeFor(500_000 * TK + 1), 1_500 * TK);
+    }
+
+    function test_OnlyTheSuperAdminSetsFeeSlabs() public {
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 10_000 * TK;
+        uint256[] memory fees = new uint256[](2);
+        fees[0] = 50 * TK;
+        fees[1] = 100 * TK;
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, admin));
+        trade.setFeeSlabs(caps, fees);
+
+        vm.expectEmit(address(trade));
+        emit TradeLedger.FeeSlabsSet(caps, fees);
+        vm.prank(superAdmin);
+        trade.setFeeSlabs(caps, fees);
+        assertEq(trade.feeFor(10_000 * TK), 50 * TK);
+        assertEq(trade.feeFor(10_001 * TK), 100 * TK);
+
+        uint256[] memory bad = new uint256[](1);
+        bad[0] = 1;
+        vm.startPrank(superAdmin);
+        vm.expectRevert(TradeLedger.BadFeeSlabs.selector);
+        trade.setFeeSlabs(caps, bad); // one fee short
+        uint256[] memory down = new uint256[](2);
+        down[0] = 10;
+        down[1] = 5;
+        uint256[] memory three = new uint256[](3);
+        vm.expectRevert(TradeLedger.BadFeeSlabs.selector);
+        trade.setFeeSlabs(down, three); // caps must rise
+        vm.stopPrank();
+    }
+
+    function test_WeGroListingChargesTheBuyerOnly() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 1_000, ASK); // Tk 30,000
+        _approve(o);
+        assertEq(trade.getOffer(o).buyerFee, 250 * TK);
+        assertEq(trade.getOffer(o).sellerFee, 0);
+        _pay(o);
+        assertEq(trade.feesEarned(), 250 * TK);
+        _deliver(o, habib, sabbir, 1_000);
+        assertEq(trade.saleIncome(MAIZE), 30_000 * TK); // the fee never touches project income
+
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotExternal.selector, id));
+        trade.recordSellerPayout(o, bytes32(uint256(999)));
+    }
+
+    // --- external sellers ----------------------------------------------------------------
+
+    function _externalListing() internal returns (uint256 id) {
+        vm.prank(karim);
+        id = trade.listExternal(POTATO, 2_000, 25 * TK, keccak256("Diamond potato, Munshiganj, 3 photos"));
+    }
+
+    function test_ExternalListingWaitsForAnAdmin() public {
+        vm.expectEmit(address(trade));
+        emit TradeLedger.ExternalListingCreated(1, KARIM, keccak256("Diamond potato, Munshiganj, 3 photos"));
+        uint256 id = _externalListing();
+        TradeLedger.Listing memory l = trade.getListing(id);
+        assertEq(uint8(l.status), uint8(TradeLedger.ListingStatus.Pending));
+        assertEq(l.seller, KARIM);
+        assertEq(l.projectId, bytes32(0));
+
+        vm.prank(sabbir);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.ListingClosed.selector, id));
+        trade.makeOffer(id, 100, 25 * TK);
+        vm.prank(karim);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, karim, ADMIN_ROLE));
+        trade.approveListing(id);
+
+        vm.prank(admin);
+        trade.approveListing(id);
+        assertEq(uint8(trade.getListing(id).status), uint8(TradeLedger.ListingStatus.Open));
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotPendingListing.selector, id));
+        trade.rejectListing(id);
+
+        bytes32 sellerRole = registry.SELLER_ROLE();
+        vm.prank(sabbir); // only sellers list their own produce
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, sabbir, sellerRole));
+        trade.listExternal(POTATO, 1, 1, keccak256("x"));
+    }
+
+    function test_AdminTurnsAListingDownOrTheSellerWithdrawsIt() public {
+        uint256 id = _externalListing();
+        vm.prank(admin);
+        trade.rejectListing(id);
+        assertEq(uint8(trade.getListing(id).status), uint8(TradeLedger.ListingStatus.Rejected));
+
+        uint256 second = _externalListing();
+        vm.prank(sabbir);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, sabbir));
+        trade.cancelListing(second);
+        vm.prank(karim);
+        trade.cancelListing(second);
+        assertEq(uint8(trade.getListing(second).status), uint8(TradeLedger.ListingStatus.Cancelled));
+    }
+
+    function test_ExternalSellerDecidesDeliversAndIsPaidLessTheFee() public {
+        uint256 id = _externalListing();
+        vm.prank(admin);
+        trade.approveListing(id);
+        uint256 o = _offer(sabbir, id, 1_200, 25 * TK); // Tk 30,000
+
+        vm.prank(admin); // WeGro does not decide a seller's offers
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, admin));
+        trade.approveOffer(o);
+        vm.prank(karim);
+        trade.approveOffer(o);
+        assertEq(trade.getOffer(o).buyerFee, 250 * TK);
+        assertEq(trade.getOffer(o).sellerFee, 250 * TK);
+
+        _pay(o);
+        _deliver(o, karim, sabbir, 1_200); // the seller is the handler
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Delivered));
+        assertEq(trade.openTrades(bytes32(0)), 0); // no project to hold up
+
+        vm.prank(sabbir);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, sabbir, ACCOUNTS_ROLE));
+        trade.recordSellerPayout(o, keccak256("BANK-REF-1"));
+        vm.expectEmit(address(trade));
+        emit TradeLedger.SellerPaid(o, KARIM, 30_000 * TK - 250 * TK, keccak256("BANK-REF-1"), accounts);
+        vm.prank(accounts);
+        trade.recordSellerPayout(o, keccak256("BANK-REF-1"));
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.SellerPaid));
+        assertEq(trade.feesEarned(), 500 * TK);
+
+        vm.prank(accounts);
+        vm.expectRevert(_wrongOffer(o, TradeLedger.OfferStatus.SellerPaid));
+        trade.recordSellerPayout(o, keccak256("BANK-REF-2"));
+    }
+
+    function test_SellerDecidesOnlyTheirOwnListing() public {
+        uint256 id = _externalListing();
+        vm.prank(admin);
+        trade.approveListing(id);
+        uint256 o = _offer(mitu, id, 100, 20 * TK);
+        address other = makeAddr("other seller");
+        bytes32 sellerRole = registry.SELLER_ROLE();
+        vm.startPrank(admin);
+        _person(keccak256("SELLER-0002"), sellerRole, other);
+        vm.stopPrank();
+        vm.prank(other);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, other));
+        trade.rejectOffer(o);
+        vm.prank(karim);
+        trade.rejectOffer(o);
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Rejected));
+    }
+
     // --- payment deadline ------------------------------------------------------------------
 
     function test_ApprovalSetsThePaymentDeadline() public {
@@ -185,7 +351,7 @@ contract TradeLedgerTest is Test {
         uint256 o = _offer(sabbir, id, 2_000, ASK);
         uint64 due = uint64(block.timestamp + 7 days);
         vm.expectEmit(address(trade));
-        emit TradeLedger.OfferApproved(o, id, admin, due);
+        emit TradeLedger.OfferApproved(o, id, admin, due, 250 * TK, 0); // Tk 60,000: buyer fee only
         _approve(o);
         assertEq(trade.getOffer(o).paymentDueAt, due);
     }

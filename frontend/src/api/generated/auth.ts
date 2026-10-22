@@ -269,7 +269,8 @@ export type SessionUserDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status: 'pending' | 'verified' | 'rejected';
   /** The language the person chose; null until chosen (English) */
   language: Language | null;
@@ -309,7 +310,8 @@ export type MeResponseDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status: 'pending' | 'verified' | 'rejected';
   fullName: string;
   phone: string;
@@ -371,7 +373,8 @@ export type DemoAccountDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   fullName: string;
 };
 export type DemoLoginDto = {
@@ -388,7 +391,8 @@ export type DemoLoginDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
 };
 export type SignUpCodeRequestDto = {
   phone: string;
@@ -471,7 +475,7 @@ export type SignUpDto = {
   address: string;
   /** The language WeGro writes to them in (SMS, the app); English if not given */
   language?: Language;
-  role: 'investor' | 'buyer';
+  role: 'investor' | 'buyer' | 'seller';
   /** The 6 digits from the SMS */
   phoneCode: string;
   password: string;

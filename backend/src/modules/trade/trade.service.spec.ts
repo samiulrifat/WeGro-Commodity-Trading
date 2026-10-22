@@ -170,6 +170,7 @@ describe('TradeService', () => {
         findOneByOrFail: jest.fn(() => Promise.resolve(listing)),
         find: jest.fn(() => Promise.resolve([listing])),
       }) as never,
+      fakeRepo({ findBy: jest.fn(() => Promise.resolve([])) }) as never,
       offers as never,
       deliveriesRepo as never,
       fakeRepo({
@@ -198,7 +199,9 @@ describe('TradeService', () => {
       crypto as never,
       chain.tx as never,
       { apply: jest.fn(() => Promise.resolve()) } as never,
+      { get: () => ({}) } as never,
       fakeClock(NOW) as never,
+      { condition: () => null } as never,
     );
     return {
       service,

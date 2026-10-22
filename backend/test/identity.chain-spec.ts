@@ -1597,6 +1597,40 @@ describe('Identity (node + database)', () => {
         await login(me.phone, password);
       });
 
+      it('lets an outside seller sign up the same way', async () => {
+        const seller = person(Role.SELLER);
+        await http
+          .post('/api/auth/sign-up/code')
+          .send({ phone: seller.phone, language: 'en' })
+          .expect(200);
+        const { role: _role, ...details } = seller;
+        const res = await http
+          .post('/api/auth/sign-up')
+          .send({
+            ...details,
+            role: 'seller',
+            password,
+            phoneCode: codeIn(smsTo(seller.phone)),
+          })
+          .expect(201);
+        expect(res.body.data.user).toMatchObject({
+          role: 'seller',
+          status: 'verified',
+        });
+        await expect(
+          contracts
+            .get('AccessRegistry')
+            .isVerifiedAs(
+              uuidToBytes32(res.body.data.user.id),
+              CHAIN_ROLE[Role.SELLER],
+            ),
+        ).resolves.toBe(true);
+        const detail = await as(admin.token)
+          .get(`/participants/${res.body.data.user.id}`)
+          .expect(200);
+        expect(detail.body.data.selfRegistered).toBe(true);
+      });
+
       it('confirms an email address by code, which then signs in', async () => {
         const outbox = (chain.app.get(EmailSender) as MemoryEmailSender).outbox;
         const address = `Investor.${phoneSeq}@Example.com`;

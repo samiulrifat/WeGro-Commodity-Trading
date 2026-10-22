@@ -106,6 +106,8 @@ describe('Marketplace (node + database)', () => {
       Role.FARMER,
       Role.FIELD_OFFICER,
       Role.BUYER,
+      Role.SELLER,
+      Role.SUPER_ADMIN,
     ]) {
       t[r] = await demoToken(http, r);
       user[r] = await db
@@ -596,6 +598,19 @@ describe('Marketplace (node + database)', () => {
       ).not.toContain(receiptListing);
     });
 
+    it('is found by produce words or the buyer, and seen by sellers too', async () => {
+      const found = async (token: string, q: string) =>
+        (
+          await as(token)
+            .get(`/buyer-requests?q=${encodeURIComponent(q)}`)
+            .expect(200)
+        ).body.data.map((r: { id: number }) => r.id);
+      expect(await found(t.buyer, 'maize')).toContain(requestId);
+      expect(await found(t.buyer, 'Demo Buyer')).toContain(requestId);
+      expect(await found(t.buyer, 'Second Buyer')).not.toContain(requestId);
+      expect(await found(t.seller, 'maize')).toContain(requestId);
+    });
+
     it('is cancelled only by its own buyer', async () => {
       await as(secondBuyer.token)
         .post(`/buyer-requests/${requestId}/cancel`)
@@ -622,6 +637,233 @@ describe('Marketplace (node + database)', () => {
     });
   });
 
+  describe('outside sellers', () => {
+    let sellerListing: number;
+    let sellerDeal: number;
+    const ids = (res: { body: { data: { id: number }[] } }) =>
+      res.body.data.map((x) => x.id);
+
+    it("lists a seller's own produce, hidden until an admin approves it", async () => {
+      const photo = await http
+        .post('/api/photos')
+        .auth(t.seller, { type: 'bearer' })
+        .attach('file', jpeg(`potato-${RUN}`), 'potato.jpg')
+        .expect(201);
+      const res = await as(t.seller)
+        .post('/listings/external', {
+          produceCode: 'POTATO',
+          quantity: 1200,
+          askingUnitPrice: '25.00',
+          districtCode: 'MUNSHIGANJ',
+          description: 'Diamond variety, sorted and bagged',
+          photoIds: [photo.body.data.id],
+        })
+        .expect(201);
+      sellerListing = res.body.data.id;
+      expect(res.body.data).toMatchObject({
+        status: 'pending',
+        source: 'seller',
+        project: null,
+        seller: { kind: 'seller', id: user.seller.id, name: 'Demo Seller' },
+        district: { code: 'MUNSHIGANJ', name: 'Munshiganj' },
+        description: 'Diamond variety, sorted and bagged',
+      });
+      expect(res.body.data.photos).toEqual([
+        `/api/listings/${sellerListing}/photos/0`,
+      ]);
+
+      // Not for buyers yet.
+      await as(t.buyer).get(`/listings/${sellerListing}`).expect(404);
+      expect(
+        ids(await as(t.buyer).get('/listings?status=pending').expect(200)),
+      ).toEqual([]);
+      await as(t.buyer)
+        .post(`/listings/${sellerListing}/offers`, {
+          quantity: 1,
+          unitPrice: '1.00',
+        })
+        .expect(409);
+      expect(
+        ids(await as(t.admin).get('/listings?status=pending').expect(200)),
+      ).toContain(sellerListing);
+      expect(
+        ids(await as(t.seller).get('/listings?mine=true').expect(200)),
+      ).toContain(sellerListing);
+      await http
+        .get(`/api/listings/${sellerListing}/photos/0`)
+        .auth(t.seller, { type: 'bearer' })
+        .expect(200);
+
+      await as(t.buyer).post(`/listings/${sellerListing}/approve`).expect(403);
+      const live = await as(t.admin)
+        .post(`/listings/${sellerListing}/approve`)
+        .expect(200);
+      expect(live.body.data.status).toBe('open');
+      for (const q of ['Demo Seller', 'potato']) {
+        expect(
+          ids(
+            await as(t.buyer)
+              .get(`/listings?q=${encodeURIComponent(q)}`)
+              .expect(200),
+          ),
+        ).toContain(sellerListing);
+      }
+      expect(
+        ids(await as(t.buyer).get('/listings?source=seller').expect(200)),
+      ).toContain(sellerListing);
+    });
+
+    it('turns a listing down with a reason the seller sees', async () => {
+      const photo = await http
+        .post('/api/photos')
+        .auth(t.seller, { type: 'bearer' })
+        .attach('file', jpeg(`onion-${RUN}`), 'onion.jpg')
+        .expect(201);
+      const res = await as(t.seller)
+        .post('/listings/external', {
+          produceCode: 'ONION',
+          quantity: 300,
+          askingUnitPrice: '60.00',
+          districtCode: 'PABNA',
+          photoIds: [photo.body.data.id],
+        })
+        .expect(201);
+      const turned = await as(t.admin)
+        .post(`/listings/${res.body.data.id}/reject`, {
+          reason: 'The photo does not show the onions',
+        })
+        .expect(200);
+      expect(turned.body.data).toMatchObject({
+        status: 'rejected',
+        rejectReason: 'The photo does not show the onions',
+      });
+      const seen = await as(t.seller)
+        .get(`/listings/${res.body.data.id}`)
+        .expect(200);
+      expect(seen.body.data.rejectReason).toBe(
+        'The photo does not show the onions',
+      );
+    });
+
+    it('lets only the seller decide, fixes the fees, and pays the seller after delivery', async () => {
+      // 1,000 kg at Tk 25 = Tk 25,000: Tk 75 a side.
+      sellerDeal = (
+        await as(t.buyer)
+          .post(`/listings/${sellerListing}/offers`, {
+            quantity: 1000,
+            unitPrice: '25.00',
+          })
+          .expect(201)
+      ).body.data.id;
+      const notAdmin = await as(t.admin)
+        .post(`/offers/${sellerDeal}/approve`)
+        .expect(403);
+      expect(notAdmin.body.code).toBe('OFFER_DECIDE_NOT_ALLOWED');
+      const approved = await as(t.seller)
+        .post(`/offers/${sellerDeal}/approve`)
+        .expect(200);
+      expect(approved.body.data).toMatchObject({
+        status: 'approved',
+        external: true,
+        seller: { kind: 'seller', id: user.seller.id },
+        amount: '25000.00',
+        buyerFee: '75.00',
+        sellerFee: '75.00',
+        buyerPays: '25075.00',
+        sellerReceives: '24925.00',
+      });
+
+      await as(t.accounts)
+        .post(`/offers/${sellerDeal}/payment`, {
+          paymentReference: `SELLER-DEAL-${RUN}`,
+        })
+        .expect(200);
+      await as(t.seller)
+        .post(`/offers/${sellerDeal}/delivery`, { quantity: 1000 })
+        .expect(200);
+      const done = await as(t.buyer)
+        .post(`/offers/${sellerDeal}/delivery`, { quantity: 1000 })
+        .expect(200);
+      expect(done.body.data.status).toBe('delivered');
+      expect(
+        ids(await as(t.accounts).get('/offers?payoutDue=true').expect(200)),
+      ).toContain(sellerDeal);
+
+      await as(t.buyer)
+        .post(`/offers/${sellerDeal}/seller-payout`, {
+          paymentReference: `PAYOUT-${RUN}`,
+        })
+        .expect(403);
+      const paid = await as(t.accounts)
+        .post(`/offers/${sellerDeal}/seller-payout`, {
+          paymentReference: `PAYOUT-${RUN}`,
+        })
+        .expect(200);
+      expect(paid.body.data).toMatchObject({
+        status: 'seller_paid',
+        sellerPayoutReference: `PAYOUT-${RUN}`,
+      });
+      const sellerView = await as(t.seller)
+        .get(`/offers/${sellerDeal}`)
+        .expect(200);
+      expect(sellerView.body.data.sellerPayoutReference).toBeUndefined();
+      expect(ids(await as(t.seller).get('/offers').expect(200))).toEqual([
+        sellerDeal,
+      ]);
+    });
+
+    it("charges only the buyer on WeGro's own listings", async () => {
+      const own = (await as(t.accounts).get(`/offers/${deal}`).expect(200)).body
+        .data;
+      expect(own.external).toBe(false);
+      expect(own.sellerFee).toBe('0.00');
+      expect(Number(own.buyerFee)).toBeGreaterThan(0);
+      expect(own.sellerReceives).toBeNull();
+      const notThis = await as(t.accounts)
+        .post(`/offers/${deal}/seller-payout`, {
+          paymentReference: `NOT-EXTERNAL-${RUN}`,
+        })
+        .expect(409);
+      expect(['NOT_EXTERNAL_DEAL', 'OFFER_WRONG_STATUS']).toContain(
+        notThis.body.code,
+      );
+    });
+
+    it('lets only the super admin change the fee slabs', async () => {
+      const start = (await as(t.buyer).get('/marketplace/fees').expect(200))
+        .body.data;
+      expect(start.slabs).toEqual([
+        { upTo: '5000.00', fee: '20.00' },
+        { upTo: '25000.00', fee: '75.00' },
+        { upTo: '100000.00', fee: '250.00' },
+        { upTo: '500000.00', fee: '750.00' },
+        { upTo: null, fee: '1500.00' },
+      ]);
+      const next = [
+        { upTo: '10000.00', fee: '30.00' },
+        { upTo: null, fee: '300.00' },
+      ];
+      await as(t.admin).put('/marketplace/fees', { slabs: next }).expect(403);
+      const bad = await as(t.super_admin)
+        .put('/marketplace/fees', {
+          slabs: [
+            { upTo: '10000.00', fee: '30.00' },
+            { upTo: '5000.00', fee: '20.00' },
+            { upTo: null, fee: '300.00' },
+          ],
+        })
+        .expect(422);
+      expect(bad.body.code).toBe('FEE_SLABS_INVALID');
+      const set = await as(t.super_admin)
+        .put('/marketplace/fees', { slabs: next })
+        .expect(200);
+      expect(set.body.data.slabs).toEqual(next);
+      await as(t.super_admin)
+        .put('/marketplace/fees', { slabs: start.slabs })
+        .expect(200);
+    });
+  });
+
   describe('integrity', () => {
     it('agrees with the ledger on every record', async () => {
       expect(await ledgerDisagreements(chain)).toEqual([]);
@@ -630,10 +872,10 @@ describe('Marketplace (node + database)', () => {
     it('rebuilds identical listings, offers, deliveries and requests from the ledger', async () => {
       const snapshot = async () => ({
         listings: await db.query(
-          'SELECT id, status, available, unpaid_deals FROM listings ORDER BY id',
+          'SELECT id, status, available, unpaid_deals, details_id, decided_at FROM listings ORDER BY id',
         ),
         offers: await db.query(
-          'SELECT id, status, payment_due_at, payment_ref_hash, receipt_part_id FROM offers ORDER BY id',
+          'SELECT id, status, payment_due_at, payment_ref_hash, receipt_part_id, buyer_fee, seller_fee, seller_payout_ref_hash, seller_paid_at FROM offers ORDER BY id',
         ),
         deliveries: await db.query(
           'SELECT offer_id, side, quantity, status FROM deliveries ORDER BY offer_id, side',

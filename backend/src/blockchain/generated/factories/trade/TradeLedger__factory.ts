@@ -46,6 +46,11 @@ import type { NonPayableOverrides } from "../../common.js"
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "BadFeeSlabs",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -151,6 +156,28 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "NotAuthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      }
+    ],
+    "name": "NotExternal",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      }
+    ],
+    "name": "NotPendingListing",
     "type": "error"
   },
   {
@@ -425,6 +452,69 @@ import type { NonPayableOverrides } from "../../common.js"
         "type": "uint256"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "seller",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "detailsHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ExternalListingCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "caps",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "fees",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "FeeSlabsSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "approvedBy",
+        "type": "address"
+      }
+    ],
+    "name": "ListingApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "unsold",
@@ -503,6 +593,25 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "listingId",
         "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "rejectedBy",
+        "type": "address"
+      }
+    ],
+    "name": "ListingRejected",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
       }
     ],
     "name": "ListingSoldOut",
@@ -534,6 +643,18 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint64",
         "name": "paymentDueAt",
         "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "buyerFee",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "sellerFee",
+        "type": "uint256"
       }
     ],
     "name": "OfferApproved",
@@ -665,6 +786,56 @@ import type { NonPayableOverrides } from "../../common.js"
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "seller",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "paymentRefHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "paidBy",
+        "type": "address"
+      }
+    ],
+    "name": "SellerPaid",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_FEE_SLABS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "WEGRO",
     "outputs": [
@@ -675,6 +846,19 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      }
+    ],
+    "name": "approveListing",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -800,6 +984,38 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "total",
+        "type": "uint256"
+      }
+    ],
+    "name": "feeFor",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feesEarned",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "offerId",
         "type": "uint256"
       }
@@ -837,6 +1053,24 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "struct TradeLedger.Delivery",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getFeeSlabs",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "caps",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "fees",
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -908,6 +1142,11 @@ import type { NonPayableOverrides } from "../../common.js"
             "internalType": "uint64",
             "name": "createdAt",
             "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "detailsHash",
+            "type": "bytes32"
           }
         ],
         "internalType": "struct TradeLedger.Listing",
@@ -974,6 +1213,16 @@ import type { NonPayableOverrides } from "../../common.js"
             "internalType": "bytes32",
             "name": "receiptPartId",
             "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "buyerFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sellerFee",
+            "type": "uint256"
           }
         ],
         "internalType": "struct TradeLedger.Offer",
@@ -1052,6 +1301,40 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "produceCode",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "askingUnitPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "detailsHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "listExternal",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1274,6 +1557,24 @@ import type { NonPayableOverrides } from "../../common.js"
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentRefHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "recordSellerPayout",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "registry",
     "outputs": [
@@ -1284,6 +1585,19 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      }
+    ],
+    "name": "rejectListing",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1327,6 +1641,24 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "setDealTtl",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "caps",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "fees",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "setFeeSlabs",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

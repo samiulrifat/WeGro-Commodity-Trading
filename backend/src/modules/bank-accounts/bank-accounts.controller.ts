@@ -35,14 +35,14 @@ export class BankAccountsController {
   constructor(private readonly accounts: BankAccountsService) {}
 
   @Get('me/bank-account')
-  @Roles(Role.FARMER, Role.INVESTOR)
+  @Roles(Role.FARMER, Role.INVESTOR, Role.SELLER)
   @ApiOkResponse({ type: BankAccountsDto })
   mine(@CurrentUser() actor: AuthUser): Promise<BankAccountsDto> {
     return this.accounts.forUser(actor, actor.id);
   }
 
   @Put('me/bank-account')
-  @Roles(Role.FARMER, Role.INVESTOR)
+  @Roles(Role.FARMER, Role.INVESTOR, Role.SELLER)
   @ApiOkResponse({
     type: BankAccountsDto,
     description: 'Waits for an admin to verify it',

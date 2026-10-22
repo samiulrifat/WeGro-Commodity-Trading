@@ -16,6 +16,8 @@ library Roles {
     bytes32 internal constant INSURER = keccak256("INSURER_ROLE");
     bytes32 internal constant AUDITOR = keccak256("AUDITOR_ROLE");
     bytes32 internal constant OPERATIONS = keccak256("OPERATIONS_ROLE");
+    /// @notice An external seller listing produce in the marketplace.
+    bytes32 internal constant SELLER = keccak256("SELLER_ROLE");
 
     /// @notice Who the super admin is in records that keep a participant id
     /// (who prepared, approved, entered): it is not a registered participant.

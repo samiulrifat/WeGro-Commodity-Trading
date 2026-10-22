@@ -19,6 +19,9 @@ const injectedRtkApi = api
             produceCode: queryArg.produceCode,
             districtCode: queryArg.districtCode,
             projectId: queryArg.projectId,
+            source: queryArg.source,
+            mine: queryArg.mine,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Marketplace'],
@@ -27,6 +30,52 @@ const injectedRtkApi = api
         query: (queryArg) => ({ url: `/api/listings/${queryArg.id}` }),
         providesTags: ['Marketplace'],
       }),
+      tradeListExternal: build.mutation<
+        TradeListExternalApiResponse,
+        TradeListExternalApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/listings/external`,
+          method: 'POST',
+          body: queryArg.listExternalDto,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      tradeApproveListing: build.mutation<
+        TradeApproveListingApiResponse,
+        TradeApproveListingApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/listings/${queryArg.id}/approve`,
+          method: 'POST',
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      tradeRejectListing: build.mutation<
+        TradeRejectListingApiResponse,
+        TradeRejectListingApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/listings/${queryArg.id}/reject`,
+          method: 'POST',
+          body: queryArg.rejectListingDto,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      tradeFees: build.query<TradeFeesApiResponse, TradeFeesApiArg>({
+        query: () => ({ url: `/api/marketplace/fees` }),
+        providesTags: ['Marketplace'],
+      }),
+      tradeSetFees: build.mutation<TradeSetFeesApiResponse, TradeSetFeesApiArg>(
+        {
+          query: (queryArg) => ({
+            url: `/api/marketplace/fees`,
+            method: 'PUT',
+            body: queryArg.setFeeSlabsDto,
+          }),
+          invalidatesTags: ['Marketplace'],
+        },
+      ),
       tradeListReceipt: build.mutation<
         TradeListReceiptApiResponse,
         TradeListReceiptApiArg
@@ -82,6 +131,8 @@ const injectedRtkApi = api
             listingId: queryArg.listingId,
             status: queryArg.status,
             discrepancy: queryArg.discrepancy,
+            payoutDue: queryArg.payoutDue,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Marketplace'],
@@ -137,6 +188,17 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Marketplace'],
       }),
+      tradeSellerPayout: build.mutation<
+        TradeSellerPayoutApiResponse,
+        TradeSellerPayoutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/offers/${queryArg.id}/seller-payout`,
+          method: 'POST',
+          body: queryArg.paymentReferenceDto,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
       tradeConfirmDelivery: build.mutation<
         TradeConfirmDeliveryApiResponse,
         TradeConfirmDeliveryApiArg
@@ -160,6 +222,7 @@ const injectedRtkApi = api
             produceCode: queryArg.produceCode,
             includeClosed: queryArg.includeClosed,
             mine: queryArg.mine,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Marketplace'],
@@ -197,16 +260,54 @@ export type TradeListListingsApiResponse =
 export type TradeListListingsApiArg = {
   page?: number;
   limit?: number;
-  status?: 'open' | 'cancelled' | 'sold_out';
+  status?: 'open' | 'cancelled' | 'sold_out' | 'pending' | 'rejected';
   produceCode?: string;
   districtCode?: District;
   projectId?: string;
+  source?: 'warehouse' | 'fresh' | 'seller';
+  /** Sellers: your own listings, in every status */
+  mine?: boolean;
+  /** Words of the produce name or the project title, or the seller: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type TradeListingApiResponse = /** status 200  */ {
   data: ListingDto;
 };
 export type TradeListingApiArg = {
   id: number;
+};
+export type TradeListExternalApiResponse =
+  /** status 201 Your own produce; buyers see it once an admin approves it */ {
+    data: ListingDto;
+  };
+export type TradeListExternalApiArg = {
+  listExternalDto: ListExternalDto;
+};
+export type TradeApproveListingApiResponse =
+  /** status 200 An external seller’s listing goes live */ {
+    data: ListingDto;
+  };
+export type TradeApproveListingApiArg = {
+  id: number;
+};
+export type TradeRejectListingApiResponse = /** status 200  */ {
+  data: ListingDto;
+};
+export type TradeRejectListingApiArg = {
+  id: number;
+  rejectListingDto: RejectListingDto;
+};
+export type TradeFeesApiResponse =
+  /** status 200 Fixed platform fee per side, by the deal total */ {
+    data: FeeScheduleDto;
+  };
+export type TradeFeesApiArg = void;
+export type TradeSetFeesApiResponse =
+  /** status 200 For deals approved from now on */ {
+    data: FeeScheduleDto;
+  };
+export type TradeSetFeesApiArg = {
+  setFeeSlabsDto: SetFeeSlabsDto;
 };
 export type TradeListReceiptApiResponse =
   /** status 201 List a warehouse receipt your side owns; locks it */ {
@@ -253,9 +354,14 @@ export type TradeListOffersApiArg = {
     | 'cancelled'
     | 'expired'
     | 'paid'
-    | 'delivered';
+    | 'delivered'
+    | 'seller_paid';
   /** Only deals whose delivery quantities disagree */
   discrepancy?: boolean;
+  /** Delivered external sellers’ deals waiting for their payout */
+  payoutDue?: boolean;
+  /** The offer number (#12), words of the produce name, or the buyer or seller: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type TradeOfferApiResponse = /** status 200  */ {
   data: OfferDto;
@@ -297,6 +403,14 @@ export type TradeConfirmPaymentApiArg = {
   id: number;
   paymentReferenceDto: PaymentReferenceDto;
 };
+export type TradeSellerPayoutApiResponse =
+  /** status 200 The external seller was paid the deal amount less the seller fee */ {
+    data: OfferDto;
+  };
+export type TradeSellerPayoutApiArg = {
+  id: number;
+  paymentReferenceDto: PaymentReferenceDto;
+};
 export type TradeConfirmDeliveryApiResponse =
   /** status 200 Buyer and handler each confirm; both done = delivered */ {
     data: OfferDto;
@@ -318,6 +432,8 @@ export type TradeListRequestsApiArg = {
   includeClosed?: boolean;
   /** Only your own (buyers) */
   mine?: boolean;
+  /** Words of the produce name, or the buyer: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type TradePostRequestApiResponse = /** status 201  */ {
   data: BuyerRequestDto;
@@ -346,16 +462,17 @@ export type ProduceRefDto = {
   unit: string;
 };
 export type SellerDto = {
-  kind: 'wegro' | 'farmer';
+  kind: 'wegro' | 'farmer' | 'seller';
   id?: string | null;
   name: string;
 };
 export type ListingDto = {
   id: number;
-  project: TradePartyDto;
+  /** Null for an external seller’s listing */
+  project?: TradePartyDto | null;
   district: PlaceDto;
   produce: ProduceRefDto;
-  source: 'warehouse' | 'fresh';
+  source: 'warehouse' | 'fresh' | 'seller';
   receiptId?: string | null;
   seller: SellerDto;
   quantity: number;
@@ -363,9 +480,15 @@ export type ListingDto = {
   available: number;
   askingUnitPrice: string;
   unpaidDeals: number;
-  status: 'open' | 'cancelled' | 'sold_out';
+  status: 'open' | 'cancelled' | 'sold_out' | 'pending' | 'rejected';
   createdAt: string;
   closedAt?: string | null;
+  description?: string | null;
+  /** External listing photos (API paths) */
+  photos: string[];
+  /** Why an admin turned it down */
+  rejectReason?: string | null;
+  decidedAt?: string | null;
 };
 export type PageMetaDto = {
   page: number;
@@ -439,6 +562,37 @@ export type District =
   | 'MOULVIBAZAR'
   | 'SUNAMGANJ'
   | 'SYLHET';
+export type ListExternalDto = {
+  /** From the produce catalog */
+  produceCode: string;
+  /** In the produce’s catalog unit */
+  quantity: number;
+  askingUnitPrice: string;
+  districtCode: District;
+  description?: string;
+  /** 1 to 3 photos you uploaded (POST /photos) */
+  photoIds: string[];
+};
+export type RejectListingDto = {
+  reason: string;
+};
+export type FeeSlabDto = {
+  upTo?: string | null;
+  fee: string;
+};
+export type FeeScheduleDto = {
+  slabs: FeeSlabDto[];
+};
+export type FeeSlabInputDto = {
+  /** Deal totals up to this; null for the last slab (everything above) */
+  upTo?: string | null;
+  /** Fee per side, taka */
+  fee: string;
+};
+export type SetFeeSlabsDto = {
+  /** Rising caps; the last slab has none. Applies to deals approved from now on */
+  slabs: FeeSlabInputDto[];
+};
 export type ListReceiptDto = {
   /** A warehouse receipt your side owns */
   receiptId: string;
@@ -474,7 +628,8 @@ export type OfferDto = {
     | 'cancelled'
     | 'expired'
     | 'paid'
-    | 'delivered';
+    | 'delivered'
+    | 'seller_paid';
   madeAt: string;
   /** Deals: pay before this */
   paymentDueAt?: string | null;
@@ -490,6 +645,19 @@ export type OfferDto = {
   deliveredAt?: string | null;
   /** Accounts, admins and auditors */
   paymentReference?: string | null;
+  seller: SellerDto;
+  /** On an external seller’s listing */
+  external: boolean;
+  /** Platform fee the buyer pays on top; set on approval */
+  buyerFee?: string | null;
+  sellerFee?: string | null;
+  /** What the buyer pays: the amount plus the buyer fee */
+  buyerPays?: string | null;
+  /** External listing: what the seller is paid after delivery */
+  sellerReceives?: string | null;
+  sellerPaidAt?: string | null;
+  /** Accounts, admins and auditors */
+  sellerPayoutReference?: string | null;
 };
 export type MakeOfferDto = {
   /** All or part of what is available */
@@ -540,6 +708,12 @@ export const {
   useLazyTradeListListingsQuery,
   useTradeListingQuery,
   useLazyTradeListingQuery,
+  useTradeListExternalMutation,
+  useTradeApproveListingMutation,
+  useTradeRejectListingMutation,
+  useTradeFeesQuery,
+  useLazyTradeFeesQuery,
+  useTradeSetFeesMutation,
   useTradeListReceiptMutation,
   useTradeListProduceMutation,
   useTradeCancelListingMutation,
@@ -553,6 +727,7 @@ export const {
   useTradeApproveMutation,
   useTradeCancelDealMutation,
   useTradeConfirmPaymentMutation,
+  useTradeSellerPayoutMutation,
   useTradeConfirmDeliveryMutation,
   useTradeListRequestsQuery,
   useLazyTradeListRequestsQuery,

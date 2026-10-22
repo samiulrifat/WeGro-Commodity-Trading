@@ -257,7 +257,8 @@ export type ParticipantsListApiArg = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status?: 'pending' | 'verified' | 'rejected';
   chainState?: 'submitted' | 'confirmed';
   district?: District;
@@ -472,7 +473,8 @@ export type ParticipantDetailDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status: 'pending' | 'verified' | 'rejected';
   chainState: 'submitted' | 'confirmed' | 'operator';
   fullName: string;
@@ -591,7 +593,8 @@ export type RegisterParticipantDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   fullName: string;
   phone: string;
   /** 10-digit smart card NID, or the old 13- or 17-digit NID */
@@ -618,7 +621,8 @@ export type ParticipantSummaryDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status: 'pending' | 'verified' | 'rejected';
   chainState: 'submitted' | 'confirmed' | 'operator';
   fullName: string;
@@ -710,6 +714,7 @@ export type LedgerParticipantDto = {
         | 'buyer'
         | 'insurer'
         | 'auditor'
+        | 'seller'
       )
     | null;
   account?: string | null;
@@ -792,7 +797,8 @@ export type DetailChangeSummaryDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status: DetailChangeStatus;
   changedFields: DetailField[];
   /** The ID check on the requested details */
@@ -816,7 +822,8 @@ export type DetailChangeReviewDto = {
     | 'supplier'
     | 'buyer'
     | 'insurer'
-    | 'auditor';
+    | 'auditor'
+    | 'seller';
   status: DetailChangeStatus;
   changedFields: DetailField[];
   /** The ID check on the requested details */

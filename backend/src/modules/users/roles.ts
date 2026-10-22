@@ -18,6 +18,8 @@ export enum Role {
   BUYER = 'buyer',
   INSURER = 'insurer',
   AUDITOR = 'auditor',
+  /** An external seller listing produce of their own in the marketplace. */
+  SELLER = 'seller',
 }
 
 export type ParticipantRole = Exclude<Role, Role.SUPER_ADMIN>;
@@ -65,6 +67,7 @@ export const CHAIN_ROLE: Readonly<Record<ParticipantRole, string>> = {
   [Role.SUPPLIER]: id('SUPPLIER_ROLE'),
   [Role.BUYER]: id('BUYER_ROLE'),
   [Role.INSURER]: id('INSURER_ROLE'),
+  [Role.SELLER]: id('SELLER_ROLE'),
   [Role.AUDITOR]: id('AUDITOR_ROLE'),
 };
 

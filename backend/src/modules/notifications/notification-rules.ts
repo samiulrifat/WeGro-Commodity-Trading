@@ -75,10 +75,12 @@ class Context {
     return this.one<{
       buyer_id: string;
       receipt_id: string | null;
-      farmer_id: string;
+      farmer_id: string | null;
       seller_is_wegro: boolean;
+      seller_id: string | null;
+      project_id: string | null;
     }>(
-      `SELECT o.buyer_id, l.receipt_id, l.farmer_id, l.seller_is_wegro
+      `SELECT o.buyer_id, l.receipt_id, l.farmer_id, l.seller_is_wegro, l.seller_id, l.project_id
          FROM offers o JOIN listings l ON l.id = o.listing_id WHERE o.id = $1`,
       [Number(e.args.offerId)],
     );
@@ -401,8 +403,47 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
   },
 
   TradeLedger: {
-    OfferMade: async (e, _m, x) => {
+    ExternalListingCreated: async (e, _m, x) => {
       await x.send(await x.role([Role.ADMIN]), {
+        category: ACTION,
+        kind: NotificationKind.LISTING_AWAITING_APPROVAL,
+        title: `Listing #${String(e.args.listingId)} by an outside seller awaits approval`,
+        params: { listingId: String(e.args.listingId) },
+        subject: { type: 'listing', id: String(e.args.listingId) },
+      });
+    },
+    ListingApproved: listingOutcome(
+      NotificationKind.LISTING_APPROVED,
+      'Your listing is live',
+    ),
+    ListingRejected: listingOutcome(
+      NotificationKind.LISTING_REJECTED,
+      'Your listing was turned down',
+    ),
+    SellerPaid: async (e, _m, x) => {
+      await x.send([uuid(e.args.seller)], {
+        category: OUTCOME,
+        kind: NotificationKind.SELLER_PAID,
+        title: `You were paid for deal #${String(e.args.offerId)}`,
+        body: `${taka(e.args.amount)} taka`,
+        params: {
+          offerId: String(e.args.offerId),
+          amount: taka(e.args.amount),
+        },
+        subject: { type: 'offer', id: String(e.args.offerId) },
+      });
+    },
+    OfferMade: async (e, _m, x) => {
+      // On an outside seller's listing the seller decides; otherwise WeGro's admins.
+      const l = await x.one<{
+        seller_id: string | null;
+        project_id: string | null;
+      }>('SELECT seller_id, project_id FROM listings WHERE id = $1', [
+        Number(e.args.listingId),
+      ]);
+      const deciders =
+        l && l.project_id === null ? [l.seller_id] : await x.role([Role.ADMIN]);
+      await x.send(deciders, {
         category: ACTION,
         kind: NotificationKind.OFFER_MADE,
         title: `Offer #${String(e.args.offerId)} awaiting approval`,
@@ -457,7 +498,7 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         title: 'Your payment is confirmed',
         subject,
       });
-      // Whoever hands the goods over: the site's operators, or the farmer's officer.
+      // Whoever hands the goods over: the outside seller, the site's operators, or the farmer's officer.
       const handlers: Array<{ operator_id: string }> = o.receipt_id
         ? await m.query(
             `SELECT w.operator_id FROM warehouse_receipts r
@@ -466,9 +507,11 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
           )
         : [];
       await x.send(
-        o.receipt_id
-          ? handlers.map((h) => h.operator_id)
-          : [await x.officerOf(o.farmer_id)],
+        o.project_id === null
+          ? [o.seller_id]
+          : o.receipt_id
+            ? handlers.map((h) => h.operator_id)
+            : [await x.officerOf(o.farmer_id!)],
         {
           category: ACTION,
           kind: NotificationKind.DEAL_DELIVER,
@@ -481,9 +524,12 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
     DealDelivered: async (e, _m, x) => {
       const o = await x.offer(e);
       if (!o) return;
-      const sellers = o.seller_is_wegro
-        ? await x.role([Role.ADMIN])
-        : [o.farmer_id, await x.officerOf(o.farmer_id)];
+      const sellers =
+        o.project_id === null
+          ? [o.seller_id]
+          : o.seller_is_wegro
+            ? await x.role([Role.ADMIN])
+            : [o.farmer_id, await x.officerOf(o.farmer_id!)];
       await x.send([o.buyer_id, ...sellers], {
         category: OUTCOME,
         kind: NotificationKind.DEAL_DELIVERED,
@@ -495,6 +541,15 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         },
         subject: { type: 'offer', id: String(e.args.offerId) },
       });
+      if (o.project_id === null) {
+        await x.send(await x.role([Role.ACCOUNTS]), {
+          category: ACTION,
+          kind: NotificationKind.SELLER_PAYOUT_DUE,
+          title: `Deal #${String(e.args.offerId)} delivered: pay the seller`,
+          params: { offerId: String(e.args.offerId) },
+          subject: { type: 'offer', id: String(e.args.offerId) },
+        });
+      }
     },
   },
 
@@ -684,6 +739,23 @@ function saleClosed(kind: NotificationKind, status: string): Rule {
       title: `Input sale #${String(e.args.saleId)} ${status}`,
       params: { saleId: String(e.args.saleId) },
       subject: { type: 'voucher-sale', id: String(e.args.saleId) },
+    });
+  };
+}
+
+/** To an outside seller about their listing. */
+function listingOutcome(kind: NotificationKind, title: string): Rule {
+  return async (e, _m, x) => {
+    const l = await x.one<{ seller_id: string | null }>(
+      'SELECT seller_id FROM listings WHERE id = $1',
+      [Number(e.args.listingId)],
+    );
+    await x.send([l?.seller_id], {
+      category: OUTCOME,
+      kind,
+      title,
+      params: { listingId: String(e.args.listingId) },
+      subject: { type: 'listing', id: String(e.args.listingId) },
     });
   };
 }

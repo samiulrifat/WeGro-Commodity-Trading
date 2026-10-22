@@ -37,7 +37,7 @@ Requirements that shape every screen:
   - Farm updates: New update, Drafts on this phone, Sent
   - Vouchers: All vouchers, Waiting for approval, Input sales, Batches
   - Warehouse: Receipts, Handovers, Sites
-  - Marketplace: Listings, Offers & deals, Deliveries, Buyer requests
+  - Marketplace: Listings, My Listings (outside sellers), Listing Approvals, Offers & Deals, Deliveries, Seller Payouts, Buyer Requests, Platform Fees
   - Insurance: Insured projects, Claims, Weather events
   - Payouts: Payout rounds, Costs, Reports
   - Track records: Farmers, Banks, Bank permissions
@@ -72,7 +72,7 @@ Build in order: each phase depends on the ones above it.
 - [x] 13. Vouchers and inputs: propose (Operations), approve or reject (Accounts), cancel, inactivity limits; suppliers' batches with printable QR codes and sales; officer confirms; the public QR check page (no sign-in)
 - [x] 14. Farm updates (works offline): the officer's phone flow in 5 steps or fewer, camera photo, location, the record type's measurements, drafts saved on the phone and sent when online (one outcome per draft, never a duplicate), corrections, records on the project timeline, ledger check
 - [x] 15. Warehouse: sites and operators, intake and issued receipts, re-check and extend, collect, buy-back handover (offer, accept, cancel), the public receipt QR check page
-- [ ] 16. Marketplace: listings to browse, list a receipt or fresh produce, offers and deals, buyer payment confirmation (Accounts), delivery confirmation by buyer and handler (with photo, mismatches flagged), buyer requests with matching listings
+- [x] 16. Marketplace: listings to browse, list a receipt or fresh produce, offers and deals, buyer payment confirmation (Accounts), delivery confirmation by buyer and handler (with photo, mismatches flagged), buyer requests with matching listings. Also (asked for 2026-10-22): outside sellers, a new role who sign up themselves and list catalog produce with 1 to 3 photos (shrunk on the phone), each listing approved or turned down with a reason by an admin before buyers see it; the seller decides offers on their own listings, hands over the goods and is paid by Accounts after delivery, less their fee. Platform fee: a fixed amount per side by the deal total (slabs on the ledger, shown to everyone, changed by the super admin), paid by the buyer on every deal and by outside sellers on theirs, previewed before an offer and fixed when it is approved. Each role's pages in the menu (sellers land on My Listings), searched and tabbed; deal pages show the money for each side, the steps, both delivery confirmations and each role's actions (first on phones), and fetch afresh when opened since several people act on a deal
 - [ ] 17. Insurance: insured projects, cover (insurer), weather events, claims with photos opened by the farmer's officer or an admin, review, approve or reject
 - [ ] 18. Settlement: costs with bill photos, project summary with what blocks the next round and a preview of each, prepare, approve (second Accounts person) or reject rounds, payout lines and payments, CSV downloads, investors' and farmers' statements
 - [ ] 19. Track record: preview and publish, versions, grant (signed-form photo, at most a year) or withdraw bank permission, who viewed; bank officers' farmer list and logged view; imported history

@@ -96,6 +96,7 @@ describe('RequestsService', () => {
       chain.tx as never,
       applier as never,
       fakeClock(NOW) as never,
+      { condition: () => null } as never,
     );
     return { service, chain, applier };
   };

@@ -61,6 +61,7 @@ export class FieldRecordsController {
     Role.WAREHOUSE,
     Role.INSURER,
     Role.ACCOUNTS,
+    Role.SELLER,
   )
   @UseInterceptors(
     FileInterceptor('file', {

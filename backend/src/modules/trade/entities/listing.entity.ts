@@ -15,8 +15,9 @@ import { Project } from '../../projects/entities/project.entity';
 import { ListingStatus } from '../trade.enums';
 
 /**
- * A sale listing, keyed by its ledger id: a warehouse receipt, or fresh
- * produce straight from a project. Created from ListingCreated. `available`
+ * A sale listing, keyed by its ledger id: a warehouse receipt, fresh
+ * produce straight from a project, or an external seller's own produce (no
+ * project; its details in listing_details). Created from ListingCreated. `available`
  * and `unpaidDeals` move only with one-way offer status changes. `status`
  * null = waiting for replay after a re-index.
  */
@@ -26,7 +27,11 @@ import { ListingStatus } from '../trade.enums';
 @Index('ix_listings_receipt', ['receiptId'])
 @Check(
   'ck_listings_status',
-  `"status" IS NULL OR "status" IN ('open', 'cancelled', 'sold_out')`,
+  `"status" IS NULL OR "status" IN ('open', 'cancelled', 'sold_out', 'pending', 'rejected')`,
+)
+@Check(
+  'ck_listings_external',
+  `("project_id" IS NULL) = ("farmer_id" IS NULL) AND ("project_id" IS NOT NULL OR "seller_id" IS NOT NULL)`,
 )
 @Check('ck_listings_seller', `("seller_id" IS NULL) = "seller_is_wegro"`)
 @Check(
@@ -37,15 +42,16 @@ export class Listing {
   @PrimaryColumn({ type: 'bigint', transformer: numericBigintTransformer })
   id: number;
 
-  @Column({ type: 'uuid' })
-  projectId: string;
+  /** Null for an external seller's listing. */
+  @Column({ type: 'uuid', nullable: true })
+  projectId: string | null;
 
   @ManyToOne(() => Project, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'project_id' })
   project?: Project;
 
-  @Column({ type: 'uuid' })
-  farmerId: string;
+  @Column({ type: 'uuid', nullable: true })
+  farmerId: string | null;
 
   /** Null for fresh produce listed from the project. */
   @Column({ type: 'char', length: 66, nullable: true })
@@ -82,4 +88,16 @@ export class Listing {
 
   @Column({ type: 'timestamptz', nullable: true })
   closedAt: Date | null;
+
+  /** External listing: its description, district and photos. */
+  @Column({ type: 'uuid', nullable: true })
+  detailsId: string | null;
+
+  /** When an admin approved or turned down an external listing. */
+  @Column({ type: 'timestamptz', nullable: true })
+  decidedAt: Date | null;
+
+  /** Why an admin turned it down; kept off the ledger. */
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  rejectReason: string | null;
 }

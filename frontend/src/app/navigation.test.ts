@@ -32,7 +32,7 @@ const session = (
 });
 
 describe('navigation', () => {
-  it('gives every role a menu whose first entry is its home', () => {
+  it('gives every role a menu whose first page is its home', () => {
     const homes = Object.fromEntries(
       (Object.keys(NAV) as Role[]).map((role) => [role, homeOf(user(role))]),
     );
@@ -50,6 +50,7 @@ describe('navigation', () => {
       buyer: '/marketplace',
       bank: '/bank/farmers',
       insurer: '/insurance',
+      seller: '/marketplace/mine',
     });
   });
 
