@@ -10,6 +10,7 @@ import { ROLE_BY_CHAIN_ID, STATUS_BY_CHAIN } from '../../users/roles';
 const TITLES: Readonly<Record<string, string>> = {
   // AccessRegistry
   ParticipantRegistered: 'Participant registered',
+  ParticipantSelfRegistered: 'Signed up themselves',
   ParticipantStatusChanged: 'Participant status changed',
   ParticipantDetailsUpdated: 'Participant details updated',
   FieldOfficerAssigned: 'Field officer assigned',
@@ -45,6 +46,8 @@ const TITLES: Readonly<Record<string, string>> = {
   EntryAdded: 'Field record added',
   // WarehouseReceipt
   SiteRegistered: 'Warehouse site registered',
+  SiteUpdated: 'Warehouse site details changed',
+  SiteClosedSet: 'Warehouse site closed or reopened',
   OperatorAssigned: 'Warehouse operator assigned',
   ReceiptIssued: 'Warehouse receipt issued',
   HandoverOffered: 'Receipt handover offered',

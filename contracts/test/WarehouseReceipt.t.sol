@@ -43,6 +43,7 @@ contract WarehouseReceiptTest is Test {
     bytes32 constant MAIZE = keccak256("PRJ-MAIZE-BOGURA-01");
     bytes32 constant ONION = keccak256("PRJ-ONION-PABNA-01");
     bytes32 constant R1 = "RCPT-0001";
+    bytes32 constant R2 = "RCPT-0002";
 
     bytes32 WEGRO;
     bytes32 ADMIN;
@@ -184,6 +185,60 @@ contract WarehouseReceiptTest is Test {
         vm.prank(habib);
         vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, habib, ADMIN));
         receipts.registerSite("WH-NEW", keccak256("x"));
+    }
+
+    function test_AdminUpdatesSiteDetails() public {
+        vm.expectEmit(address(receipts));
+        emit WarehouseReceipt.SiteUpdated(BOGURA, keccak256("bogura, new address"));
+        vm.prank(admin);
+        receipts.updateSite(BOGURA, keccak256("bogura, new address"));
+        assertEq(receipts.siteDetails(BOGURA), keccak256("bogura, new address"));
+
+        vm.startPrank(admin);
+        vm.expectRevert(WarehouseReceipt.ZeroValue.selector);
+        receipts.updateSite(BOGURA, bytes32(0));
+        vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.SiteNotFound.selector, bytes32("WH-NONE")));
+        receipts.updateSite("WH-NONE", keccak256("x"));
+        vm.stopPrank();
+
+        vm.prank(habib);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, habib, ADMIN));
+        receipts.updateSite(BOGURA, keccak256("x"));
+    }
+
+    function test_ClosedSiteTakesNoNewGoodsButKeepsItsReceipts() public {
+        _issue(R1);
+        vm.expectEmit(address(receipts));
+        emit WarehouseReceipt.SiteClosedSet(BOGURA, true);
+        vm.prank(admin);
+        receipts.setSiteClosed(BOGURA, true);
+        assertTrue(receipts.siteClosed(BOGURA));
+
+        uint64 expiry = uint64(block.timestamp + 180 days);
+        vm.prank(habib);
+        vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.SiteIsClosed.selector, BOGURA));
+        receipts.issueReceipt(R2, MAIZE, "MAIZE", 1, expiry, keccak256("x"));
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.SiteIsClosed.selector, BOGURA));
+        receipts.assignOperator(FLOATING, BOGURA);
+
+        // What it already holds is still looked after there.
+        vm.prank(rafiq);
+        receipts.extendExpiry(R1, uint64(block.timestamp + 365 days), keccak256("recheck"));
+        vm.prank(habib);
+        receipts.markCollected(R1);
+        assertEq(uint8(receipts.getReceipt(R1).status), uint8(WarehouseReceipt.Status.Collected));
+
+        vm.prank(admin);
+        receipts.setSiteClosed(BOGURA, false);
+        _issue(R2);
+
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.SiteNotFound.selector, bytes32("WH-NONE")));
+        receipts.setSiteClosed("WH-NONE", true);
+        vm.prank(habib);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, habib, ADMIN));
+        receipts.setSiteClosed(BOGURA, true);
     }
 
     function test_OnlySuperAdminLinksContracts() public {

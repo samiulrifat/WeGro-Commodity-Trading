@@ -697,6 +697,27 @@ describe('Settlement (node + database)', () => {
       });
     });
 
+    it('lets the super admin prepare a round, but not approve its own', async () => {
+      const round = (
+        await as(t.super_admin)
+          .post(`/settlement/projects/${project}/rounds`, { final: true })
+          .expect(201)
+      ).body.data;
+      const [me] = await db.query(
+        `SELECT id FROM users WHERE role = 'super_admin'`,
+      );
+      expect(round.preparedBy.id).toBe(me.id);
+      const own = await as(t.super_admin)
+        .post(`/settlement/rounds/${round.id}/approve`)
+        .expect(403);
+      expect(own.body.code).toBe('SAME_ACCOUNTANT');
+      await as(t.accounts)
+        .post(`/settlement/rounds/${round.id}/reject`, {
+          reason: 'Prepared by the super admin as a check',
+        })
+        .expect(200);
+    });
+
     it('returns capital, then marks the project paid out', async () => {
       const res = await as(t.accounts)
         .post(`/settlement/projects/${project}/rounds`, { final: true })

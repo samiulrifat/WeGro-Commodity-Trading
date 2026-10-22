@@ -24,10 +24,7 @@ async function upToCreate() {
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   await userEvent.type(screen.getByLabelText('Mobile Number'), '01712345678');
   await userEvent.click(screen.getByRole('button', { name: 'Send Code' }));
-  await userEvent.type(
-    await screen.findByLabelText('SMS Code'),
-    '123456',
-  );
+  await userEvent.type(await screen.findByLabelText('SMS Code'), '123456');
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   await userEvent.type(screen.getByLabelText('Full Name'), 'Nasrin Akter');
   await userEvent.type(screen.getByLabelText('NID Number'), '7123456789');

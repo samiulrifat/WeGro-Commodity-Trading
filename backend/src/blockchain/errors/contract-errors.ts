@@ -92,6 +92,7 @@ export const CONTRACT_ERROR_STATUS: Record<string, HttpStatus> = {
   SaleNotPending: HttpStatus.CONFLICT,
   SaleNotYetExpired: HttpStatus.CONFLICT,
   SiteExists: HttpStatus.CONFLICT,
+  SiteIsClosed: HttpStatus.CONFLICT,
   StatusUnchanged: HttpStatus.CONFLICT,
   StillOutstanding: HttpStatus.CONFLICT,
   TooEarly: HttpStatus.CONFLICT,

@@ -378,14 +378,12 @@ describe('ParticipantsService', () => {
       await expect(w.service.verify(admin, w.id, true)).resolves.toBeDefined();
     });
 
-    it('lets only an admin verify participants, and the super admin staff', async () => {
+    it('lets admins and the super admin verify participants, not officers', async () => {
       const w = await registered();
       await expect(w.service.verify(officer, w.id)).rejects.toThrow(
         'Only admins manage participants',
       );
-      await expect(w.service.verify(superAdmin, w.id)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(w.service.verify(superAdmin, w.id)).resolves.toBeDefined();
     });
   });
 

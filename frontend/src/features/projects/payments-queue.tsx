@@ -39,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useFormat } from '@/i18n/use-format';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
+import { actsAs } from '@/app/navigation';
 import {
   usePaymentProofsAcceptMutation,
   usePaymentProofsRejectMutation,
@@ -193,7 +194,7 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
   const fmt = useFormat();
   const role = useAppSelector((s) => s.session.user!.role);
   const [open, setOpen] = useState<'accept' | 'reject' | null>(null);
-  const decides = role === 'accounts' && p.status === 'pending';
+  const decides = actsAs(role, 'accounts') && p.status === 'pending';
   return (
     <article className="grid gap-3 rounded-2xl border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -522,7 +523,7 @@ function Bookings({
                     : t('payments.due', { at: b.expiresAt })}
                 </p>
               </div>
-              {role === 'accounts' && nothing && (
+              {actsAs(role, 'accounts') && nothing && (
                 <Button variant="outline" onClick={() => setConfirming(b)}>
                   <BadgeCheck /> {t('payments.confirmDirect')}
                 </Button>

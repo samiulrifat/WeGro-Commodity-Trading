@@ -48,6 +48,7 @@ import { Progress } from '@/components/ui/progress';
 import { useFormat } from '@/i18n/use-format';
 import { latinDigits } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
+import { actsAs, type Role } from '@/app/navigation';
 import { SaleItem } from './sales-list';
 import { VoucherStatus } from './status';
 import { canProposeVouchers, usedShare } from './voucher-search';
@@ -254,11 +255,11 @@ function Sales({ voucher: v }: { voucher: VoucherDetailDto }) {
 }
 
 /** Each role's moves at this status; the ledger checks them again. */
-function movesFor(role: string, v: VoucherDetailDto): Move[] {
+function movesFor(role: Role, v: VoucherDetailDto): Move[] {
   const out: Move[] = [];
-  if (role === 'accounts' && v.status === 'proposed')
+  if (actsAs(role, 'accounts') && v.status === 'proposed')
     out.push('approve', 'reject');
-  if (role === 'admin' && OPEN.has(v.status)) out.push('cancel');
+  if (actsAs(role, 'admin') && OPEN.has(v.status)) out.push('cancel');
   if (canProposeVouchers(role) && v.status === 'submitted') out.push('discard');
   return out;
 }

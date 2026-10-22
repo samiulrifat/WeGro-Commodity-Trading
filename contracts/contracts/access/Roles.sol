@@ -16,4 +16,13 @@ library Roles {
     bytes32 internal constant INSURER = keccak256("INSURER_ROLE");
     bytes32 internal constant AUDITOR = keccak256("AUDITOR_ROLE");
     bytes32 internal constant OPERATIONS = keccak256("OPERATIONS_ROLE");
+
+    /// @notice Who the super admin is in records that keep a participant id
+    /// (who prepared, approved, entered): it is not a registered participant.
+    bytes32 internal constant SUPER_ADMIN_ID = keccak256("SUPER_ADMIN");
+
+    /// @notice Office roles, whose powers the super admin also holds.
+    function isOffice(bytes32 role) internal pure returns (bool) {
+        return role == ADMIN || role == OPERATIONS || role == ACCOUNTS || role == AUDITOR;
+    }
 }

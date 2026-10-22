@@ -35,6 +35,7 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
+import { actsAs } from '@/app/navigation';
 import { usePaymentProofsRefundMutation } from './api';
 import type { RefundsSearch } from './projects-search';
 
@@ -128,7 +129,7 @@ function BookingRefunds({
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-lg font-bold">{fmt.taka(p.amount)}</span>
-                {role === 'accounts' && (
+                {actsAs(role, 'accounts') && (
                   <Button variant="outline" onClick={() => setRecording(p)}>
                     {t('refunds.record')}
                   </Button>
@@ -233,7 +234,7 @@ function ProjectRefunds({ project: p }: { project: ProjectDto }) {
               <StatusPill tone={LINE_TONE[l.status]} appearance="soft">
                 {t(`refunds.status.${l.status}`)}
               </StatusPill>
-              {role === 'accounts' && l.status === 'due' && (
+              {actsAs(role, 'accounts') && l.status === 'due' && (
                 <Button
                   size="sm"
                   variant="outline"

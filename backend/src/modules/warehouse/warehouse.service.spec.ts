@@ -34,6 +34,7 @@ import {
   intakeFingerprint,
   recheckFingerprint,
   WarehouseService,
+  receiptNumberRange,
 } from './warehouse.service';
 
 const NOW = new Date('2026-10-14T06:00:00Z');
@@ -183,6 +184,7 @@ describe('WarehouseService', () => {
         }),
       } as never,
       fakeClock(NOW) as never,
+      { condition: () => null } as never,
     );
     return { service, stored, rechecks, chain, sites };
   };
@@ -446,5 +448,23 @@ describe('WarehouseService', () => {
         }).service.verify(RECEIPT),
       ).resolves.toMatchObject({ genuine: false, site: null });
     });
+  });
+});
+
+describe('receipt numbers', () => {
+  it('turns what is printed or typed into a range of receipt ids', () => {
+    const id = `0x3f9a2c1b${'0'.repeat(56)}`;
+    expect(receiptNumberRange('WR-3F9A2C1B')).toEqual({
+      idFrom: '0x3f9a2c1b',
+      idTo: '0x3f9a2c1bg',
+    });
+    expect(receiptNumberRange(' 0x3f9a2c ')).toEqual({
+      idFrom: '0x3f9a2c',
+      idTo: '0x3f9a2cg',
+    });
+    const exact = receiptNumberRange(id)!;
+    expect(exact.idFrom <= id && id < exact.idTo).toBe(true);
+    expect(receiptNumberRange('3f9a')).toBeNull(); // too short to mean one
+    expect(receiptNumberRange('Maize')).toBeNull();
   });
 });

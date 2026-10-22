@@ -511,6 +511,8 @@ export enum ErrorCode {
   SESSION_EXPIRED = 'SESSION_EXPIRED',
   /** Sign in required */
   SIGN_IN_REQUIRED = 'SIGN_IN_REQUIRED',
+  /** This site is closed: it takes no new goods or operators */
+  SITE_CLOSED = 'SITE_CLOSED',
   /** A site with this name already exists */
   SITE_NAME_EXISTS = 'SITE_NAME_EXISTS',
   /** Site not found */

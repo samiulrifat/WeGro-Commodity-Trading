@@ -45,7 +45,7 @@ import { Project } from '../projects/entities/project.entity';
 import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { User } from '../users/entities/user.entity';
-import { Role } from '../users/roles';
+import { actsAs, Role } from '../users/roles';
 import { WarehouseOperator } from '../warehouse/entities/warehouse-operator.entity';
 import { WarehouseReceipt } from '../warehouse/entities/warehouse-receipt.entity';
 import { ReceiptStatus } from '../warehouse/warehouse.enums';
@@ -126,7 +126,7 @@ export class TradeService {
       });
     }
     const ownerSide = receipt.ownerIsWegro
-      ? actor.role === Role.ADMIN
+      ? actsAs(actor.role, Role.ADMIN)
       : !!receipt.ownerId && (await this.isOfficerOf(actor, receipt.ownerId));
     if (!ownerSide)
       throw new ForbiddenException({
@@ -172,7 +172,7 @@ export class TradeService {
       });
     }
     if (
-      actor.role !== Role.ADMIN &&
+      !actsAs(actor.role, Role.ADMIN) &&
       !(await this.isOfficerOf(actor, project.farmerId))
     ) {
       throw new ForbiddenException({
@@ -198,7 +198,7 @@ export class TradeService {
   async cancelListing(actor: AuthUser, id: number): Promise<ListingDto> {
     const listing = await this.openListing(id);
     if (
-      actor.role !== Role.ADMIN &&
+      !actsAs(actor.role, Role.ADMIN) &&
       !(await this.isSellerSide(actor, listing))
     ) {
       throw new ForbiddenException({
@@ -599,7 +599,7 @@ export class TradeService {
 
   private async isSellerSide(actor: AuthUser, l: Listing): Promise<boolean> {
     return l.sellerIsWegro
-      ? actor.role === Role.ADMIN
+      ? actsAs(actor.role, Role.ADMIN)
       : this.isOfficerOf(actor, l.farmerId);
   }
 

@@ -52,7 +52,10 @@ import { Route as AppVouchersVoucherIdRouteImport } from './routes/_app/vouchers
 import { Route as AppVouchersPendingRouteImport } from './routes/_app/vouchers/pending'
 import { Route as AppVouchersSalesRouteImport } from './routes/_app/vouchers/sales'
 import { Route as AppWarehouseIndexRouteImport } from './routes/_app/warehouse/index'
+import { Route as AppWarehouseHandoversRouteImport } from './routes/_app/warehouse/handovers'
+import { Route as AppWarehouseSitesRouteImport } from './routes/_app/warehouse/sites'
 import { Route as VerifyBatchBatchIdRouteImport } from './routes/verify/batch.$batchId'
+import { Route as VerifyReceiptReceiptIdRouteImport } from './routes/verify/receipt.$receiptId'
 import { Route as AppBankFarmersIndexRouteImport } from './routes/_app/bank/farmers/index'
 import { Route as AppCatalogFarmUpdateTypesIndexRouteImport } from './routes/_app/catalog/farm-update-types/index'
 import { Route as AppCatalogFarmUpdateTypesCodeRouteImport } from './routes/_app/catalog/farm-update-types/$code'
@@ -71,6 +74,7 @@ import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/_app/pro
 import { Route as AppProjectsProjectIdEditRouteImport } from './routes/_app/projects/$projectId/edit'
 import { Route as AppVouchersBatchesIndexRouteImport } from './routes/_app/vouchers/batches/index'
 import { Route as AppVouchersBatchesBatchIdRouteImport } from './routes/_app/vouchers/batches/$batchId'
+import { Route as AppWarehouseReceiptsReceiptIdRouteImport } from './routes/_app/warehouse/receipts/$receiptId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -287,9 +291,24 @@ const AppWarehouseIndexRoute = AppWarehouseIndexRouteImport.update({
   path: '/warehouse/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWarehouseHandoversRoute = AppWarehouseHandoversRouteImport.update({
+  id: '/warehouse/handovers',
+  path: '/warehouse/handovers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWarehouseSitesRoute = AppWarehouseSitesRouteImport.update({
+  id: '/warehouse/sites',
+  path: '/warehouse/sites',
+  getParentRoute: () => AppRoute,
+} as any)
 const VerifyBatchBatchIdRoute = VerifyBatchBatchIdRouteImport.update({
   id: '/verify/batch/$batchId',
   path: '/verify/batch/$batchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyReceiptReceiptIdRoute = VerifyReceiptReceiptIdRouteImport.update({
+  id: '/verify/receipt/$receiptId',
+  path: '/verify/receipt/$receiptId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppBankFarmersIndexRoute = AppBankFarmersIndexRouteImport.update({
@@ -391,6 +410,12 @@ const AppVouchersBatchesBatchIdRoute =
     path: '/vouchers/batches/$batchId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppWarehouseReceiptsReceiptIdRoute =
+  AppWarehouseReceiptsReceiptIdRouteImport.update({
+    id: '/warehouse/receipts/$receiptId',
+    path: '/warehouse/receipts/$receiptId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -417,7 +442,10 @@ export interface FileRoutesByFullPath {
   '/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
   '/vouchers/pending': typeof AppVouchersPendingRoute
   '/vouchers/sales': typeof AppVouchersSalesRoute
+  '/warehouse/handovers': typeof AppWarehouseHandoversRoute
+  '/warehouse/sites': typeof AppWarehouseSitesRoute
   '/verify/batch/$batchId': typeof VerifyBatchBatchIdRoute
+  '/verify/receipt/$receiptId': typeof VerifyReceiptReceiptIdRoute
   '/audit/': typeof AppAuditIndexRoute
   '/batches/': typeof AppBatchesIndexRoute
   '/catalog/': typeof AppCatalogIndexRoute
@@ -445,6 +473,7 @@ export interface FileRoutesByFullPath {
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
+  '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
   '/bank/farmers/': typeof AppBankFarmersIndexRoute
   '/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/catalog/inputs/': typeof AppCatalogInputsIndexRoute
@@ -480,7 +509,10 @@ export interface FileRoutesByTo {
   '/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
   '/vouchers/pending': typeof AppVouchersPendingRoute
   '/vouchers/sales': typeof AppVouchersSalesRoute
+  '/warehouse/handovers': typeof AppWarehouseHandoversRoute
+  '/warehouse/sites': typeof AppWarehouseSitesRoute
   '/verify/batch/$batchId': typeof VerifyBatchBatchIdRoute
+  '/verify/receipt/$receiptId': typeof VerifyReceiptReceiptIdRoute
   '/audit': typeof AppAuditIndexRoute
   '/batches': typeof AppBatchesIndexRoute
   '/catalog': typeof AppCatalogIndexRoute
@@ -508,6 +540,7 @@ export interface FileRoutesByTo {
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
+  '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
   '/bank/farmers': typeof AppBankFarmersIndexRoute
   '/catalog/farm-update-types': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/catalog/inputs': typeof AppCatalogInputsIndexRoute
@@ -545,7 +578,10 @@ export interface FileRoutesById {
   '/_app/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
   '/_app/vouchers/pending': typeof AppVouchersPendingRoute
   '/_app/vouchers/sales': typeof AppVouchersSalesRoute
+  '/_app/warehouse/handovers': typeof AppWarehouseHandoversRoute
+  '/_app/warehouse/sites': typeof AppWarehouseSitesRoute
   '/verify/batch/$batchId': typeof VerifyBatchBatchIdRoute
+  '/verify/receipt/$receiptId': typeof VerifyReceiptReceiptIdRoute
   '/_app/audit/': typeof AppAuditIndexRoute
   '/_app/batches/': typeof AppBatchesIndexRoute
   '/_app/catalog/': typeof AppCatalogIndexRoute
@@ -573,6 +609,7 @@ export interface FileRoutesById {
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/_app/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/_app/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
+  '/_app/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
   '/_app/bank/farmers/': typeof AppBankFarmersIndexRoute
   '/_app/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/_app/catalog/inputs/': typeof AppCatalogInputsIndexRoute
@@ -610,7 +647,10 @@ export interface FileRouteTypes {
     | '/vouchers/$voucherId'
     | '/vouchers/pending'
     | '/vouchers/sales'
+    | '/warehouse/handovers'
+    | '/warehouse/sites'
     | '/verify/batch/$batchId'
+    | '/verify/receipt/$receiptId'
     | '/audit/'
     | '/batches/'
     | '/catalog/'
@@ -638,6 +678,7 @@ export interface FileRouteTypes {
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
     | '/vouchers/batches/$batchId'
+    | '/warehouse/receipts/$receiptId'
     | '/bank/farmers/'
     | '/catalog/farm-update-types/'
     | '/catalog/inputs/'
@@ -673,7 +714,10 @@ export interface FileRouteTypes {
     | '/vouchers/$voucherId'
     | '/vouchers/pending'
     | '/vouchers/sales'
+    | '/warehouse/handovers'
+    | '/warehouse/sites'
     | '/verify/batch/$batchId'
+    | '/verify/receipt/$receiptId'
     | '/audit'
     | '/batches'
     | '/catalog'
@@ -701,6 +745,7 @@ export interface FileRouteTypes {
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
     | '/vouchers/batches/$batchId'
+    | '/warehouse/receipts/$receiptId'
     | '/bank/farmers'
     | '/catalog/farm-update-types'
     | '/catalog/inputs'
@@ -737,7 +782,10 @@ export interface FileRouteTypes {
     | '/_app/vouchers/$voucherId'
     | '/_app/vouchers/pending'
     | '/_app/vouchers/sales'
+    | '/_app/warehouse/handovers'
+    | '/_app/warehouse/sites'
     | '/verify/batch/$batchId'
+    | '/verify/receipt/$receiptId'
     | '/_app/audit/'
     | '/_app/batches/'
     | '/_app/catalog/'
@@ -765,6 +813,7 @@ export interface FileRouteTypes {
     | '/_app/people/changes/$changeId'
     | '/_app/projects/$projectId/edit'
     | '/_app/vouchers/batches/$batchId'
+    | '/_app/warehouse/receipts/$receiptId'
     | '/_app/bank/farmers/'
     | '/_app/catalog/farm-update-types/'
     | '/_app/catalog/inputs/'
@@ -784,6 +833,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SignInRoute: typeof SignInRoute
   VerifyBatchBatchIdRoute: typeof VerifyBatchBatchIdRoute
+  VerifyReceiptReceiptIdRoute: typeof VerifyReceiptReceiptIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1089,11 +1139,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWarehouseIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/warehouse/handovers': {
+      id: '/_app/warehouse/handovers'
+      path: '/warehouse/handovers'
+      fullPath: '/warehouse/handovers'
+      preLoaderRoute: typeof AppWarehouseHandoversRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/warehouse/sites': {
+      id: '/_app/warehouse/sites'
+      path: '/warehouse/sites'
+      fullPath: '/warehouse/sites'
+      preLoaderRoute: typeof AppWarehouseSitesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/verify/batch/$batchId': {
       id: '/verify/batch/$batchId'
       path: '/verify/batch/$batchId'
       fullPath: '/verify/batch/$batchId'
       preLoaderRoute: typeof VerifyBatchBatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify/receipt/$receiptId': {
+      id: '/verify/receipt/$receiptId'
+      path: '/verify/receipt/$receiptId'
+      fullPath: '/verify/receipt/$receiptId'
+      preLoaderRoute: typeof VerifyReceiptReceiptIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/bank/farmers/': {
@@ -1222,6 +1293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVouchersBatchesBatchIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/warehouse/receipts/$receiptId': {
+      id: '/_app/warehouse/receipts/$receiptId'
+      path: '/warehouse/receipts/$receiptId'
+      fullPath: '/warehouse/receipts/$receiptId'
+      preLoaderRoute: typeof AppWarehouseReceiptsReceiptIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -1245,6 +1323,8 @@ interface AppRouteChildren {
   AppVouchersVoucherIdRoute: typeof AppVouchersVoucherIdRoute
   AppVouchersPendingRoute: typeof AppVouchersPendingRoute
   AppVouchersSalesRoute: typeof AppVouchersSalesRoute
+  AppWarehouseHandoversRoute: typeof AppWarehouseHandoversRoute
+  AppWarehouseSitesRoute: typeof AppWarehouseSitesRoute
   AppAuditIndexRoute: typeof AppAuditIndexRoute
   AppBatchesIndexRoute: typeof AppBatchesIndexRoute
   AppCatalogIndexRoute: typeof AppCatalogIndexRoute
@@ -1272,6 +1352,7 @@ interface AppRouteChildren {
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
   AppProjectsProjectIdEditRoute: typeof AppProjectsProjectIdEditRoute
   AppVouchersBatchesBatchIdRoute: typeof AppVouchersBatchesBatchIdRoute
+  AppWarehouseReceiptsReceiptIdRoute: typeof AppWarehouseReceiptsReceiptIdRoute
   AppBankFarmersIndexRoute: typeof AppBankFarmersIndexRoute
   AppCatalogFarmUpdateTypesIndexRoute: typeof AppCatalogFarmUpdateTypesIndexRoute
   AppCatalogInputsIndexRoute: typeof AppCatalogInputsIndexRoute
@@ -1303,6 +1384,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppVouchersVoucherIdRoute: AppVouchersVoucherIdRoute,
   AppVouchersPendingRoute: AppVouchersPendingRoute,
   AppVouchersSalesRoute: AppVouchersSalesRoute,
+  AppWarehouseHandoversRoute: AppWarehouseHandoversRoute,
+  AppWarehouseSitesRoute: AppWarehouseSitesRoute,
   AppAuditIndexRoute: AppAuditIndexRoute,
   AppBatchesIndexRoute: AppBatchesIndexRoute,
   AppCatalogIndexRoute: AppCatalogIndexRoute,
@@ -1330,6 +1413,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
   AppProjectsProjectIdEditRoute: AppProjectsProjectIdEditRoute,
   AppVouchersBatchesBatchIdRoute: AppVouchersBatchesBatchIdRoute,
+  AppWarehouseReceiptsReceiptIdRoute: AppWarehouseReceiptsReceiptIdRoute,
   AppBankFarmersIndexRoute: AppBankFarmersIndexRoute,
   AppCatalogFarmUpdateTypesIndexRoute: AppCatalogFarmUpdateTypesIndexRoute,
   AppCatalogInputsIndexRoute: AppCatalogInputsIndexRoute,
@@ -1351,6 +1435,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SignInRoute: SignInRoute,
   VerifyBatchBatchIdRoute: VerifyBatchBatchIdRoute,
+  VerifyReceiptReceiptIdRoute: VerifyReceiptReceiptIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
-import { Role } from '../users/roles';
+import { actsAs, Role } from '../users/roles';
 import { type AuthUser, canAct } from './auth-user';
 import {
   ALLOW_PENDING_PASSWORD,
@@ -72,7 +72,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
 /**
  * Global: enforces @Roles(). Listed roles only, and only verified ones; the
- * super admin passes wherever it is listed. Auditors only ever read: a write
+ * super admin passes wherever it or any office role is listed. Auditors only ever read: a write
  * is refused even where they are listed, unless marked @AuditAction().
  */
 @Injectable()
@@ -88,7 +88,7 @@ export class RolesGuard {
     const user = context
       .switchToHttp()
       .getRequest<Request & { user?: AuthUser }>().user;
-    if (!user || !roles.includes(user.role)) {
+    if (!user || !roles.some((r) => actsAs(user.role, r))) {
       throw new ForbiddenException({
         message: 'Your role cannot do this',
         code: ErrorCode.ROLE_NOT_ALLOWED,

@@ -35,11 +35,11 @@ describe('the people list address', () => {
 });
 
 describe('who manages and registers whom', () => {
-  it('leaves staff to the super admin and everyone else to admins', () => {
+  it('leaves staff to the super admin, everyone else to admins and the super admin', () => {
     expect(canManage('super_admin', 'field_officer')).toBe(true);
     expect(canManage('admin', 'field_officer')).toBe(false);
     expect(canManage('admin', 'farmer')).toBe(true);
-    expect(canManage('super_admin', 'farmer')).toBe(false);
+    expect(canManage('super_admin', 'farmer')).toBe(true);
     expect(canManage('field_officer', 'farmer')).toBe(false);
   });
 
@@ -47,6 +47,7 @@ describe('who manages and registers whom', () => {
     expect(registrableRoles('field_officer')).toEqual(['farmer']);
     expect(registrableRoles('admin')).not.toContain('admin');
     expect(registrableRoles('super_admin')).toContain('auditor');
+    expect(registrableRoles('super_admin')).toContain('farmer');
     expect(registrableRoles('auditor')).toEqual([]);
   });
 });

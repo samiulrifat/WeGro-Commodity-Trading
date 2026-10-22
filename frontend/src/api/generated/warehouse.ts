@@ -21,7 +21,13 @@ const injectedRtkApi = api
         WarehouseListSitesApiResponse,
         WarehouseListSitesApiArg
       >({
-        query: () => ({ url: `/api/warehouse-sites` }),
+        query: (queryArg) => ({
+          url: `/api/warehouse-sites`,
+          params: {
+            q: queryArg.q,
+            state: queryArg.state,
+          },
+        }),
         providesTags: ['Warehouse'],
       }),
       warehouseSite: build.query<WarehouseSiteApiResponse, WarehouseSiteApiArg>(
@@ -30,6 +36,37 @@ const injectedRtkApi = api
           providesTags: ['Warehouse'],
         },
       ),
+      warehouseUpdateSite: build.mutation<
+        WarehouseUpdateSiteApiResponse,
+        WarehouseUpdateSiteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/warehouse-sites/${queryArg.id}`,
+          method: 'PATCH',
+          body: queryArg.updateSiteDto,
+        }),
+        invalidatesTags: ['Warehouse'],
+      }),
+      warehouseCloseSite: build.mutation<
+        WarehouseCloseSiteApiResponse,
+        WarehouseCloseSiteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/warehouse-sites/${queryArg.id}/close`,
+          method: 'POST',
+        }),
+        invalidatesTags: ['Warehouse'],
+      }),
+      warehouseReopenSite: build.mutation<
+        WarehouseReopenSiteApiResponse,
+        WarehouseReopenSiteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/warehouse-sites/${queryArg.id}/reopen`,
+          method: 'POST',
+        }),
+        invalidatesTags: ['Warehouse'],
+      }),
       warehouseAssignOperator: build.mutation<
         WarehouseAssignOperatorApiResponse,
         WarehouseAssignOperatorApiArg
@@ -62,6 +99,8 @@ const injectedRtkApi = api
               projectId: queryArg.projectId,
               siteId: queryArg.siteId,
               status: queryArg.status,
+              expiresBy: queryArg.expiresBy,
+              q: queryArg.q,
             },
           }),
           providesTags: ['Warehouse'],
@@ -140,11 +179,36 @@ export type WarehouseCreateSiteApiArg = {
 export type WarehouseListSitesApiResponse = /** status 200  */ {
   data: SiteDto[];
 };
-export type WarehouseListSitesApiArg = void;
+export type WarehouseListSitesApiArg = {
+  /** Words of the name, the address or the district */
+  q?: string;
+  state?: 'open' | 'closed';
+};
 export type WarehouseSiteApiResponse = /** status 200  */ {
   data: SiteDto;
 };
 export type WarehouseSiteApiArg = {
+  id: string;
+};
+export type WarehouseUpdateSiteApiResponse =
+  /** status 200 New details; their fingerprint goes to the ledger */ {
+    data: SiteDto;
+  };
+export type WarehouseUpdateSiteApiArg = {
+  id: string;
+  updateSiteDto: UpdateSiteDto;
+};
+export type WarehouseCloseSiteApiResponse =
+  /** status 200 No new goods or operators; its receipts stay valid and are still re-checked and released there */ {
+    data: SiteDto;
+  };
+export type WarehouseCloseSiteApiArg = {
+  id: string;
+};
+export type WarehouseReopenSiteApiResponse = /** status 200  */ {
+  data: SiteDto;
+};
+export type WarehouseReopenSiteApiArg = {
   id: string;
 };
 export type WarehouseAssignOperatorApiResponse =
@@ -179,6 +243,10 @@ export type WarehouseListApiArg = {
     | 'sold'
     | 'collected'
     | 'sold_out';
+  /** Only receipts still held that expire on or before this day (a re-check is due) */
+  expiresBy?: string;
+  /** Words of the project title; the farmer: a mobile number, an NID or whole words of their name; or the receipt number */
+  q?: string;
 };
 export type WarehouseFindOneApiResponse = /** status 200  */ {
   data: ReceiptDetailDto;
@@ -233,6 +301,9 @@ export type SiteDto = {
   storageType: 'warehouse' | 'cold_storage';
   capacityKg?: number | null;
   status: 'submitted' | 'registered';
+  /** Takes no new goods or operators */
+  closed: boolean;
+  closedAt?: string | null;
   operators: NamedDto[];
 };
 export type District =
@@ -307,6 +378,14 @@ export type CreateSiteDto = {
   storageType: 'warehouse' | 'cold_storage';
   /** Capacity in kg */
   capacityKg?: number;
+};
+export type UpdateSiteDto = {
+  name?: string;
+  districtCode?: District;
+  address?: string;
+  storageType?: 'warehouse' | 'cold_storage';
+  /** Capacity in kg; null removes it */
+  capacityKg?: number | null;
 };
 export type AssignOperatorDto = {
   /** null removes them from their site */
@@ -442,6 +521,9 @@ export const {
   useLazyWarehouseListSitesQuery,
   useWarehouseSiteQuery,
   useLazyWarehouseSiteQuery,
+  useWarehouseUpdateSiteMutation,
+  useWarehouseCloseSiteMutation,
+  useWarehouseReopenSiteMutation,
   useWarehouseAssignOperatorMutation,
   useWarehouseIssueMutation,
   useWarehouseListQuery,

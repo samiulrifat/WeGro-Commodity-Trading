@@ -66,6 +66,61 @@ export class CreateSiteDto {
   capacityKg?: number | null;
 }
 
+/** Only what changes; the ledger gets the new fingerprint. */
+export class UpdateSiteDto {
+  @ApiPropertyOptional({ example: 'Bogura Central Warehouse' })
+  @IsOptional()
+  @Text()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  name?: string;
+
+  @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
+  @IsOptional()
+  @IsIn(DISTRICT_CODES)
+  districtCode?: string;
+
+  @ApiPropertyOptional({ example: 'Shibganj road, Bogura Sadar' })
+  @IsOptional()
+  @Text()
+  @IsString()
+  @MinLength(5)
+  @MaxLength(300)
+  address?: string;
+
+  @ApiPropertyOptional({ enum: StorageType })
+  @IsOptional()
+  @IsEnum(StorageType)
+  storageType?: StorageType;
+
+  @ApiPropertyOptional({
+    description: 'Capacity in kg; null removes it',
+    type: Number,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1_000_000_000_000)
+  capacityKg?: number | null;
+}
+
+export class ListSitesQueryDto {
+  @ApiPropertyOptional({
+    description: 'Words of the name, the address or the district',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
+  @ApiPropertyOptional({ enum: ['open', 'closed'] })
+  @IsOptional()
+  @IsIn(['open', 'closed'])
+  state?: 'open' | 'closed';
+}
+
 /** The intake record shared by issuing and re-checking. */
 class IntakeFieldsDto {
   @ApiPropertyOptional({ example: 100, type: Number })
@@ -152,6 +207,23 @@ export class ListReceiptsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(ReceiptStatus)
   status?: ReceiptStatus;
+  @ApiPropertyOptional({
+    example: '2026-11-05',
+    description:
+      'Only receipts still held that expire on or before this day (a re-check is due)',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  expiresBy?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Words of the project title; the farmer: a mobile number, an NID or whole words of their name; or the receipt number',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 // --- Responses ---
@@ -188,6 +260,12 @@ export class SiteDto {
 
   @ApiProperty({ enum: ['submitted', 'registered'] })
   status: 'submitted' | 'registered';
+
+  @ApiProperty({ description: 'Takes no new goods or operators' })
+  closed: boolean;
+
+  @ApiPropertyOptional({ nullable: true, type: Date })
+  closedAt: Date | null;
 
   @ApiProperty({ type: [NamedDto] })
   operators: NamedDto[];

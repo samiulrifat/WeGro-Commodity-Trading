@@ -239,7 +239,7 @@ describe('Vouchers (node + database)', () => {
         .expect(409);
     });
 
-    it('lets an admin or the super admin propose too, but only Accounts approves', async () => {
+    it('lets an admin or the super admin propose too; Accounts or the super admin decides', async () => {
       const body = {
         inputTypeCode: 'UREA',
         quantity: 2,
@@ -251,18 +251,25 @@ describe('Vouchers (node + database)', () => {
           .post(`/projects/${projectId}/vouchers`, body)
           .expect(403);
       }
-      for (const token of [t.admin, t.super_admin]) {
-        const res = await as(token)
-          .post(`/projects/${projectId}/vouchers`, body)
-          .expect(201);
-        expect(res.body.data.status).toBe('proposed');
-        await as(token)
-          .post(`/vouchers/${res.body.data.id}/approve`)
-          .expect(403);
-        await as(t.accounts)
-          .post(`/vouchers/${res.body.data.id}/reject`)
-          .expect(200);
-      }
+      // An admin proposes; an admin cannot decide, Accounts can.
+      const byAdmin = await as(t.admin)
+        .post(`/projects/${projectId}/vouchers`, body)
+        .expect(201);
+      expect(byAdmin.body.data.status).toBe('proposed');
+      await as(t.admin)
+        .post(`/vouchers/${byAdmin.body.data.id}/approve`)
+        .expect(403);
+      await as(t.accounts)
+        .post(`/vouchers/${byAdmin.body.data.id}/reject`)
+        .expect(200);
+      // The super admin holds Accounts' powers too.
+      const bySuperAdmin = await as(t.super_admin)
+        .post(`/projects/${projectId}/vouchers`, body)
+        .expect(201);
+      const decided = await as(t.super_admin)
+        .post(`/vouchers/${bySuperAdmin.body.data.id}/reject`)
+        .expect(200);
+      expect(decided.body.data.status).toBe('rejected');
     });
   });
 

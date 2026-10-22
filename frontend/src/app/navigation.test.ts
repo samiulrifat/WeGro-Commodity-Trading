@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SessionState } from '@/store/session-slice';
 import {
   access,
+  actsAs,
   AREAS,
   type Area,
   currentPage,
@@ -229,5 +230,36 @@ describe('after signing in', () => {
     );
     expect(at('/people/new')).toBe('registerPerson');
     expect(at('/people/changes/abc')).toBe('detailChanges');
+  });
+});
+
+describe('the super admin', () => {
+  it('has every page any office role has, now and as pages are added', () => {
+    const pages = (r: Role) =>
+      NAV[r].flatMap((n) => [n.area, ...(n.pages ?? []).map((p) => p.to)]);
+    const own = new Set(pages('super_admin'));
+    for (const r of ['admin', 'operations', 'accounts', 'auditor'] as const) {
+      expect(pages(r).filter((x) => !own.has(x))).toEqual([]);
+    }
+  });
+
+  it('acts as every office role, never as people outside the office', () => {
+    for (const r of ['admin', 'operations', 'accounts', 'auditor'] as const) {
+      expect(actsAs('super_admin', r)).toBe(true);
+      expect(actsAs(r, r)).toBe(true);
+    }
+    for (const r of [
+      'supplier',
+      'buyer',
+      'farmer',
+      'investor',
+      'warehouse',
+      'field_officer',
+      'bank',
+      'insurer',
+    ] as const) {
+      expect(actsAs('super_admin', r)).toBe(false);
+    }
+    expect(actsAs('admin', 'accounts')).toBe(false);
   });
 });

@@ -12,6 +12,7 @@ import { ReceiptStatus, WEGRO_OWNER } from './warehouse.enums';
 
 const EVENTS = [
   'SiteRegistered',
+  'SiteClosedSet',
   'OperatorAssigned',
   'ReceiptIssued',
   'HandoverOffered',
@@ -55,7 +56,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
       await m
         .createQueryBuilder()
         .update(WarehouseSite)
-        .set({ status: 'submitted' })
+        .set({ status: 'submitted', closed: false, closedAt: null })
         .execute();
       await m
         .createQueryBuilder()
@@ -77,6 +78,19 @@ export class WarehouseLedgerSync implements OnModuleInit {
             { id, status: 'submitted' },
             { status: 'registered' },
           );
+        return;
+      }
+
+      case 'SiteClosedSet': {
+        const id = toUuid(a.siteId);
+        const closed = Boolean(a.closed);
+        if (id) {
+          await m.update(
+            WarehouseSite,
+            { id },
+            { closed, closedAt: closed ? when : null },
+          );
+        }
         return;
       }
 

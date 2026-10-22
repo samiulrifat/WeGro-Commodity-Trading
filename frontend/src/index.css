@@ -214,6 +214,10 @@
   size: A4;
   margin: 0;
 }
+@page receipt {
+  size: A4;
+  margin: 15mm;
+}
 @media print {
   body.printing > :not(.print-sheet) {
     display: none !important;
@@ -225,6 +229,9 @@
   }
   .label-sheet {
     page: labels;
+  }
+  .receipt-sheet {
+    page: receipt;
   }
   .label-page {
     display: grid;

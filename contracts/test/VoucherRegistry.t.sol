@@ -240,6 +240,17 @@ contract VoucherRegistryTest is Test {
         vouchers.approveVoucher(VOUCHER);
     }
 
+    function test_SuperAdminApprovesButNeverSellsAsASupplier() public {
+        _propose();
+        vm.prank(superAdmin); // holds Accounts' powers
+        vouchers.approveVoucher(VOUCHER);
+        assertEq(uint8(vouchers.getVoucher(VOUCHER).status), uint8(VoucherRegistry.VoucherStatus.Active));
+
+        vm.prank(superAdmin); // not a supplier: people outside the office act for themselves
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, superAdmin, SUPPLIER));
+        vouchers.recordSale(VOUCHER, 1, new bytes32[](0));
+    }
+
     function test_ProposeRejectsBadInput() public {
         bytes32[] memory s = _suppliers();
         vm.startPrank(operations);

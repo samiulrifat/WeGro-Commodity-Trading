@@ -48,6 +48,9 @@ contract WarehouseReceipt is AccessGuarded {
     /// @notice Contracts allowed to list and sell receipts (TradeLedger).
     mapping(address => bool) public isLinkedContract;
     mapping(bytes32 siteId => bytes32 detailsHash) public siteDetails;
+    /// @notice A closed site takes no new goods and no new operators; its
+    /// receipts stay valid and its operators still re-check and release them.
+    mapping(bytes32 siteId => bool) public siteClosed;
     /// @notice Warehouse site an operator works at, or zero.
     mapping(bytes32 operatorId => bytes32 siteId) public siteOf;
     mapping(bytes32 receiptId => Receipt) private _receipts;
@@ -56,6 +59,8 @@ contract WarehouseReceipt is AccessGuarded {
     mapping(bytes32 projectId => uint256) public openReceipts;
 
     event SiteRegistered(bytes32 indexed siteId, bytes32 detailsHash);
+    event SiteUpdated(bytes32 indexed siteId, bytes32 detailsHash);
+    event SiteClosedSet(bytes32 indexed siteId, bool closed);
     event OperatorAssigned(bytes32 indexed operatorId, bytes32 indexed siteId);
     event LinkedContractSet(address indexed account, bool allowed);
     event ReceiptIssued(
@@ -81,6 +86,7 @@ contract WarehouseReceipt is AccessGuarded {
     error ZeroProjectLedger();
     error SiteExists(bytes32 siteId);
     error SiteNotFound(bytes32 siteId);
+    error SiteIsClosed(bytes32 siteId);
     error NotAWarehouseOperator(bytes32 participantId);
     error NotSiteOperator(address account);
     error ReceiptExists(bytes32 receiptId);
@@ -116,9 +122,25 @@ contract WarehouseReceipt is AccessGuarded {
     }
 
     /// @notice Assign a warehouse operator to a site; zero removes them.
+    /// @notice New details for a site (its address, capacity...): their fingerprint.
+    function updateSite(bytes32 siteId, bytes32 detailsHash) external onlyRole(Roles.ADMIN) {
+        if (detailsHash == bytes32(0)) revert ZeroValue();
+        if (siteDetails[siteId] == bytes32(0)) revert SiteNotFound(siteId);
+        siteDetails[siteId] = detailsHash;
+        emit SiteUpdated(siteId, detailsHash);
+    }
+
+    /// @notice Closes a site to new goods (or opens it again).
+    function setSiteClosed(bytes32 siteId, bool closed) external onlyRole(Roles.ADMIN) {
+        if (siteDetails[siteId] == bytes32(0)) revert SiteNotFound(siteId);
+        siteClosed[siteId] = closed;
+        emit SiteClosedSet(siteId, closed);
+    }
+
     function assignOperator(bytes32 operatorId, bytes32 siteId) external onlyRole(Roles.ADMIN) {
         if (!registry.isVerifiedAs(operatorId, Roles.WAREHOUSE)) revert NotAWarehouseOperator(operatorId);
         if (siteId != bytes32(0) && siteDetails[siteId] == bytes32(0)) revert SiteNotFound(siteId);
+        if (siteClosed[siteId]) revert SiteIsClosed(siteId);
         siteOf[operatorId] = siteId;
         emit OperatorAssigned(operatorId, siteId);
     }
@@ -140,6 +162,7 @@ contract WarehouseReceipt is AccessGuarded {
         bytes32 operatorId = _callerId();
         bytes32 siteId = siteOf[operatorId];
         if (siteId == bytes32(0)) revert NotSiteOperator(msg.sender);
+        if (siteClosed[siteId]) revert SiteIsClosed(siteId);
 
         ProjectLedger.Project memory p = projectLedger.getProject(projectId);
         if (p.stage != ProjectLedger.Stage.Active) revert WrongProjectStage(projectId, p.stage);
@@ -298,10 +321,12 @@ contract WarehouseReceipt is AccessGuarded {
         emit ReceiptTransferred(receiptId, from, to, msg.sender);
     }
 
-    /// @notice True if the caller acts for `owner`: an admin for WeGro, the
+    /// @notice True if the caller acts for `owner`: an admin (or the super admin) for WeGro, the
     /// farmer's field officer for a farmer. Buyers own only sold receipts.
     function isOwnerSide(bytes32 owner, address caller) public view returns (bool) {
-        if (owner == WEGRO) return registry.hasRole(Roles.ADMIN, caller);
+        if (owner == WEGRO) {
+            return registry.hasRole(Roles.ADMIN, caller) || registry.hasRole(registry.DEFAULT_ADMIN_ROLE(), caller);
+        }
         return registry.hasRole(Roles.FIELD_OFFICER, caller)
             && registry.fieldOfficerOf(owner) == registry.participantOf(caller);
     }

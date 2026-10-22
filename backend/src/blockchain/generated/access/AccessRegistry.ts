@@ -15,7 +15,7 @@ export declare namespace AccessRegistry {
   export interface AccessRegistryInterface extends Interface {
     getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "MAX_REASSIGN" | "OPERATIONS_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "farmerCountOf" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "reassignFarmers" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantRegistered" | "ParticipantSelfRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
 
     encodeFunctionData(functionFragment: 'ACCOUNTS_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ADMIN_ROLE', values?: undefined): string;
@@ -135,6 +135,18 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
       export type InputTuple = [participantId: BytesLike, role: BytesLike, account: AddressLike, detailsHash: BytesLike, registeredBy: AddressLike];
       export type OutputTuple = [participantId: string, role: string, account: string, detailsHash: string, registeredBy: string];
       export interface OutputObject {participantId: string, role: string, account: string, detailsHash: string, registeredBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ParticipantSelfRegisteredEvent {
+      export type InputTuple = [participantId: BytesLike];
+      export type OutputTuple = [participantId: string];
+      export interface OutputObject {participantId: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -713,6 +725,7 @@ getFunction(nameOrSignature: 'verifyParticipant'): TypedContractMethod<
 getEvent(key: 'ParticipantAccountChanged'): TypedContractEvent<ParticipantAccountChangedEvent.InputTuple, ParticipantAccountChangedEvent.OutputTuple, ParticipantAccountChangedEvent.OutputObject>;
 getEvent(key: 'ParticipantDetailsUpdated'): TypedContractEvent<ParticipantDetailsUpdatedEvent.InputTuple, ParticipantDetailsUpdatedEvent.OutputTuple, ParticipantDetailsUpdatedEvent.OutputObject>;
 getEvent(key: 'ParticipantRegistered'): TypedContractEvent<ParticipantRegisteredEvent.InputTuple, ParticipantRegisteredEvent.OutputTuple, ParticipantRegisteredEvent.OutputObject>;
+getEvent(key: 'ParticipantSelfRegistered'): TypedContractEvent<ParticipantSelfRegisteredEvent.InputTuple, ParticipantSelfRegisteredEvent.OutputTuple, ParticipantSelfRegisteredEvent.OutputObject>;
 getEvent(key: 'ParticipantStatusChanged'): TypedContractEvent<ParticipantStatusChangedEvent.InputTuple, ParticipantStatusChangedEvent.OutputTuple, ParticipantStatusChangedEvent.OutputObject>;
 getEvent(key: 'RoleAdminChanged'): TypedContractEvent<RoleAdminChangedEvent.InputTuple, RoleAdminChangedEvent.OutputTuple, RoleAdminChangedEvent.OutputObject>;
 getEvent(key: 'RoleGranted'): TypedContractEvent<RoleGrantedEvent.InputTuple, RoleGrantedEvent.OutputTuple, RoleGrantedEvent.OutputObject>;
@@ -734,6 +747,10 @@ getEvent(key: 'RoleRevoked'): TypedContractEvent<RoleRevokedEvent.InputTuple, Ro
 
       'ParticipantRegistered(bytes32,bytes32,address,bytes32,address)': TypedContractEvent<ParticipantRegisteredEvent.InputTuple, ParticipantRegisteredEvent.OutputTuple, ParticipantRegisteredEvent.OutputObject>;
       ParticipantRegistered: TypedContractEvent<ParticipantRegisteredEvent.InputTuple, ParticipantRegisteredEvent.OutputTuple, ParticipantRegisteredEvent.OutputObject>;
+    
+
+      'ParticipantSelfRegistered(bytes32)': TypedContractEvent<ParticipantSelfRegisteredEvent.InputTuple, ParticipantSelfRegisteredEvent.OutputTuple, ParticipantSelfRegisteredEvent.OutputObject>;
+      ParticipantSelfRegistered: TypedContractEvent<ParticipantSelfRegisteredEvent.InputTuple, ParticipantSelfRegisteredEvent.OutputTuple, ParticipantSelfRegisteredEvent.OutputObject>;
     
 
       'ParticipantStatusChanged(bytes32,uint8,uint8,address)': TypedContractEvent<ParticipantStatusChangedEvent.InputTuple, ParticipantStatusChangedEvent.OutputTuple, ParticipantStatusChangedEvent.OutputObject>;

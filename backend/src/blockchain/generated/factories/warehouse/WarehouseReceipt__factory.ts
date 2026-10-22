@@ -190,6 +190,17 @@ import type { NonPayableOverrides } from "../../common.js"
         "type": "bytes32"
       }
     ],
+    "name": "SiteIsClosed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "siteId",
+        "type": "bytes32"
+      }
+    ],
     "name": "SiteNotFound",
     "type": "error"
   },
@@ -531,12 +542,50 @@ import type { NonPayableOverrides } from "../../common.js"
       },
       {
         "indexed": false,
+        "internalType": "bool",
+        "name": "closed",
+        "type": "bool"
+      }
+    ],
+    "name": "SiteClosedSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "siteId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
         "internalType": "bytes32",
         "name": "detailsHash",
         "type": "bytes32"
       }
     ],
     "name": "SiteRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "siteId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "detailsHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "SiteUpdated",
     "type": "event"
   },
   {
@@ -978,6 +1027,43 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "bytes32",
         "name": "siteId",
         "type": "bytes32"
+      },
+      {
+        "internalType": "bool",
+        "name": "closed",
+        "type": "bool"
+      }
+    ],
+    "name": "setSiteClosed",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "siteId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "siteClosed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "siteId",
+        "type": "bytes32"
       }
     ],
     "name": "siteDetails",
@@ -1027,6 +1113,24 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "siteId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "detailsHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "updateSite",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ] as const;

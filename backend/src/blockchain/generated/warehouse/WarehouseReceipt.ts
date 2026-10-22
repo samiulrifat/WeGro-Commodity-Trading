@@ -13,9 +13,9 @@ export declare namespace WarehouseReceipt {
     }
 
   export interface WarehouseReceiptInterface extends Interface {
-    getFunction(nameOrSignature: "WEGRO" | "acceptHandover" | "assignOperator" | "cancelHandover" | "collectSold" | "extendExpiry" | "getReceipt" | "isLinkedContract" | "isOwnerSide" | "issueReceipt" | "markCollected" | "offerHandover" | "openReceipts" | "ownerOf" | "projectLedger" | "registerSite" | "registry" | "sellPart" | "setLinkedContract" | "setListed" | "siteDetails" | "siteOf" | "splitCount"): FunctionFragment;
+    getFunction(nameOrSignature: "WEGRO" | "acceptHandover" | "assignOperator" | "cancelHandover" | "collectSold" | "extendExpiry" | "getReceipt" | "isLinkedContract" | "isOwnerSide" | "issueReceipt" | "markCollected" | "offerHandover" | "openReceipts" | "ownerOf" | "projectLedger" | "registerSite" | "registry" | "sellPart" | "setLinkedContract" | "setListed" | "setSiteClosed" | "siteClosed" | "siteDetails" | "siteOf" | "splitCount" | "updateSite"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "ExpiryExtended" | "HandoverCancelled" | "HandoverOffered" | "LinkedContractSet" | "OperatorAssigned" | "ReceiptCollected" | "ReceiptIssued" | "ReceiptListed" | "ReceiptSplit" | "ReceiptTransferred" | "SiteRegistered"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "ExpiryExtended" | "HandoverCancelled" | "HandoverOffered" | "LinkedContractSet" | "OperatorAssigned" | "ReceiptCollected" | "ReceiptIssued" | "ReceiptListed" | "ReceiptSplit" | "ReceiptTransferred" | "SiteClosedSet" | "SiteRegistered" | "SiteUpdated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'WEGRO', values?: undefined): string;
 encodeFunctionData(functionFragment: 'acceptHandover', values: [BytesLike]): string;
@@ -37,9 +37,12 @@ encodeFunctionData(functionFragment: 'registry', values?: undefined): string;
 encodeFunctionData(functionFragment: 'sellPart', values: [BytesLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setLinkedContract', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setListed', values: [BytesLike, boolean]): string;
+encodeFunctionData(functionFragment: 'setSiteClosed', values: [BytesLike, boolean]): string;
+encodeFunctionData(functionFragment: 'siteClosed', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'siteDetails', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'siteOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'splitCount', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'updateSite', values: [BytesLike, BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'WEGRO', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'acceptHandover', data: BytesLike): Result;
@@ -61,9 +64,12 @@ decodeFunctionResult(functionFragment: 'registry', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'sellPart', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setLinkedContract', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setListed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setSiteClosed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'siteClosed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'siteDetails', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'siteOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'splitCount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'updateSite', data: BytesLike): Result;
   }
 
   
@@ -187,7 +193,31 @@ decodeFunctionResult(functionFragment: 'splitCount', data: BytesLike): Result;
 
   
 
+    export namespace SiteClosedSetEvent {
+      export type InputTuple = [siteId: BytesLike, closed: boolean];
+      export type OutputTuple = [siteId: string, closed: boolean];
+      export interface OutputObject {siteId: string, closed: boolean };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace SiteRegisteredEvent {
+      export type InputTuple = [siteId: BytesLike, detailsHash: BytesLike];
+      export type OutputTuple = [siteId: string, detailsHash: string];
+      export interface OutputObject {siteId: string, detailsHash: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace SiteUpdatedEvent {
       export type InputTuple = [siteId: BytesLike, detailsHash: BytesLike];
       export type OutputTuple = [siteId: string, detailsHash: string];
       export interface OutputObject {siteId: string, detailsHash: string };
@@ -393,6 +423,22 @@ decodeFunctionResult(functionFragment: 'splitCount', data: BytesLike): Result;
     
 
     
+    setSiteClosed: TypedContractMethod<
+      [siteId: BytesLike, closed: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    siteClosed: TypedContractMethod<
+      [siteId: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     siteDetails: TypedContractMethod<
       [siteId: BytesLike, ],
       [string],
@@ -413,6 +459,14 @@ decodeFunctionResult(functionFragment: 'splitCount', data: BytesLike): Result;
       [receiptId: BytesLike, ],
       [bigint],
       'view'
+    >
+    
+
+    
+    updateSite: TypedContractMethod<
+      [siteId: BytesLike, detailsHash: BytesLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -519,6 +573,16 @@ getFunction(nameOrSignature: 'setListed'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setSiteClosed'): TypedContractMethod<
+      [siteId: BytesLike, closed: boolean, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'siteClosed'): TypedContractMethod<
+      [siteId: BytesLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'siteDetails'): TypedContractMethod<
       [siteId: BytesLike, ],
       [string],
@@ -534,6 +598,11 @@ getFunction(nameOrSignature: 'splitCount'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'updateSite'): TypedContractMethod<
+      [siteId: BytesLike, detailsHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 
     getEvent(key: 'ExpiryExtended'): TypedContractEvent<ExpiryExtendedEvent.InputTuple, ExpiryExtendedEvent.OutputTuple, ExpiryExtendedEvent.OutputObject>;
 getEvent(key: 'HandoverCancelled'): TypedContractEvent<HandoverCancelledEvent.InputTuple, HandoverCancelledEvent.OutputTuple, HandoverCancelledEvent.OutputObject>;
@@ -545,7 +614,9 @@ getEvent(key: 'ReceiptIssued'): TypedContractEvent<ReceiptIssuedEvent.InputTuple
 getEvent(key: 'ReceiptListed'): TypedContractEvent<ReceiptListedEvent.InputTuple, ReceiptListedEvent.OutputTuple, ReceiptListedEvent.OutputObject>;
 getEvent(key: 'ReceiptSplit'): TypedContractEvent<ReceiptSplitEvent.InputTuple, ReceiptSplitEvent.OutputTuple, ReceiptSplitEvent.OutputObject>;
 getEvent(key: 'ReceiptTransferred'): TypedContractEvent<ReceiptTransferredEvent.InputTuple, ReceiptTransferredEvent.OutputTuple, ReceiptTransferredEvent.OutputObject>;
+getEvent(key: 'SiteClosedSet'): TypedContractEvent<SiteClosedSetEvent.InputTuple, SiteClosedSetEvent.OutputTuple, SiteClosedSetEvent.OutputObject>;
 getEvent(key: 'SiteRegistered'): TypedContractEvent<SiteRegisteredEvent.InputTuple, SiteRegisteredEvent.OutputTuple, SiteRegisteredEvent.OutputObject>;
+getEvent(key: 'SiteUpdated'): TypedContractEvent<SiteUpdatedEvent.InputTuple, SiteUpdatedEvent.OutputTuple, SiteUpdatedEvent.OutputObject>;
 
     filters: {
       
@@ -589,8 +660,16 @@ getEvent(key: 'SiteRegistered'): TypedContractEvent<SiteRegisteredEvent.InputTup
       ReceiptTransferred: TypedContractEvent<ReceiptTransferredEvent.InputTuple, ReceiptTransferredEvent.OutputTuple, ReceiptTransferredEvent.OutputObject>;
     
 
+      'SiteClosedSet(bytes32,bool)': TypedContractEvent<SiteClosedSetEvent.InputTuple, SiteClosedSetEvent.OutputTuple, SiteClosedSetEvent.OutputObject>;
+      SiteClosedSet: TypedContractEvent<SiteClosedSetEvent.InputTuple, SiteClosedSetEvent.OutputTuple, SiteClosedSetEvent.OutputObject>;
+    
+
       'SiteRegistered(bytes32,bytes32)': TypedContractEvent<SiteRegisteredEvent.InputTuple, SiteRegisteredEvent.OutputTuple, SiteRegisteredEvent.OutputObject>;
       SiteRegistered: TypedContractEvent<SiteRegisteredEvent.InputTuple, SiteRegisteredEvent.OutputTuple, SiteRegisteredEvent.OutputObject>;
+    
+
+      'SiteUpdated(bytes32,bytes32)': TypedContractEvent<SiteUpdatedEvent.InputTuple, SiteUpdatedEvent.OutputTuple, SiteUpdatedEvent.OutputObject>;
+      SiteUpdated: TypedContractEvent<SiteUpdatedEvent.InputTuple, SiteUpdatedEvent.OutputTuple, SiteUpdatedEvent.OutputObject>;
     
     };
   }

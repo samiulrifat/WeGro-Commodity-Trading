@@ -3,9 +3,11 @@ import { randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
+import { ContractsRegistry } from '../src/blockchain/contracts.registry';
 import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
 import { ReceiptApplier } from '../src/blockchain/indexer/receipt-applier';
 import { TransactionService } from '../src/blockchain/tx/transaction.service';
+import { uuidToBytes32 } from '../src/blockchain/utils/ids';
 import { hashPaymentRef } from '../src/blockchain/utils/payment-ref';
 import { bdDate } from '../src/common/time/bd-dates';
 import { User } from '../src/modules/users/entities/user.entity';
@@ -39,6 +41,8 @@ describe('Warehouse (node + database)', () => {
       http.post(`/api${path}`).auth(token, { type: 'bearer' }).send(body),
     put: (path: string, body: object) =>
       http.put(`/api${path}`).auth(token, { type: 'bearer' }).send(body),
+    patch: (path: string, body: object) =>
+      http.patch(`/api${path}`).auth(token, { type: 'bearer' }).send(body),
   });
 
   async function day(offset = 0): Promise<string> {
@@ -275,6 +279,33 @@ describe('Warehouse (node + database)', () => {
     });
   });
 
+  describe('finding receipts', () => {
+    it('finds receipts by project words, the farmer, the printed number and the expiry', async () => {
+      const ids = async (query: string) =>
+        (
+          await as(t.admin)
+            .get(`/warehouse-receipts?limit=100&${query}`)
+            .expect(200)
+        ).body.data.map((r: { id: string }) => r.id);
+      const q = (text: string) => ids(`q=${encodeURIComponent(text)}`);
+      expect(await q('maize STORE')).toEqual(
+        expect.arrayContaining([receiptA, receiptB]),
+      );
+      expect(await q('aize')).not.toContain(receiptA);
+      expect(await q('Demo Farmer')).toContain(receiptA);
+      const printed = `WR-${receiptA.slice(2, 10).toUpperCase()}`;
+      expect(await q(printed)).toEqual([receiptA]);
+      expect(await q(receiptA)).toEqual([receiptA]);
+      expect(await ids(`expiresBy=${await day(181)}`)).toContain(receiptA);
+      expect(await ids(`expiresBy=${await day(10)}`)).not.toContain(receiptA);
+      // Someone who does not hold it finds nothing by its number.
+      const theirs = (
+        await as(t.buyer).get(`/warehouse-receipts?q=${printed}`).expect(200)
+      ).body.data;
+      expect(theirs).toEqual([]);
+    });
+  });
+
   describe('re-checks and collection', () => {
     it('extends the term only after a later-dated re-check at the issuing site', async () => {
       const current = (
@@ -483,6 +514,105 @@ describe('Warehouse (node + database)', () => {
     });
   });
 
+  describe('changing and closing sites', () => {
+    it('updates a site and its fingerprint on the ledger', async () => {
+      const res = await as(t.admin)
+        .patch(`/warehouse-sites/${siteId}`, {
+          address: 'New gate, Shibganj road, Bogura Sadar',
+          capacityKg: 650000,
+        })
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        address: 'New gate, Shibganj road, Bogura Sadar',
+        capacityKg: 650000,
+        name: `Bogura Central ${RUN}`,
+      });
+      const [row] = await db.query(
+        'SELECT details_hash FROM warehouse_sites WHERE id = $1',
+        [siteId],
+      );
+      const onLedger = await chain.app
+        .get(ContractsRegistry)
+        .get('WarehouseReceipt')
+        .siteDetails(uuidToBytes32(siteId));
+      expect(onLedger).toBe(row.details_hash);
+      await as(t.warehouse)
+        .patch(`/warehouse-sites/${siteId}`, { capacityKg: 1 })
+        .expect(403);
+
+      const other = await as(t.admin)
+        .post('/warehouse-sites', {
+          name: `Rangpur Cold ${RUN}`,
+          districtCode: 'RANGPUR',
+          address: 'Mahiganj, Rangpur',
+          storageType: 'cold_storage',
+        })
+        .expect(201);
+      await as(t.admin)
+        .patch(`/warehouse-sites/${other.body.data.id}`, {
+          name: `Bogura Central ${RUN}`,
+        })
+        .expect(409);
+    });
+
+    it('closes a site to new goods and operators, keeping what it holds', async () => {
+      const closed = await as(t.admin)
+        .post(`/warehouse-sites/${siteId}/close`)
+        .expect(200);
+      expect(closed.body.data.closed).toBe(true);
+      const refused = await as(t.warehouse)
+        .post('/warehouse-receipts', await intake())
+        .expect(409);
+      expect(refused.body.code).toBe('SITE_CLOSED');
+      const held = await as(t.warehouse)
+        .get(`/warehouse-receipts/${receiptA}`)
+        .expect(200);
+      expect(held.body.data.site.id).toBe(siteId);
+
+      const closedOnes = await as(t.admin)
+        .get('/warehouse-sites?state=closed')
+        .expect(200);
+      expect(closedOnes.body.data.map((x: { id: string }) => x.id)).toContain(
+        siteId,
+      );
+      const reopened = await as(t.admin)
+        .post(`/warehouse-sites/${siteId}/reopen`)
+        .expect(200);
+      expect(reopened.body.data).toMatchObject({
+        closed: false,
+        closedAt: null,
+      });
+
+      // A second site stays closed, for the rebuild below.
+      const rangpur = (
+        await as(t.admin).get('/warehouse-sites?q=rangpur cold').expect(200)
+      ).body.data;
+      expect(rangpur).toHaveLength(1);
+      await as(t.admin)
+        .post(`/warehouse-sites/${rangpur[0].id}/close`)
+        .expect(200);
+      const err = await as(t.admin)
+        .put(`/warehouse-operators/${user.warehouse.id}`, {
+          siteId: rangpur[0].id,
+        })
+        .expect(409);
+      expect(err.body.code).toBe('SITE_CLOSED');
+    });
+
+    it('finds sites by words of the name, the address or the district', async () => {
+      const names = async (q: string) =>
+        (
+          await as(t.admin)
+            .get(`/warehouse-sites?q=${encodeURIComponent(q)}`)
+            .expect(200)
+        ).body.data.map((x: { name: string }) => x.name);
+      expect(await names('bogura central')).toContain(`Bogura Central ${RUN}`);
+      expect(await names('Mahiganj')).toContain(`Rangpur Cold ${RUN}`);
+      expect(await names('Rangpur')).toContain(`Rangpur Cold ${RUN}`);
+      expect(await names('ogura')).not.toContain(`Bogura Central ${RUN}`);
+    });
+  });
+
   describe('integrity', () => {
     it('agrees with the ledger on every record', async () => {
       expect(await ledgerDisagreements(chain)).toEqual([]);
@@ -494,7 +624,7 @@ describe('Warehouse (node + database)', () => {
           'SELECT id, status, owner_id, owner_is_wegro, quantity, expires_on, parent_id FROM warehouse_receipts ORDER BY id',
         ),
         sites: await db.query(
-          'SELECT id, status FROM warehouse_sites ORDER BY id',
+          'SELECT id, status, closed, closed_at FROM warehouse_sites ORDER BY id',
         ),
         operators: await db.query(
           'SELECT operator_id, site_id FROM warehouse_operators ORDER BY operator_id',

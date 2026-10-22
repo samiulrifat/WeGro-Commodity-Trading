@@ -3,7 +3,10 @@ import { BaseEntity } from '../../../database/base.entity';
 import { numericBigintTransformer } from '../../../database/transformers';
 import { StorageType } from '../warehouse.enums';
 
-/** A warehouse site. Its details are fingerprinted on the ledger when registered. */
+/**
+ * A warehouse site. Its details are fingerprinted on the ledger when
+ * registered and again whenever they change; a closed site keeps its receipts.
+ */
 @Entity('warehouse_sites')
 @Index('uq_warehouse_sites_name', { synchronize: false })
 @Check('ck_warehouse_sites_status', `"status" IN ('submitted', 'registered')`)
@@ -43,4 +46,11 @@ export class WarehouseSite extends BaseEntity {
 
   @Column({ type: 'uuid' })
   createdById: string;
+
+  /** Mirrors the ledger's siteClosed: no new goods or operators. */
+  @Column({ type: 'boolean', default: false })
+  closed: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  closedAt: Date | null;
 }

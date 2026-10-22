@@ -8,6 +8,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   ParseUUIDPipe,
   type PipeTransform,
   Post,
@@ -32,11 +33,13 @@ import {
   CreateSiteDto,
   IssueReceiptDto,
   ListReceiptsQueryDto,
+  ListSitesQueryDto,
   RecheckDto,
   ReceiptDetailDto,
   ReceiptDto,
   ReceiptVerificationDto,
   SiteDto,
+  UpdateSiteDto,
 } from './dto/warehouse.dto';
 import { RECEIPT_ID } from './warehouse.enums';
 import { WarehouseService } from './warehouse.service';
@@ -105,8 +108,11 @@ export class WarehouseController {
   @Get('warehouse-sites')
   @Roles(...STAFF, Role.WAREHOUSE, Role.FIELD_OFFICER)
   @ApiOkResponse({ type: [SiteDto] })
-  listSites(@CurrentUser() actor: AuthUser): Promise<SiteDto[]> {
-    return this.warehouse.listSites(actor);
+  listSites(
+    @CurrentUser() actor: AuthUser,
+    @Query() query: ListSitesQueryDto,
+  ): Promise<SiteDto[]> {
+    return this.warehouse.listSites(actor, query);
   }
 
   @Get('warehouse-sites/:id')
@@ -117,6 +123,46 @@ export class WarehouseController {
     @Param('id', uuid) id: string,
   ): Promise<SiteDto> {
     return this.warehouse.site(actor, id);
+  }
+
+  @Patch('warehouse-sites/:id')
+  @Roles(Role.ADMIN)
+  @ApiOkResponse({
+    type: SiteDto,
+    description: 'New details; their fingerprint goes to the ledger',
+  })
+  updateSite(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+    @Body() dto: UpdateSiteDto,
+  ): Promise<SiteDto> {
+    return this.warehouse.updateSite(actor, id, dto);
+  }
+
+  @Post('warehouse-sites/:id/close')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: SiteDto,
+    description:
+      'No new goods or operators; its receipts stay valid and are still re-checked and released there',
+  })
+  closeSite(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+  ): Promise<SiteDto> {
+    return this.warehouse.setClosed(actor, id, true);
+  }
+
+  @Post('warehouse-sites/:id/reopen')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SiteDto })
+  reopenSite(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+  ): Promise<SiteDto> {
+    return this.warehouse.setClosed(actor, id, false);
   }
 
   @Put('warehouse-operators/:operatorId')

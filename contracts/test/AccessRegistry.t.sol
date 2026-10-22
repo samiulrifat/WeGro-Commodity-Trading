@@ -194,9 +194,21 @@ contract AccessRegistryTest is Test {
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, farhana));
         registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
 
-        vm.prank(superAdmin); // the super admin handles staff only
-        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, superAdmin));
+        vm.prank(rahim); // not a participant yet, and no role
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, rahim));
         registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
+    }
+
+    function test_SuperAdminDoesWhatAdminsDo() public {
+        vm.prank(superAdmin); // every office power, staff and the rest
+        registry.registerParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
+        vm.startPrank(superAdmin);
+        registry.verifyParticipant(RAHIM);
+        registry.assignFieldOfficer(RAHIM, IMRAN);
+        registry.updateDetailsHash(RAHIM, keccak256("rahim, corrected"));
+        vm.stopPrank();
+        assertTrue(registry.isVerified(RAHIM));
+        assertEq(registry.fieldOfficerOf(RAHIM), IMRAN);
     }
 
     function test_FieldOfficerRegistersFarmersOnly() public {
@@ -336,9 +348,9 @@ contract AccessRegistryTest is Test {
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, imran));
         registry.verifyParticipant(RAHIM);
 
-        vm.prank(superAdmin);
-        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, superAdmin));
+        vm.prank(tania);
         registry.verifyParticipant(RAHIM);
+        assertTrue(registry.isVerified(RAHIM));
     }
 
     function test_AdminCannotManageStaff() public {
@@ -537,9 +549,7 @@ contract AccessRegistryTest is Test {
         registry.assignFieldOfficer(RAHIM, SUMON);
 
         vm.prank(imran);
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, imran, ADMIN)
-        );
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, imran));
         registry.assignFieldOfficer(RAHIM, IMRAN);
     }
 

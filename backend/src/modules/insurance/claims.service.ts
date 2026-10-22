@@ -17,7 +17,7 @@ import { Photo } from '../field-records/entities/photo.entity';
 import { photoHash, PhotosService } from '../field-records/photos.service';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectViews } from '../projects/project-views';
-import { Role } from '../users/roles';
+import { actsAs, Role } from '../users/roles';
 import type {
   ApproveClaimDto,
   AssessmentDto,
@@ -69,7 +69,7 @@ export class ClaimsService {
   ): Promise<ClaimDto> {
     const project = await this.insurance.requireInsurable(projectId);
     if (
-      actor.role !== Role.ADMIN &&
+      !actsAs(actor.role, Role.ADMIN) &&
       !(await this.insurance.isOfficerOf(actor, project.farmerId))
     ) {
       throw new ForbiddenException({

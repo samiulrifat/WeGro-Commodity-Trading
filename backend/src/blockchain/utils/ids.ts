@@ -1,4 +1,9 @@
-import { decodeBytes32String, encodeBytes32String, isHexString } from 'ethers';
+import {
+  decodeBytes32String,
+  encodeBytes32String,
+  id,
+  isHexString,
+} from 'ethers';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BYTES32 = /^0x[0-9a-f]{64}$/i;
@@ -42,3 +47,10 @@ export function bytes32ToCode(value: string): string {
 export function isBytes32(value: unknown): value is string {
   return typeof value === 'string' && isHexString(value, 32);
 }
+
+/**
+ * How the ledger names the super admin in "who prepared / approved"
+ * records: Roles.SUPER_ADMIN_ID, keccak256("SUPER_ADMIN"). The super admin
+ * holds every office power but is not a registered participant.
+ */
+export const SUPER_ADMIN_ID = id('SUPER_ADMIN');

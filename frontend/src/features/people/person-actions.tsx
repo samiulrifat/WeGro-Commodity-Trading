@@ -41,6 +41,7 @@ import {
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { errorText } from '@/i18n/text';
+import { actsAs } from '@/app/navigation';
 import { IdCheckList } from './id-check';
 import type { IdCheck } from './person';
 import { OfficerPicker } from './officer-picker';
@@ -107,7 +108,7 @@ export function PersonActions({
           <Ellipsis /> {t('people.actions.more')}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
-          {person.role === 'farmer' && viewer === 'admin' && (
+          {person.role === 'farmer' && actsAs(viewer, 'admin') && (
             <DropdownMenuItem onClick={() => setOpen('assign')}>
               <UserCog /> {t('people.actions.assign')}
             </DropdownMenuItem>

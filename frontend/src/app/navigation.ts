@@ -37,6 +37,21 @@ const STAFF: ReadonlySet<Role> = new Set<Role>([
 ]);
 export const isStaff = (role: Role) => STAFF.has(role);
 
+/** Office roles: the super admin holds every one of their powers. */
+const OFFICE_ROLES: ReadonlySet<Role> = new Set<Role>([
+  'admin',
+  'operations',
+  'accounts',
+  'auditor',
+]);
+
+/**
+ * Whether someone with `role` may act as `as`: the role itself, or the
+ * super admin for an office role (never for people outside the office).
+ */
+export const actsAs = (role: Role, as: Role): boolean =>
+  role === as || (role === 'super_admin' && OFFICE_ROLES.has(as));
+
 /** Each area of the app: where it lives and its icon. */
 export const AREAS = {
   dashboard: { to: '/dashboard', icon: LayoutDashboard },
@@ -115,7 +130,11 @@ export type SubLabel =
   | 'inputBatches'
   | 'newUpdate'
   | 'updateDrafts'
-  | 'sentUpdates';
+  | 'sentUpdates'
+  | 'allReceipts'
+  | 'handovers'
+  | 'sites'
+  | 'mySite';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -140,7 +159,10 @@ export type SubPath =
   | '/vouchers/batches'
   | '/farm-updates'
   | '/farm-updates/drafts'
-  | '/farm-updates/sent';
+  | '/farm-updates/sent'
+  | '/warehouse'
+  | '/warehouse/handovers'
+  | '/warehouse/sites';
 
 export interface SubPage {
   to: SubPath;
@@ -193,6 +215,13 @@ const ALL_VOUCHERS = sub('/vouchers', 'allVouchers');
 const PENDING_VOUCHERS = sub('/vouchers/pending', 'pendingVouchers');
 const INPUT_SALES = sub('/vouchers/sales', 'inputSales');
 const INPUT_BATCHES = sub('/vouchers/batches', 'inputBatches');
+const RECEIPTS = sub('/warehouse', 'allReceipts');
+const HANDOVERS = sub('/warehouse/handovers', 'handovers');
+const WAREHOUSE = item('warehouse', 'warehouse', [
+  RECEIPTS,
+  HANDOVERS,
+  sub('/warehouse/sites', 'sites'),
+]);
 const OFFICE_VOUCHERS = item('vouchers', 'vouchers', [
   ALL_VOUCHERS,
   PENDING_VOUCHERS,
@@ -211,7 +240,7 @@ const OFFICE: NavItem[] = [
     sub('/people/bank-details', 'bankDetails'),
   ]),
   OFFICE_VOUCHERS,
-  item('warehouse', 'warehouse'),
+  WAREHOUSE,
   item('marketplace', 'marketplace'),
   item('insurance', 'insurance'),
   item('payouts', 'payouts'),
@@ -240,7 +269,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     OFFICE_VOUCHERS,
     catalog(...WHOLE_CATALOG),
     item('marketplace', 'marketplace'),
-    item('warehouse', 'warehouse'),
+    WAREHOUSE,
     item('insurance', 'insurance'),
   ],
   accounts: [
@@ -249,7 +278,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     OFFICE_VOUCHERS,
     item('payouts', 'payouts'),
     item('marketplace', 'marketplace'),
-    item('warehouse', 'warehouse'),
+    WAREHOUSE,
     item('insurance', 'insurance'),
     catalog(PRODUCE, INPUTS),
   ],
@@ -259,7 +288,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS),
     item('people', 'people'),
     OFFICE_VOUCHERS,
-    item('warehouse', 'warehouse'),
+    WAREHOUSE,
     item('marketplace', 'marketplace'),
     item('insurance', 'insurance'),
     item('payouts', 'payouts'),
@@ -279,7 +308,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     ]),
     item('projects', 'projects'),
     item('vouchers', 'vouchers', [ALL_VOUCHERS, INPUT_SALES, INPUT_BATCHES]),
-    item('warehouse', 'warehouse'),
+    WAREHOUSE,
     item('marketplace', 'marketplace'),
     item('insurance', 'insurance'),
     item('track-records', 'trackRecords'),
@@ -307,7 +336,10 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     catalog(INPUTS),
   ],
   warehouse: [
-    item('warehouse', 'receipts'),
+    item('warehouse', 'receipts', [
+      RECEIPTS,
+      sub('/warehouse/sites', 'mySite'),
+    ]),
     item('marketplace', 'marketplace'),
     catalog(PRODUCE),
   ],

@@ -37,6 +37,21 @@ export const STAFF_ROLES: ReadonlySet<Role> = new Set([
 
 export const isStaffRole = (role: Role) => STAFF_ROLES.has(role);
 
+/**
+ * Office roles: the super admin holds every one of their powers (adding,
+ * editing, removing, approving), never those of people outside the office.
+ */
+export const OFFICE_ROLES: ReadonlySet<Role> = new Set([
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
+]);
+
+/** Whether someone with `actual` may act as `role`: the role itself, or the super admin for an office role. */
+export const actsAs = (actual: Role, role: Role): boolean =>
+  actual === role || (actual === Role.SUPER_ADMIN && OFFICE_ROLES.has(role));
+
 /** On-chain role id: keccak256 of the Solidity constant's name, as in Roles.sol. */
 export const CHAIN_ROLE: Readonly<Record<ParticipantRole, string>> = {
   [Role.INVESTOR]: id('INVESTOR_ROLE'),

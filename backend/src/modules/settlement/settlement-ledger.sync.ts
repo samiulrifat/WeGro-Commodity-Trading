@@ -1,3 +1,4 @@
+import { personId } from '../../blockchain/utils/person-id';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
@@ -119,7 +120,7 @@ export class SettlementLedgerSync implements OnModuleInit {
         await m.query(
           `UPDATE "settlement_rounds" SET "status" = 'approved', "approved_by_id" = $2, "approved_at" = $3
             WHERE "id" = $1 AND "status" = 'prepared'`,
-          [roundId, toUuid(a.approvedBy), when],
+          [roundId, await personId(m, a.approvedBy), when],
         );
         return;
 
@@ -186,7 +187,7 @@ export class SettlementLedgerSync implements OnModuleInit {
   private async prepared(event: ChainEvent, m: EntityManager, roundId: number) {
     const a = event.args;
     const projectId = toUuid(a.projectId);
-    const preparedBy = toUuid(a.preparedBy);
+    const preparedBy = await personId(m, a.preparedBy);
     if (!projectId || !preparedBy) return;
     const project = await m.findOne(Project, {
       where: { id: projectId },

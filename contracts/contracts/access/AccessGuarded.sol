@@ -26,22 +26,33 @@ abstract contract AccessGuarded {
         if (!_hasRole(role)) revert MissingRole(msg.sender, role);
     }
 
+    /// @dev The role itself, or the super admin for an office role: the super
+    /// admin holds every office power (admin, operations, accounts, auditor),
+    /// never the roles of people outside the office.
     function _hasRole(bytes32 role) internal view returns (bool) {
-        return registry.hasRole(role, msg.sender);
+        if (registry.hasRole(role, msg.sender)) return true;
+        return Roles.isOffice(role) && _isSuperAdmin();
     }
 
-    /// @dev An admin, or the super admin (who may do what admins do here).
+    function _isSuperAdmin() internal view returns (bool) {
+        return registry.hasRole(registry.DEFAULT_ADMIN_ROLE(), msg.sender);
+    }
+
+    /// @dev An admin, or the super admin.
     modifier onlyAdmin() {
         if (!_isAdmin()) revert MissingRole(msg.sender, Roles.ADMIN);
         _;
     }
 
     function _isAdmin() internal view returns (bool) {
-        return _hasRole(Roles.ADMIN) || _hasRole(registry.DEFAULT_ADMIN_ROLE());
+        return _hasRole(Roles.ADMIN);
     }
 
-    /// @dev Caller's participant id. Use only after a role check.
+    /// @dev Caller's participant id; the super admin, who is not a
+    /// participant, acts as SUPER_ADMIN_ID. Use only after a role check.
     function _callerId() internal view returns (bytes32) {
-        return registry.participantOf(msg.sender);
+        bytes32 id = registry.participantOf(msg.sender);
+        if (id == bytes32(0) && _isSuperAdmin()) return Roles.SUPER_ADMIN_ID;
+        return id;
     }
 }

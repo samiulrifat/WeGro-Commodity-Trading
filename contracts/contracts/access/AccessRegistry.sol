@@ -66,6 +66,8 @@ contract AccessRegistry is AccessControl {
         bytes32 detailsHash,
         address registeredBy
     );
+    /// @notice They signed up themselves (investors and buyers).
+    event ParticipantSelfRegistered(bytes32 indexed participantId);
     event ParticipantStatusChanged(
         bytes32 indexed participantId,
         Status previousStatus,
@@ -164,7 +166,7 @@ contract AccessRegistry is AccessControl {
         if (!isPlatformRole(role)) revert UnknownRole(role);
         if (isStaffRole(role)) {
             _requireSuperAdmin();
-        } else if (!hasRole(ADMIN_ROLE, msg.sender) && !(role == FARMER_ROLE && hasRole(FIELD_OFFICER_ROLE, msg.sender))) {
+        } else if (!_isAdmin(msg.sender) && !(role == FARMER_ROLE && hasRole(FIELD_OFFICER_ROLE, msg.sender))) {
             revert NotAuthorized(msg.sender);
         }
         _register(participantId, role, account, detailsHash);
@@ -176,8 +178,7 @@ contract AccessRegistry is AccessControl {
 
     /// @notice An investor or buyer who registered themselves (their number
     /// confirmed by the platform): registered and verified at once, signed by
-    /// the platform's key. `registeredBy` in the event is then the super admin,
-    /// who registers no other non-staff participant: that marks it as self-registered.
+    /// the platform's key. Marked by ParticipantSelfRegistered.
     function selfRegisterParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
         external
     {
@@ -186,10 +187,12 @@ contract AccessRegistry is AccessControl {
         Participant storage p = _register(participantId, role, account, detailsHash);
         _setStatus(participantId, p, Status.Verified);
         _grantRole(role, account);
+        emit ParticipantSelfRegistered(participantId);
     }
 
     /// @notice Admin assigns or reassigns a farmer's field officer.
-    function assignFieldOfficer(bytes32 farmerId, bytes32 officerId) external onlyRole(ADMIN_ROLE) {
+    function assignFieldOfficer(bytes32 farmerId, bytes32 officerId) external {
+        if (!_isAdmin(msg.sender)) revert NotAuthorized(msg.sender);
         Participant storage farmer = _participants[farmerId];
         if (farmer.status == Status.None) revert ParticipantNotFound(farmerId);
         if (farmer.role != FARMER_ROLE) revert NotAFarmer(farmerId);
@@ -201,9 +204,7 @@ contract AccessRegistry is AccessControl {
     /// officer leaves: each must be with `fromOfficerId` now. Super admin
     /// (who manages the officers) or an admin; at most MAX_REASSIGN per call.
     function reassignFarmers(bytes32 fromOfficerId, bytes32 toOfficerId, bytes32[] calldata farmerIds) external {
-        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender) && !hasRole(ADMIN_ROLE, msg.sender)) {
-            revert NotAuthorized(msg.sender);
-        }
+        if (!_isAdmin(msg.sender)) revert NotAuthorized(msg.sender);
         uint256 n = farmerIds.length;
         if (n == 0) revert ZeroValue();
         if (n > MAX_REASSIGN) revert TooManyFarmers(n, MAX_REASSIGN);
@@ -307,7 +308,7 @@ contract AccessRegistry is AccessControl {
         if (p.status == Status.None) revert ParticipantNotFound(participantId);
         if (isStaffRole(p.role)) {
             _requireSuperAdmin();
-        } else if (!hasRole(ADMIN_ROLE, msg.sender)) {
+        } else if (!_isAdmin(msg.sender)) {
             revert NotAuthorized(msg.sender);
         }
     }
@@ -339,6 +340,11 @@ contract AccessRegistry is AccessControl {
         ++farmerCountOf[officerId];
         fieldOfficerOf[farmerId] = officerId;
         emit FieldOfficerAssigned(farmerId, officerId, msg.sender);
+    }
+
+    /// @dev An admin, or the super admin (who holds every office power).
+    function _isAdmin(address account) private view returns (bool) {
+        return hasRole(ADMIN_ROLE, account) || hasRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function _requireSuperAdmin() private view {

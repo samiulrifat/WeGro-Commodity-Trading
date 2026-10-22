@@ -32,7 +32,7 @@ import { Project } from '../projects/entities/project.entity';
 import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { ChainState, User } from '../users/entities/user.entity';
-import { ParticipantStatus, Role } from '../users/roles';
+import { actsAs, ParticipantStatus, Role } from '../users/roles';
 import { isExpired } from './batch-dates';
 import { BatchesService } from './batches.service';
 import type {
@@ -388,7 +388,7 @@ export class VouchersService {
     const sale = await this.pendingSale(saleId);
     const voucher = await this.vouchers.findOneByOrFail({ id: sale.voucherId });
     const allowed =
-      actor.role === Role.ADMIN ||
+      actsAs(actor.role, Role.ADMIN) ||
       (actor.role === Role.SUPPLIER && sale.supplierId === actor.id) ||
       (actor.role === Role.FARMER && voucher.farmerId === actor.id) ||
       (actor.role === Role.FIELD_OFFICER &&

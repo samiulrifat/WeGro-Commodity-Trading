@@ -9,7 +9,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ContractTransaction } from 'ethers';
-import { In, IsNull, Not, Repository, type SelectQueryBuilder } from 'typeorm';
+import {
+  Brackets,
+  In,
+  IsNull,
+  Not,
+  Repository,
+  type SelectQueryBuilder,
+} from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
@@ -24,6 +31,11 @@ import {
 } from '../../blockchain/utils/ids';
 import { Paginated } from '../../common/dto/pagination.dto';
 import {
+  matchesWord,
+  searchWords,
+  wordPattern,
+} from '../../common/search/words';
+import {
   BD_DISTRICTS,
   isDistrictCode,
 } from '../../common/reference/bd-districts';
@@ -37,16 +49,19 @@ import { Project } from '../projects/entities/project.entity';
 import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { ChainState, User } from '../users/entities/user.entity';
-import { ParticipantStatus, Role } from '../users/roles';
+import { PersonSearch } from '../users/person-search';
+import { actsAs, ParticipantStatus, Role } from '../users/roles';
 import type {
   CreateSiteDto,
   IssueReceiptDto,
   ListReceiptsQueryDto,
+  ListSitesQueryDto,
   RecheckDto,
   ReceiptDetailDto,
   ReceiptDto,
   ReceiptVerificationDto,
   SiteDto,
+  UpdateSiteDto,
 } from './dto/warehouse.dto';
 import { ReceiptRecheck } from './entities/receipt-recheck.entity';
 import { WarehouseOperator } from './entities/warehouse-operator.entity';
@@ -99,6 +114,7 @@ export class WarehouseService {
     private readonly applier: ReceiptApplier,
     private readonly contracts: ContractsRegistry,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {
     this.appUrl = config
       .get('PUBLIC_APP_URL', { infer: true })
@@ -126,16 +142,7 @@ export class WarehouseService {
     try {
       await this.sites.insert(site);
     } catch (error) {
-      if (
-        (error as { driverError?: { code?: string } }).driverError?.code ===
-        '23505'
-      ) {
-        throw new ConflictException({
-          message: 'A site with this name already exists',
-          code: ErrorCode.SITE_NAME_EXISTS,
-        });
-      }
-      throw error;
+      throw nameTaken(error) ?? error;
     }
     try {
       await this.send(actor, (c) =>
@@ -152,13 +159,105 @@ export class WarehouseService {
     return this.site(actor, site.id);
   }
 
-  async listSites(actor: AuthUser): Promise<SiteDto[]> {
-    const where =
-      actor.role === Role.WAREHOUSE
-        ? { id: (await this.siteOf(actor.id)) ?? ZERO_UUID }
-        : {};
-    const rows = await this.sites.find({ where, order: { name: 'ASC' } });
+  /**
+   * Sites by name; an operator sees only their own. Searched by words of
+   * the name, the address or the district (every word must match one).
+   */
+  async listSites(
+    actor: AuthUser,
+    q: ListSitesQueryDto = {},
+  ): Promise<SiteDto[]> {
+    const qb = this.sites.createQueryBuilder('s');
+    if (actor.role === Role.WAREHOUSE) {
+      qb.where('s.id = :mine', {
+        mine: (await this.siteOf(actor.id)) ?? ZERO_UUID,
+      });
+    }
+    if (q.state)
+      qb.andWhere('s.closed = :closed', { closed: q.state === 'closed' });
+    searchWords(q.q).forEach((w, i) => {
+      const districts = Object.entries(BD_DISTRICTS)
+        .filter(([, d]) => matchesWord(d.name, w))
+        .map(([code]) => code);
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where(`s.name ~* :sw${i}`, { [`sw${i}`]: wordPattern(w) }).orWhere(
+            `s.address ~* :sw${i}`,
+          );
+          if (districts.length > 0) {
+            b.orWhere(`s.district_code IN (:...sd${i})`, {
+              [`sd${i}`]: districts,
+            });
+          }
+        }),
+      );
+    });
+    const rows = await qb.orderBy('s.name', 'ASC').getMany();
     return this.siteDtos(rows);
+  }
+
+  /**
+   * New details for a site: kept here and their fingerprint sent to the
+   * ledger; if the ledger refuses, the old details are put back.
+   */
+  async updateSite(
+    actor: AuthUser,
+    id: string,
+    dto: UpdateSiteDto,
+  ): Promise<SiteDto> {
+    const site = await this.registeredSite(id);
+    const next: WarehouseSite = Object.assign(this.sites.create(), site, {
+      name: dto.name ?? site.name,
+      districtCode: dto.districtCode ?? site.districtCode,
+      address: dto.address ?? site.address,
+      storageType: dto.storageType ?? site.storageType,
+      capacityKg:
+        dto.capacityKg === undefined ? site.capacityKg : dto.capacityKg,
+    });
+    next.detailsHash = siteFingerprint(next);
+    if (next.detailsHash === site.detailsHash) return this.site(actor, id);
+    const fields = (s: WarehouseSite) => ({
+      name: s.name,
+      districtCode: s.districtCode,
+      address: s.address,
+      storageType: s.storageType,
+      capacityKg: s.capacityKg,
+      detailsHash: s.detailsHash,
+    });
+    try {
+      await this.sites.update({ id }, fields(next));
+    } catch (error) {
+      throw nameTaken(error) ?? error;
+    }
+    try {
+      await this.send(actor, (c) =>
+        c.updateSite.populateTransaction(uuidToBytes32(id), next.detailsHash),
+      );
+    } catch (error) {
+      if (error instanceof ContractRevertException) {
+        await this.sites.update({ id }, fields(site));
+      }
+      throw error;
+    }
+    return this.site(actor, id);
+  }
+
+  /**
+   * Closes a site to new goods and operators, or opens it again. What it
+   * holds stays valid and is still re-checked and released there.
+   */
+  async setClosed(
+    actor: AuthUser,
+    id: string,
+    closed: boolean,
+  ): Promise<SiteDto> {
+    const site = await this.registeredSite(id);
+    if (site.closed !== closed) {
+      await this.send(actor, (c) =>
+        c.setSiteClosed.populateTransaction(uuidToBytes32(id), closed),
+      );
+    }
+    return this.site(actor, id);
   }
 
   async site(actor: AuthUser, id: string): Promise<SiteDto> {
@@ -200,6 +299,7 @@ export class WarehouseService {
           message: 'Site not found',
           code: ErrorCode.SITE_NOT_FOUND,
         });
+      if (site.closed) throw siteClosed();
     }
     await this.send(actor, (c) =>
       c.assignOperator.populateTransaction(
@@ -223,6 +323,9 @@ export class WarehouseService {
         message: 'You are not assigned to a warehouse site',
         code: ErrorCode.NOT_SITE_OPERATOR,
       });
+    }
+    if ((await this.sites.findOneBy({ id: siteId }))?.closed) {
+      throw siteClosed();
     }
     const project = await this.projects.findOneBy({ id: dto.projectId });
     if (!project)
@@ -434,7 +537,7 @@ export class WarehouseService {
   async cancelHandover(actor: AuthUser, id: string): Promise<ReceiptDetailDto> {
     const receipt = await this.pendingHandover(id);
     if (
-      actor.role !== Role.ADMIN &&
+      !actsAs(actor.role, Role.ADMIN) &&
       !(receipt.ownerId && (await this.isOfficerOf(actor, receipt.ownerId)))
     ) {
       throw new ForbiddenException({
@@ -457,8 +560,18 @@ export class WarehouseService {
     if (q.projectId) qb.andWhere('r.project_id = :pid', { pid: q.projectId });
     if (q.siteId) qb.andWhere('r.site_id = :sid', { sid: q.siteId });
     if (q.status) qb.andWhere('r.status = :st', { st: q.status });
+    if (q.expiresBy) {
+      qb.andWhere('r.status IN (:...held)', { held: HELD }).andWhere(
+        'r.expires_on <= :by',
+        { by: q.expiresBy },
+      );
+    }
+    this.searchReceipts(qb, q.q);
     const [rows, total] = await qb
-      .orderBy('r.created_at', 'DESC')
+      .orderBy(
+        q.expiresBy ? 'r.expires_on' : 'r.created_at',
+        q.expiresBy ? 'ASC' : 'DESC',
+      )
       .addOrderBy('r.id', 'ASC')
       .skip(q.skip)
       .take(q.limit)
@@ -589,6 +702,54 @@ export class WarehouseService {
     };
   }
 
+  private async registeredSite(id: string): Promise<WarehouseSite> {
+    const site = await this.sites.findOneBy({ id });
+    if (!site || site.status !== 'registered') {
+      throw new NotFoundException({
+        message: 'Site not found',
+        code: ErrorCode.SITE_NOT_FOUND,
+      });
+    }
+    return site;
+  }
+
+  /**
+   * The receipt number (its first characters are enough, as printed), or
+   * words of the project title, or the farmer found as a person.
+   */
+  private searchReceipts(
+    qb: SelectQueryBuilder<WarehouseReceipt>,
+    q: string | undefined,
+  ): void {
+    const text = (q ?? '').trim();
+    if (!text) return;
+    const number = receiptNumberRange(text);
+    const words = searchWords(text);
+    const farmer = this.search.condition('p.farmer_id', text, 'Farmer');
+    qb.andWhere(
+      new Brackets((b) => {
+        b.where('1 = 0');
+        if (number) {
+          b.orWhere('(r.id >= :idFrom AND r.id < :idTo)', number);
+        }
+        if (words.length > 0) {
+          b.orWhere(
+            `r.project_id IN (SELECT p.id FROM projects p WHERE ${words
+              .map((_, i) => `p.title ~* :rw${i}`)
+              .join(' AND ')})`,
+            Object.fromEntries(words.map((w, i) => [`rw${i}`, wordPattern(w)])),
+          );
+        }
+        if (farmer) {
+          b.orWhere(
+            `r.project_id IN (SELECT p.id FROM projects p WHERE ${farmer.sql})`,
+            farmer.params,
+          );
+        }
+      }),
+    );
+  }
+
   private async siteOf(operatorId: string): Promise<string | null> {
     const row = await this.operators.findOne({
       where: { operatorId, siteId: Not(IsNull()) },
@@ -716,6 +877,8 @@ export class WarehouseService {
       storageType: s.storageType,
       capacityKg: s.capacityKg,
       status: s.status,
+      closed: s.closed,
+      closedAt: s.closedAt,
       operators: ops
         .filter((o) => o.siteId === s.id)
         .map((o) => ({
@@ -876,4 +1039,45 @@ export function recheckFingerprint(
     storageBay: c.storageBay,
     notes: c.notes,
   });
+}
+
+/** Receipts that still hold goods at the site (a re-check can be due). */
+const HELD = [
+  ReceiptStatus.ISSUED,
+  ReceiptStatus.PENDING_HANDOVER,
+  ReceiptStatus.LISTED,
+  ReceiptStatus.SOLD,
+];
+
+/**
+ * The ids a typed receipt number stands for: "WR-3F9A2C1B", "0x3f9a2c1b"
+ * or the bare hex, as a range on the primary key (its first 6 to 64 hex
+ * characters). Null when the text is not a number.
+ */
+export function receiptNumberRange(
+  text: string,
+): { idFrom: string; idTo: string } | null {
+  const hex = text.trim().toLowerCase().replace(/^wr-?/, '').replace(/^0x/, '');
+  if (!/^[0-9a-f]{6,64}$/.test(hex)) return null;
+  const from = `0x${hex}`;
+  // Just past every id starting with these characters ("g" follows every hex digit).
+  return { idFrom: from, idTo: `${from}g` };
+}
+
+function siteClosed(): ConflictException {
+  return new ConflictException({
+    message: 'This site is closed: it takes no new goods or operators',
+    code: ErrorCode.SITE_CLOSED,
+  });
+}
+
+/** A unique-name clash, as the error the client reads; null for anything else. */
+function nameTaken(error: unknown): ConflictException | null {
+  return (error as { driverError?: { code?: string } }).driverError?.code ===
+    '23505'
+    ? new ConflictException({
+        message: 'A site with this name already exists',
+        code: ErrorCode.SITE_NAME_EXISTS,
+      })
+    : null;
 }

@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAppSelector } from '@/store/hooks';
+import { actsAs } from '@/app/navigation';
 import { BankDetailsForm } from './bank-details-form';
 import { AccountLines } from './account-lines';
 import { DecideBankDetails } from './decide';
@@ -61,13 +62,9 @@ export function PersonBankAccountCard({
   return (
     <BankAccountCard
       query={query}
-      decide={
-        viewer === 'super_admin' || viewer === 'admin'
-          ? { personId, personName }
-          : undefined
-      }
+      decide={actsAs(viewer, 'admin') ? { personId, personName } : undefined}
       onSubmit={
-        viewer === 'admin'
+        actsAs(viewer, 'admin')
           ? async (bankDetailsDto) => {
               await submit({ id: personId, bankDetailsDto }).unwrap();
             }

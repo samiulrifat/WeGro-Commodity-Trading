@@ -356,6 +356,19 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "bytes32",
         "name": "participantId",
         "type": "bytes32"
+      }
+    ],
+    "name": "ParticipantSelfRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "participantId",
+        "type": "bytes32"
       },
       {
         "indexed": false,

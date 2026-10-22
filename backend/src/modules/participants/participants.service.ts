@@ -43,14 +43,15 @@ import {
   PersonalDetailsCodec,
 } from '../users/personal-details.codec';
 import {
+  actsAs,
   CHAIN_ROLE,
   isStaffRole,
-  STAFF_ROLES,
-  type ParticipantRole,
   ParticipantStatus,
   Role,
   ROLE_BY_CHAIN_ID,
+  STAFF_ROLES,
   STATUS_BY_CHAIN,
+  type ParticipantRole,
 } from '../users/roles';
 import type {
   ListParticipantsQueryDto,
@@ -169,7 +170,7 @@ export class ParticipantsService {
           mustChangePassword: true,
           keyIndex,
           account,
-          registeredById: actor.role === Role.SUPER_ADMIN ? null : actor.id,
+          registeredById: actor.id,
           language: dto.language ?? null,
         });
         await m.insert(PersonalDetails, {
@@ -866,7 +867,7 @@ export class ParticipantsService {
           managed: [...STAFF_ROLES],
         },
       );
-      if (actor.role !== Role.SUPER_ADMIN && actor.role !== Role.ADMIN) {
+      if (actor.role !== Role.SUPER_ADMIN && !actsAs(actor.role, Role.ADMIN)) {
         qb.andWhere('1 = 0');
       }
     }
@@ -1082,7 +1083,7 @@ function assertCanRegister(actor: AuthUser, role: ParticipantRole): void {
         code: ErrorCode.FIELD_OFFICER_FARMERS_ONLY,
       });
     }
-  } else if (actor.role !== Role.ADMIN) {
+  } else if (!actsAs(actor.role, Role.ADMIN)) {
     throw new ForbiddenException({
       message: 'Only admins and field officers register non-staff participants',
       code: ErrorCode.REGISTRATION_NOT_ALLOWED,
@@ -1098,7 +1099,7 @@ export function assertCanManage(actor: AuthUser, role: Role): void {
         code: ErrorCode.STAFF_MANAGED_BY_SUPER_ADMIN,
       });
     }
-  } else if (actor.role !== Role.ADMIN) {
+  } else if (!actsAs(actor.role, Role.ADMIN)) {
     throw new ForbiddenException({
       message: 'Only admins manage participants',
       code: ErrorCode.PARTICIPANTS_MANAGED_BY_ADMINS,

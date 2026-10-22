@@ -487,6 +487,25 @@ contract SettlementLedgerTest is Test {
         settlement.approveRound(id);
     }
 
+    function test_SuperAdminApprovesAnAccountantsRound() public {
+        _docScenario();
+        uint256 id = _prepare(true);
+        vm.prank(superAdmin); // holds Accounts' powers
+        settlement.approveRound(id);
+        assertEq(settlement.getRound(id).approvedBy, keccak256("SUPER_ADMIN"));
+    }
+
+    function test_SuperAdminNeverApprovesTheirOwnRound() public {
+        _docScenario();
+        vm.prank(superAdmin);
+        uint256 id = settlement.prepareRound(MAIZE, true);
+        vm.prank(superAdmin);
+        vm.expectRevert(abi.encodeWithSelector(SettlementLedger.SameAccountant.selector, keccak256("SUPER_ADMIN")));
+        settlement.approveRound(id);
+        vm.prank(rafiq); // a second person still approves it
+        settlement.approveRound(id);
+    }
+
     function test_NothingPaidBeforeApproval() public {
         _docScenario();
         uint256 id = _prepare(true);
