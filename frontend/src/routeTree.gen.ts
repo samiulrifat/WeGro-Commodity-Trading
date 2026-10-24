@@ -39,6 +39,8 @@ import { Route as AppMarketplacePayoutsRouteImport } from './routes/_app/marketp
 import { Route as AppMarketplaceRequestsRouteImport } from './routes/_app/marketplace/requests'
 import { Route as AppOffersIndexRouteImport } from './routes/_app/offers/index'
 import { Route as AppPayoutsIndexRouteImport } from './routes/_app/payouts/index'
+import { Route as AppPayoutsCostsRouteImport } from './routes/_app/payouts/costs'
+import { Route as AppPayoutsReportsRouteImport } from './routes/_app/payouts/reports'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
 import { Route as AppPeoplePersonIdRouteImport } from './routes/_app/people/$personId'
 import { Route as AppPeopleBankDetailsRouteImport } from './routes/_app/people/bank-details'
@@ -81,6 +83,9 @@ import { Route as AppInsuranceProjectsProjectIdRouteImport } from './routes/_app
 import { Route as AppMarketplaceDealsIndexRouteImport } from './routes/_app/marketplace/deals/index'
 import { Route as AppMarketplaceDealsOfferIdRouteImport } from './routes/_app/marketplace/deals/$offerId'
 import { Route as AppMarketplaceListingsListingIdRouteImport } from './routes/_app/marketplace/listings/$listingId'
+import { Route as AppPayoutsProjectsIndexRouteImport } from './routes/_app/payouts/projects/index'
+import { Route as AppPayoutsProjectsProjectIdRouteImport } from './routes/_app/payouts/projects/$projectId'
+import { Route as AppPayoutsRoundsRoundIdRouteImport } from './routes/_app/payouts/rounds/$roundId'
 import { Route as AppPeopleChangesIndexRouteImport } from './routes/_app/people/changes/index'
 import { Route as AppPeopleChangesChangeIdRouteImport } from './routes/_app/people/changes/$changeId'
 import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/_app/projects/$projectId/index'
@@ -238,6 +243,16 @@ const AppOffersIndexRoute = AppOffersIndexRouteImport.update({
 const AppPayoutsIndexRoute = AppPayoutsIndexRouteImport.update({
   id: '/payouts/',
   path: '/payouts/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPayoutsCostsRoute = AppPayoutsCostsRouteImport.update({
+  id: '/payouts/costs',
+  path: '/payouts/costs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPayoutsReportsRoute = AppPayoutsReportsRouteImport.update({
+  id: '/payouts/reports',
+  path: '/payouts/reports',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPeopleIndexRoute = AppPeopleIndexRouteImport.update({
@@ -461,6 +476,22 @@ const AppMarketplaceListingsListingIdRoute =
     path: '/marketplace/listings/$listingId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppPayoutsProjectsIndexRoute = AppPayoutsProjectsIndexRouteImport.update({
+  id: '/payouts/projects/',
+  path: '/payouts/projects/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPayoutsProjectsProjectIdRoute =
+  AppPayoutsProjectsProjectIdRouteImport.update({
+    id: '/payouts/projects/$projectId',
+    path: '/payouts/projects/$projectId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppPayoutsRoundsRoundIdRoute = AppPayoutsRoundsRoundIdRouteImport.update({
+  id: '/payouts/rounds/$roundId',
+  path: '/payouts/rounds/$roundId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPeopleChangesIndexRoute = AppPeopleChangesIndexRouteImport.update({
   id: '/people/changes/',
   path: '/people/changes/',
@@ -522,6 +553,8 @@ export interface FileRoutesByFullPath {
   '/marketplace/mine': typeof AppMarketplaceMineRoute
   '/marketplace/payouts': typeof AppMarketplacePayoutsRoute
   '/marketplace/requests': typeof AppMarketplaceRequestsRoute
+  '/payouts/costs': typeof AppPayoutsCostsRoute
+  '/payouts/reports': typeof AppPayoutsReportsRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
@@ -566,6 +599,8 @@ export interface FileRoutesByFullPath {
   '/insurance/projects/$projectId': typeof AppInsuranceProjectsProjectIdRoute
   '/marketplace/deals/$offerId': typeof AppMarketplaceDealsOfferIdRoute
   '/marketplace/listings/$listingId': typeof AppMarketplaceListingsListingIdRoute
+  '/payouts/projects/$projectId': typeof AppPayoutsProjectsProjectIdRoute
+  '/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
@@ -578,6 +613,7 @@ export interface FileRoutesByFullPath {
   '/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
   '/insurance/claims/': typeof AppInsuranceClaimsIndexRoute
   '/marketplace/deals/': typeof AppMarketplaceDealsIndexRoute
+  '/payouts/projects/': typeof AppPayoutsProjectsIndexRoute
   '/people/changes/': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
   '/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
@@ -602,6 +638,8 @@ export interface FileRoutesByTo {
   '/marketplace/mine': typeof AppMarketplaceMineRoute
   '/marketplace/payouts': typeof AppMarketplacePayoutsRoute
   '/marketplace/requests': typeof AppMarketplaceRequestsRoute
+  '/payouts/costs': typeof AppPayoutsCostsRoute
+  '/payouts/reports': typeof AppPayoutsReportsRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/people/new': typeof AppPeopleNewRoute
@@ -646,6 +684,8 @@ export interface FileRoutesByTo {
   '/insurance/projects/$projectId': typeof AppInsuranceProjectsProjectIdRoute
   '/marketplace/deals/$offerId': typeof AppMarketplaceDealsOfferIdRoute
   '/marketplace/listings/$listingId': typeof AppMarketplaceListingsListingIdRoute
+  '/payouts/projects/$projectId': typeof AppPayoutsProjectsProjectIdRoute
+  '/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
@@ -658,6 +698,7 @@ export interface FileRoutesByTo {
   '/catalog/weather-events': typeof AppCatalogWeatherEventsIndexRoute
   '/insurance/claims': typeof AppInsuranceClaimsIndexRoute
   '/marketplace/deals': typeof AppMarketplaceDealsIndexRoute
+  '/payouts/projects': typeof AppPayoutsProjectsIndexRoute
   '/people/changes': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
   '/vouchers/batches': typeof AppVouchersBatchesIndexRoute
@@ -684,6 +725,8 @@ export interface FileRoutesById {
   '/_app/marketplace/mine': typeof AppMarketplaceMineRoute
   '/_app/marketplace/payouts': typeof AppMarketplacePayoutsRoute
   '/_app/marketplace/requests': typeof AppMarketplaceRequestsRoute
+  '/_app/payouts/costs': typeof AppPayoutsCostsRoute
+  '/_app/payouts/reports': typeof AppPayoutsReportsRoute
   '/_app/people/$personId': typeof AppPeoplePersonIdRoute
   '/_app/people/bank-details': typeof AppPeopleBankDetailsRoute
   '/_app/people/new': typeof AppPeopleNewRoute
@@ -728,6 +771,8 @@ export interface FileRoutesById {
   '/_app/insurance/projects/$projectId': typeof AppInsuranceProjectsProjectIdRoute
   '/_app/marketplace/deals/$offerId': typeof AppMarketplaceDealsOfferIdRoute
   '/_app/marketplace/listings/$listingId': typeof AppMarketplaceListingsListingIdRoute
+  '/_app/payouts/projects/$projectId': typeof AppPayoutsProjectsProjectIdRoute
+  '/_app/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/_app/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
   '/_app/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
@@ -740,6 +785,7 @@ export interface FileRoutesById {
   '/_app/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
   '/_app/insurance/claims/': typeof AppInsuranceClaimsIndexRoute
   '/_app/marketplace/deals/': typeof AppMarketplaceDealsIndexRoute
+  '/_app/payouts/projects/': typeof AppPayoutsProjectsIndexRoute
   '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
   '/_app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
   '/_app/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
@@ -766,6 +812,8 @@ export interface FileRouteTypes {
     | '/marketplace/mine'
     | '/marketplace/payouts'
     | '/marketplace/requests'
+    | '/payouts/costs'
+    | '/payouts/reports'
     | '/people/$personId'
     | '/people/bank-details'
     | '/people/new'
@@ -810,6 +858,8 @@ export interface FileRouteTypes {
     | '/insurance/projects/$projectId'
     | '/marketplace/deals/$offerId'
     | '/marketplace/listings/$listingId'
+    | '/payouts/projects/$projectId'
+    | '/payouts/rounds/$roundId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
     | '/vouchers/batches/$batchId'
@@ -822,6 +872,7 @@ export interface FileRouteTypes {
     | '/catalog/weather-events/'
     | '/insurance/claims/'
     | '/marketplace/deals/'
+    | '/payouts/projects/'
     | '/people/changes/'
     | '/projects/$projectId/'
     | '/vouchers/batches/'
@@ -846,6 +897,8 @@ export interface FileRouteTypes {
     | '/marketplace/mine'
     | '/marketplace/payouts'
     | '/marketplace/requests'
+    | '/payouts/costs'
+    | '/payouts/reports'
     | '/people/$personId'
     | '/people/bank-details'
     | '/people/new'
@@ -890,6 +943,8 @@ export interface FileRouteTypes {
     | '/insurance/projects/$projectId'
     | '/marketplace/deals/$offerId'
     | '/marketplace/listings/$listingId'
+    | '/payouts/projects/$projectId'
+    | '/payouts/rounds/$roundId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
     | '/vouchers/batches/$batchId'
@@ -902,6 +957,7 @@ export interface FileRouteTypes {
     | '/catalog/weather-events'
     | '/insurance/claims'
     | '/marketplace/deals'
+    | '/payouts/projects'
     | '/people/changes'
     | '/projects/$projectId'
     | '/vouchers/batches'
@@ -927,6 +983,8 @@ export interface FileRouteTypes {
     | '/_app/marketplace/mine'
     | '/_app/marketplace/payouts'
     | '/_app/marketplace/requests'
+    | '/_app/payouts/costs'
+    | '/_app/payouts/reports'
     | '/_app/people/$personId'
     | '/_app/people/bank-details'
     | '/_app/people/new'
@@ -971,6 +1029,8 @@ export interface FileRouteTypes {
     | '/_app/insurance/projects/$projectId'
     | '/_app/marketplace/deals/$offerId'
     | '/_app/marketplace/listings/$listingId'
+    | '/_app/payouts/projects/$projectId'
+    | '/_app/payouts/rounds/$roundId'
     | '/_app/people/changes/$changeId'
     | '/_app/projects/$projectId/edit'
     | '/_app/vouchers/batches/$batchId'
@@ -983,6 +1043,7 @@ export interface FileRouteTypes {
     | '/_app/catalog/weather-events/'
     | '/_app/insurance/claims/'
     | '/_app/marketplace/deals/'
+    | '/_app/payouts/projects/'
     | '/_app/people/changes/'
     | '/_app/projects/$projectId/'
     | '/_app/vouchers/batches/'
@@ -1209,6 +1270,20 @@ declare module '@tanstack/react-router' {
       path: '/payouts'
       fullPath: '/payouts/'
       preLoaderRoute: typeof AppPayoutsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payouts/costs': {
+      id: '/_app/payouts/costs'
+      path: '/payouts/costs'
+      fullPath: '/payouts/costs'
+      preLoaderRoute: typeof AppPayoutsCostsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payouts/reports': {
+      id: '/_app/payouts/reports'
+      path: '/payouts/reports'
+      fullPath: '/payouts/reports'
+      preLoaderRoute: typeof AppPayoutsReportsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/people/': {
@@ -1505,6 +1580,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMarketplaceListingsListingIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/payouts/projects/': {
+      id: '/_app/payouts/projects/'
+      path: '/payouts/projects'
+      fullPath: '/payouts/projects/'
+      preLoaderRoute: typeof AppPayoutsProjectsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payouts/projects/$projectId': {
+      id: '/_app/payouts/projects/$projectId'
+      path: '/payouts/projects/$projectId'
+      fullPath: '/payouts/projects/$projectId'
+      preLoaderRoute: typeof AppPayoutsProjectsProjectIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payouts/rounds/$roundId': {
+      id: '/_app/payouts/rounds/$roundId'
+      path: '/payouts/rounds/$roundId'
+      fullPath: '/payouts/rounds/$roundId'
+      preLoaderRoute: typeof AppPayoutsRoundsRoundIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/people/changes/': {
       id: '/_app/people/changes/'
       path: '/people/changes'
@@ -1572,6 +1668,8 @@ interface AppRouteChildren {
   AppMarketplaceMineRoute: typeof AppMarketplaceMineRoute
   AppMarketplacePayoutsRoute: typeof AppMarketplacePayoutsRoute
   AppMarketplaceRequestsRoute: typeof AppMarketplaceRequestsRoute
+  AppPayoutsCostsRoute: typeof AppPayoutsCostsRoute
+  AppPayoutsReportsRoute: typeof AppPayoutsReportsRoute
   AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
   AppPeopleBankDetailsRoute: typeof AppPeopleBankDetailsRoute
   AppPeopleNewRoute: typeof AppPeopleNewRoute
@@ -1614,6 +1712,8 @@ interface AppRouteChildren {
   AppInsuranceProjectsProjectIdRoute: typeof AppInsuranceProjectsProjectIdRoute
   AppMarketplaceDealsOfferIdRoute: typeof AppMarketplaceDealsOfferIdRoute
   AppMarketplaceListingsListingIdRoute: typeof AppMarketplaceListingsListingIdRoute
+  AppPayoutsProjectsProjectIdRoute: typeof AppPayoutsProjectsProjectIdRoute
+  AppPayoutsRoundsRoundIdRoute: typeof AppPayoutsRoundsRoundIdRoute
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
   AppProjectsProjectIdEditRoute: typeof AppProjectsProjectIdEditRoute
   AppVouchersBatchesBatchIdRoute: typeof AppVouchersBatchesBatchIdRoute
@@ -1626,6 +1726,7 @@ interface AppRouteChildren {
   AppCatalogWeatherEventsIndexRoute: typeof AppCatalogWeatherEventsIndexRoute
   AppInsuranceClaimsIndexRoute: typeof AppInsuranceClaimsIndexRoute
   AppMarketplaceDealsIndexRoute: typeof AppMarketplaceDealsIndexRoute
+  AppPayoutsProjectsIndexRoute: typeof AppPayoutsProjectsIndexRoute
   AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
   AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
   AppVouchersBatchesIndexRoute: typeof AppVouchersBatchesIndexRoute
@@ -1646,6 +1747,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppMarketplaceMineRoute: AppMarketplaceMineRoute,
   AppMarketplacePayoutsRoute: AppMarketplacePayoutsRoute,
   AppMarketplaceRequestsRoute: AppMarketplaceRequestsRoute,
+  AppPayoutsCostsRoute: AppPayoutsCostsRoute,
+  AppPayoutsReportsRoute: AppPayoutsReportsRoute,
   AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
   AppPeopleBankDetailsRoute: AppPeopleBankDetailsRoute,
   AppPeopleNewRoute: AppPeopleNewRoute,
@@ -1688,6 +1791,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppInsuranceProjectsProjectIdRoute: AppInsuranceProjectsProjectIdRoute,
   AppMarketplaceDealsOfferIdRoute: AppMarketplaceDealsOfferIdRoute,
   AppMarketplaceListingsListingIdRoute: AppMarketplaceListingsListingIdRoute,
+  AppPayoutsProjectsProjectIdRoute: AppPayoutsProjectsProjectIdRoute,
+  AppPayoutsRoundsRoundIdRoute: AppPayoutsRoundsRoundIdRoute,
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
   AppProjectsProjectIdEditRoute: AppProjectsProjectIdEditRoute,
   AppVouchersBatchesBatchIdRoute: AppVouchersBatchesBatchIdRoute,
@@ -1700,6 +1805,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCatalogWeatherEventsIndexRoute: AppCatalogWeatherEventsIndexRoute,
   AppInsuranceClaimsIndexRoute: AppInsuranceClaimsIndexRoute,
   AppMarketplaceDealsIndexRoute: AppMarketplaceDealsIndexRoute,
+  AppPayoutsProjectsIndexRoute: AppPayoutsProjectsIndexRoute,
   AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
   AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
   AppVouchersBatchesIndexRoute: AppVouchersBatchesIndexRoute,

@@ -75,6 +75,22 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "payees",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refs",
+        "type": "uint256"
+      }
+    ],
+    "name": "BadPaymentBatch",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "costId",
         "type": "uint256"
       }
@@ -519,6 +535,19 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint16",
         "name": "",
         "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_PAYMENT_BATCH",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1083,6 +1112,29 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "recordPayment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "roundId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "payeeIds",
+        "type": "bytes32[]"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "paymentRefHashes",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "recordPayments",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

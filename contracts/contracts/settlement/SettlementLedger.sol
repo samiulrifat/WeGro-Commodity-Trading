@@ -121,6 +121,7 @@ contract SettlementLedger is AccessGuarded {
     error PaymentRefAlreadyUsed(bytes32 paymentRefHash);
     error CostNotFound(uint256 costId);
     error CostAlreadyVoided(uint256 costId);
+    error BadPaymentBatch(uint256 payees, uint256 refs);
 
     constructor(
         AccessRegistry registry_,
@@ -248,22 +249,33 @@ contract SettlementLedger is AccessGuarded {
         emit RoundRejected(roundId, reasonHash, msg.sender);
     }
 
+    /// @notice Most payments recorded in one transaction.
+    uint256 public constant MAX_PAYMENT_BATCH = 200;
+
     /// @notice Accounts paid a payee outside the platform; record the reference.
     function recordPayment(uint256 roundId, bytes32 payeeId, bytes32 paymentRefHash)
         external
         onlyRole(Roles.ACCOUNTS)
     {
         Round storage r = _roundIn(roundId, RoundStatus.Approved);
-        if (payoutLineHash[roundId][payeeId] == bytes32(0)) revert NotAPayee(roundId, payeeId);
-        if (linePaid[roundId][payeeId]) revert AlreadyPaid(roundId, payeeId);
-        if (paymentRefHash == bytes32(0)) revert ZeroValue();
-        if (paymentRefUsed[paymentRefHash]) revert PaymentRefAlreadyUsed(paymentRefHash);
+        _pay(roundId, r, payeeId, paymentRefHash);
+        if (r.paidCount == r.payeeCount) _complete(roundId, r);
+    }
 
-        paymentRefUsed[paymentRefHash] = true;
-        linePaid[roundId][payeeId] = true;
-        r.paidCount++;
-        emit PaymentRecorded(roundId, payeeId, paymentRefHash, msg.sender);
-
+    /// @notice Several payments of one round at once (a filled-in payout sheet):
+    /// all are recorded or none.
+    function recordPayments(uint256 roundId, bytes32[] calldata payeeIds, bytes32[] calldata paymentRefHashes)
+        external
+        onlyRole(Roles.ACCOUNTS)
+    {
+        uint256 n = payeeIds.length;
+        if (n == 0 || n != paymentRefHashes.length || n > MAX_PAYMENT_BATCH) {
+            revert BadPaymentBatch(n, paymentRefHashes.length);
+        }
+        Round storage r = _roundIn(roundId, RoundStatus.Approved);
+        for (uint256 i = 0; i < n; ++i) {
+            _pay(roundId, r, payeeIds[i], paymentRefHashes[i]);
+        }
         if (r.paidCount == r.payeeCount) _complete(roundId, r);
     }
 
@@ -293,6 +305,18 @@ contract SettlementLedger is AccessGuarded {
     }
 
     // --- Internals ---
+
+    function _pay(uint256 roundId, Round storage r, bytes32 payeeId, bytes32 paymentRefHash) private {
+        if (payoutLineHash[roundId][payeeId] == bytes32(0)) revert NotAPayee(roundId, payeeId);
+        if (linePaid[roundId][payeeId]) revert AlreadyPaid(roundId, payeeId);
+        if (paymentRefHash == bytes32(0)) revert ZeroValue();
+        if (paymentRefUsed[paymentRefHash]) revert PaymentRefAlreadyUsed(paymentRefHash);
+
+        paymentRefUsed[paymentRefHash] = true;
+        linePaid[roundId][payeeId] = true;
+        r.paidCount++;
+        emit PaymentRecorded(roundId, payeeId, paymentRefHash, msg.sender);
+    }
 
     function _checkStagedRound(bytes32 projectId, ProjectLedger.Project memory p) private view {
         if (p.stage != ProjectLedger.Stage.Active) revert WrongProjectStage(projectId, p.stage);

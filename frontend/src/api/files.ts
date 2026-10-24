@@ -4,6 +4,11 @@ import {
   type BankListImportApiResponse,
   bankListApi,
 } from '@/api/generated/bank-list';
+import {
+  type SettlementUploadPaymentsApiArg,
+  type SettlementUploadPaymentsApiResponse,
+  settlementApi,
+} from '@/api/generated/settlement';
 import type {
   FieldRecordsUploadApiArg,
   FieldRecordsUploadApiResponse,
@@ -62,6 +67,33 @@ const bankListFiles = bankListApi.injectEndpoints({
 
 /** Replaces the bank list with the official files an admin chose. */
 export const { useBankListImportMutation } = bankListFiles;
+
+// A filled-in payout sheet, as a file.
+const settlementFiles = settlementApi.injectEndpoints({
+  overrideExisting: true,
+  endpoints: (build) => ({
+    settlementUploadPayments: build.mutation<
+      SettlementUploadPaymentsApiResponse,
+      SettlementUploadPaymentsApiArg
+    >({
+      query: ({ id, body }) => {
+        const form = new FormData();
+        if (body.file) form.append('file', body.file);
+        return {
+          url: `/api/settlement/rounds/${id}/payments/upload`,
+          method: 'POST',
+          body: form,
+        };
+      },
+      invalidatesTags: ['Settlement'],
+    }),
+  }),
+});
+
+/** Records the payments of a filled-in payout sheet, all together. */
+export const {
+  useSettlementUploadPaymentsMutation: usePayoutSheetUploadMutation,
+} = settlementFiles;
 
 /** Fetches an API file (photo, QR code) and gives an object URL to show it. */
 export function useApiFile(path: string | null | undefined): {

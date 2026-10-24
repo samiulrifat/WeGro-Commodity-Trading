@@ -389,6 +389,10 @@ export enum ErrorCode {
   PAYMENT_REF_ALREADY_USED = 'PAYMENT_REF_ALREADY_USED',
   /** A payment reference must be 1-128 characters */
   PAYMENT_REF_INVALID = 'PAYMENT_REF_INVALID',
+  /** The payout sheet has problems; nothing was recorded */
+  /** Send the filled-in payout sheet as the "file" field */
+  PAYMENT_SHEET_MISSING = 'PAYMENT_SHEET_MISSING',
+  PAYMENT_SHEET_INVALID = 'PAYMENT_SHEET_INVALID',
   /** to must not be before from */
   PERIOD_REVERSED = 'PERIOD_REVERSED',
   /** A period is at most {maxDays} days */

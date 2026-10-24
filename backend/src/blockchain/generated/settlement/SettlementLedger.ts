@@ -18,11 +18,12 @@ export declare namespace SettlementLedger {
     }
 
   export interface SettlementLedgerInterface extends Interface {
-    getFunction(nameOrSignature: "BPS" | "MONTH" | "addCost" | "approveRound" | "currentTotals" | "distributedProfit" | "finalApproved" | "getCost" | "getPayees" | "getRound" | "insurance" | "lastRoundAt" | "lineHash" | "linePaid" | "nextCostId" | "nextRoundId" | "openRound" | "otherCosts" | "paymentRefUsed" | "payoutLineHash" | "prepareRound" | "projectLedger" | "receipts" | "recordPayment" | "registry" | "rejectRound" | "trade" | "voidCost" | "vouchers"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS" | "MAX_PAYMENT_BATCH" | "MONTH" | "addCost" | "approveRound" | "currentTotals" | "distributedProfit" | "finalApproved" | "getCost" | "getPayees" | "getRound" | "insurance" | "lastRoundAt" | "lineHash" | "linePaid" | "nextCostId" | "nextRoundId" | "openRound" | "otherCosts" | "paymentRefUsed" | "payoutLineHash" | "prepareRound" | "projectLedger" | "receipts" | "recordPayment" | "recordPayments" | "registry" | "rejectRound" | "trade" | "voidCost" | "vouchers"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "CostAdded" | "CostVoided" | "PaymentRecorded" | "PayoutLine" | "RoundApproved" | "RoundPaid" | "RoundPrepared" | "RoundRejected"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BPS', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_PAYMENT_BATCH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MONTH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addCost', values: [BytesLike, BytesLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'approveRound', values: [BigNumberish]): string;
@@ -46,6 +47,7 @@ encodeFunctionData(functionFragment: 'prepareRound', values: [BytesLike, boolean
 encodeFunctionData(functionFragment: 'projectLedger', values?: undefined): string;
 encodeFunctionData(functionFragment: 'receipts', values?: undefined): string;
 encodeFunctionData(functionFragment: 'recordPayment', values: [BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'recordPayments', values: [BigNumberish, BytesLike[], BytesLike[]]): string;
 encodeFunctionData(functionFragment: 'registry', values?: undefined): string;
 encodeFunctionData(functionFragment: 'rejectRound', values: [BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'trade', values?: undefined): string;
@@ -53,6 +55,7 @@ encodeFunctionData(functionFragment: 'voidCost', values: [BigNumberish]): string
 encodeFunctionData(functionFragment: 'vouchers', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'BPS', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_PAYMENT_BATCH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MONTH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addCost', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveRound', data: BytesLike): Result;
@@ -76,6 +79,7 @@ decodeFunctionResult(functionFragment: 'prepareRound', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'projectLedger', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receipts', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordPayment', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordPayments', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registry', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rejectRound', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'trade', data: BytesLike): Result;
@@ -215,6 +219,14 @@ decodeFunctionResult(functionFragment: 'vouchers', data: BytesLike): Result;
     
     
     BPS: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    MAX_PAYMENT_BATCH: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -406,6 +418,14 @@ decodeFunctionResult(functionFragment: 'vouchers', data: BytesLike): Result;
     
 
     
+    recordPayments: TypedContractMethod<
+      [roundId: BigNumberish, payeeIds: BytesLike[], paymentRefHashes: BytesLike[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     registry: TypedContractMethod<
       [],
       [string],
@@ -449,6 +469,11 @@ decodeFunctionResult(functionFragment: 'vouchers', data: BytesLike): Result;
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'BPS'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MAX_PAYMENT_BATCH'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -565,6 +590,11 @@ getFunction(nameOrSignature: 'receipts'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'recordPayment'): TypedContractMethod<
       [roundId: BigNumberish, payeeId: BytesLike, paymentRefHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordPayments'): TypedContractMethod<
+      [roundId: BigNumberish, payeeIds: BytesLike[], paymentRefHashes: BytesLike[], ],
       [void],
       'nonpayable'
     >;

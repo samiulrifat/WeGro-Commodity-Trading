@@ -392,11 +392,13 @@ export class Seeder {
 
   private async finalPayout(data: Dataset, p: DatasetProject, project: string) {
     const settlement = this.get(SettlementService);
-    await settlement.addCost(await this.accounts(data, 0), project, {
+    const accounts = await this.accounts(data, 0);
+    await settlement.addCost(accounts, project, {
       category: 'transport',
       amount: '1500',
       incurredOn: await this.today(),
       note: 'Truck hire, field to warehouse',
+      photoId: await this.photo(accounts, 'truck-bill'),
     } as never);
     await this.get(ProjectsService).advance(
       await this.admin(data),

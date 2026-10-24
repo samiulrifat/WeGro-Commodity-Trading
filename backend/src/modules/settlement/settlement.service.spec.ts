@@ -66,6 +66,8 @@ describe('SettlementService', () => {
 
   const build = (
     opts: {
+      /** The round's lines, for an uploaded payout sheet. */
+      sheetLines?: Partial<PayoutLine>[];
       project?: Partial<Project>;
       ledger?: Partial<Ledger>;
       cost?: Partial<ProjectCost>;
@@ -222,7 +224,7 @@ describe('SettlementService', () => {
     });
     const linesRepo = fakeRepo({
       findOneBy: jest.fn(() => Promise.resolve(line)),
-      find: jest.fn(() => Promise.resolve([])),
+      find: jest.fn(() => Promise.resolve(opts.sheetLines ?? [])),
       createQueryBuilder: jest.fn(() => update.qb),
     });
     const chain = fakeTx((call) =>
@@ -538,6 +540,56 @@ describe('SettlementService', () => {
           } as never,
         ),
       ).rejects.toThrow('A different payment for this line is being recorded');
+    });
+
+    it('checks an uploaded sheet whole and names each problem row', async () => {
+      const [P2, P3, NOBODY] = [randomUUID(), randomUUID(), randomUUID()];
+      const lines = [
+        {
+          roundId: 5,
+          payeeId: PAYEE,
+          verified: true,
+          amount: 1n,
+          paidAt: null,
+        },
+        { roundId: 5, payeeId: P2, verified: true, amount: 1n, paidAt: NOW },
+        {
+          roundId: 5,
+          payeeId: P3,
+          verified: false,
+          amount: null,
+          paidAt: null,
+        },
+      ];
+      const sheet = [
+        'round_id,payee_id,amount_taka,payment_reference',
+        `5,${PAYEE},0.01,npsb 1`,
+        `5,${P2},0.01,already paid`,
+        `5,${P3},,npsb 3`,
+        `5,${NOBODY},1,npsb 4`,
+        `5,${PAYEE},0.01,npsb 5`,
+      ].join('\n');
+      const { service, chain } = build({ ...approved, sheetLines: lines });
+      const err = await service
+        .uploadPayments(accounts, 5, Buffer.from(sheet))
+        .catch((e: UnprocessableEntityException) => e.getResponse());
+      expect(err).toMatchObject({
+        code: 'PAYMENT_SHEET_INVALID',
+        details: {
+          problems: [
+            { line: 4, problem: 'not_verified' },
+            { line: 5, problem: 'unknown_payee' },
+            { line: 6, problem: 'duplicate_payee' },
+          ],
+        },
+      });
+      expect(chain.sent).toEqual([]);
+      const columns = await build({ ...approved, sheetLines: lines })
+        .service.uploadPayments(accounts, 5, Buffer.from('payee_id\nx'))
+        .catch((e: UnprocessableEntityException) => e.getResponse());
+      expect(columns).toMatchObject({
+        details: { problems: [{ line: 1, problem: 'missing_columns' }] },
+      });
     });
 
     it('rejects an empty reference with a 422', async () => {

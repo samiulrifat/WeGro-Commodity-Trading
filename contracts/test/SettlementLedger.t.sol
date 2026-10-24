@@ -581,6 +581,56 @@ contract SettlementLedgerTest is Test {
         assertEq(uint8(ledger.getProject(MAIZE).stage), uint8(ProjectLedger.Stage.ReadyForSale)); // not all paid yet
     }
 
+    function test_BatchPaysTheWholeSheetAndClosesTheProject() public {
+        _docScenario();
+        uint256 id = _prepare(true);
+        _approve(id);
+        bytes32[] memory payees = settlement.getPayees(id);
+        bytes32[] memory refs = new bytes32[](payees.length);
+        for (uint256 i = 0; i < payees.length; i++) {
+            refs[i] = bytes32(1000 + i);
+        }
+        vm.prank(farhana);
+        settlement.recordPayments(id, payees, refs);
+        assertEq(settlement.getRound(id).paidCount, payees.length);
+        assertEq(uint8(settlement.getRound(id).status), uint8(SettlementLedger.RoundStatus.Paid));
+        assertEq(uint8(ledger.getProject(MAIZE).stage), uint8(ProjectLedger.Stage.PaidOut));
+    }
+
+    function test_BatchIsAllOrNothing() public {
+        _docScenario();
+        uint256 id = _prepare(true);
+        _approve(id);
+        bytes32[] memory payees = settlement.getPayees(id);
+        bytes32[] memory refs = new bytes32[](payees.length);
+        for (uint256 i = 0; i < payees.length; i++) {
+            refs[i] = bytes32(1000 + i);
+        }
+        refs[payees.length - 1] = refs[0]; // one reference twice
+        vm.startPrank(farhana);
+        vm.expectRevert(abi.encodeWithSelector(SettlementLedger.PaymentRefAlreadyUsed.selector, refs[0]));
+        settlement.recordPayments(id, payees, refs);
+        assertEq(settlement.getRound(id).paidCount, 0);
+
+        vm.expectRevert(abi.encodeWithSelector(SettlementLedger.BadPaymentBatch.selector, payees.length, 1));
+        settlement.recordPayments(id, payees, new bytes32[](1));
+        vm.expectRevert(abi.encodeWithSelector(SettlementLedger.BadPaymentBatch.selector, 0, 0));
+        settlement.recordPayments(id, new bytes32[](0), new bytes32[](0));
+        vm.stopPrank();
+
+        vm.prank(rafiq); // any Accounts person records payments; an admin cannot
+        bytes32[] memory one = new bytes32[](1);
+        one[0] = payees[0];
+        bytes32[] memory ref = new bytes32[](1);
+        ref[0] = "R";
+        settlement.recordPayments(id, one, ref);
+        assertEq(settlement.getRound(id).paidCount, 1);
+        bytes32 accountsRole = registry.ACCOUNTS_ROLE();
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, admin, accountsRole));
+        settlement.recordPayments(id, one, ref);
+    }
+
     function test_RoundGuards() public {
         vm.prank(rafiq);
         vm.expectRevert(abi.encodeWithSelector(SettlementLedger.RoundNotFound.selector, 9));

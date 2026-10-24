@@ -121,6 +121,7 @@ export const CONTRACT_ERROR_STATUS: Record<string, HttpStatus> = {
   ExceedsVoucherQuantity: HttpStatus.UNPROCESSABLE_ENTITY,
   FarmerNotVerified: HttpStatus.UNPROCESSABLE_ENTITY,
   InvalidRecipient: HttpStatus.UNPROCESSABLE_ENTITY,
+  BadPaymentBatch: HttpStatus.UNPROCESSABLE_ENTITY,
   NoCoverage: HttpStatus.UNPROCESSABLE_ENTITY,
   NotAnInsurer: HttpStatus.UNPROCESSABLE_ENTITY,
   NotABankOfficer: HttpStatus.UNPROCESSABLE_ENTITY,

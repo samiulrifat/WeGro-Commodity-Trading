@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { useFormat } from '@/i18n/use-format';
 import { ProjectFarmUpdates } from '@/features/farm-updates/project-farm-updates';
 import { ProjectInsurance } from '@/features/insurance/project-insurance';
+import { ProjectPayouts } from '@/features/payouts/project-payouts';
 import { ProjectVouchers } from '@/features/vouchers/project-vouchers';
 import { useAppSelector } from '@/store/hooks';
 import { FavouriteButton, Place, ProjectPhoto } from './project-card';
@@ -83,6 +84,7 @@ export function ProjectPage({ id }: { id: string }) {
           <StaffPanel project={p} />
           <ProjectVouchers project={p} />
           <ProjectInsurance project={p} />
+          <ProjectPayouts project={p} />
           <Timeline project={p} />
         </div>
       </div>

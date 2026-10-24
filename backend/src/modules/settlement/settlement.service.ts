@@ -9,7 +9,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ContractTransaction } from 'ethers';
-import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
+import {
+  Brackets,
+  DataSource,
+  In,
+  IsNull,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
@@ -24,6 +31,8 @@ import {
 } from '../../blockchain/utils/payment-ref';
 import { IdentityCryptoService } from '../../common/crypto/identity-crypto.service';
 import { Paginated } from '../../common/dto/pagination.dto';
+import { searchWords, wordPattern } from '../../common/search/words';
+import { CsvFormatError, readCsv } from '../../data/csv-read';
 import { bdDate } from '../../common/time/bd-dates';
 import type { EnvironmentVariables } from '../../config/env.validation';
 import type { AuthUser } from '../auth/auth-user';
@@ -37,8 +46,10 @@ import { Role } from '../users/roles';
 import type {
   AddCostDto,
   CostDto,
+  ListAllCostsQueryDto,
   ListCostsQueryDto,
   ListRoundsQueryDto,
+  PaymentsUploadDto,
   PayoutLineDto,
   PreviewDto,
   RecordPayoutDto,
@@ -181,7 +192,7 @@ export class SettlementService {
         message: 'amount must be above zero',
         code: ErrorCode.AMOUNT_NOT_POSITIVE,
       });
-    const photo = dto.photoId ? await this.ownPhoto(actor, dto.photoId) : null;
+    const photo = await this.ownPhoto(actor, dto.photoId);
 
     const cost = this.costs.create({
       id: randomUUID(),
@@ -191,7 +202,7 @@ export class SettlementService {
       amount,
       incurredOn: dto.incurredOn,
       note: dto.note,
-      photoId: photo?.id ?? null,
+      photoId: photo.id,
       enteredById: actor.id,
       status: CostStatus.SUBMITTED,
       recordedAt: null,
@@ -203,7 +214,7 @@ export class SettlementService {
       amount,
       incurredOn: cost.incurredOn,
       note: cost.note,
-      photoHash: photo ? photoHash(photo.sha256) : null,
+      photoHash: photoHash(photo.sha256),
     });
     await this.costs.insert(cost);
     try {
@@ -282,6 +293,50 @@ export class SettlementService {
       order: { incurredOn: 'DESC', createdAt: 'DESC' },
     });
     return this.costDtos(rows);
+  }
+
+  /**
+   * Costs across projects (staff), newest first: filtered by project and
+   * category, searched by words of the project title or the note.
+   */
+  async listAllCosts(q: ListAllCostsQueryDto): Promise<Paginated<CostDto>> {
+    const qb = this.costs
+      .createQueryBuilder('c')
+      .innerJoin(Project, 'p', 'p.id = c.project_id')
+      .where('c.status IN (:...st)', {
+        st: q.voidedOnly
+          ? [CostStatus.VOIDED]
+          : q.includeVoided
+            ? [CostStatus.RECORDED, CostStatus.VOIDED]
+            : [CostStatus.RECORDED],
+      });
+    if (q.projectId) qb.andWhere('c.project_id = :pid', { pid: q.projectId });
+    if (q.category) qb.andWhere('c.category = :cat', { cat: q.category });
+    const words = searchWords(q.q);
+    if (words.length > 0) {
+      const params = Object.fromEntries(
+        words.map((w, i) => [`cw${i}`, wordPattern(w)]),
+      );
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where(
+            words.map((_, i) => `p.title ~* :cw${i}`).join(' AND '),
+            params,
+          );
+          b.orWhere(
+            words.map((_, i) => `c.note ~* :cw${i}`).join(' AND '),
+            params,
+          );
+        }),
+      );
+    }
+    const [rows, total] = await qb
+      .orderBy('c.incurred_on', 'DESC')
+      .addOrderBy('c.created_at', 'DESC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
+    return new Paginated(await this.costDtos(rows), total, q);
   }
 
   async costOne(actor: AuthUser, id: string): Promise<CostDto> {
@@ -576,6 +631,184 @@ export class SettlementService {
     return this.round(actor, id);
   }
 
+  /**
+   * A filled-in payout sheet: each row's payee_id and payment_reference. The
+   * whole sheet is checked first and nothing is recorded if any row is wrong.
+   * Lines already paid and rows with no reference are left as they are. The
+   * references are saved in one statement, then sent to the ledger in batches.
+   */
+  async uploadPayments(
+    actor: AuthUser,
+    id: number,
+    file: Buffer,
+  ): Promise<PaymentsUploadDto> {
+    await this.roundIn(id, RoundStatus.APPROVED);
+    const problems: Array<{ line: number; problem: SheetProblem }> = [];
+    let rows: ReturnType<typeof readCsv>['rows'] = [];
+    try {
+      const parsed = readCsv(file.toString('utf8'));
+      if (
+        !parsed.headers.includes('payee_id') ||
+        !parsed.headers.includes('payment_reference')
+      ) {
+        problems.push({ line: 1, problem: 'missing_columns' });
+      }
+      rows = parsed.rows;
+    } catch (error) {
+      if (!(error instanceof CsvFormatError)) throw error;
+      problems.push({ line: error.line, problem: 'format' });
+    }
+    const lines = new Map(
+      (await this.lines.find({ where: { roundId: id } })).map((l) => [
+        l.payeeId,
+        l,
+      ]),
+    );
+    const seen = new Set<string>();
+    const hashes = new Map<string, number>();
+    const toPay: Array<{
+      payeeId: string;
+      ref: string;
+      hash: string;
+      line: number;
+    }> = [];
+    let alreadyPaid = 0;
+    let blank = 0;
+    for (const row of problems.length ? [] : rows) {
+      const payeeId = (row.values.payee_id ?? '').trim().toLowerCase();
+      const line = lines.get(payeeId);
+      if (!line) {
+        problems.push({ line: row.line, problem: 'unknown_payee' });
+        continue;
+      }
+      if (seen.has(payeeId)) {
+        problems.push({ line: row.line, problem: 'duplicate_payee' });
+        continue;
+      }
+      seen.add(payeeId);
+      if (line.paidAt) {
+        alreadyPaid++;
+        continue;
+      }
+      const text = (row.values.payment_reference ?? '').trim();
+      if (!text) {
+        blank++;
+        continue;
+      }
+      if (!line.verified || line.amount === null) {
+        problems.push({ line: row.line, problem: 'not_verified' });
+        continue;
+      }
+      let ref: string;
+      try {
+        ref = normalisePaymentRef(text);
+      } catch {
+        problems.push({ line: row.line, problem: 'invalid_reference' });
+        continue;
+      }
+      const hash = hashPaymentRef(ref, this.paymentRefSecret);
+      if (hashes.has(hash)) {
+        problems.push({ line: row.line, problem: 'duplicate_reference' });
+        continue;
+      }
+      hashes.set(hash, row.line);
+      toPay.push({ payeeId, ref, hash, line: row.line });
+    }
+    if (toPay.length > 0 && problems.length === 0) {
+      // A reference already used on another line (this one's pending retry is fine).
+      const used = await this.lines.find({
+        where: { paymentRefHash: In([...hashes.keys()]) },
+        select: { roundId: true, payeeId: true, paymentRefHash: true },
+      });
+      for (const u of used) {
+        const mine = toPay.find((p) => p.hash === u.paymentRefHash)!;
+        if (u.roundId !== id || u.payeeId !== mine.payeeId) {
+          problems.push({ line: mine.line, problem: 'reference_used' });
+        }
+      }
+    }
+    if (problems.length > 0) {
+      throw new UnprocessableEntityException({
+        message: `The payout sheet has ${problems.length} problem(s); nothing was recorded`,
+        code: ErrorCode.PAYMENT_SHEET_INVALID,
+        details: { problems: problems.sort((a, b) => a.line - b.line) },
+      });
+    }
+    if (toPay.length > 0) {
+      await this.savePendingRefs(actor, id, toPay);
+      for (let i = 0; i < toPay.length; i += PAYMENT_BATCH) {
+        const chunk = toPay.slice(i, i + PAYMENT_BATCH);
+        try {
+          await this.send(actor, (c) =>
+            c.recordPayments.populateTransaction(
+              id,
+              chunk.map((p) => uuidToBytes32(p.payeeId)),
+              chunk.map((p) => p.hash),
+            ),
+          );
+        } catch (error) {
+          // This batch and those after it were not recorded: their references are cleared.
+          if (error instanceof ContractRevertException) {
+            await this.lines.update(
+              {
+                roundId: id,
+                payeeId: In(toPay.slice(i).map((p) => p.payeeId)),
+                paidAt: IsNull(),
+              },
+              { paymentRefEnc: null, paymentRefHash: null, recordedById: null },
+            );
+          }
+          throw error;
+        }
+      }
+    }
+    return {
+      recorded: toPay.length,
+      alreadyPaid,
+      blank,
+      round: await this.round(actor, id),
+    };
+  }
+
+  /** Saves the pending references of many lines in one statement; all or none. */
+  private async savePendingRefs(
+    actor: AuthUser,
+    id: number,
+    toPay: Array<{ payeeId: string; ref: string; hash: string }>,
+  ): Promise<void> {
+    const params: unknown[] = [id, actor.id];
+    const values = toPay.map((p) => {
+      params.push(
+        p.payeeId,
+        this.crypto.encrypt(p.ref, lineContext(id, p.payeeId)),
+        p.hash,
+      );
+      const n = params.length;
+      return `($${n - 2}::uuid, $${n - 1}::text, $${n}::char(66))`;
+    });
+    try {
+      await this.dataSource.transaction(async (m) => {
+        const [, affected] = await m.query<[unknown, number]>(
+          `UPDATE payout_lines AS l
+              SET payment_ref_enc = v.enc, payment_ref_hash = v.hash, recorded_by_id = $2
+             FROM (VALUES ${values.join(', ')}) AS v(payee, enc, hash)
+            WHERE l.round_id = $1 AND l.payee_id = v.payee AND l.paid_at IS NULL
+              AND (l.payment_ref_hash IS NULL OR l.payment_ref_hash = v.hash)`,
+          params,
+        );
+        if (affected !== toPay.length) {
+          throw new ConflictException({
+            message:
+              'A different payment for some of these lines is being recorded',
+            code: ErrorCode.PAYMENT_IN_PROGRESS,
+          });
+        }
+      });
+    } catch (error) {
+      throw duplicateRef(error);
+    }
+  }
+
   async listRounds(
     q: ListRoundsQueryDto,
   ): Promise<Paginated<RoundListItemDto>> {
@@ -584,6 +817,19 @@ export class SettlementService {
       .where('r.status IS NOT NULL');
     if (q.projectId) qb.andWhere('r.project_id = :pid', { pid: q.projectId });
     if (q.status) qb.andWhere('r.status = :st', { st: q.status });
+    const text = (q.q ?? '').trim();
+    const number = /^#?(\d{1,12})$/.exec(text);
+    const words = searchWords(text);
+    if (number) {
+      qb.andWhere('r.id = :rid', { rid: Number(number[1]) });
+    } else if (words.length > 0) {
+      qb.andWhere(
+        `r.project_id IN (SELECT p.id FROM projects p WHERE ${words
+          .map((_, i) => `p.title ~* :rw${i}`)
+          .join(' AND ')})`,
+        Object.fromEntries(words.map((w, i) => [`rw${i}`, wordPattern(w)])),
+      );
+    }
     const [rows, total] = await qb
       .orderBy('r.id', 'DESC')
       .skip(q.skip)
@@ -859,16 +1105,26 @@ export class SettlementService {
 
   // --- Views ---
 
+  /** One query each for names and project titles, whatever the page size. */
   private async costDtos(rows: ProjectCost[]): Promise<CostDto[]> {
-    const names = await this.views.names(
-      rows.flatMap((c) =>
-        c.voidedById ? [c.enteredById, c.voidedById] : [c.enteredById],
+    if (rows.length === 0) return [];
+    const [names, projects] = await Promise.all([
+      this.views.names(
+        rows.flatMap((c) =>
+          c.voidedById ? [c.enteredById, c.voidedById] : [c.enteredById],
+        ),
       ),
-    );
+      this.projects.find({
+        where: { id: In([...new Set(rows.map((c) => c.projectId))]) },
+        select: { id: true, title: true },
+      }),
+    ]);
+    const titles = new Map(projects.map((p) => [p.id, p.title]));
     return rows.map((c) => ({
       id: c.id,
       costId: c.costId,
       projectId: c.projectId,
+      project: { id: c.projectId, name: titles.get(c.projectId) ?? '' },
       category: c.category,
       amount: poishaToTaka(c.amount),
       incurredOn: c.incurredOn,
@@ -941,6 +1197,20 @@ export class SettlementService {
 
 /** A DTO's fields as a plain object type, so views can be spread into larger ones. */
 type Plain<T> = { [K in keyof T]: T[K] };
+
+/** Payments sent to the ledger per transaction (the contract allows 200). */
+const PAYMENT_BATCH = 100;
+
+/** What can be wrong with a row of an uploaded payout sheet. */
+export type SheetProblem =
+  | 'format'
+  | 'missing_columns'
+  | 'unknown_payee'
+  | 'duplicate_payee'
+  | 'not_verified'
+  | 'invalid_reference'
+  | 'duplicate_reference'
+  | 'reference_used';
 
 export const lineContext = (roundId: number, payeeId: string) =>
   `payout_lines.payment_ref:${roundId}:${payeeId}`;

@@ -215,6 +215,7 @@ describe('Track record and bank permission (node + database)', () => {
         amount: '1000',
         incurredOn: await day(),
         note: 'Crates to market',
+        photoId: await upload(t.accounts, 'crates-bill'),
       })
       .expect(201);
     await as(t.admin).post(`/projects/${project}/ready-for-sale`).expect(200);

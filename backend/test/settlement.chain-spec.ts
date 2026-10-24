@@ -431,6 +431,7 @@ describe('Settlement (node + database)', () => {
             amount: '999',
             incurredOn: await day(),
             note: 'Entered twice by mistake',
+            photoId: await upload(t.accounts, 'labour-bill'),
           })
           .expect(201)
       ).body.data.id;
@@ -450,10 +451,19 @@ describe('Settlement (node + database)', () => {
         amount: '10',
         incurredOn: await day(3),
         note: 'Later',
+        photoId: await upload(t.accounts, 'storage-bill'),
       };
       await as(t.accounts)
         .post(`/settlement/projects/${project}/costs`, body)
         .expect(422);
+      // Every cost needs its bill.
+      const { photoId: _, ...noBill } = body;
+      await as(t.accounts)
+        .post(`/settlement/projects/${project}/costs`, {
+          ...noBill,
+          incurredOn: await day(),
+        })
+        .expect(400);
       await as(t.accounts)
         .post(`/settlement/projects/${project}/costs`, {
           ...body,
@@ -463,6 +473,32 @@ describe('Settlement (node + database)', () => {
       await as(t.field_officer)
         .post(`/settlement/projects/${project}/costs`, body)
         .expect(403);
+    });
+
+    it('are listed across projects for staff, searched by title or note', async () => {
+      const ids = async (query: string) =>
+        (
+          await as(t.auditor)
+            .get(`/settlement/costs?limit=100&${query}`)
+            .expect(200)
+        ).body.data.map((c: { id: string }) => c.id);
+      const truck = await ids('q=truck');
+      expect(truck.length).toBeGreaterThan(0);
+      expect(truck).not.toContain(wrong); // voided, and not about a truck
+      expect(await ids(`projectId=${project}&includeVoided=true`)).toContain(
+        wrong,
+      );
+      expect(await ids(`projectId=${project}&voidedOnly=true`)).toEqual([
+        wrong,
+      ]);
+      const one = await as(t.auditor)
+        .get(`/settlement/costs?projectId=${project}&category=transport`)
+        .expect(200);
+      expect(one.body.data[0]).toMatchObject({
+        project: { id: project },
+        category: 'transport',
+      });
+      await as(t.investor).get('/settlement/costs').expect(403);
     });
 
     it("are seen by the project's own people only", async () => {
@@ -641,6 +677,12 @@ describe('Settlement (node + database)', () => {
       expect(listed.body.data.map((r: { id: number }) => r.id)).toEqual([
         staged,
       ]);
+      const byNumber = await as(t.auditor)
+        .get(`/settlement/rounds?q=%23${staged}`)
+        .expect(200);
+      expect(byNumber.body.data.map((r: { id: number }) => r.id)).toEqual([
+        staged,
+      ]);
       const summary = await as(t.farmer)
         .get(`/settlement/projects/${project}`)
         .expect(200);
@@ -682,6 +724,7 @@ describe('Settlement (node + database)', () => {
           amount: '1',
           incurredOn: await day(),
           note: 'Late cost',
+          photoId: await upload(t.accounts, 'late-bill'),
         })
         .expect(409);
       expect(frozen.body.code).toBe('FINAL_ROUND_OPEN');
@@ -745,17 +788,62 @@ describe('Settlement (node + database)', () => {
       await as(accounts2.token)
         .post(`/settlement/rounds/${final}/approve`)
         .expect(200);
-      for (const [payeeId, n] of [
-        [user.investor.id, 4],
-        [investor2.id, 5],
-      ] as const) {
+      // Accounts fills in the payout sheet and uploads it back.
+      const sheet = (
         await as(t.accounts)
-          .post(`/settlement/rounds/${final}/payments`, {
-            payeeId,
-            paymentReference: `PAY-${n}-${RUN}`,
-          })
-          .expect(200);
-      }
+          .get(`/settlement/rounds/${final}/payout-sheet.csv`)
+          .expect(200)
+      ).text;
+      const filled = (refs: Record<string, string>) => {
+        const [head, ...rows] = sheet.trim().split(/\r?\n/);
+        return [
+          head,
+          ...rows.map((r) => {
+            const id = Object.keys(refs).find((k) => r.includes(k));
+            return id ? `${r}${refs[id]}` : r;
+          }),
+        ].join('\n');
+      };
+      const send = (csv: string) =>
+        http
+          .post(`/api/settlement/rounds/${final}/payments/upload`)
+          .auth(t.accounts, { type: 'bearer' })
+          .attach('file', Buffer.from(csv), 'payout-round.csv');
+      // One reference twice: the whole sheet is refused, nothing recorded.
+      const bad = await send(
+        filled({
+          [user.investor.id]: `PAY-4-${RUN}`,
+          [investor2.id]: `pay-4-${RUN}`,
+        }),
+      ).expect(422);
+      expect(bad.body).toMatchObject({
+        code: 'PAYMENT_SHEET_INVALID',
+        details: { problems: [{ problem: 'duplicate_reference' }] },
+      });
+      const unpaid = await as(t.accounts)
+        .get(`/settlement/rounds/${final}`)
+        .expect(200);
+      expect(unpaid.body.data.paidCount).toBe(0);
+      const ok = await send(
+        filled({
+          [user.investor.id]: `PAY-4-${RUN}`,
+          [investor2.id]: `PAY-5-${RUN}`,
+        }),
+      ).expect(200);
+      expect(ok.body.data).toMatchObject({
+        recorded: 2,
+        alreadyPaid: 0,
+        blank: 0,
+        round: { status: 'paid', paidCount: 2 },
+      });
+      // Sent again, every line is already paid.
+      const again = await send(
+        filled({
+          [user.investor.id]: `PAY-4-${RUN}`,
+          [investor2.id]: `PAY-5-${RUN}`,
+        }),
+      ).expect(409);
+      expect(again.body.code).toBe('ROUND_WRONG_STATUS');
       const p = await as(t.admin).get(`/projects/${project}`).expect(200);
       expect(p.body.data.stage).toBe('paid_out');
       const settled = await as(t.accounts)

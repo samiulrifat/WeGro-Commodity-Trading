@@ -145,7 +145,11 @@ export type SubLabel =
   | 'platformFees'
   | 'insuredProjects'
   | 'claims'
-  | 'recordedEvents';
+  | 'recordedEvents'
+  | 'payoutRounds'
+  | 'settleProjects'
+  | 'costs'
+  | 'reports';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -184,7 +188,11 @@ export type SubPath =
   | '/marketplace/fees'
   | '/insurance'
   | '/insurance/claims'
-  | '/insurance/weather-events';
+  | '/insurance/weather-events'
+  | '/payouts'
+  | '/payouts/projects'
+  | '/payouts/costs'
+  | '/payouts/reports';
 
 export interface SubPage {
   to: SubPath;
@@ -271,6 +279,13 @@ const RECORDED_EVENTS = sub('/insurance/weather-events', 'recordedEvents');
 const insurance = (...pages: SubPage[]) =>
   item('insurance', 'insurance', pages);
 const WHOLE_INSURANCE = insurance(INSURED_PROJECTS, CLAIMS, RECORDED_EVENTS);
+/** Payouts: rounds to approve and pay, each project's settlement, costs and reports. */
+const PAYOUTS = item('payouts', 'payouts', [
+  sub('/payouts', 'payoutRounds'),
+  sub('/payouts/projects', 'settleProjects'),
+  sub('/payouts/costs', 'costs'),
+  sub('/payouts/reports', 'reports'),
+]);
 const OFFICE_VOUCHERS = item('vouchers', 'vouchers', [
   ALL_VOUCHERS,
   PENDING_VOUCHERS,
@@ -292,7 +307,7 @@ const OFFICE: NavItem[] = [
   WAREHOUSE,
   marketplace(...WHOLE_MARKETPLACE),
   WHOLE_INSURANCE,
-  item('payouts', 'payouts'),
+  PAYOUTS,
   item('track-records', 'trackRecords'),
   catalog(...WHOLE_CATALOG),
   item('audit', 'audit'),
@@ -325,7 +340,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('dashboard', 'dashboard'),
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS),
     OFFICE_VOUCHERS,
-    item('payouts', 'payouts'),
+    PAYOUTS,
     marketplace(LISTINGS, DEALS, SELLER_PAYOUTS, BUYER_REQUESTS, FEES),
     WAREHOUSE,
     insurance(CLAIMS, INSURED_PROJECTS, RECORDED_EVENTS),
@@ -340,7 +355,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     WAREHOUSE,
     marketplace(...WHOLE_MARKETPLACE),
     WHOLE_INSURANCE,
-    item('payouts', 'payouts'),
+    PAYOUTS,
     item('track-records', 'trackRecords'),
     catalog(...WHOLE_CATALOG),
     item('system', 'system'),

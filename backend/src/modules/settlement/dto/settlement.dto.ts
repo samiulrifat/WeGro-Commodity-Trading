@@ -68,14 +68,44 @@ export class AddCostDto {
   @MaxLength(1000)
   note: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     format: 'uuid',
-    description: 'The bill, from POST /photos',
-    type: String,
+    description: 'A photo of the bill, from POST /photos (required)',
+  })
+  @IsUUID('4')
+  photoId: string;
+}
+
+export class ListAllCostsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+
+  @ApiPropertyOptional({ enum: CostCategory })
+  @IsOptional()
+  @IsEnum(CostCategory)
+  category?: CostCategory;
+
+  @ApiPropertyOptional({ description: 'Include voided costs' })
+  @IsOptional()
+  @Bool()
+  @IsBoolean()
+  includeVoided?: boolean;
+
+  @ApiPropertyOptional({ description: 'Only voided costs' })
+  @IsOptional()
+  @Bool()
+  @IsBoolean()
+  voidedOnly?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Words of the project title or of the note',
   })
   @IsOptional()
-  @IsUUID('4')
-  photoId?: string | null;
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 export class ListCostsQueryDto {
@@ -120,6 +150,14 @@ export class ListRoundsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(RoundStatus)
   status?: RoundStatus;
+
+  @ApiPropertyOptional({
+    description: 'The round number (#12) or words of the project title',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 export class PeriodQueryDto {
@@ -173,6 +211,9 @@ export class CostDto {
 
   @ApiProperty({ format: 'uuid' })
   projectId: string;
+
+  @ApiProperty({ type: SettlementPartyDto })
+  project: SettlementPartyDto;
 
   @ApiProperty({ enum: CostCategory })
   category: CostCategory;
@@ -556,4 +597,19 @@ export class StatementDto {
 
   @ApiProperty({ example: 'Estimates are not guaranteed …' })
   note: string;
+}
+
+/** A filled-in payout sheet, recorded. */
+export class PaymentsUploadDto {
+  @ApiProperty({ description: 'Lines recorded as paid now' })
+  recorded: number;
+
+  @ApiProperty({ description: 'Lines already paid before (left as they were)' })
+  alreadyPaid: number;
+
+  @ApiProperty({ description: 'Lines with no reference yet (left unpaid)' })
+  blank: number;
+
+  @ApiProperty({ type: () => RoundDto })
+  round: RoundDto;
 }

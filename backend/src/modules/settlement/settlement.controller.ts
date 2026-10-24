@@ -1,5 +1,6 @@
 import { ApiFile, ApiPaged } from '../../common/swagger/envelope';
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,9 +12,14 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
@@ -26,10 +32,13 @@ import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { PhotosService } from '../field-records/photos.service';
 import { Role } from '../users/roles';
+import { ErrorCode } from '../../common/errors/error-code';
 import {
   AddCostDto,
   CostDto,
+  ListAllCostsQueryDto,
   ListCostsQueryDto,
+  PaymentsUploadDto,
   ListRoundsQueryDto,
   PeriodQueryDto,
   PrepareRoundDto,
@@ -63,6 +72,8 @@ const PROJECT_READERS = [
   Role.INVESTOR,
 ];
 const BOOKS = [Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTS, Role.AUDITOR];
+/** A filled-in payout sheet is a small CSV. */
+const MAX_SHEET_BYTES = 2 * 1024 * 1024;
 
 /** Settlement (SettlementLedger): costs, payout rounds, payments and reports. */
 @ApiTags('Settlement')
@@ -106,6 +117,19 @@ export class SettlementController {
   }
 
   // --- Costs ---
+
+  @Get('settlement/costs')
+  @ApiPaged()
+  @Roles(...STAFF)
+  @ApiOkResponse({
+    type: [CostDto],
+    description: 'Costs across projects, newest first',
+  })
+  listAllCosts(
+    @Query() query: ListAllCostsQueryDto,
+  ): Promise<Paginated<CostDto>> {
+    return this.settlement.listAllCosts(query);
+  }
 
   @Get('settlement/projects/:projectId/costs')
   @Roles(...PROJECT_READERS)
@@ -240,6 +264,39 @@ export class SettlementController {
     @Body() dto: RecordPayoutDto,
   ): Promise<RoundDto> {
     return this.settlement.recordPayment(actor, id, dto);
+  }
+
+  @Post('settlement/rounds/:id/payments/upload')
+  @Roles(Role.ACCOUNTS)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_SHEET_BYTES, files: 1 },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOkResponse({
+    type: PaymentsUploadDto,
+    description:
+      'The payout sheet with payment_reference filled in: checked whole, then recorded together',
+  })
+  uploadPayments(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ledgerId) id: number,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<PaymentsUploadDto> {
+    if (!file)
+      throw new BadRequestException({
+        message: 'Send the filled-in payout sheet as the "file" field',
+        code: ErrorCode.PAYMENT_SHEET_MISSING,
+      });
+    return this.settlement.uploadPayments(actor, id, file.buffer);
   }
 
   @Get('settlement/rounds/:id/payout-sheet.csv')

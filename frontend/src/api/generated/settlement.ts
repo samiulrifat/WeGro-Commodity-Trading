@@ -15,6 +15,24 @@ const injectedRtkApi = api
         }),
         providesTags: ['Settlement'],
       }),
+      settlementListAllCosts: build.query<
+        SettlementListAllCostsApiResponse,
+        SettlementListAllCostsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/settlement/costs`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            projectId: queryArg.projectId,
+            category: queryArg.category,
+            includeVoided: queryArg.includeVoided,
+            voidedOnly: queryArg.voidedOnly,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Settlement'],
+      }),
       settlementListCosts: build.query<
         SettlementListCostsApiResponse,
         SettlementListCostsApiArg
@@ -77,6 +95,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
             projectId: queryArg.projectId,
             status: queryArg.status,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Settlement'],
@@ -120,6 +139,17 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Settlement'],
       }),
+      settlementUploadPayments: build.mutation<
+        SettlementUploadPaymentsApiResponse,
+        SettlementUploadPaymentsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/settlement/rounds/${queryArg.id}/payments/upload`,
+          method: 'POST',
+          body: queryArg.body,
+        }),
+        invalidatesTags: ['Settlement'],
+      }),
       settlementMyStatement: build.query<
         SettlementMyStatementApiResponse,
         SettlementMyStatementApiArg
@@ -156,6 +186,24 @@ export type SettlementSummaryApiResponse =
   };
 export type SettlementSummaryApiArg = {
   projectId: string;
+};
+export type SettlementListAllCostsApiResponse =
+  /** status 200 Costs across projects, newest first */ {
+    data: CostDto[];
+    meta: PageMetaDto;
+  };
+export type SettlementListAllCostsApiArg = {
+  page?: number;
+  limit?: number;
+  projectId?: string;
+  category?:
+    'transport' | 'labour' | 'irrigation' | 'storage' | 'services' | 'other';
+  /** Include voided costs */
+  includeVoided?: boolean;
+  /** Only voided costs */
+  voidedOnly?: boolean;
+  /** Words of the project title or of the note */
+  q?: string;
 };
 export type SettlementListCostsApiResponse = /** status 200 Newest first */ {
   data: CostDto[];
@@ -203,6 +251,8 @@ export type SettlementListRoundsApiArg = {
   limit?: number;
   projectId?: string;
   status?: 'prepared' | 'approved' | 'rejected' | 'paid';
+  /** The round number (#12) or words of the project title */
+  q?: string;
 };
 export type SettlementRoundApiResponse = /** status 200  */ {
   data: RoundDto;
@@ -232,6 +282,16 @@ export type SettlementRecordPaymentApiResponse =
 export type SettlementRecordPaymentApiArg = {
   id: number;
   recordPayoutDto: RecordPayoutDto;
+};
+export type SettlementUploadPaymentsApiResponse =
+  /** status 200 The payout sheet with payment_reference filled in: checked whole, then recorded together */ {
+    data: PaymentsUploadDto;
+  };
+export type SettlementUploadPaymentsApiArg = {
+  id: number;
+  body: {
+    file?: Blob;
+  };
 };
 export type SettlementMyStatementApiResponse = /** status 200  */ {
   data: StatementDto;
@@ -334,6 +394,7 @@ export type CostDto = {
   /** Ledger cost id */
   costId?: number | null;
   projectId: string;
+  project: SettlementPartyDto;
   category:
     'transport' | 'labour' | 'irrigation' | 'storage' | 'services' | 'other';
   amount: string;
@@ -347,6 +408,13 @@ export type CostDto = {
   voidedAt?: string | null;
   detailsHash: string;
 };
+export type PageMetaDto = {
+  page: number;
+  limit: number;
+  /** Matching items on all pages */
+  total: number;
+  totalPages: number;
+};
 export type AddCostDto = {
   category:
     'transport' | 'labour' | 'irrigation' | 'storage' | 'services' | 'other';
@@ -354,8 +422,8 @@ export type AddCostDto = {
   /** Day it was incurred */
   incurredOn: string;
   note: string;
-  /** The bill, from POST /photos */
-  photoId?: string;
+  /** A photo of the bill, from POST /photos (required) */
+  photoId: string;
 };
 export type PayoutLineDto = {
   payee: SettlementPartyDto;
@@ -430,19 +498,21 @@ export type RoundListItemDto = {
   paidCount: number;
   paidAt?: string | null;
 };
-export type PageMetaDto = {
-  page: number;
-  limit: number;
-  /** Matching items on all pages */
-  total: number;
-  totalPages: number;
-};
 export type RejectRoundDto = {
   reason: string;
 };
 export type RecordPayoutDto = {
   paymentReference: string;
   payeeId: string;
+};
+export type PaymentsUploadDto = {
+  /** Lines recorded as paid now */
+  recorded: number;
+  /** Lines already paid before (left as they were) */
+  alreadyPaid: number;
+  /** Lines with no reference yet (left unpaid) */
+  blank: number;
+  round: RoundDto;
 };
 export type StatementPayoutDto = {
   roundId: number;
@@ -488,6 +558,8 @@ export type StatementDto = {
 export const {
   useSettlementSummaryQuery,
   useLazySettlementSummaryQuery,
+  useSettlementListAllCostsQuery,
+  useLazySettlementListAllCostsQuery,
   useSettlementListCostsQuery,
   useLazySettlementListCostsQuery,
   useSettlementAddCostMutation,
@@ -502,6 +574,7 @@ export const {
   useSettlementApproveMutation,
   useSettlementRejectMutation,
   useSettlementRecordPaymentMutation,
+  useSettlementUploadPaymentsMutation,
   useSettlementMyStatementQuery,
   useLazySettlementMyStatementQuery,
   useSettlementStatementQuery,

@@ -1,7 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ComingSoon } from '@/app/pages';
+import { parseMarketSearch } from '@/features/marketplace/market-utils';
+import { RoundsList } from '@/features/payouts/rounds-list';
 
 export const Route = createFileRoute('/_app/payouts/')({
   staticData: { area: 'payouts' },
-  component: () => <ComingSoon area="payouts" />,
+  validateSearch: parseMarketSearch,
+  component: function PayoutRounds() {
+    return <RoundsList search={Route.useSearch()} />;
+  },
 });
