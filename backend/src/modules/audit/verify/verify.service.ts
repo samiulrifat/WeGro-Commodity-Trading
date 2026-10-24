@@ -11,6 +11,7 @@ import { FieldRecordsService } from '../../field-records/field-records.service';
 import { photoHash, PhotosService } from '../../field-records/photos.service';
 import { CoverageTerms } from '../../insurance/entities/coverage-terms.entity';
 import { InsuranceClaim } from '../../insurance/entities/insurance-claim.entity';
+import { InsurerAssignment } from '../../insurance/entities/insurer-assignment.entity';
 import { WeatherEvent } from '../../insurance/entities/weather-event.entity';
 import {
   assessmentFingerprint,
@@ -412,24 +413,53 @@ export class VerifyService {
   // --- Insurance ---
 
   /** A project's current cover (id = project id). */
+  /**
+   * The project's insurer (latest recorded assignment) and its current cover:
+   * the terms that insurer recorded after being assigned, as the ledger keeps them.
+   */
   private async coverage(projectId: string): Promise<Verification> {
-    const t = await this.dataSource.getRepository(CoverageTerms).findOne({
+    const a = await this.dataSource.getRepository(InsurerAssignment).findOne({
       where: { projectId, status: 'recorded' },
       order: { chainEventBlock: 'DESC', chainEventLog: 'DESC' },
     });
-    if (!t)
+    if (!a)
       throw new NotFoundException({
-        message: 'No cover for this project',
-        code: ErrorCode.NO_COVERAGE,
+        message: 'No insurer is assigned to this project',
+        code: ErrorCode.INSURER_NOT_ASSIGNED,
       });
-    const c = await this.c('InsuranceRegistry').getCoverage(
-      uuidToBytes32(projectId),
-    );
-    if (c.termsHash === ZERO_BYTES32) return missing();
+    const t = await this.dataSource
+      .getRepository(CoverageTerms)
+      .createQueryBuilder('t')
+      .where(
+        "t.project_id = :projectId AND t.insurer_id = :insurer AND t.status = 'recorded'",
+        {
+          projectId,
+          insurer: a.insurerId,
+        },
+      )
+      .andWhere('(t.chain_event_block, t.chain_event_log) > (:b, :l)', {
+        b: a.chainEventBlock,
+        l: a.chainEventLog,
+      })
+      .orderBy('t.chain_event_block', 'DESC')
+      .addOrderBy('t.chain_event_log', 'DESC')
+      .getOne();
+    const key = uuidToBytes32(projectId);
+    const registry = this.c('InsuranceRegistry');
+    const [assigned, c] = await Promise.all([
+      registry.assignedInsurer(key),
+      registry.getCoverage(key),
+    ]);
+    if (assigned === ZERO_BYTES32) return missing();
     const m = new Mismatches();
-    m.fingerprint(coverageFingerprint(t), t.termsHash, c.termsHash);
-    m.check('maxAmount', t.maxAmount, c.maxAmount);
-    m.check('insurerId', uuidToBytes32(t.insurerId), c.insurerId);
+    m.check('assignedInsurer', uuidToBytes32(a.insurerId), assigned);
+    if (t) {
+      m.fingerprint(coverageFingerprint(t), t.termsHash, c.termsHash);
+      m.check('maxAmount', t.maxAmount, c.maxAmount);
+      m.check('insurerId', uuidToBytes32(t.insurerId), c.insurerId);
+    } else {
+      m.check('termsHash', ZERO_BYTES32, c.termsHash);
+    }
     return m.done();
   }
 
@@ -469,8 +499,13 @@ export class VerifyService {
     );
     m.check('status', k.status, CLAIM_STATUS_BY_CHAIN[Number(c.status)]);
     m.check('approvedAmount', k.approvedAmount ?? 0n, c.approvedAmount);
+    m.check('paymentRef', k.paymentRefHash ?? ZERO_BYTES32, c.paymentRefHash, {
+      onlyIf: k.status === ClaimStatus.PAID,
+    });
     const decided =
-      k.status === ClaimStatus.APPROVED || k.status === ClaimStatus.REJECTED;
+      k.status === ClaimStatus.APPROVED ||
+      k.status === ClaimStatus.REJECTED ||
+      k.status === ClaimStatus.PAID;
     if (decided) {
       const photo = k.assessmentPhotoId
         ? await this.diskPhotoHash(k.assessmentPhotoId)
@@ -478,7 +513,7 @@ export class VerifyService {
       m.fingerprint(
         assessmentFingerprint({
           claimId: k.id,
-          decision: k.status === ClaimStatus.APPROVED ? 'approved' : 'rejected',
+          decision: k.status === ClaimStatus.REJECTED ? 'rejected' : 'approved',
           approvedAmount: k.approvedAmount,
           damagePercent: k.assessedDamagePercent,
           notes: k.assessmentNotes ?? '',

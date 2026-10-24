@@ -57,6 +57,7 @@ interface Ledger {
   openTrades: bigint;
   pendingInputs: bigint;
   openClaims: bigint;
+  unpaidClaims: bigint;
 }
 
 describe('SettlementService', () => {
@@ -99,6 +100,7 @@ describe('SettlementService', () => {
       openTrades: 0n,
       pendingInputs: 0n,
       openClaims: 0n,
+      unpaidClaims: 0n,
       ...opts.ledger,
     };
     const contracts = {
@@ -124,8 +126,9 @@ describe('SettlementService', () => {
             openTrades: () => Promise.resolve(l.openTrades),
           },
           InsuranceRegistry: {
-            approvedTotal: () => Promise.resolve(l.insurance),
+            paidTotal: () => Promise.resolve(l.insurance),
             openClaims: () => Promise.resolve(l.openClaims),
+            unpaidClaims: () => Promise.resolve(l.unpaidClaims),
           },
           VoucherRegistry: {
             spentValue: () => Promise.resolve(l.inputs),
@@ -422,6 +425,11 @@ describe('SettlementService', () => {
         code: 'STILL_OUTSTANDING',
         details: { outstanding: ['TRADES', 'CLAIMS'] },
       });
+      // An approved claim the insurer has not paid yet holds the final round too.
+      const unpaid = await build({ ledger: { stage: 5, unpaidClaims: 1n } })
+        .service.prepareRound(accounts, PROJECT, true)
+        .catch((e: ConflictException) => e.getResponse());
+      expect(unpaid).toMatchObject({ details: { outstanding: ['CLAIMS'] } });
       const { service, chain } = build({ ledger: { stage: 5 } });
       await service.prepareRound(accounts, PROJECT, true);
       expect(chain.sent[0]).toMatchObject({

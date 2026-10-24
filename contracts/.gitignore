@@ -32,3 +32,4 @@
 
 # Local node deployments (the node is in-memory; redeploy after each restart)
 /ignition/deployments/chain-31337
+/ignition/deployments/chain-tests

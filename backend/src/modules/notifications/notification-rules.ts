@@ -554,9 +554,23 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
   },
 
   InsuranceRegistry: {
+    InsurerAssigned: async (e, _m, x) => {
+      const projectId = uuid(e.args.projectId);
+      if (!projectId) return;
+      const p = await x.project(projectId);
+      await x.send([uuid(e.args.insurerId)], {
+        category: ACTION,
+        kind: NotificationKind.INSURER_ASSIGNED,
+        title: `You were assigned to insure ${p?.title ?? 'a project'}: set its cover`,
+        params: { project: p?.title ?? null },
+        subject: { type: 'insured-project', id: projectId },
+      });
+    },
     ClaimOpened: async (e, _m, x) => {
+      // The project's insurer: its latest recorded assignment.
       const insurer = await x.one<{ insurer_id: string }>(
-        `SELECT insurer_id FROM coverage_terms WHERE project_id = $1 AND status = 'recorded' LIMIT 1`,
+        `SELECT insurer_id FROM insurer_assignments WHERE project_id = $1 AND status = 'recorded'
+          ORDER BY chain_event_block DESC, chain_event_log DESC LIMIT 1`,
         [uuid(e.args.projectId)],
       );
       await x.send([insurer?.insurer_id], {
@@ -591,6 +605,35 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
           status === 3
             ? { amount: taka(e.args.approvedAmount), project: p?.title ?? null }
             : { project: p?.title ?? null },
+        subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
+      });
+      if (status === 3) {
+        await x.send(await x.role([Role.ACCOUNTS]), {
+          category: ACTION,
+          kind: NotificationKind.CLAIM_PAYMENT_DUE,
+          title: `Insurance claim approved: record the insurer's payment of ${taka(e.args.approvedAmount)} taka`,
+          body: p?.title,
+          params: {
+            amount: taka(e.args.approvedAmount),
+            project: p?.title ?? null,
+          },
+          subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
+        });
+      }
+    },
+    ClaimPaid: async (e, _m, x) => {
+      const c = await x.one<{ opened_by_id: string; project_id: string }>(
+        'SELECT opened_by_id, project_id FROM insurance_claims WHERE id = $1',
+        [uuid(e.args.claimId)],
+      );
+      if (!c) return;
+      const p = await x.project(c.project_id);
+      await x.send([c.opened_by_id, p?.farmer_id], {
+        category: OUTCOME,
+        kind: NotificationKind.CLAIM_PAID,
+        title: `The insurer paid the claim: ${taka(e.args.amount)} taka`,
+        body: p?.title,
+        params: { amount: taka(e.args.amount), project: p?.title ?? null },
         subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
       });
     },

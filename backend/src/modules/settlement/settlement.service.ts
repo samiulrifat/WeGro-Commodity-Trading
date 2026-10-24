@@ -743,11 +743,13 @@ export class SettlementService {
       openTrades,
       pendingInputs,
       openClaims,
+      unpaidClaims,
       now,
     ] = await Promise.all([
       c.get('ProjectLedger').getProject(key),
       c.get('TradeLedger').saleIncome(key),
-      c.get('InsuranceRegistry').approvedTotal(key),
+      // Claims count once the insurer has paid them.
+      c.get('InsuranceRegistry').paidTotal(key),
       c.get('VoucherRegistry').spentValue(key),
       settlement.otherCosts(key),
       settlement.distributedProfit(key),
@@ -758,6 +760,7 @@ export class SettlementService {
       c.get('TradeLedger').openTrades(key),
       c.get('VoucherRegistry').pendingSaleValue(key),
       c.get('InsuranceRegistry').openClaims(key),
+      c.get('InsuranceRegistry').unpaidClaims(key),
       this.clock.now(),
     ]);
     // The order SettlementLedger checks them in.
@@ -765,7 +768,7 @@ export class SettlementService {
       openReceipts > 0n && 'STORED_CROP',
       openTrades > 0n && 'TRADES',
       pendingInputs > 0n && 'VOUCHER_SALES',
-      openClaims > 0n && 'CLAIMS',
+      (openClaims > 0n || unpaidClaims > 0n) && 'CLAIMS',
     ].filter((x): x is string => !!x);
     return {
       stage: STAGE_BY_CHAIN[Number(project.stage)],

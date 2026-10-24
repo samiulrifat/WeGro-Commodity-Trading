@@ -38,6 +38,12 @@ export default defineConfig({
       chainType: "l1",
       url: "http://127.0.0.1:8545",
     },
+    // The backend's chain tests start their own node here, apart from the dev one.
+    chainTests: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:8546",
+    },
     sepolia: {
       type: "http",
       chainType: "l1",

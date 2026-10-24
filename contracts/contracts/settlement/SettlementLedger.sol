@@ -12,7 +12,7 @@ import {WarehouseReceipt} from "../warehouse/WarehouseReceipt.sol";
 
 /// @title SettlementLedger
 /// @notice Staged and final payouts. The ledger works out the figures
-/// itself: income = delivered sales + approved insurance; costs = confirmed voucher
+/// itself: income = delivered sales + insurance claims paid to WeGro; costs = confirmed voucher
 /// spending + costs Accounts enters; profit = income - costs. Each round splits the
 /// profit not yet distributed by the project's percentages, and the investors' part
 /// by slots held (rounded down; the remainder is recorded). Staged rounds (long
@@ -283,7 +283,7 @@ contract SettlementLedger is AccessGuarded {
 
     /// @notice Cumulative income and costs the next round would use.
     function currentTotals(bytes32 projectId) public view returns (uint256 income, uint256 costs) {
-        income = trade.saleIncome(projectId) + insurance.approvedTotal(projectId);
+        income = trade.saleIncome(projectId) + insurance.paidTotal(projectId);
         costs = vouchers.spentValue(projectId) + otherCosts[projectId];
     }
 
@@ -364,7 +364,9 @@ contract SettlementLedger is AccessGuarded {
         if (receipts.openReceipts(projectId) != 0) revert StillOutstanding(projectId, "STORED_CROP");
         if (trade.openTrades(projectId) != 0) revert StillOutstanding(projectId, "TRADES");
         if (vouchers.pendingSaleValue(projectId) != 0) revert StillOutstanding(projectId, "VOUCHER_SALES");
-        if (insurance.openClaims(projectId) != 0) revert StillOutstanding(projectId, "CLAIMS");
+        if (insurance.openClaims(projectId) != 0 || insurance.unpaidClaims(projectId) != 0) {
+            revert StillOutstanding(projectId, "CLAIMS");
+        }
     }
 
     /// @dev Costs can change until a final round is prepared.

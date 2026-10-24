@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import { ClaimsService } from './claims.service';
 import { CoverageTerms } from './entities/coverage-terms.entity';
 import { InsuranceClaim } from './entities/insurance-claim.entity';
+import { InsurerAssignment } from './entities/insurer-assignment.entity';
 import { WeatherEvent } from './entities/weather-event.entity';
 import { InsuranceController } from './insurance.controller';
 import { InsuranceLedgerSync } from './insurance-ledger.sync';
@@ -21,6 +22,7 @@ import { InsuranceService } from './insurance.service';
       CoverageTerms,
       WeatherEvent,
       InsuranceClaim,
+      InsurerAssignment,
       Project,
       Photo,
     ]),

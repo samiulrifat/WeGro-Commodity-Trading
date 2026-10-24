@@ -59,7 +59,7 @@ const RECORDS: Readonly<Record<VerifyType, { sql: string; start: string }>> = {
     'status IS NOT NULL',
   ),
   coverage: {
-    sql: `SELECT DISTINCT project_id::text AS id FROM coverage_terms
+    sql: `SELECT DISTINCT project_id::text AS id FROM insurer_assignments
            WHERE status = 'recorded' AND project_id > $1::uuid
            ORDER BY 1 LIMIT ${PAGE}`,
     start: '00000000-0000-0000-0000-000000000000',

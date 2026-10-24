@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 export declare namespace InsuranceRegistry {
       
-    export type ClaimStruct = {projectId: BytesLike, eventId: BytesLike, status: BigNumberish, approvedAmount: BigNumberish, claimHash: BytesLike, openedBy: BytesLike, assessmentHash: BytesLike, openedAt: BigNumberish}
+    export type ClaimStruct = {projectId: BytesLike, eventId: BytesLike, status: BigNumberish, approvedAmount: BigNumberish, claimHash: BytesLike, openedBy: BytesLike, assessmentHash: BytesLike, openedAt: BigNumberish, paymentRefHash: BytesLike}
 
-    export type ClaimStructOutput = [projectId: string, eventId: string, status: bigint, approvedAmount: bigint, claimHash: string, openedBy: string, assessmentHash: string, openedAt: bigint] & {projectId: string, eventId: string, status: bigint, approvedAmount: bigint, claimHash: string, openedBy: string, assessmentHash: string, openedAt: bigint }
+    export type ClaimStructOutput = [projectId: string, eventId: string, status: bigint, approvedAmount: bigint, claimHash: string, openedBy: string, assessmentHash: string, openedAt: bigint, paymentRefHash: string] & {projectId: string, eventId: string, status: bigint, approvedAmount: bigint, claimHash: string, openedBy: string, assessmentHash: string, openedAt: bigint, paymentRefHash: string }
   
 
     export type CoverageStruct = {insurerId: BytesLike, maxAmount: BigNumberish, termsHash: BytesLike}
@@ -23,39 +23,53 @@ export declare namespace InsuranceRegistry {
     }
 
   export interface InsuranceRegistryInterface extends Interface {
-    getFunction(nameOrSignature: "approveClaim" | "approvedTotal" | "getClaim" | "getCoverage" | "getWeatherEvent" | "hasClaim" | "openClaim" | "openClaims" | "projectLedger" | "recordWeatherEvent" | "registry" | "rejectClaim" | "setCoverage" | "startReview"): FunctionFragment;
+    getFunction(nameOrSignature: "approveClaim" | "approvedTotal" | "assignInsurer" | "assignedInsurer" | "claimCount" | "getClaim" | "getCoverage" | "getWeatherEvent" | "hasClaim" | "openClaim" | "openClaims" | "paidTotal" | "paymentRefUsed" | "projectLedger" | "recordClaimPayment" | "recordWeatherEvent" | "registry" | "rejectClaim" | "setCoverage" | "startReview" | "unpaidClaims"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "ClaimOpened" | "ClaimStatusChanged" | "CoverageSet" | "WeatherEventRecorded"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "ClaimOpened" | "ClaimPaid" | "ClaimStatusChanged" | "CoverageSet" | "InsurerAssigned" | "WeatherEventRecorded"): EventFragment;
 
     encodeFunctionData(functionFragment: 'approveClaim', values: [BytesLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'approvedTotal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'assignInsurer', values: [BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'assignedInsurer', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'claimCount', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getClaim', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getCoverage', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getWeatherEvent', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'hasClaim', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'openClaim', values: [BytesLike, BytesLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'openClaims', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'paidTotal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'paymentRefUsed', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'projectLedger', values?: undefined): string;
+encodeFunctionData(functionFragment: 'recordClaimPayment', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'recordWeatherEvent', values: [BytesLike, BytesLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'registry', values?: undefined): string;
 encodeFunctionData(functionFragment: 'rejectClaim', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setCoverage', values: [BytesLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'startReview', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'unpaidClaims', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'approveClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approvedTotal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'assignInsurer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'assignedInsurer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getCoverage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getWeatherEvent', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'openClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'openClaims', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'paidTotal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'paymentRefUsed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'projectLedger', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordClaimPayment', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordWeatherEvent', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registry', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rejectClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setCoverage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'unpaidClaims', data: BytesLike): Result;
   }
 
   
@@ -63,6 +77,18 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
       export type InputTuple = [claimId: BytesLike, projectId: BytesLike, eventId: BytesLike, claimHash: BytesLike, openedBy: BytesLike];
       export type OutputTuple = [claimId: string, projectId: string, eventId: string, claimHash: string, openedBy: string];
       export interface OutputObject {claimId: string, projectId: string, eventId: string, claimHash: string, openedBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ClaimPaidEvent {
+      export type InputTuple = [claimId: BytesLike, projectId: BytesLike, amount: BigNumberish, paymentRefHash: BytesLike];
+      export type OutputTuple = [claimId: string, projectId: string, amount: bigint, paymentRefHash: string];
+      export interface OutputObject {claimId: string, projectId: string, amount: bigint, paymentRefHash: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -87,6 +113,18 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
       export type InputTuple = [projectId: BytesLike, insurerId: BytesLike, maxAmount: BigNumberish, termsHash: BytesLike];
       export type OutputTuple = [projectId: string, insurerId: string, maxAmount: bigint, termsHash: string];
       export interface OutputObject {projectId: string, insurerId: string, maxAmount: bigint, termsHash: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace InsurerAssignedEvent {
+      export type InputTuple = [projectId: BytesLike, insurerId: BytesLike, previousInsurerId: BytesLike];
+      export type OutputTuple = [projectId: string, insurerId: string, previousInsurerId: string];
+      export interface OutputObject {projectId: string, insurerId: string, previousInsurerId: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -157,6 +195,30 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
     
 
     
+    assignInsurer: TypedContractMethod<
+      [projectId: BytesLike, insurerId: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    assignedInsurer: TypedContractMethod<
+      [projectId: BytesLike, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    claimCount: TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getClaim: TypedContractMethod<
       [claimId: BytesLike, ],
       [InsuranceRegistry.ClaimStructOutput],
@@ -205,10 +267,34 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
     
 
     
+    paidTotal: TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    paymentRefUsed: TypedContractMethod<
+      [paymentRefHash: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     projectLedger: TypedContractMethod<
       [],
       [string],
       'view'
+    >
+    
+
+    
+    recordClaimPayment: TypedContractMethod<
+      [claimId: BytesLike, paymentRefHash: BytesLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -252,6 +338,14 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
     >
     
 
+    
+    unpaidClaims: TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -261,6 +355,21 @@ decodeFunctionResult(functionFragment: 'startReview', data: BytesLike): Result;
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'approvedTotal'): TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'assignInsurer'): TypedContractMethod<
+      [projectId: BytesLike, insurerId: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'assignedInsurer'): TypedContractMethod<
+      [projectId: BytesLike, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'claimCount'): TypedContractMethod<
       [projectId: BytesLike, ],
       [bigint],
       'view'
@@ -295,10 +404,25 @@ getFunction(nameOrSignature: 'openClaims'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'paidTotal'): TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'paymentRefUsed'): TypedContractMethod<
+      [paymentRefHash: BytesLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'projectLedger'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'recordClaimPayment'): TypedContractMethod<
+      [claimId: BytesLike, paymentRefHash: BytesLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'recordWeatherEvent'): TypedContractMethod<
       [eventId: BytesLike, regionCode: BytesLike, eventType: BytesLike, detailsHash: BytesLike, ],
@@ -325,10 +449,17 @@ getFunction(nameOrSignature: 'startReview'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'unpaidClaims'): TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >;
 
     getEvent(key: 'ClaimOpened'): TypedContractEvent<ClaimOpenedEvent.InputTuple, ClaimOpenedEvent.OutputTuple, ClaimOpenedEvent.OutputObject>;
+getEvent(key: 'ClaimPaid'): TypedContractEvent<ClaimPaidEvent.InputTuple, ClaimPaidEvent.OutputTuple, ClaimPaidEvent.OutputObject>;
 getEvent(key: 'ClaimStatusChanged'): TypedContractEvent<ClaimStatusChangedEvent.InputTuple, ClaimStatusChangedEvent.OutputTuple, ClaimStatusChangedEvent.OutputObject>;
 getEvent(key: 'CoverageSet'): TypedContractEvent<CoverageSetEvent.InputTuple, CoverageSetEvent.OutputTuple, CoverageSetEvent.OutputObject>;
+getEvent(key: 'InsurerAssigned'): TypedContractEvent<InsurerAssignedEvent.InputTuple, InsurerAssignedEvent.OutputTuple, InsurerAssignedEvent.OutputObject>;
 getEvent(key: 'WeatherEventRecorded'): TypedContractEvent<WeatherEventRecordedEvent.InputTuple, WeatherEventRecordedEvent.OutputTuple, WeatherEventRecordedEvent.OutputObject>;
 
     filters: {
@@ -337,12 +468,20 @@ getEvent(key: 'WeatherEventRecorded'): TypedContractEvent<WeatherEventRecordedEv
       ClaimOpened: TypedContractEvent<ClaimOpenedEvent.InputTuple, ClaimOpenedEvent.OutputTuple, ClaimOpenedEvent.OutputObject>;
     
 
+      'ClaimPaid(bytes32,bytes32,uint256,bytes32)': TypedContractEvent<ClaimPaidEvent.InputTuple, ClaimPaidEvent.OutputTuple, ClaimPaidEvent.OutputObject>;
+      ClaimPaid: TypedContractEvent<ClaimPaidEvent.InputTuple, ClaimPaidEvent.OutputTuple, ClaimPaidEvent.OutputObject>;
+    
+
       'ClaimStatusChanged(bytes32,uint8,uint256,bytes32)': TypedContractEvent<ClaimStatusChangedEvent.InputTuple, ClaimStatusChangedEvent.OutputTuple, ClaimStatusChangedEvent.OutputObject>;
       ClaimStatusChanged: TypedContractEvent<ClaimStatusChangedEvent.InputTuple, ClaimStatusChangedEvent.OutputTuple, ClaimStatusChangedEvent.OutputObject>;
     
 
       'CoverageSet(bytes32,bytes32,uint256,bytes32)': TypedContractEvent<CoverageSetEvent.InputTuple, CoverageSetEvent.OutputTuple, CoverageSetEvent.OutputObject>;
       CoverageSet: TypedContractEvent<CoverageSetEvent.InputTuple, CoverageSetEvent.OutputTuple, CoverageSetEvent.OutputObject>;
+    
+
+      'InsurerAssigned(bytes32,bytes32,bytes32)': TypedContractEvent<InsurerAssignedEvent.InputTuple, InsurerAssignedEvent.OutputTuple, InsurerAssignedEvent.OutputObject>;
+      InsurerAssigned: TypedContractEvent<InsurerAssignedEvent.InputTuple, InsurerAssignedEvent.OutputTuple, InsurerAssignedEvent.OutputObject>;
     
 
       'WeatherEventRecorded(bytes32,bytes32,bytes32,bytes32,address)': TypedContractEvent<WeatherEventRecordedEvent.InputTuple, WeatherEventRecordedEvent.OutputTuple, WeatherEventRecordedEvent.OutputObject>;

@@ -16,9 +16,22 @@ const injectedRtkApi = api
             page: queryArg.page,
             limit: queryArg.limit,
             districtCode: queryArg.districtCode,
+            cover: queryArg.cover,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Insurance'],
+      }),
+      insuranceAssignInsurer: build.mutation<
+        InsuranceAssignInsurerApiResponse,
+        InsuranceAssignInsurerApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/insurance/projects/${queryArg.projectId}/insurer`,
+          method: 'PUT',
+          body: queryArg.assignInsurerDto,
+        }),
+        invalidatesTags: ['Insurance'],
       }),
       insuranceCoverage: build.query<
         InsuranceCoverageApiResponse,
@@ -51,6 +64,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
             districtCode: queryArg.districtCode,
             eventTypeCode: queryArg.eventTypeCode,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Insurance'],
@@ -97,6 +111,8 @@ const injectedRtkApi = api
             limit: queryArg.limit,
             projectId: queryArg.projectId,
             status: queryArg.status,
+            paymentDue: queryArg.paymentDue,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Insurance'],
@@ -140,12 +156,23 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Insurance'],
       }),
+      insuranceRecordPayment: build.mutation<
+        InsuranceRecordPaymentApiResponse,
+        InsuranceRecordPaymentApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/insurance/claims/${queryArg.id}/payment`,
+          method: 'POST',
+          body: queryArg.paymentReferenceDto,
+        }),
+        invalidatesTags: ['Insurance'],
+      }),
     }),
     overrideExisting: false,
   });
 export { injectedRtkApi as insuranceApi };
 export type InsuranceInsuredProjectsApiResponse =
-  /** status 200 Insured projects in the field, with who covers each */ {
+  /** status 200 Insured projects in the field with their insurer and cover; an insurer sees those assigned to it */ {
     data: InsuredProjectDto[];
     meta: PageMetaDto;
   };
@@ -153,6 +180,18 @@ export type InsuranceInsuredProjectsApiArg = {
   page?: number;
   limit?: number;
   districtCode?: District;
+  /** unassigned: no insurer yet; no_cover: assigned, terms not set; covered: terms set */
+  cover?: 'unassigned' | 'no_cover' | 'covered';
+  /** Words of the project title, or the farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
+};
+export type InsuranceAssignInsurerApiResponse =
+  /** status 200 An admin assigns the insurer; switching is allowed until the first claim and clears the old cover */ {
+    data: CoverageDto;
+  };
+export type InsuranceAssignInsurerApiArg = {
+  projectId: string;
+  assignInsurerDto: AssignInsurerDto;
 };
 export type InsuranceCoverageApiResponse = /** status 200  */ {
   data: CoverageDto;
@@ -161,7 +200,7 @@ export type InsuranceCoverageApiArg = {
   projectId: string;
 };
 export type InsuranceSetCoverageApiResponse =
-  /** status 200 The first insurer becomes the project insurer; only they change it */ {
+  /** status 200 The project's assigned insurer sets or changes its cover */ {
     data: CoverageDto;
   };
 export type InsuranceSetCoverageApiArg = {
@@ -178,6 +217,8 @@ export type InsuranceListWeatherEventsApiArg = {
   limit?: number;
   districtCode?: District;
   eventTypeCode?: string;
+  /** Words of the event type or the district */
+  q?: string;
 };
 export type InsuranceRecordWeatherEventApiResponse = /** status 201  */ {
   data: WeatherEventDto;
@@ -207,7 +248,17 @@ export type InsuranceListClaimsApiArg = {
   page?: number;
   limit?: number;
   projectId?: string;
-  status?: 'submitted' | 'triggered' | 'under_review' | 'approved' | 'rejected';
+  status?:
+    | 'submitted'
+    | 'triggered'
+    | 'under_review'
+    | 'approved'
+    | 'rejected'
+    | 'paid';
+  /** Approved claims waiting for the insurer's payment */
+  paymentDue?: boolean;
+  /** Words of the project title or the weather event type, or the farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type InsuranceClaimApiResponse = /** status 200  */ {
   data: ClaimDto;
@@ -237,6 +288,14 @@ export type InsuranceRejectApiArg = {
   id: string;
   assessmentDto: AssessmentDto;
 };
+export type InsuranceRecordPaymentApiResponse =
+  /** status 200 The insurer paid an approved claim to WeGro; only then it counts as project income */ {
+    data: ClaimDto;
+  };
+export type InsuranceRecordPaymentApiArg = {
+  id: string;
+  paymentReferenceDto: PaymentReferenceDto;
+};
 export type PartyDto = {
   id: string;
   name: string;
@@ -250,8 +309,10 @@ export type InsuredProjectDto = {
   district: PlaceDto;
   produceCode: string;
   stage: string;
-  /** Who covers it, if anyone yet */
+  farmer: PartyDto;
+  /** The insurer an admin assigned, if any */
   insurer?: PartyDto | null;
+  /** The assigned insurer's maximum cover, once set */
   maxAmount?: string | null;
 };
 export type PageMetaDto = {
@@ -341,17 +402,35 @@ export type CoverageVersionDto = {
 };
 export type CoverageDto = {
   projectId: string;
-  insurer: PartyDto;
-  /** The latest recorded version */
-  current: CoverageVersionDto;
-  /** Approved claims so far */
+  project: PartyDto;
+  farmer: PartyDto;
+  district: PlaceDto;
+  produceCode: string;
+  stage: string;
+  /** The crop is in the field (funded or active): cover can change and claims open */
+  inField: boolean;
+  /** The insurer an admin assigned, if any */
+  insurer?: PartyDto | null;
+  /** A claim was opened, so the insurer can no longer be changed */
+  insurerFixed: boolean;
+  /** The assigned insurer's latest recorded terms, if set */
+  current?: CoverageVersionDto | null;
+  /** Approved claims so far, paid or not */
   approvedTotal: string;
+  /** Claims the insurer has paid: what counts as project income */
+  paidTotal: string;
   /** Still available for claims */
   remaining: string;
   /** Claims waiting for the insurer */
   openClaims: number;
+  /** Approved claims waiting for the insurer's payment */
+  unpaidClaims: number;
   /** Earlier versions, newest first */
   history: CoverageVersionDto[];
+};
+export type AssignInsurerDto = {
+  /** A verified insurer */
+  insurerId: string;
 };
 export type SetCoverageDto = {
   /** Most the cover pays in total, taka */
@@ -394,11 +473,23 @@ export type ClaimDto = {
   /** Photo URLs */
   photos: string[];
   openedBy: PartyDto;
-  status: 'submitted' | 'triggered' | 'under_review' | 'approved' | 'rejected';
+  status:
+    | 'submitted'
+    | 'triggered'
+    | 'under_review'
+    | 'approved'
+    | 'rejected'
+    | 'paid';
   openedAt?: string | null;
   assessment?: AssessmentViewDto | null;
   approvedAmount?: string | null;
   decidedAt?: string | null;
+  /** The project's insurer */
+  insurer?: PartyDto | null;
+  /** When Accounts recorded the insurer's payment */
+  paidAt?: string | null;
+  /** Accounts, admins and auditors */
+  paymentReference?: string | null;
   claimHash: string;
   assessmentHash?: string | null;
 };
@@ -430,9 +521,13 @@ export type AssessmentDto = {
   /** From POST /photos */
   photoId?: string;
 };
+export type PaymentReferenceDto = {
+  paymentReference: string;
+};
 export const {
   useInsuranceInsuredProjectsQuery,
   useLazyInsuranceInsuredProjectsQuery,
+  useInsuranceAssignInsurerMutation,
   useInsuranceCoverageQuery,
   useLazyInsuranceCoverageQuery,
   useInsuranceSetCoverageMutation,
@@ -449,4 +544,5 @@ export const {
   useInsuranceStartReviewMutation,
   useInsuranceApproveMutation,
   useInsuranceRejectMutation,
+  useInsuranceRecordPaymentMutation,
 } = injectedRtkApi;

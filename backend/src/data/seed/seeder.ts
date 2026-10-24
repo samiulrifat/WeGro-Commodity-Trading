@@ -314,6 +314,11 @@ export class Seeder {
     ] as never);
   }
 
+  /**
+   * Insured: an admin assigns the insurer, who sets the cover; the officer
+   * claims for a flood and the insurer approves it. The insurer's payment is
+   * left for Accounts to record.
+   */
   private async claim(
     data: Dataset,
     p: DatasetProject,
@@ -323,6 +328,9 @@ export class Seeder {
     const insurance = this.get(InsuranceService);
     const claims = this.get(ClaimsService);
     const insurer = await this.as(data.people.insurer[0]);
+    await insurance.assignInsurer(await this.admin(data), project, {
+      insurerId: insurer.id,
+    });
     await insurance.setCoverage(insurer, project, {
       maxAmount: '20000',
       coveredEventTypes: ['FLOOD', 'CYCLONE'],

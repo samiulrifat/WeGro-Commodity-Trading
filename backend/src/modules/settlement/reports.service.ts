@@ -178,10 +178,10 @@ export class SettlementReportsService {
         [projectId],
       ),
       this.dataSource.query<Array<{ id: string; at: Date; amount: string }>>(
-        `SELECT id, decided_at AS at, approved_amount::text AS amount
+        `SELECT id, paid_at AS at, approved_amount::text AS amount
            FROM insurance_claims
-          WHERE project_id = $1 AND status = 'approved'
-          ORDER BY decided_at, id`,
+          WHERE project_id = $1 AND status = 'paid'
+          ORDER BY paid_at, id`,
         [projectId],
       ),
       this.dataSource.query<
@@ -242,7 +242,7 @@ export class SettlementReportsService {
       rows.push([
         'income',
         cl.at,
-        'Insurance claim approved',
+        'Insurance claim paid',
         `claim ${cl.id}`,
         taka(cl.amount),
       ]);

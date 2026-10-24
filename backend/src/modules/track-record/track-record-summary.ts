@@ -181,7 +181,7 @@ export class TrackRecordBuilder {
               `SELECT c.project_id, c.status, c.approved_amount::text AS amount, e.event_type_code,
                       to_char(e.occurred_on, 'YYYY-MM-DD') AS occurred_on, e.severity
                  FROM insurance_claims c JOIN weather_events e ON e.id = c.event_id
-                WHERE c.project_id = ANY($1) AND c.status IN ('approved', 'rejected')
+                WHERE c.project_id = ANY($1) AND c.status IN ('approved', 'paid', 'rejected')
                 ORDER BY e.occurred_on, c.id`,
               [ids],
             ),
@@ -250,7 +250,8 @@ export class TrackRecordBuilder {
       const costs = BigInt(round?.costs ?? 0);
       const inputsSpent = BigInt(inputsOf.get(p.id)?.amount ?? 0);
       const myClaims = claimsOf.get(p.id) ?? [];
-      const approved = myClaims.filter((c) => c.status === 'approved');
+      // Approved claims, paid by the insurer or not yet.
+      const approved = myClaims.filter((c) => c.status !== 'rejected');
       const insurance = approved.reduce((s, c) => s + BigInt(c.amount!), 0n);
       const farmerReceived = BigInt(farmerPaidOf.get(p.id)?.amount ?? 0);
       const finishedOn = p.finished_at ? bdDate(p.finished_at) : null;

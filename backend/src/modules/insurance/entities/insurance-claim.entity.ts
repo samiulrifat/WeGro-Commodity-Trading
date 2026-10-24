@@ -16,6 +16,8 @@ import { ClaimStatus } from '../insurance.enums';
  * A claim for crop damage, opened by the farmer's field officer (or an admin)
  * citing a weather event, and decided by the project's insurer. The claim
  * evidence and the insurer's assessment are each fingerprinted on the ledger.
+ * An approved claim counts as project income once Accounts records the
+ * insurer's payment (its reference encrypted here, only its hash on the ledger).
  */
 @Entity('insurance_claims')
 @Index('uq_insurance_claims_project_event', ['projectId', 'eventId'], {
@@ -24,7 +26,7 @@ import { ClaimStatus } from '../insurance.enums';
 @Index('ix_insurance_claims_status', ['status'])
 @Check(
   'ck_insurance_claims_status',
-  `"status" IN ('submitted', 'triggered', 'under_review', 'approved', 'rejected')`,
+  `"status" IN ('submitted', 'triggered', 'under_review', 'approved', 'rejected', 'paid')`,
 )
 @Check(
   'ck_insurance_claims_damage',
@@ -32,8 +34,15 @@ import { ClaimStatus } from '../insurance.enums';
 )
 @Check(
   'ck_insurance_claims_amount',
-  `("approved_amount" IS NULL) OR ("approved_amount" > 0 AND "status" = 'approved')`,
+  `("approved_amount" IS NULL) OR ("approved_amount" > 0 AND "status" IN ('approved', 'paid'))`,
 )
+@Index('uq_insurance_claims_payment_ref', ['paymentRefHash'], {
+  unique: true,
+  where: '"payment_ref_hash" IS NOT NULL',
+})
+@Index('ix_insurance_claims_payment_due', ['decidedAt'], {
+  where: `"status" = 'approved'`,
+})
 @Index('ix_insurance_claims_open', ['openedAt'], {
   where: `"status" IN ('triggered', 'under_review')`,
 })
@@ -94,6 +103,21 @@ export class InsuranceClaim {
 
   @Column({ type: 'timestamptz', nullable: true })
   decidedAt: Date | null;
+
+  // --- The insurer's payment to WeGro (recorded by Accounts) ---
+
+  @Column({ type: 'text', nullable: true })
+  paymentRefEnc: string | null;
+
+  /** Keyed hash of the reference, as on the ledger; each used once. */
+  @Column({ type: 'char', length: 66, nullable: true })
+  paymentRefHash: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  paidById: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  paidAt: Date | null;
 
   @Column({
     type: 'bigint',

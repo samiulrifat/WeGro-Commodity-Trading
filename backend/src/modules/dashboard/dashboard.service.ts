@@ -306,7 +306,7 @@ export class DashboardService {
                 JOIN projects p ON p.id = r.project_id WHERE r.status = 'confirmed')::text AS funding,
              (SELECT COALESCE(SUM(amount), 0) FROM refunds WHERE confirmed)::text AS refunded,
              (SELECT COALESCE(SUM(unit_price * quantity), 0) FROM offers WHERE status = 'delivered')::text AS sales,
-             (SELECT COALESCE(SUM(approved_amount), 0) FROM insurance_claims WHERE status = 'approved')::text AS insurance,
+             (SELECT COALESCE(SUM(approved_amount), 0) FROM insurance_claims WHERE status = 'paid')::text AS insurance,
              (SELECT COALESCE(SUM(amount), 0) FROM voucher_sales WHERE status = 'confirmed')::text AS inputs,
              (SELECT COALESCE(SUM(amount), 0) FROM payout_lines WHERE paid_at IS NOT NULL)::text AS payouts`,
         ),

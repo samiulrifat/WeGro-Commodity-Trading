@@ -29,6 +29,7 @@ import { Route as AppFarmUpdatesDraftsRouteImport } from './routes/_app/farm-upd
 import { Route as AppFarmUpdatesSentRouteImport } from './routes/_app/farm-updates/sent'
 import { Route as AppHoldingsIndexRouteImport } from './routes/_app/holdings/index'
 import { Route as AppInsuranceIndexRouteImport } from './routes/_app/insurance/index'
+import { Route as AppInsuranceWeatherEventsRouteImport } from './routes/_app/insurance/weather-events'
 import { Route as AppMarketplaceIndexRouteImport } from './routes/_app/marketplace/index'
 import { Route as AppMarketplaceApprovalsRouteImport } from './routes/_app/marketplace/approvals'
 import { Route as AppMarketplaceDeliveriesRouteImport } from './routes/_app/marketplace/deliveries'
@@ -74,6 +75,9 @@ import { Route as AppCatalogUnitsCodeRouteImport } from './routes/_app/catalog/u
 import { Route as AppCatalogWeatherEventsIndexRouteImport } from './routes/_app/catalog/weather-events/index'
 import { Route as AppCatalogWeatherEventsCodeRouteImport } from './routes/_app/catalog/weather-events/$code'
 import { Route as AppHoldingsBookingsBookingIdRouteImport } from './routes/_app/holdings/bookings/$bookingId'
+import { Route as AppInsuranceClaimsIndexRouteImport } from './routes/_app/insurance/claims/index'
+import { Route as AppInsuranceClaimsClaimIdRouteImport } from './routes/_app/insurance/claims/$claimId'
+import { Route as AppInsuranceProjectsProjectIdRouteImport } from './routes/_app/insurance/projects/$projectId'
 import { Route as AppMarketplaceDealsIndexRouteImport } from './routes/_app/marketplace/deals/index'
 import { Route as AppMarketplaceDealsOfferIdRouteImport } from './routes/_app/marketplace/deals/$offerId'
 import { Route as AppMarketplaceListingsListingIdRouteImport } from './routes/_app/marketplace/listings/$listingId'
@@ -184,6 +188,12 @@ const AppInsuranceIndexRoute = AppInsuranceIndexRouteImport.update({
   path: '/insurance/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInsuranceWeatherEventsRoute =
+  AppInsuranceWeatherEventsRouteImport.update({
+    id: '/insurance/weather-events',
+    path: '/insurance/weather-events',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppMarketplaceIndexRoute = AppMarketplaceIndexRouteImport.update({
   id: '/marketplace/',
   path: '/marketplace/',
@@ -416,6 +426,23 @@ const AppHoldingsBookingsBookingIdRoute =
     path: '/holdings/bookings/$bookingId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppInsuranceClaimsIndexRoute = AppInsuranceClaimsIndexRouteImport.update({
+  id: '/insurance/claims/',
+  path: '/insurance/claims/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInsuranceClaimsClaimIdRoute =
+  AppInsuranceClaimsClaimIdRouteImport.update({
+    id: '/insurance/claims/$claimId',
+    path: '/insurance/claims/$claimId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppInsuranceProjectsProjectIdRoute =
+  AppInsuranceProjectsProjectIdRouteImport.update({
+    id: '/insurance/projects/$projectId',
+    path: '/insurance/projects/$projectId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppMarketplaceDealsIndexRoute =
   AppMarketplaceDealsIndexRouteImport.update({
     id: '/marketplace/deals/',
@@ -488,6 +515,7 @@ export interface FileRoutesByFullPath {
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
+  '/insurance/weather-events': typeof AppInsuranceWeatherEventsRoute
   '/marketplace/approvals': typeof AppMarketplaceApprovalsRoute
   '/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
   '/marketplace/fees': typeof AppMarketplaceFeesRoute
@@ -534,6 +562,8 @@ export interface FileRoutesByFullPath {
   '/catalog/units/$code': typeof AppCatalogUnitsCodeRoute
   '/catalog/weather-events/$code': typeof AppCatalogWeatherEventsCodeRoute
   '/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
+  '/insurance/claims/$claimId': typeof AppInsuranceClaimsClaimIdRoute
+  '/insurance/projects/$projectId': typeof AppInsuranceProjectsProjectIdRoute
   '/marketplace/deals/$offerId': typeof AppMarketplaceDealsOfferIdRoute
   '/marketplace/listings/$listingId': typeof AppMarketplaceListingsListingIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
@@ -546,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/catalog/produce/': typeof AppCatalogProduceIndexRoute
   '/catalog/units/': typeof AppCatalogUnitsIndexRoute
   '/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
+  '/insurance/claims/': typeof AppInsuranceClaimsIndexRoute
   '/marketplace/deals/': typeof AppMarketplaceDealsIndexRoute
   '/people/changes/': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
@@ -564,6 +595,7 @@ export interface FileRoutesByTo {
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
+  '/insurance/weather-events': typeof AppInsuranceWeatherEventsRoute
   '/marketplace/approvals': typeof AppMarketplaceApprovalsRoute
   '/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
   '/marketplace/fees': typeof AppMarketplaceFeesRoute
@@ -610,6 +642,8 @@ export interface FileRoutesByTo {
   '/catalog/units/$code': typeof AppCatalogUnitsCodeRoute
   '/catalog/weather-events/$code': typeof AppCatalogWeatherEventsCodeRoute
   '/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
+  '/insurance/claims/$claimId': typeof AppInsuranceClaimsClaimIdRoute
+  '/insurance/projects/$projectId': typeof AppInsuranceProjectsProjectIdRoute
   '/marketplace/deals/$offerId': typeof AppMarketplaceDealsOfferIdRoute
   '/marketplace/listings/$listingId': typeof AppMarketplaceListingsListingIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
@@ -622,6 +656,7 @@ export interface FileRoutesByTo {
   '/catalog/produce': typeof AppCatalogProduceIndexRoute
   '/catalog/units': typeof AppCatalogUnitsIndexRoute
   '/catalog/weather-events': typeof AppCatalogWeatherEventsIndexRoute
+  '/insurance/claims': typeof AppInsuranceClaimsIndexRoute
   '/marketplace/deals': typeof AppMarketplaceDealsIndexRoute
   '/people/changes': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
@@ -642,6 +677,7 @@ export interface FileRoutesById {
   '/_app/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/_app/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/_app/farm-updates/sent': typeof AppFarmUpdatesSentRoute
+  '/_app/insurance/weather-events': typeof AppInsuranceWeatherEventsRoute
   '/_app/marketplace/approvals': typeof AppMarketplaceApprovalsRoute
   '/_app/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
   '/_app/marketplace/fees': typeof AppMarketplaceFeesRoute
@@ -688,6 +724,8 @@ export interface FileRoutesById {
   '/_app/catalog/units/$code': typeof AppCatalogUnitsCodeRoute
   '/_app/catalog/weather-events/$code': typeof AppCatalogWeatherEventsCodeRoute
   '/_app/holdings/bookings/$bookingId': typeof AppHoldingsBookingsBookingIdRoute
+  '/_app/insurance/claims/$claimId': typeof AppInsuranceClaimsClaimIdRoute
+  '/_app/insurance/projects/$projectId': typeof AppInsuranceProjectsProjectIdRoute
   '/_app/marketplace/deals/$offerId': typeof AppMarketplaceDealsOfferIdRoute
   '/_app/marketplace/listings/$listingId': typeof AppMarketplaceListingsListingIdRoute
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
@@ -700,6 +738,7 @@ export interface FileRoutesById {
   '/_app/catalog/produce/': typeof AppCatalogProduceIndexRoute
   '/_app/catalog/units/': typeof AppCatalogUnitsIndexRoute
   '/_app/catalog/weather-events/': typeof AppCatalogWeatherEventsIndexRoute
+  '/_app/insurance/claims/': typeof AppInsuranceClaimsIndexRoute
   '/_app/marketplace/deals/': typeof AppMarketplaceDealsIndexRoute
   '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
   '/_app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
@@ -720,6 +759,7 @@ export interface FileRouteTypes {
     | '/batches/$batchId'
     | '/farm-updates/drafts'
     | '/farm-updates/sent'
+    | '/insurance/weather-events'
     | '/marketplace/approvals'
     | '/marketplace/deliveries'
     | '/marketplace/fees'
@@ -766,6 +806,8 @@ export interface FileRouteTypes {
     | '/catalog/units/$code'
     | '/catalog/weather-events/$code'
     | '/holdings/bookings/$bookingId'
+    | '/insurance/claims/$claimId'
+    | '/insurance/projects/$projectId'
     | '/marketplace/deals/$offerId'
     | '/marketplace/listings/$listingId'
     | '/people/changes/$changeId'
@@ -778,6 +820,7 @@ export interface FileRouteTypes {
     | '/catalog/produce/'
     | '/catalog/units/'
     | '/catalog/weather-events/'
+    | '/insurance/claims/'
     | '/marketplace/deals/'
     | '/people/changes/'
     | '/projects/$projectId/'
@@ -796,6 +839,7 @@ export interface FileRouteTypes {
     | '/batches/$batchId'
     | '/farm-updates/drafts'
     | '/farm-updates/sent'
+    | '/insurance/weather-events'
     | '/marketplace/approvals'
     | '/marketplace/deliveries'
     | '/marketplace/fees'
@@ -842,6 +886,8 @@ export interface FileRouteTypes {
     | '/catalog/units/$code'
     | '/catalog/weather-events/$code'
     | '/holdings/bookings/$bookingId'
+    | '/insurance/claims/$claimId'
+    | '/insurance/projects/$projectId'
     | '/marketplace/deals/$offerId'
     | '/marketplace/listings/$listingId'
     | '/people/changes/$changeId'
@@ -854,6 +900,7 @@ export interface FileRouteTypes {
     | '/catalog/produce'
     | '/catalog/units'
     | '/catalog/weather-events'
+    | '/insurance/claims'
     | '/marketplace/deals'
     | '/people/changes'
     | '/projects/$projectId'
@@ -873,6 +920,7 @@ export interface FileRouteTypes {
     | '/_app/batches/$batchId'
     | '/_app/farm-updates/drafts'
     | '/_app/farm-updates/sent'
+    | '/_app/insurance/weather-events'
     | '/_app/marketplace/approvals'
     | '/_app/marketplace/deliveries'
     | '/_app/marketplace/fees'
@@ -919,6 +967,8 @@ export interface FileRouteTypes {
     | '/_app/catalog/units/$code'
     | '/_app/catalog/weather-events/$code'
     | '/_app/holdings/bookings/$bookingId'
+    | '/_app/insurance/claims/$claimId'
+    | '/_app/insurance/projects/$projectId'
     | '/_app/marketplace/deals/$offerId'
     | '/_app/marketplace/listings/$listingId'
     | '/_app/people/changes/$changeId'
@@ -931,6 +981,7 @@ export interface FileRouteTypes {
     | '/_app/catalog/produce/'
     | '/_app/catalog/units/'
     | '/_app/catalog/weather-events/'
+    | '/_app/insurance/claims/'
     | '/_app/marketplace/deals/'
     | '/_app/people/changes/'
     | '/_app/projects/$projectId/'
@@ -1088,6 +1139,13 @@ declare module '@tanstack/react-router' {
       path: '/insurance'
       fullPath: '/insurance/'
       preLoaderRoute: typeof AppInsuranceIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/insurance/weather-events': {
+      id: '/_app/insurance/weather-events'
+      path: '/insurance/weather-events'
+      fullPath: '/insurance/weather-events'
+      preLoaderRoute: typeof AppInsuranceWeatherEventsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/marketplace/': {
@@ -1405,6 +1463,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHoldingsBookingsBookingIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/insurance/claims/': {
+      id: '/_app/insurance/claims/'
+      path: '/insurance/claims'
+      fullPath: '/insurance/claims/'
+      preLoaderRoute: typeof AppInsuranceClaimsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/insurance/claims/$claimId': {
+      id: '/_app/insurance/claims/$claimId'
+      path: '/insurance/claims/$claimId'
+      fullPath: '/insurance/claims/$claimId'
+      preLoaderRoute: typeof AppInsuranceClaimsClaimIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/insurance/projects/$projectId': {
+      id: '/_app/insurance/projects/$projectId'
+      path: '/insurance/projects/$projectId'
+      fullPath: '/insurance/projects/$projectId'
+      preLoaderRoute: typeof AppInsuranceProjectsProjectIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/marketplace/deals/': {
       id: '/_app/marketplace/deals/'
       path: '/marketplace/deals'
@@ -1486,6 +1565,7 @@ interface AppRouteChildren {
   AppBatchesBatchIdRoute: typeof AppBatchesBatchIdRoute
   AppFarmUpdatesDraftsRoute: typeof AppFarmUpdatesDraftsRoute
   AppFarmUpdatesSentRoute: typeof AppFarmUpdatesSentRoute
+  AppInsuranceWeatherEventsRoute: typeof AppInsuranceWeatherEventsRoute
   AppMarketplaceApprovalsRoute: typeof AppMarketplaceApprovalsRoute
   AppMarketplaceDeliveriesRoute: typeof AppMarketplaceDeliveriesRoute
   AppMarketplaceFeesRoute: typeof AppMarketplaceFeesRoute
@@ -1530,6 +1610,8 @@ interface AppRouteChildren {
   AppCatalogUnitsCodeRoute: typeof AppCatalogUnitsCodeRoute
   AppCatalogWeatherEventsCodeRoute: typeof AppCatalogWeatherEventsCodeRoute
   AppHoldingsBookingsBookingIdRoute: typeof AppHoldingsBookingsBookingIdRoute
+  AppInsuranceClaimsClaimIdRoute: typeof AppInsuranceClaimsClaimIdRoute
+  AppInsuranceProjectsProjectIdRoute: typeof AppInsuranceProjectsProjectIdRoute
   AppMarketplaceDealsOfferIdRoute: typeof AppMarketplaceDealsOfferIdRoute
   AppMarketplaceListingsListingIdRoute: typeof AppMarketplaceListingsListingIdRoute
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
@@ -1542,6 +1624,7 @@ interface AppRouteChildren {
   AppCatalogProduceIndexRoute: typeof AppCatalogProduceIndexRoute
   AppCatalogUnitsIndexRoute: typeof AppCatalogUnitsIndexRoute
   AppCatalogWeatherEventsIndexRoute: typeof AppCatalogWeatherEventsIndexRoute
+  AppInsuranceClaimsIndexRoute: typeof AppInsuranceClaimsIndexRoute
   AppMarketplaceDealsIndexRoute: typeof AppMarketplaceDealsIndexRoute
   AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
   AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
@@ -1556,6 +1639,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBatchesBatchIdRoute: AppBatchesBatchIdRoute,
   AppFarmUpdatesDraftsRoute: AppFarmUpdatesDraftsRoute,
   AppFarmUpdatesSentRoute: AppFarmUpdatesSentRoute,
+  AppInsuranceWeatherEventsRoute: AppInsuranceWeatherEventsRoute,
   AppMarketplaceApprovalsRoute: AppMarketplaceApprovalsRoute,
   AppMarketplaceDeliveriesRoute: AppMarketplaceDeliveriesRoute,
   AppMarketplaceFeesRoute: AppMarketplaceFeesRoute,
@@ -1600,6 +1684,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppCatalogUnitsCodeRoute: AppCatalogUnitsCodeRoute,
   AppCatalogWeatherEventsCodeRoute: AppCatalogWeatherEventsCodeRoute,
   AppHoldingsBookingsBookingIdRoute: AppHoldingsBookingsBookingIdRoute,
+  AppInsuranceClaimsClaimIdRoute: AppInsuranceClaimsClaimIdRoute,
+  AppInsuranceProjectsProjectIdRoute: AppInsuranceProjectsProjectIdRoute,
   AppMarketplaceDealsOfferIdRoute: AppMarketplaceDealsOfferIdRoute,
   AppMarketplaceListingsListingIdRoute: AppMarketplaceListingsListingIdRoute,
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
@@ -1612,6 +1698,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCatalogProduceIndexRoute: AppCatalogProduceIndexRoute,
   AppCatalogUnitsIndexRoute: AppCatalogUnitsIndexRoute,
   AppCatalogWeatherEventsIndexRoute: AppCatalogWeatherEventsIndexRoute,
+  AppInsuranceClaimsIndexRoute: AppInsuranceClaimsIndexRoute,
   AppMarketplaceDealsIndexRoute: AppMarketplaceDealsIndexRoute,
   AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
   AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,

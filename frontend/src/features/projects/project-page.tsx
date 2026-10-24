@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useFormat } from '@/i18n/use-format';
 import { ProjectFarmUpdates } from '@/features/farm-updates/project-farm-updates';
+import { ProjectInsurance } from '@/features/insurance/project-insurance';
 import { ProjectVouchers } from '@/features/vouchers/project-vouchers';
 import { useAppSelector } from '@/store/hooks';
 import { FavouriteButton, Place, ProjectPhoto } from './project-card';
@@ -81,6 +82,7 @@ export function ProjectPage({ id }: { id: string }) {
         <div className="grid gap-6">
           <StaffPanel project={p} />
           <ProjectVouchers project={p} />
+          <ProjectInsurance project={p} />
           <Timeline project={p} />
         </div>
       </div>

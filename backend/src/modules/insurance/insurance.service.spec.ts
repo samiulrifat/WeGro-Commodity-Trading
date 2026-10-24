@@ -18,7 +18,9 @@ import {
 } from '../../../test/support/unit';
 import type { Project } from '../projects/entities/project.entity';
 import { ProjectStage } from '../projects/project.enums';
+import type { User } from '../users/entities/user.entity';
 import type { CoverageTerms } from './entities/coverage-terms.entity';
+import type { InsurerAssignment } from './entities/insurer-assignment.entity';
 import type { WeatherEvent } from './entities/weather-event.entity';
 import {
   coverageFingerprint,
@@ -28,6 +30,7 @@ import { InsuranceService } from './insurance.service';
 
 const PROJECT = randomUUID();
 const FARMER = randomUUID();
+const INSURER2 = randomUUID();
 
 describe('InsuranceService', () => {
   const insurer = actor(Role.INSURER);
@@ -38,6 +41,10 @@ describe('InsuranceService', () => {
       approved?: bigint;
       cover?: Partial<CoverageTerms>;
       officerOf?: boolean;
+      /** The project's current insurer; null for none. Default: `insurer`. */
+      assigned?: string | null;
+      claimCount?: bigint;
+      insurerUser?: Partial<User> | null;
     } = {},
   ) => {
     const project =
@@ -124,15 +131,45 @@ describe('InsuranceService', () => {
     });
     const registry = {
       approvedTotal: jest.fn(() => Promise.resolve(opts.approved ?? 0n)),
+      paidTotal: jest.fn(() => Promise.resolve(0n)),
       openClaims: jest.fn(() => Promise.resolve(0n)),
+      unpaidClaims: jest.fn(() => Promise.resolve(0n)),
+      claimCount: jest.fn(() => Promise.resolve(opts.claimCount ?? 0n)),
+    };
+    const assignments: InsurerAssignment[] = [];
+    const assignmentsRepo = fakeRepo({
+      create: jest.fn((a: InsurerAssignment) => ({ ...a, id: randomUUID() })),
+      insert: jest.fn(
+        (a: InsurerAssignment) => (assignments.push(a), Promise.resolve({})),
+      ),
+      delete: jest.fn((where: Record<string, unknown>) => {
+        const i = assignments.findIndex((a) => matchesWhere(a as never, where));
+        if (i >= 0) assignments.splice(i, 1);
+        return Promise.resolve({ affected: 1 });
+      }),
+    });
+    const users = {
+      exists: jest.fn(() => Promise.resolve(opts.officerOf ?? false)),
+      findOne: jest.fn(() =>
+        Promise.resolve(
+          opts.insurerUser === null
+            ? null
+            : {
+                id: INSURER2,
+                role: Role.INSURER,
+                status: 'verified',
+                chainState: 'confirmed',
+                ...opts.insurerUser,
+              },
+        ),
+      ),
     };
     const service = new InsuranceService(
       termsRepo as never,
       eventsRepo as never,
+      assignmentsRepo as never,
       fakeRepo({ findOneBy: jest.fn(() => Promise.resolve(project)) }) as never,
-      fakeRepo({
-        exists: jest.fn(() => Promise.resolve(opts.officerOf ?? false)),
-      }) as never,
+      fakeRepo(users) as never,
       fakeCatalog({
         weatherEventTypes: [{ code: 'FLOOD' }, { code: 'DROUGHT' }],
       }) as never,
@@ -141,14 +178,38 @@ describe('InsuranceService', () => {
       chain.tx as never,
       { apply: jest.fn(() => Promise.resolve()) } as never,
       fakeClock() as never,
+      { condition: () => null } as never,
     );
-    return { service, terms, events, chain, termsRepo };
+    // The SQL-backed lookups, from the in-memory rows: the current insurer,
+    // and the versions that insurer recorded (newest first).
+    const assigned = opts.assigned === undefined ? insurer.id : opts.assigned;
+    const versions = () =>
+      terms
+        .filter((t) => t.status === 'recorded' && t.insurerId === assigned)
+        .reverse();
+    jest
+      .spyOn(service, 'currentAssignment')
+      .mockImplementation(() =>
+        Promise.resolve(
+          assigned ? ({ insurerId: assigned } as InsurerAssignment) : null,
+        ),
+      );
+    jest
+      .spyOn(service, 'coverHistory')
+      .mockImplementation(() => Promise.resolve(versions()));
+    jest
+      .spyOn(service, 'currentCover')
+      .mockImplementation(() => Promise.resolve(versions()[0] ?? null));
+    jest
+      .spyOn(service, 'isAssignedTo')
+      .mockImplementation((_p, who) => Promise.resolve(who === assigned));
+    return { service, terms, events, chain, termsRepo, assignments };
   };
 
   describe('cover', () => {
     const dto = { maxAmount: '100000', coveredEventTypes: ['FLOOD'] };
 
-    it('records the first cover with its fingerprint, the insurer becoming the project’s insurer', async () => {
+    it('records the assigned insurer’s first cover with its fingerprint', async () => {
       const { service, terms, chain } = build();
       const res = await service.setCoverage(insurer, PROJECT, dto as never);
       const version = terms[0];
@@ -176,6 +237,13 @@ describe('InsuranceService', () => {
         previousTermsHash: '0xcurrent',
         coveredEventTypes: ['DROUGHT', 'FLOOD'],
       });
+    });
+
+    it('refuses cover before an insurer is assigned', async () => {
+      const err = await build({ assigned: null })
+        .service.setCoverage(insurer, PROJECT, dto as never)
+        .catch((e: ConflictException) => e.getResponse());
+      expect(err).toMatchObject({ code: 'INSURER_NOT_ASSIGNED' });
     });
 
     it('refuses unchanged terms, another insurer, and cover below what is approved', async () => {
@@ -243,8 +311,64 @@ describe('InsuranceService', () => {
     });
   });
 
+  describe('assigning the insurer', () => {
+    const admin = actor(Role.ADMIN);
+
+    it('records the admin’s choice on the ledger', async () => {
+      const { service, assignments, chain } = build({ assigned: null });
+      await service.assignInsurer(admin, PROJECT, { insurerId: INSURER2 });
+      expect(assignments[0]).toMatchObject({
+        projectId: PROJECT,
+        insurerId: INSURER2,
+        assignedById: admin.id,
+      });
+      expect(chain.sent[0]).toMatchObject({
+        method: 'assignInsurer',
+        args: [uuidToBytes32(PROJECT), uuidToBytes32(INSURER2)],
+      });
+    });
+
+    it('takes only a verified insurer, not the one already assigned', async () => {
+      for (const insurerUser of [
+        null,
+        { role: Role.FARMER },
+        { status: 'pending' },
+        { chainState: 'submitted' },
+      ] as const) {
+        const err = await build({ insurerUser: insurerUser as never })
+          .service.assignInsurer(admin, PROJECT, { insurerId: INSURER2 })
+          .catch((e: UnprocessableEntityException) => e.getResponse());
+        expect(err).toMatchObject({ code: 'NOT_AN_INSURER' });
+      }
+      const again = await build({ assigned: INSURER2 })
+        .service.assignInsurer(admin, PROJECT, { insurerId: INSURER2 })
+        .catch((e: ConflictException) => e.getResponse());
+      expect(again).toMatchObject({ code: 'INSURER_ALREADY_ASSIGNED' });
+    });
+
+    it('switches insurers only until the first claim', async () => {
+      const err = await build({ claimCount: 1n })
+        .service.assignInsurer(admin, PROJECT, { insurerId: INSURER2 })
+        .catch((e: ConflictException) => e.getResponse());
+      expect(err).toMatchObject({ code: 'INSURER_FIXED' });
+
+      const { service, assignments } = build({ cover: {} });
+      await service.assignInsurer(admin, PROJECT, { insurerId: INSURER2 });
+      expect(assignments).toHaveLength(1);
+    });
+
+    it('removes an assignment the ledger refuses', async () => {
+      const { service, assignments, chain } = build({ assigned: null });
+      chain.fail(revert('NotAnInsurer'));
+      await expect(
+        service.assignInsurer(admin, PROJECT, { insurerId: INSURER2 }),
+      ).rejects.toThrow();
+      expect(assignments).toEqual([]);
+    });
+  });
+
   describe('who sees a cover', () => {
-    it('staff, the project’s insurer, the farmer and their officer only', async () => {
+    it('staff, the project’s assigned insurer, the farmer and their officer only', async () => {
       const covered = build({ cover: {} });
       await expect(
         covered.service.coverage(actor(Role.ADMIN), PROJECT),
@@ -277,6 +401,16 @@ describe('InsuranceService', () => {
       expect(res).toMatchObject({
         approvedTotal: '110000.00',
         remaining: '0.00',
+      });
+    });
+
+    it('shows the insurer before any cover is set', async () => {
+      const res = await build().service.coverage(actor(Role.ADMIN), PROJECT);
+      expect(res).toMatchObject({
+        insurer: { id: insurer.id },
+        current: null,
+        insurerFixed: false,
+        inField: true,
       });
     });
   });

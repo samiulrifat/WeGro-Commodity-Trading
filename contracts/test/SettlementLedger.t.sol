@@ -275,6 +275,8 @@ contract SettlementLedgerTest is Test {
 
     function test_InsuranceCountsAsIncome() public {
         _inputs();
+        vm.prank(admin);
+        insurance.assignInsurer(MAIZE, JUI);
         vm.prank(jui);
         insurance.setCoverage(MAIZE, 500_000 * TK, keccak256("cover"));
         vm.prank(admin);
@@ -288,6 +290,14 @@ contract SettlementLedgerTest is Test {
 
         _sell(5_000, 30 * TK); // the crop that survived: Tk 150,000
         _readyForSale();
+        // Approved but not yet paid by the insurer: the final payout waits for it.
+        vm.prank(farhana);
+        vm.expectRevert(_outstanding("CLAIMS"));
+        settlement.prepareRound(MAIZE, true);
+        assertEq(_income(), 150_000 * TK); // only the sales so far
+
+        vm.prank(farhana);
+        insurance.recordClaimPayment("CLM", keccak256("TRX insurer"));
         uint256 id = _prepare(true);
         SettlementLedger.Round memory r = settlement.getRound(id);
         assertEq(r.income, 400_000 * TK); // 250,000 insurance + 150,000 sales
@@ -296,6 +306,10 @@ contract SettlementLedgerTest is Test {
     }
 
     // --- the final payout waits for everything that feeds it ------------------------------
+
+    function _income() internal view returns (uint256 income) {
+        (income,) = settlement.currentTotals(MAIZE);
+    }
 
     function _outstanding(bytes32 what) internal pure returns (bytes memory) {
         return abi.encodeWithSelector(SettlementLedger.StillOutstanding.selector, MAIZE, what);
@@ -370,6 +384,8 @@ contract SettlementLedgerTest is Test {
 
     function test_FinalWaitsForClaims() public {
         _inputs();
+        vm.prank(admin);
+        insurance.assignInsurer(MAIZE, JUI);
         vm.prank(jui);
         insurance.setCoverage(MAIZE, 100_000 * TK, keccak256("cover"));
         vm.startPrank(admin);

@@ -2,8 +2,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONTRACT_DIR } from './contract';
 import { overlapFound } from './pg-overlap';
+import { stopTestChain } from './test-chain';
 
 export default function globalTeardown(): void {
+  stopTestChain();
   reportContract();
   const stacks = overlapFound();
   if (stacks.length > 0) {

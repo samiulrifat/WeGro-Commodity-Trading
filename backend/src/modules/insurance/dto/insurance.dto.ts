@@ -6,6 +6,7 @@ import {
   ArrayMinSize,
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsIn,
@@ -34,12 +35,28 @@ const Percent = () => (target: object, key: string) => {
     message: '$property must be 0 to 100 with at most one decimal place',
   })(target, key);
 };
+const Bool = () =>
+  Transform(({ value }: { value: unknown }) =>
+    value === undefined ? undefined : value === true || value === 'true',
+  );
+const Search = (description: string) => (target: object, key: string) => {
+  ApiPropertyOptional({ description })(target, key);
+  IsOptional()(target, key);
+  IsString()(target, key);
+  MaxLength(100)(target, key);
+};
 const Taka = () =>
   Matches(/^(0|[1-9]\d{0,13})(\.\d{1,2})?$/, {
     message: '$property must be taka as a string, e.g. "300000"',
   });
 
 // --- Requests ---
+
+export class AssignInsurerDto {
+  @ApiProperty({ format: 'uuid', description: 'A verified insurer' })
+  @IsUUID('4')
+  insurerId: string;
+}
 
 export class SetCoverageDto {
   @ApiProperty({
@@ -118,6 +135,9 @@ export class ListWeatherEventsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @Matches(CODE_PATTERN)
   eventTypeCode?: string;
+
+  @Search('Words of the event type or the district')
+  q?: string;
 }
 
 export class OpenClaimDto {
@@ -202,13 +222,44 @@ export class ListClaimsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(ClaimStatus)
   status?: ClaimStatus;
+
+  @ApiPropertyOptional({
+    description: "Approved claims waiting for the insurer's payment",
+  })
+  @IsOptional()
+  @Bool()
+  @IsBoolean()
+  paymentDue?: boolean;
+
+  @Search(
+    'Words of the project title or the weather event type, or the farmer: a mobile number, an NID or whole words of their name',
+  )
+  q?: string;
 }
+
+/** Where an insured project stands with its insurer. */
+export const COVER_STATES = ['unassigned', 'no_cover', 'covered'] as const;
+export type CoverState = (typeof COVER_STATES)[number];
 
 export class InsuredProjectsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: DISTRICT_CODES, enumName: 'District' })
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;
+
+  @ApiPropertyOptional({
+    enum: COVER_STATES,
+    description:
+      'unassigned: no insurer yet; no_cover: assigned, terms not set; covered: terms set',
+  })
+  @IsOptional()
+  @IsIn(COVER_STATES)
+  cover?: CoverState;
+
+  @Search(
+    'Words of the project title, or the farmer: a mobile number, an NID or whole words of their name',
+  )
+  q?: string;
 }
 
 // --- Responses ---
@@ -257,16 +308,56 @@ export class CoverageDto {
   projectId: string;
 
   @ApiProperty({ type: PartyDto })
-  insurer: PartyDto;
+  project: PartyDto;
+
+  @ApiProperty({ type: PartyDto })
+  farmer: PartyDto;
+
+  @ApiProperty({ type: PlaceDto })
+  district: { code: string; name: string };
+
+  @ApiProperty({ example: 'MAIZE' })
+  produceCode: string;
+
+  @ApiProperty({ example: 'active' })
+  stage: string;
 
   @ApiProperty({
-    type: CoverageVersionDto,
-    description: 'The latest recorded version',
+    description:
+      'The crop is in the field (funded or active): cover can change and claims open',
   })
-  current: CoverageVersionDto;
+  inField: boolean;
 
-  @ApiProperty({ example: '120000.00', description: 'Approved claims so far' })
+  @ApiPropertyOptional({
+    nullable: true,
+    type: PartyDto,
+    description: 'The insurer an admin assigned, if any',
+  })
+  insurer: PartyDto | null;
+
+  @ApiProperty({
+    description: 'A claim was opened, so the insurer can no longer be changed',
+  })
+  insurerFixed: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: CoverageVersionDto,
+    description: "The assigned insurer's latest recorded terms, if set",
+  })
+  current: CoverageVersionDto | null;
+
+  @ApiProperty({
+    example: '120000.00',
+    description: 'Approved claims so far, paid or not',
+  })
   approvedTotal: string;
+
+  @ApiProperty({
+    example: '100000.00',
+    description: 'Claims the insurer has paid: what counts as project income',
+  })
+  paidTotal: string;
 
   @ApiProperty({
     example: '180000.00',
@@ -276,6 +367,11 @@ export class CoverageDto {
 
   @ApiProperty({ description: 'Claims waiting for the insurer' })
   openClaims: number;
+
+  @ApiProperty({
+    description: "Approved claims waiting for the insurer's payment",
+  })
+  unpaidClaims: number;
 
   @ApiProperty({
     type: [CoverageVersionDto],
@@ -297,14 +393,21 @@ export class InsuredProjectDto {
   @ApiProperty({ example: 'active' })
   stage: string;
 
+  @ApiProperty({ type: PartyDto })
+  farmer: PartyDto;
+
   @ApiPropertyOptional({
     nullable: true,
     type: PartyDto,
-    description: 'Who covers it, if anyone yet',
+    description: 'The insurer an admin assigned, if any',
   })
   insurer: PartyDto | null;
 
-  @ApiPropertyOptional({ nullable: true, type: String })
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "The assigned insurer's maximum cover, once set",
+  })
   maxAmount: string | null;
 }
 
@@ -384,6 +487,27 @@ export class ClaimDto {
 
   @ApiPropertyOptional({ nullable: true, type: Date })
   decidedAt: Date | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: PartyDto,
+    description: "The project's insurer",
+  })
+  insurer: PartyDto | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Date,
+    description: "When Accounts recorded the insurer's payment",
+  })
+  paidAt: Date | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Accounts, admins and auditors',
+  })
+  paymentReference: string | null;
 
   @ApiProperty()
   claimHash: string;

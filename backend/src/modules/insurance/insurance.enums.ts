@@ -5,6 +5,8 @@ export enum ClaimStatus {
   UNDER_REVIEW = 'under_review',
   APPROVED = 'approved',
   REJECTED = 'rejected',
+  /** Approved and paid by the insurer to WeGro (recorded by Accounts). */
+  PAID = 'paid',
 }
 
 export const CLAIM_STATUS_BY_CHAIN: Readonly<Record<number, ClaimStatus>> = {
@@ -12,6 +14,7 @@ export const CLAIM_STATUS_BY_CHAIN: Readonly<Record<number, ClaimStatus>> = {
   2: ClaimStatus.UNDER_REVIEW,
   3: ClaimStatus.APPROVED,
   4: ClaimStatus.REJECTED,
+  5: ClaimStatus.PAID,
 };
 
 export enum Severity {

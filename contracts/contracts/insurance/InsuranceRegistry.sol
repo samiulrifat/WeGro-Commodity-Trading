@@ -7,21 +7,24 @@ import {Roles} from "../access/Roles.sol";
 import {ProjectLedger} from "../projects/ProjectLedger.sol";
 
 /// @title InsuranceRegistry
-/// @notice Pretend crop insurance. An insurer sets cover on an insured project and
-/// becomes its insurer: only they change that cover and review its claims. Admins or
-/// insurers record weather events per district. When a farmer suffers damage, their
-/// field officer (or an admin) opens a claim citing a recorded event in the project's
-/// district, with a fingerprint of the claim evidence (Triggered -> UnderReview ->
-/// Approved or Rejected). Cover and claims are set while the crop is in the field
-/// (Funded or Active); the final payout waits until every claim is decided. Approved
-/// amounts count as project income at settlement. No money moves. Amounts in poisha.
+/// @notice Pretend crop insurance. An admin assigns an insurer to an insured project
+/// (and may switch insurers until its first claim); only that insurer sets its cover
+/// and reviews its claims. Admins or insurers record weather events per district.
+/// When a farmer suffers damage, their field officer (or an admin) opens a claim
+/// citing a recorded event in the project's district, with a fingerprint of the claim
+/// evidence (Triggered -> UnderReview -> Approved or Rejected; Approved -> Paid once
+/// Accounts records the insurer's payment). Cover and claims are set while the crop
+/// is in the field (Funded or Active); the final payout waits until every claim is
+/// decided and every approved one paid. Paid amounts count as project income at
+/// settlement. No money moves on-chain. Amounts in poisha.
 contract InsuranceRegistry is AccessGuarded {
     enum ClaimStatus {
         None,
         Triggered,
         UnderReview,
         Approved,
-        Rejected
+        Rejected,
+        Paid
     }
 
     struct Coverage {
@@ -46,6 +49,7 @@ contract InsuranceRegistry is AccessGuarded {
         bytes32 openedBy; // participant id
         bytes32 assessmentHash;
         uint64 openedAt;
+        bytes32 paymentRefHash; // the insurer's payment to WeGro, once recorded
     }
 
     ProjectLedger public immutable projectLedger;
@@ -54,11 +58,22 @@ contract InsuranceRegistry is AccessGuarded {
     mapping(bytes32 eventId => WeatherEvent) private _events;
     mapping(bytes32 claimId => Claim) private _claims;
     mapping(bytes32 projectId => mapping(bytes32 eventId => bool)) public hasClaim;
-    /// @notice Sum of approved claims per project, read by SettlementLedger.
+    /// @notice The insurer an admin assigned to each project.
+    mapping(bytes32 projectId => bytes32 insurerId) public assignedInsurer;
+    /// @notice Claims ever opened per project; the insurer is fixed after the first.
+    mapping(bytes32 projectId => uint256) public claimCount;
+    /// @notice Sum of approved claims per project (paid or not): what the cover has used.
     mapping(bytes32 projectId => uint256) public approvedTotal;
+    /// @notice Sum of claims the insurer has paid per project, read by SettlementLedger.
+    mapping(bytes32 projectId => uint256) public paidTotal;
     /// @notice Claims still Triggered or UnderReview per project.
     mapping(bytes32 projectId => uint256) public openClaims;
+    /// @notice Approved claims whose payment is not recorded yet, per project.
+    mapping(bytes32 projectId => uint256) public unpaidClaims;
+    /// @notice Payment references already used (hashes), so one payment is recorded once.
+    mapping(bytes32 paymentRefHash => bool) public paymentRefUsed;
 
+    event InsurerAssigned(bytes32 indexed projectId, bytes32 indexed insurerId, bytes32 previousInsurerId);
     event CoverageSet(bytes32 indexed projectId, bytes32 indexed insurerId, uint256 maxAmount, bytes32 termsHash);
     event WeatherEventRecorded(
         bytes32 indexed eventId, bytes32 indexed regionCode, bytes32 eventType, bytes32 detailsHash, address recordedBy
@@ -67,6 +82,7 @@ contract InsuranceRegistry is AccessGuarded {
         bytes32 indexed claimId, bytes32 indexed projectId, bytes32 indexed eventId, bytes32 claimHash, bytes32 openedBy
     );
     event ClaimStatusChanged(bytes32 indexed claimId, ClaimStatus status, uint256 approvedAmount, bytes32 assessmentHash);
+    event ClaimPaid(bytes32 indexed claimId, bytes32 indexed projectId, uint256 amount, bytes32 paymentRefHash);
 
     error ZeroValue();
     error ZeroProjectLedger();
@@ -84,20 +100,40 @@ contract InsuranceRegistry is AccessGuarded {
     error ExceedsCoverage(uint256 requested, uint256 available);
     error NotProjectInsurer(bytes32 projectId, bytes32 insurerId);
     error NotAuthorized(address account);
+    error NotAnInsurer(bytes32 participantId);
+    error NoInsurerAssigned(bytes32 projectId);
+    error InsurerAlreadyAssigned(bytes32 projectId, bytes32 insurerId);
+    error InsurerFixed(bytes32 projectId);
+    error PaymentRefUsed(bytes32 paymentRefHash);
 
     constructor(AccessRegistry registry_, ProjectLedger projectLedger_) AccessGuarded(registry_) {
         if (address(projectLedger_) == address(0)) revert ZeroProjectLedger();
         projectLedger = projectLedger_;
     }
 
-    /// @notice An insurer sets what an insured project is covered for. The first to do
-    /// so becomes the project's insurer; only they can change it later.
+    /// @notice An admin assigns a verified insurer to an insured project. Until the
+    /// project's first claim the admin may switch insurers; the old cover is cleared and
+    /// the new insurer sets their own.
+    function assignInsurer(bytes32 projectId, bytes32 insurerId) external onlyRole(Roles.ADMIN) {
+        if (insurerId == bytes32(0)) revert ZeroValue();
+        _insuredProject(projectId);
+        if (!registry.isVerifiedAs(insurerId, Roles.INSURER)) revert NotAnInsurer(insurerId);
+        bytes32 previous = assignedInsurer[projectId];
+        if (previous == insurerId) revert InsurerAlreadyAssigned(projectId, insurerId);
+        if (claimCount[projectId] != 0) revert InsurerFixed(projectId);
+        assignedInsurer[projectId] = insurerId;
+        delete _coverage[projectId];
+        emit InsurerAssigned(projectId, insurerId, previous);
+    }
+
+    /// @notice The project's assigned insurer sets (or changes) what it is covered for.
     function setCoverage(bytes32 projectId, uint256 maxAmount, bytes32 termsHash) external onlyRole(Roles.INSURER) {
         if (maxAmount == 0 || termsHash == bytes32(0)) revert ZeroValue();
         _insuredProject(projectId);
         bytes32 insurerId = _callerId();
-        bytes32 current = _coverage[projectId].insurerId;
-        if (current != bytes32(0) && current != insurerId) revert NotProjectInsurer(projectId, current);
+        bytes32 assigned = assignedInsurer[projectId];
+        if (assigned == bytes32(0)) revert NoInsurerAssigned(projectId);
+        if (assigned != insurerId) revert NotProjectInsurer(projectId, assigned);
         if (maxAmount < approvedTotal[projectId]) revert CoverageBelowApproved(maxAmount, approvedTotal[projectId]);
         _coverage[projectId] = Coverage({insurerId: insurerId, maxAmount: maxAmount, termsHash: termsHash});
         emit CoverageSet(projectId, insurerId, maxAmount, termsHash);
@@ -137,6 +173,7 @@ contract InsuranceRegistry is AccessGuarded {
         if (hasClaim[projectId][eventId]) revert AlreadyClaimed(projectId, eventId);
 
         hasClaim[projectId][eventId] = true;
+        claimCount[projectId]++;
         openClaims[projectId]++;
         _claims[claimId] = Claim({
             projectId: projectId,
@@ -146,7 +183,8 @@ contract InsuranceRegistry is AccessGuarded {
             claimHash: claimHash,
             openedBy: openedBy,
             assessmentHash: bytes32(0),
-            openedAt: uint64(block.timestamp)
+            openedAt: uint64(block.timestamp),
+            paymentRefHash: bytes32(0)
         });
         emit ClaimOpened(claimId, projectId, eventId, claimHash, openedBy);
     }
@@ -168,10 +206,25 @@ contract InsuranceRegistry is AccessGuarded {
 
         c.status = ClaimStatus.Approved;
         openClaims[c.projectId]--;
+        unpaidClaims[c.projectId]++;
         c.approvedAmount = amount;
         c.assessmentHash = assessmentHash;
         approvedTotal[c.projectId] += amount;
         emit ClaimStatusChanged(claimId, ClaimStatus.Approved, amount, assessmentHash);
+    }
+
+    /// @notice Accounts records that the insurer paid an approved claim to WeGro; only
+    /// then does it count as project income. The reference is kept as a hash.
+    function recordClaimPayment(bytes32 claimId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
+        if (paymentRefHash == bytes32(0)) revert ZeroValue();
+        if (paymentRefUsed[paymentRefHash]) revert PaymentRefUsed(paymentRefHash);
+        Claim storage c = _claimIn(claimId, ClaimStatus.Approved);
+        paymentRefUsed[paymentRefHash] = true;
+        c.status = ClaimStatus.Paid;
+        c.paymentRefHash = paymentRefHash;
+        unpaidClaims[c.projectId]--;
+        paidTotal[c.projectId] += c.approvedAmount;
+        emit ClaimPaid(claimId, c.projectId, c.approvedAmount, paymentRefHash);
     }
 
     function rejectClaim(bytes32 claimId, bytes32 assessmentHash) external onlyRole(Roles.INSURER) {

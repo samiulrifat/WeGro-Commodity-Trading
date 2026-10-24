@@ -254,4 +254,16 @@ const QUEUES: QueueDef[] = [
               FROM insurance_claims c JOIN projects p ON p.id = c.project_id
              WHERE c.status IN ('triggered', 'under_review') ORDER BY c.opened_at LIMIT 5`,
   },
+  {
+    key: 'claims.payment-due',
+    title: "Approved insurance claims waiting for the insurer's payment",
+    actionBy: 'Accounts',
+    roles: ACCOUNTS,
+    count: `SELECT COUNT(*) AS n FROM insurance_claims WHERE status = 'approved'`,
+    items: `SELECT c.id::text AS id, 'Claim approved' AS title,
+                   (c.approved_amount / 100)::text || ' taka' AS detail, c.opened_by_id AS person_id,
+                   c.project_id, p.title AS project_title, c.decided_at AS since
+              FROM insurance_claims c JOIN projects p ON p.id = c.project_id
+             WHERE c.status = 'approved' ORDER BY c.decided_at LIMIT 5`,
+  },
 ];

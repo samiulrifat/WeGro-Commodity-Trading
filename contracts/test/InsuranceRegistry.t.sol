@@ -60,6 +60,8 @@ contract InsuranceRegistryTest is Test {
 
         _fund(MAIZE, true);
         _fund(RICE, false);
+        vm.prank(admin);
+        insurance.assignInsurer(MAIZE, JUI);
         vm.prank(jui);
         insurance.setCoverage(MAIZE, 300_000 * TK, keccak256("flood and drought cover"));
         vm.prank(admin);
@@ -101,6 +103,14 @@ contract InsuranceRegistryTest is Test {
     function _open() internal {
         vm.prank(imran);
         insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
+    }
+
+    function _approve(uint256 amount) internal {
+        _open();
+        vm.startPrank(jui);
+        insurance.startReview(CLAIM);
+        insurance.approveClaim(CLAIM, amount, keccak256("field assessment"));
+        vm.stopPrank();
     }
 
     function _status() internal view returns (uint8) {
@@ -382,5 +392,147 @@ contract InsuranceRegistryTest is Test {
         vm.prank(mitu);
         vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, MAIZE, JUI));
         insurance.approveClaim(CLAIM, 1, keccak256("x"));
+    }
+
+    // --- the admin assigns the insurer -------------------------------------------------
+
+    function test_AdminAssignsTheInsurer() public {
+        bytes32 other = keccak256("PRJ-MAIZE-03");
+        _fund(other, true);
+
+        vm.prank(jui); // no insurer assigned yet: nobody sets cover
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NoInsurerAssigned.selector, other));
+        insurance.setCoverage(other, 1, keccak256("x"));
+
+        bytes32 adminRole = registry.ADMIN_ROLE();
+        vm.prank(jui); // insurers do not pick projects themselves
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, jui, adminRole));
+        insurance.assignInsurer(other, JUI);
+
+        vm.startPrank(admin);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotAnInsurer.selector, RAHIM));
+        insurance.assignInsurer(other, RAHIM);
+        vm.expectRevert(InsuranceRegistry.ZeroValue.selector);
+        insurance.assignInsurer(other, bytes32(0));
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotInsured.selector, RICE));
+        insurance.assignInsurer(RICE, JUI);
+        vm.expectEmit(address(insurance));
+        emit InsuranceRegistry.InsurerAssigned(other, MITU, bytes32(0));
+        insurance.assignInsurer(other, MITU);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.InsurerAlreadyAssigned.selector, other, MITU));
+        insurance.assignInsurer(other, MITU);
+        vm.stopPrank();
+        assertEq(insurance.assignedInsurer(other), MITU);
+
+        vm.prank(jui); // only the assigned insurer sets the cover
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, other, MITU));
+        insurance.setCoverage(other, 1, keccak256("x"));
+        vm.prank(mitu);
+        insurance.setCoverage(other, 50_000 * TK, keccak256("mitu's cover"));
+        assertEq(insurance.getCoverage(other).insurerId, MITU);
+    }
+
+    function test_SuperAdminAssignsToo() public {
+        bytes32 other = keccak256("PRJ-MAIZE-03");
+        _fund(other, true);
+        vm.prank(superAdmin);
+        insurance.assignInsurer(other, JUI);
+        assertEq(insurance.assignedInsurer(other), JUI);
+    }
+
+    function test_SwitchingInsurersClearsCoverUntilTheFirstClaim() public {
+        vm.prank(admin);
+        vm.expectEmit(address(insurance));
+        emit InsuranceRegistry.InsurerAssigned(MAIZE, MITU, JUI);
+        insurance.assignInsurer(MAIZE, MITU);
+        assertEq(insurance.getCoverage(MAIZE).maxAmount, 0); // Jui's terms are gone
+
+        vm.prank(admin); // no cover now, so no claim
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NoCoverage.selector, MAIZE));
+        insurance.openClaim(CLAIM, MAIZE, FLOOD, EVIDENCE);
+        vm.prank(jui);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.NotProjectInsurer.selector, MAIZE, MITU));
+        insurance.setCoverage(MAIZE, 1, keccak256("x"));
+        vm.prank(mitu);
+        insurance.setCoverage(MAIZE, 200_000 * TK, keccak256("mitu's cover"));
+
+        _open();
+        vm.prank(admin); // the first claim fixes the insurer
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.InsurerFixed.selector, MAIZE));
+        insurance.assignInsurer(MAIZE, JUI);
+        assertEq(insurance.claimCount(MAIZE), 1);
+    }
+
+    // --- Accounts records the insurer's payment -------------------------------------------
+
+    function test_PaymentMakesAnApprovedClaimIncome() public {
+        _approve(120_000 * TK);
+        assertEq(insurance.unpaidClaims(MAIZE), 1);
+        assertEq(insurance.paidTotal(MAIZE), 0); // approved is not yet money
+
+        bytes32 ref = keccak256("TRX 77120");
+        vm.expectEmit(address(insurance));
+        emit InsuranceRegistry.ClaimPaid(CLAIM, MAIZE, 120_000 * TK, ref);
+        vm.prank(accounts);
+        insurance.recordClaimPayment(CLAIM, ref);
+
+        assertEq(_status(), uint8(InsuranceRegistry.ClaimStatus.Paid));
+        assertEq(insurance.getClaim(CLAIM).paymentRefHash, ref);
+        assertEq(insurance.paidTotal(MAIZE), 120_000 * TK);
+        assertEq(insurance.approvedTotal(MAIZE), 120_000 * TK);
+        assertEq(insurance.unpaidClaims(MAIZE), 0);
+    }
+
+    function test_PaymentGuards() public {
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.ClaimNotFound.selector, CLAIM));
+        insurance.recordClaimPayment(CLAIM, keccak256("r"));
+
+        _open();
+        vm.prank(accounts); // only an approved claim is paid
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InsuranceRegistry.WrongClaimStatus.selector, CLAIM, InsuranceRegistry.ClaimStatus.Triggered
+            )
+        );
+        insurance.recordClaimPayment(CLAIM, keccak256("r"));
+        vm.startPrank(jui);
+        insurance.startReview(CLAIM);
+        insurance.approveClaim(CLAIM, 1_000 * TK, keccak256("a"));
+        vm.stopPrank();
+
+        bytes32 accountsRole = registry.ACCOUNTS_ROLE();
+        vm.prank(admin); // paying is Accounts' job
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, admin, accountsRole));
+        insurance.recordClaimPayment(CLAIM, keccak256("r"));
+        vm.startPrank(accounts);
+        vm.expectRevert(InsuranceRegistry.ZeroValue.selector);
+        insurance.recordClaimPayment(CLAIM, bytes32(0));
+        insurance.recordClaimPayment(CLAIM, keccak256("r"));
+        vm.expectRevert(
+            abi.encodeWithSelector(InsuranceRegistry.WrongClaimStatus.selector, CLAIM, InsuranceRegistry.ClaimStatus.Paid)
+        );
+        insurance.recordClaimPayment(CLAIM, keccak256("r2"));
+        vm.stopPrank();
+
+        // One payment reference is recorded once.
+        vm.prank(admin);
+        insurance.recordWeatherEvent("DROUGHT-2026", "BOGURA", "DROUGHT", keccak256("r"));
+        vm.prank(imran);
+        insurance.openClaim("CLM-0002", MAIZE, "DROUGHT-2026", EVIDENCE);
+        vm.startPrank(jui);
+        insurance.startReview("CLM-0002");
+        insurance.approveClaim("CLM-0002", 1_000 * TK, keccak256("a"));
+        vm.stopPrank();
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(InsuranceRegistry.PaymentRefUsed.selector, keccak256("r")));
+        insurance.recordClaimPayment("CLM-0002", keccak256("r"));
+    }
+
+    function test_SuperAdminRecordsPaymentToo() public {
+        _approve(1_000 * TK);
+        vm.prank(superAdmin);
+        insurance.recordClaimPayment(CLAIM, keccak256("r"));
+        assertEq(insurance.paidTotal(MAIZE), 1_000 * TK);
     }
 }

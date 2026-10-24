@@ -39,7 +39,9 @@ import {
   RecordWeatherEventDto,
   SetCoverageDto,
   WeatherEventDto,
+  AssignInsurerDto,
 } from './dto/insurance.dto';
+import { PaymentReferenceDto } from '../projects/dto/project-request.dto';
 import { InsuranceService } from './insurance.service';
 
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.NOT_FOUND });
@@ -71,12 +73,29 @@ export class InsuranceController {
   @Roles(...STAFF, Role.INSURER)
   @ApiOkResponse({
     type: [InsuredProjectDto],
-    description: 'Insured projects in the field, with who covers each',
+    description:
+      'Insured projects in the field with their insurer and cover; an insurer sees those assigned to it',
   })
   insuredProjects(
+    @CurrentUser() actor: AuthUser,
     @Query() query: InsuredProjectsQueryDto,
   ): Promise<Paginated<InsuredProjectDto>> {
-    return this.insurance.insuredProjects(query);
+    return this.insurance.insuredProjects(actor, query);
+  }
+
+  @Put('projects/:projectId/insurer')
+  @Roles(Role.ADMIN)
+  @ApiOkResponse({
+    type: CoverageDto,
+    description:
+      'An admin assigns the insurer; switching is allowed until the first claim and clears the old cover',
+  })
+  assignInsurer(
+    @CurrentUser() actor: AuthUser,
+    @Param('projectId', uuid) projectId: string,
+    @Body() dto: AssignInsurerDto,
+  ): Promise<CoverageDto> {
+    return this.insurance.assignInsurer(actor, projectId, dto);
   }
 
   @Get('projects/:projectId/coverage')
@@ -93,8 +112,7 @@ export class InsuranceController {
   @Roles(Role.INSURER)
   @ApiOkResponse({
     type: CoverageDto,
-    description:
-      'The first insurer becomes the project insurer; only they change it',
+    description: "The project's assigned insurer sets or changes its cover",
   })
   setCoverage(
     @CurrentUser() actor: AuthUser,
@@ -206,6 +224,22 @@ export class InsuranceController {
     @Body() dto: AssessmentDto,
   ): Promise<ClaimDto> {
     return this.claims.reject(actor, id, dto);
+  }
+
+  @Post('claims/:id/payment')
+  @Roles(Role.ACCOUNTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: ClaimDto,
+    description:
+      'The insurer paid an approved claim to WeGro; only then it counts as project income',
+  })
+  recordPayment(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', uuid) id: string,
+    @Body() dto: PaymentReferenceDto,
+  ): Promise<ClaimDto> {
+    return this.claims.recordPayment(actor, id, dto.paymentReference);
   }
 
   @Get('claims/:id/photos/:n')

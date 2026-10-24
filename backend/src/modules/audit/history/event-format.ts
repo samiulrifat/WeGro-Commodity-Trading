@@ -79,10 +79,12 @@ const TITLES: Readonly<Record<string, string>> = {
   RequestPosted: 'Buyer request posted',
   RequestCancelled: 'Buyer request cancelled',
   // InsuranceRegistry
+  InsurerAssigned: 'Insurer assigned',
   CoverageSet: 'Insurance cover set',
   WeatherEventRecorded: 'Weather event recorded',
   ClaimOpened: 'Insurance claim opened',
   ClaimStatusChanged: 'Insurance claim status changed',
+  ClaimPaid: 'Insurance claim paid by the insurer',
   // SettlementLedger
   CostAdded: 'Cost entered',
   CostVoided: 'Cost voided',

@@ -1,10 +1,8 @@
 import { useNavigate } from '@tanstack/react-router';
-import { ImagePlus, X } from 'lucide-react';
-import { type FormEvent, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type ApiError, toApiError } from '@/api/errors';
-import { usePhotoUploadMutation } from '@/api/files';
 import { useCatalogGetQuery } from '@/api/generated/catalog';
 import type { District } from '@/api/generated/codes';
 import {
@@ -16,6 +14,7 @@ import { useProjectsListQuery } from '@/api/generated/projects';
 import { useWarehouseListQuery } from '@/api/generated/warehouse';
 import { FormError } from '@/app/auth/form-error';
 import { actsAs } from '@/app/navigation';
+import { PhotoPicker } from '@/components/photo-picker';
 import { Button } from '@/components/ui/button';
 import { SearchSelect } from '@/components/ui/combobox';
 import {
@@ -41,8 +40,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useObjectUrl } from '@/features/farm-updates/hooks';
-import { shrinkPhoto } from '@/features/farm-updates/photo';
+import { usePhotoPicks } from '@/lib/use-photo-picks';
 import { useDistrictOptions } from '@/features/people/use-district-options';
 import { typedTaka } from '@/features/projects/project-math';
 import { receiptNumber } from '@/features/warehouse/receipt-utils';
@@ -56,14 +54,6 @@ import {
   wholeNumber,
 } from './market-utils';
 
-/** A photo picked for a listing, sent to the server as soon as it is chosen. */
-interface Picked {
-  key: number;
-  blob: Blob;
-  id: string | null;
-  failed: boolean;
-}
-
 /**
  * An outside seller lists their own produce: a catalog crop, how much in
  * its unit, the price per unit, where it is, a few words and one to three
@@ -76,17 +66,14 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
   const catalog = useCatalogGetQuery({});
   const districts = useDistrictOptions();
   const [list, listing] = useTradeListExternalMutation();
-  const [upload] = usePhotoUploadMutation();
   const [produce, setProduce] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
   const [district, setDistrict] = useState<District | null>(null);
   const [description, setDescription] = useState('');
-  const [photos, setPhotos] = useState<Picked[]>([]);
+  const picks = usePhotoPicks(MAX_PHOTOS);
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const keys = useRef(0);
-  const input = useRef<HTMLInputElement>(null);
 
   const options = useMemo(
     () =>
@@ -101,37 +88,15 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
     '';
   const qty = wholeNumber(quantity);
   const unitPrice = typedTaka(price);
-  const uploading = photos.some((p) => !p.id && !p.failed);
+  const { uploading } = picks;
   const missing = {
     produce: !produce,
     quantity: !validQuantity(qty),
     price: !unitPrice || unitPrice === '0',
     district: !district,
-    photos: photos.filter((p) => p.id).length === 0,
+    photos: picks.ids.length === 0,
   };
   const show = (k: keyof typeof missing) => tried && missing[k];
-
-  async function add(files: FileList | null) {
-    const room = MAX_PHOTOS - photos.length;
-    for (const file of Array.from(files ?? []).slice(0, room)) {
-      const key = ++keys.current;
-      const blob = await shrinkPhoto(file);
-      setPhotos((ps) => [...ps, { key, blob, id: null, failed: false }]);
-      upload({ body: { file: blob } })
-        .unwrap()
-        .then((res) =>
-          setPhotos((ps) =>
-            ps.map((p) => (p.key === key ? { ...p, id: res.data.id } : p)),
-          ),
-        )
-        .catch(() =>
-          setPhotos((ps) =>
-            ps.map((p) => (p.key === key ? { ...p, failed: true } : p)),
-          ),
-        );
-    }
-    if (input.current) input.current.value = '';
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -146,7 +111,7 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
           askingUnitPrice: unitPrice!,
           districtCode: district!,
           ...(description.trim() ? { description: description.trim() } : {}),
-          photoIds: photos.flatMap((p) => (p.id ? [p.id] : [])),
+          photoIds: picks.ids,
         },
       }).unwrap();
       toast.success(t('market.listedExternal'));
@@ -268,40 +233,7 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
           </Field>
           <Field data-invalid={show('photos') || undefined}>
             <FieldLabel>{t('market.photos')}</FieldLabel>
-            <div className="grid grid-cols-3 gap-3">
-              {photos.map((p) => (
-                <PhotoTile
-                  key={p.key}
-                  photo={p}
-                  onRemove={() =>
-                    setPhotos((ps) => ps.filter((x) => x.key !== p.key))
-                  }
-                />
-              ))}
-              {photos.length < MAX_PHOTOS && (
-                <button
-                  type="button"
-                  onClick={() => input.current?.click()}
-                  className={cn(
-                    'grid aspect-square place-items-center rounded-xl border-2 border-dashed text-sm font-semibold text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
-                    show('photos') && 'border-danger',
-                  )}
-                >
-                  <span className="grid justify-items-center gap-1">
-                    <ImagePlus aria-hidden className="size-6" />
-                    {t('market.addPhoto')}
-                  </span>
-                </button>
-              )}
-            </div>
-            <input
-              ref={input}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              hidden
-              onChange={(e) => void add(e.target.files)}
-            />
+            <PhotoPicker picks={picks} invalid={show('photos')} />
             {show('photos') ? (
               <FieldError>{t('market.required.photos')}</FieldError>
             ) : (
@@ -327,44 +259,6 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function PhotoTile({
-  photo,
-  onRemove,
-}: {
-  photo: Picked;
-  onRemove: () => void;
-}) {
-  const { t } = useTranslation();
-  const url = useObjectUrl(photo.blob);
-  return (
-    <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
-      {url && (
-        <img
-          src={url}
-          alt=""
-          className={cn(
-            'size-full object-cover',
-            !photo.id && !photo.failed && 'opacity-60',
-          )}
-        />
-      )}
-      {photo.failed && (
-        <p className="absolute inset-x-0 bottom-0 bg-danger px-2 py-1 text-xs font-semibold text-white">
-          {t('market.photoFailed')}
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={t('market.removePhoto')}
-        className="absolute top-1 right-1 grid size-8 place-items-center rounded-full bg-ink/80 text-white outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <X aria-hidden className="size-4" />
-      </button>
-    </div>
   );
 }
 

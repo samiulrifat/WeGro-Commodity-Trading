@@ -119,6 +119,33 @@ import type { NonPayableOverrides } from "../../common.js"
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "insurerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "InsurerAlreadyAssigned",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "InsurerFixed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -141,6 +168,28 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "NoCoverage",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "NoInsurerAssigned",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "participantId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "NotAnInsurer",
     "type": "error"
   },
   {
@@ -179,6 +228,17 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "NotProjectInsurer",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "paymentRefHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "PaymentRefUsed",
     "type": "error"
   },
   {
@@ -291,6 +351,37 @@ import type { NonPayableOverrides } from "../../common.js"
         "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "paymentRefHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ClaimPaid",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      },
+      {
         "indexed": false,
         "internalType": "enum InsuranceRegistry.ClaimStatus",
         "name": "status",
@@ -341,6 +432,31 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "CoverageSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "insurerId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "previousInsurerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "InsurerAssigned",
     "type": "event"
   },
   {
@@ -426,6 +542,62 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "insurerId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "assignInsurer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "assignedInsurer",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "insurerId",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "claimCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "claimId",
         "type": "bytes32"
       }
@@ -473,6 +645,11 @@ import type { NonPayableOverrides } from "../../common.js"
             "internalType": "uint64",
             "name": "openedAt",
             "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "paymentRefHash",
+            "type": "bytes32"
           }
         ],
         "internalType": "struct InsuranceRegistry.Claim",
@@ -632,6 +809,44 @@ import type { NonPayableOverrides } from "../../common.js"
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "paidTotal",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "paymentRefHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "paymentRefUsed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "projectLedger",
     "outputs": [
@@ -642,6 +857,24 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentRefHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "recordClaimPayment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -737,6 +970,25 @@ import type { NonPayableOverrides } from "../../common.js"
     "name": "startReview",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "projectId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "unpaidClaims",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ] as const;

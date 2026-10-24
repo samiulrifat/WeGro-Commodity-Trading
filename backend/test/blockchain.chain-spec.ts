@@ -6,9 +6,7 @@
  * uses fresh ids and key indexes, so runs never collide on the shared node.
  */
 import { randomInt, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseEnv } from 'node:util';
 import type { INestApplicationContext } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -81,10 +79,7 @@ describe('Blockchain layer (node + database)', () => {
 
   beforeAll(async () => {
     // Only this run's blocks: the deployment-block search has unit tests.
-    const fileEnv = parseEnv(
-      readFileSync(join(__dirname, '..', '.env'), 'utf8'),
-    );
-    process.env.CHAIN_START_BLOCK = await indexFromHere(fileEnv.CHAIN_RPC_URL);
+    process.env.CHAIN_START_BLOCK = await indexFromHere();
     const imports = chainTestImports(); // also loads .env into process.env
 
     // Throwaway schema first, so the migrations run inside it.

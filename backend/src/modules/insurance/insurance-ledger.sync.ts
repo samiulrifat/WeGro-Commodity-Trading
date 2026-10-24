@@ -5,11 +5,12 @@ import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.reg
 import { bytes32ToUuid } from '../../blockchain/utils/ids';
 import { CoverageTerms } from './entities/coverage-terms.entity';
 import { InsuranceClaim } from './entities/insurance-claim.entity';
+import { InsurerAssignment } from './entities/insurer-assignment.entity';
 import { WeatherEvent } from './entities/weather-event.entity';
 import { CLAIM_STATUS_BY_CHAIN, ClaimStatus } from './insurance.enums';
 
 /**
- * Keeps cover versions, weather events and claims in step with
+ * Keeps insurer assignments, cover versions, weather events and claims in step with
  * InsuranceRegistry. Changes are guarded by the event's (block, log)
  * position or are one-way, so applying an event twice changes nothing.
  * The ledger's fingerprints must be the ones stored here; a difference is logged.
@@ -22,14 +23,19 @@ export class InsuranceLedgerSync implements OnModuleInit {
 
   onModuleInit(): void {
     for (const name of [
+      'InsurerAssigned',
       'CoverageSet',
       'WeatherEventRecorded',
       'ClaimOpened',
       'ClaimStatusChanged',
+      'ClaimPaid',
     ]) {
       this.handlers.on('InsuranceRegistry', name, (e, m) => this.apply(e, m));
     }
     this.handlers.onReset(async (m) => {
+      await m.query(
+        `UPDATE "insurer_assignments" SET "status" = 'submitted', "recorded_at" = NULL, "chain_event_block" = -1, "chain_event_log" = -1`,
+      );
       await m.query(
         `UPDATE "coverage_terms" SET "status" = 'submitted', "recorded_at" = NULL, "chain_event_block" = -1, "chain_event_log" = -1`,
       );
@@ -38,7 +44,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
       );
       await m.query(
         `UPDATE "insurance_claims" SET "status" = 'submitted', "approved_amount" = NULL, "decided_at" = NULL,
-                "opened_at" = NULL, "chain_event_block" = -1, "chain_event_log" = -1`,
+                "opened_at" = NULL, "paid_at" = NULL, "chain_event_block" = -1, "chain_event_log" = -1`,
       );
     });
   }
@@ -47,6 +53,35 @@ export class InsuranceLedgerSync implements OnModuleInit {
     const a = event.args;
     const when = event.blockTime ?? new Date();
     switch (event.eventName) {
+      case 'InsurerAssigned': {
+        const projectId = toUuid(a.projectId);
+        const insurerId = toUuid(a.insurerId);
+        if (!projectId || !insurerId) return;
+        // The oldest assignment still waiting for this pair is the one sent.
+        const row = await m.findOne(InsurerAssignment, {
+          where: { projectId, insurerId, status: 'submitted' },
+          order: { createdAt: 'ASC' },
+          select: { id: true },
+        });
+        if (!row) {
+          this.logger.debug(
+            `InsurerAssigned for project ${projectId}: no assignment waiting; ignored`,
+          );
+          return;
+        }
+        await m.update(
+          InsurerAssignment,
+          { id: row.id, status: 'submitted' },
+          {
+            status: 'recorded',
+            recordedAt: when,
+            chainEventBlock: event.blockNumber,
+            chainEventLog: event.logIndex,
+          },
+        );
+        return;
+      }
+
       case 'CoverageSet': {
         const projectId = toUuid(a.projectId);
         if (!projectId) return;
@@ -141,6 +176,26 @@ export class InsuranceLedgerSync implements OnModuleInit {
             approvedAmount: BigInt(String(a.approvedAmount)),
           }),
           ...(decided && { decidedAt: when }),
+        });
+        return;
+      }
+
+      case 'ClaimPaid': {
+        const id = toUuid(a.claimId);
+        if (!id) return;
+        const row = await m.findOne(InsuranceClaim, {
+          where: { id },
+          select: { id: true, paymentRefHash: true },
+        });
+        if (!row) return;
+        if (row.paymentRefHash !== a.paymentRefHash) {
+          this.logger.error(
+            `Ledger payment fingerprint of claim ${id} differs from the database`,
+          );
+        }
+        await this.patch(m, event, id, {
+          status: ClaimStatus.PAID,
+          paidAt: when,
         });
         return;
       }

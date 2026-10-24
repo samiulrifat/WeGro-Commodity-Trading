@@ -142,7 +142,10 @@ export type SubLabel =
   | 'deliveries'
   | 'sellerPayouts'
   | 'buyerRequests'
-  | 'platformFees';
+  | 'platformFees'
+  | 'insuredProjects'
+  | 'claims'
+  | 'recordedEvents';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -178,7 +181,10 @@ export type SubPath =
   | '/marketplace/deliveries'
   | '/marketplace/payouts'
   | '/marketplace/requests'
-  | '/marketplace/fees';
+  | '/marketplace/fees'
+  | '/insurance'
+  | '/insurance/claims'
+  | '/insurance/weather-events';
 
 export interface SubPage {
   to: SubPath;
@@ -258,6 +264,13 @@ const WHOLE_MARKETPLACE = [
   BUYER_REQUESTS,
   FEES,
 ];
+/** Insurance: insurers and the office see the insured projects; officers and farmers their claims. */
+const INSURED_PROJECTS = sub('/insurance', 'insuredProjects');
+const CLAIMS = sub('/insurance/claims', 'claims');
+const RECORDED_EVENTS = sub('/insurance/weather-events', 'recordedEvents');
+const insurance = (...pages: SubPage[]) =>
+  item('insurance', 'insurance', pages);
+const WHOLE_INSURANCE = insurance(INSURED_PROJECTS, CLAIMS, RECORDED_EVENTS);
 const OFFICE_VOUCHERS = item('vouchers', 'vouchers', [
   ALL_VOUCHERS,
   PENDING_VOUCHERS,
@@ -278,7 +291,7 @@ const OFFICE: NavItem[] = [
   OFFICE_VOUCHERS,
   WAREHOUSE,
   marketplace(...WHOLE_MARKETPLACE),
-  item('insurance', 'insurance'),
+  WHOLE_INSURANCE,
   item('payouts', 'payouts'),
   item('track-records', 'trackRecords'),
   catalog(...WHOLE_CATALOG),
@@ -306,7 +319,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     catalog(...WHOLE_CATALOG),
     marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS, FEES),
     WAREHOUSE,
-    item('insurance', 'insurance'),
+    WHOLE_INSURANCE,
   ],
   accounts: [
     item('dashboard', 'dashboard'),
@@ -315,7 +328,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('payouts', 'payouts'),
     marketplace(LISTINGS, DEALS, SELLER_PAYOUTS, BUYER_REQUESTS, FEES),
     WAREHOUSE,
-    item('insurance', 'insurance'),
+    insurance(CLAIMS, INSURED_PROJECTS, RECORDED_EVENTS),
     catalog(PRODUCE, INPUTS),
   ],
   auditor: [
@@ -326,7 +339,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     OFFICE_VOUCHERS,
     WAREHOUSE,
     marketplace(...WHOLE_MARKETPLACE),
-    item('insurance', 'insurance'),
+    WHOLE_INSURANCE,
     item('payouts', 'payouts'),
     item('track-records', 'trackRecords'),
     catalog(...WHOLE_CATALOG),
@@ -346,7 +359,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('vouchers', 'vouchers', [ALL_VOUCHERS, INPUT_SALES, INPUT_BATCHES]),
     WAREHOUSE,
     marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS),
-    item('insurance', 'insurance'),
+    insurance(CLAIMS, RECORDED_EVENTS),
     item('track-records', 'trackRecords'),
     catalog(PRODUCE, INPUTS, FARM_UPDATE_TYPES, WEATHER_EVENTS),
   ],
@@ -355,7 +368,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     item('vouchers', 'vouchers'),
     item('warehouse', 'warehouse'),
     marketplace(LISTINGS, DEALS),
-    item('insurance', 'insurance'),
+    insurance(CLAIMS, RECORDED_EVENTS),
     item('statement', 'statement'),
     item('track-records', 'trackRecord'),
     catalog(PRODUCE),
@@ -392,7 +405,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     catalog(PRODUCE),
   ],
   bank: [item('bank-farmers', 'farmers'), catalog(PRODUCE)],
-  insurer: [item('insurance', 'insurance'), catalog(PRODUCE, WEATHER_EVENTS)],
+  insurer: [WHOLE_INSURANCE, catalog(PRODUCE, WEATHER_EVENTS)],
 };
 
 /** Someone not verified yet sees only where their registration stands. */

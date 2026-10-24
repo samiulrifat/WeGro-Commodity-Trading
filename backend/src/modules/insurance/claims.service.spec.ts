@@ -6,8 +6,11 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { uuidToBytes32 } from '../../blockchain/utils/ids';
+import { hashPaymentRef } from '../../blockchain/utils/payment-ref';
 import {
   actor,
+  config,
+  fakeCrypto,
   fakeQueryBuilder,
   fakeRepo,
   fakeTx,
@@ -29,6 +32,7 @@ import { ClaimStatus } from './insurance.enums';
 
 const PROJECT = randomUUID();
 const EVENT = randomUUID();
+const SECRET = 'a'.repeat(64);
 
 describe('ClaimsService', () => {
   const officer = actor(Role.FIELD_OFFICER);
@@ -44,6 +48,7 @@ describe('ClaimsService', () => {
       approved?: bigint;
     } = {},
   ) => {
+    const builders: Array<ReturnType<typeof fakeQueryBuilder>> = [];
     const claims: InsuranceClaim[] = opts.claim
       ? [
           {
@@ -89,9 +94,11 @@ describe('ClaimsService', () => {
         hit.forEach((c) => Object.assign(c, patch));
         return Promise.resolve({ affected: hit.length });
       }),
-      createQueryBuilder: jest.fn(
-        () => fakeQueryBuilder({ getOne: claims[0] ?? null }).qb,
-      ),
+      createQueryBuilder: jest.fn(() => {
+        const f = fakeQueryBuilder({ getOne: claims[0] ?? null });
+        builders.push(f);
+        return f.qb;
+      }),
     });
     const event =
       opts.event === null
@@ -132,6 +139,11 @@ describe('ClaimsService', () => {
         } as Project),
       ),
       isOfficerOf: jest.fn(() => Promise.resolve(opts.officerOf ?? true)),
+      currentAssignment: jest.fn(() =>
+        Promise.resolve(opts.cover === null ? null : { insurerId: insurer.id }),
+      ),
+      currentAssignments: jest.fn(() => Promise.resolve(new Map())),
+      eventTypesMatching: jest.fn(() => []),
       currentCover: jest.fn(() =>
         Promise.resolve(
           opts.cover === null
@@ -164,8 +176,11 @@ describe('ClaimsService', () => {
       insurance as never,
       { find: jest.fn() } as never,
       { names: () => Promise.resolve(new Map()) } as never,
+      fakeCrypto() as never,
+      { condition: () => null } as never,
+      config({ PAYMENT_REF_SECRET: SECRET }),
     );
-    return { service, claims, chain, repo };
+    return { service, claims, chain, repo, builders };
   };
 
   const openDto = {
@@ -385,5 +400,67 @@ describe('ClaimsService', () => {
         photoIds: Array.from({ length: 11 }, () => 'mine'),
       } as never),
     ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  describe('the insurer’s payment', () => {
+    const accounts = actor(Role.ACCOUNTS);
+
+    it('records an approved claim as paid, the reference encrypted and hashed', async () => {
+      const { service, claims, chain, builders } = build({
+        claim: { status: ClaimStatus.APPROVED, approvedAmount: 6_000_000n },
+      });
+      const id = claims[0].id;
+      await service.recordPayment(accounts, id, ' TRX 991 ');
+      const hash = hashPaymentRef('TRX 991', SECRET);
+      const set = builders
+        .flatMap((b) => b.calls)
+        .find(([m]) => m === 'set')?.[1];
+      expect(set).toEqual({
+        paymentRefEnc: `enc[insurance_claims.payment_ref:${id}]TRX 991`,
+        paymentRefHash: hash,
+        paidById: accounts.id,
+      });
+      expect(chain.sent[0]).toMatchObject({
+        method: 'recordClaimPayment',
+        args: [uuidToBytes32(id), hash],
+      });
+    });
+
+    it('pays only an approved claim, and clears the reference the ledger refuses', async () => {
+      const open = build({ claim: { status: ClaimStatus.UNDER_REVIEW } });
+      const err = await open.service
+        .recordPayment(accounts, open.claims[0].id, 'TRX 1')
+        .catch((e: ConflictException) => e.getResponse());
+      expect(err).toMatchObject({ code: 'CLAIM_WRONG_STATUS' });
+
+      const refused = build({ claim: { status: ClaimStatus.APPROVED } });
+      Object.assign(refused.claims[0], {
+        paymentRefHash: hashPaymentRef('TRX 2', SECRET),
+        paymentRefEnc: 'x',
+      });
+      refused.chain.fail(revert('PaymentRefUsed'));
+      await expect(
+        refused.service.recordPayment(accounts, refused.claims[0].id, 'TRX 2'),
+      ).rejects.toThrow();
+      expect(refused.claims[0]).toMatchObject({
+        paymentRefHash: null,
+        paymentRefEnc: null,
+      });
+    });
+
+    it('shows the reference to Accounts, admins and auditors only', async () => {
+      const { service, claims } = build({
+        claim: {
+          status: ClaimStatus.PAID,
+          approvedAmount: 6_000_000n,
+          paidAt: new Date(),
+        },
+      });
+      claims[0].paymentRefEnc = `enc[insurance_claims.payment_ref:${claims[0].id}]TRX 7`;
+      const seen = await service.findOne(accounts, claims[0].id);
+      expect(seen.paymentReference).toBe('TRX 7');
+      const hidden = await service.findOne(insurer, claims[0].id);
+      expect(hidden.paymentReference).toBeNull();
+    });
   });
 });

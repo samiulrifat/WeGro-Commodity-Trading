@@ -37,6 +37,7 @@ describe('Insurance (node + database)', () => {
   const t: Record<string, string> = {};
   const user: Record<string, User> = {};
   let otherInsurer: string;
+  let otherInsurerId: string;
   let insured: string;
   let uninsured: string;
   const event: Record<string, string> = {};
@@ -114,8 +115,9 @@ describe('Insurance (node + database)', () => {
         address: 'Made-up insurer office, Dhaka',
       })
       .expect(201);
+    otherInsurerId = reg.body.data.participant.id;
     await as(t.admin)
-      .post(`/participants/${reg.body.data.participant.id}/verify`)
+      .post(`/participants/${otherInsurerId}/verify`)
       .expect(200);
     const temp = reg.body.data.temporaryPassword;
     const login = await http
@@ -249,6 +251,27 @@ describe('Insurance (node + database)', () => {
       expect(ids).not.toContain(event.dhakaFlood);
       await as(t.buyer).get('/insurance/weather-events').expect(403);
     });
+
+    it('are searched by words of the event type or the district', async () => {
+      const ids = async (q: string) =>
+        (
+          await as(t.field_officer)
+            .get(
+              `/insurance/weather-events?limit=100&q=${encodeURIComponent(q)}`,
+            )
+            .expect(200)
+        ).body.data.map((e: { id: string }) => e.id);
+      const cyclones = await ids('cyclone');
+      expect(cyclones).toContain(event.cyclone);
+      expect(cyclones).not.toContain(event.flood);
+      const dhaka = await ids('Dhaka');
+      expect(dhaka).toContain(event.dhakaFlood);
+      expect(dhaka).not.toContain(event.flood);
+      expect(await ids('বন্যা')).toEqual(
+        expect.arrayContaining([event.flood, event.dhakaFlood]),
+      );
+      expect(await ids('meteor')).toEqual([]);
+    });
   });
 
   describe('cover', () => {
@@ -273,7 +296,91 @@ describe('Insurance (node + database)', () => {
       expect(res.body.code).toBe('NO_COVERAGE');
     });
 
-    it('makes the first insurer the project insurer', async () => {
+    it('waits for an admin to assign the insurer', async () => {
+      const early = await as(t.insurer)
+        .put(`/insurance/projects/${insured}/coverage`, {
+          maxAmount: '30000',
+          coveredEventTypes: ['FLOOD'],
+        })
+        .expect(409);
+      expect(early.body.code).toBe('INSURER_NOT_ASSIGNED');
+      await as(t.insurer)
+        .put(`/insurance/projects/${insured}/insurer`, {
+          insurerId: user.insurer.id,
+        })
+        .expect(403);
+      const notInsurer = await as(t.admin)
+        .put(`/insurance/projects/${insured}/insurer`, {
+          insurerId: user.farmer.id,
+        })
+        .expect(422);
+      expect(notInsurer.body.code).toBe('NOT_AN_INSURER');
+      const unassigned = await as(t.admin)
+        .get('/insurance/projects?cover=unassigned&limit=100')
+        .expect(200);
+      expect(
+        unassigned.body.data.map(
+          (p: { project: { id: string } }) => p.project.id,
+        ),
+      ).toContain(insured);
+    });
+
+    it('lets an admin switch insurers before any claim, clearing the old cover', async () => {
+      const first = await as(t.admin)
+        .put(`/insurance/projects/${insured}/insurer`, {
+          insurerId: otherInsurerId,
+        })
+        .expect(200);
+      expect(first.body.data).toMatchObject({
+        insurer: { id: otherInsurerId },
+        current: null,
+        insurerFixed: false,
+        inField: true,
+      });
+      await as(otherInsurer)
+        .put(`/insurance/projects/${insured}/coverage`, {
+          maxAmount: '90000',
+          coveredEventTypes: ['FLOOD'],
+        })
+        .expect(200);
+      expect(
+        (await registry().getCoverage(uuidToBytes32(insured))).maxAmount,
+      ).toBe(9_000_000n);
+
+      const again = await as(t.admin)
+        .put(`/insurance/projects/${insured}/insurer`, {
+          insurerId: otherInsurerId,
+        })
+        .expect(409);
+      expect(again.body.code).toBe('INSURER_ALREADY_ASSIGNED');
+
+      const switched = await as(t.admin)
+        .put(`/insurance/projects/${insured}/insurer`, {
+          insurerId: user.insurer.id,
+        })
+        .expect(200);
+      expect(switched.body.data).toMatchObject({
+        insurer: { id: user.insurer.id },
+        current: null,
+        history: [],
+      });
+      expect(
+        (await registry().getCoverage(uuidToBytes32(insured))).maxAmount,
+      ).toBe(0n);
+      const res = await as(otherInsurer)
+        .put(`/insurance/projects/${insured}/coverage`, {
+          maxAmount: '90000',
+          coveredEventTypes: ['FLOOD', 'CYCLONE'],
+        })
+        .expect(403);
+      expect(res.body.code).toBe('OTHER_INSURER');
+      // The old insurer no longer sees the project.
+      await as(otherInsurer)
+        .get(`/insurance/projects/${insured}/coverage`)
+        .expect(404);
+    });
+
+    it('lets the assigned insurer set the cover', async () => {
       const res = await as(t.insurer)
         .put(`/insurance/projects/${insured}/coverage`, {
           maxAmount: '30000',
@@ -290,16 +397,12 @@ describe('Insurance (node + database)', () => {
           status: 'recorded',
         },
         approvedTotal: '0.00',
+        paidTotal: '0.00',
         remaining: '30000.00',
         openClaims: 0,
+        unpaidClaims: 0,
         history: [],
       });
-      await as(otherInsurer)
-        .put(`/insurance/projects/${insured}/coverage`, {
-          maxAmount: '90000',
-          coveredEventTypes: ['FLOOD'],
-        })
-        .expect(403);
       await as(t.insurer)
         .put(`/insurance/projects/${insured}/coverage`, {
           maxAmount: '30000',
@@ -344,7 +447,13 @@ describe('Insurance (node + database)', () => {
       await as(t.buyer)
         .get(`/insurance/projects/${insured}/coverage`)
         .expect(403);
-      const list = await as(otherInsurer)
+      const ids = async (token: string, query: string) =>
+        (
+          await as(token)
+            .get(`/insurance/projects?limit=100&${query}`)
+            .expect(200)
+        ).body.data.map((p: { project: { id: string } }) => p.project.id);
+      const list = await as(t.insurer)
         .get('/insurance/projects?districtCode=BOGURA&limit=100')
         .expect(200);
       const mine = list.body.data.find(
@@ -352,11 +461,17 @@ describe('Insurance (node + database)', () => {
       );
       expect(mine).toMatchObject({
         insurer: { id: user.insurer.id },
+        farmer: { id: user.farmer.id },
         maxAmount: '40000.00',
       });
+      expect(await ids(t.insurer, '')).not.toContain(uninsured);
+      // An insurer sees only the projects assigned to it.
+      expect(await ids(otherInsurer, '')).not.toContain(insured);
+      expect(await ids(t.admin, 'cover=covered')).toContain(insured);
+      expect(await ids(t.admin, 'cover=unassigned')).not.toContain(insured);
       expect(
-        list.body.data.map((p: { project: { id: string } }) => p.project.id),
-      ).not.toContain(uninsured);
+        await ids(t.admin, `q=${encodeURIComponent(`Insured ${RUN}`)}`),
+      ).toEqual([insured]);
     });
   });
 
@@ -504,6 +619,12 @@ describe('Insurance (node + database)', () => {
         })
         .expect(409);
       expect(below.body.code).toBe('COVERAGE_BELOW_APPROVED');
+      const fixed = await as(t.admin)
+        .put(`/insurance/projects/${insured}/insurer`, {
+          insurerId: otherInsurerId,
+        })
+        .expect(409);
+      expect(fixed.body.code).toBe('INSURER_FIXED');
     });
 
     it('can be rejected without a review, with an assessment', async () => {
@@ -569,7 +690,70 @@ describe('Insurance (node + database)', () => {
       expect(one.body.data).toMatchObject({
         id: floodClaim,
         status: 'approved',
+        insurer: { id: user.insurer.id },
+        paidAt: null,
       });
+      const found = await as(t.auditor)
+        .get(`/insurance/claims?q=${encodeURIComponent(`Insured ${RUN}`)}`)
+        .expect(200);
+      expect(found.body.data.map((c: { id: string }) => c.id)).toEqual(
+        expect.arrayContaining([floodClaim, cycloneClaim]),
+      );
+    });
+
+    it("count as income only once Accounts records the insurer's payment", async () => {
+      const due = await as(t.accounts)
+        .get('/insurance/claims?paymentDue=true&limit=100')
+        .expect(200);
+      expect(due.body.data.map((c: { id: string }) => c.id)).toContain(
+        floodClaim,
+      );
+      const rejected = await as(t.accounts)
+        .post(`/insurance/claims/${cycloneClaim}/payment`, {
+          paymentReference: `CLM-PAY-${RUN}`,
+        })
+        .expect(409);
+      expect(rejected.body.code).toBe('CLAIM_WRONG_STATUS');
+      await as(t.insurer)
+        .post(`/insurance/claims/${floodClaim}/payment`, {
+          paymentReference: `CLM-PAY-${RUN}`,
+        })
+        .expect(403);
+      const res = await as(t.accounts)
+        .post(`/insurance/claims/${floodClaim}/payment`, {
+          paymentReference: ` CLM-PAY-${RUN} `,
+        })
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        status: 'paid',
+        approvedAmount: '25000.00',
+        paymentReference: `CLM-PAY-${RUN}`,
+      });
+      expect(res.body.data.paidAt).toBeTruthy();
+      const onChain = await registry().getClaim(uuidToBytes32(floodClaim));
+      expect(Number(onChain.status)).toBe(5);
+      expect(await registry().paidTotal(uuidToBytes32(insured))).toBe(
+        2_500_000n,
+      );
+      const cover = await as(t.farmer)
+        .get(`/insurance/projects/${insured}/coverage`)
+        .expect(200);
+      expect(cover.body.data).toMatchObject({
+        approvedTotal: '25000.00',
+        paidTotal: '25000.00',
+        unpaidClaims: 0,
+        insurerFixed: true,
+      });
+      // The farmer does not see the reference.
+      const seen = await as(t.farmer)
+        .get(`/insurance/claims/${floodClaim}`)
+        .expect(200);
+      expect(seen.body.data.paymentReference).toBeNull();
+      await as(t.accounts)
+        .post(`/insurance/claims/${floodClaim}/payment`, {
+          paymentReference: `CLM-PAY-2-${RUN}`,
+        })
+        .expect(409);
     });
   });
 
@@ -587,7 +771,10 @@ describe('Insurance (node + database)', () => {
           'SELECT id, status FROM weather_events ORDER BY id',
         ),
         claims: await db.query(
-          'SELECT id, status, approved_amount, opened_at, decided_at FROM insurance_claims ORDER BY id',
+          'SELECT id, status, approved_amount, opened_at, decided_at, paid_at FROM insurance_claims ORDER BY id',
+        ),
+        assignments: await db.query(
+          'SELECT id, insurer_id, status, chain_event_block, chain_event_log FROM insurer_assignments ORDER BY id',
         ),
       });
       const indexer = chain.app.get(EventIndexerService);

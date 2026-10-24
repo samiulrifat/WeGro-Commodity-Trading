@@ -13,9 +13,9 @@ import { indexFromHere } from './chain-head';
 import { installContractCheck } from './contract';
 
 /**
- * Boots the real AppModule against the local chain and a throwaway database
- * schema with all migrations applied. Needs the Hardhat node running with
- * the platform deployed, and the database from .env.
+ * Boots the real AppModule against the tests' own chain (started and
+ * deployed by the global setup) and a throwaway database schema with all
+ * migrations applied, on the database from .env.
  */
 export interface ChainApp {
   app: INestApplication<App>;
@@ -49,7 +49,7 @@ export async function startChainApp(
   );
   await setup.destroy();
 
-  const start = await indexFromHere(fileEnv.CHAIN_RPC_URL);
+  const start = await indexFromHere();
   Object.assign(process.env, {
     CHAIN_START_BLOCK: start,
     INDEXER_ENABLED: 'false',

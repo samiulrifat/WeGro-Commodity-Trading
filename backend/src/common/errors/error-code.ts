@@ -109,6 +109,8 @@ export enum ErrorCode {
   CLAIM_NOT_ALLOWED = 'CLAIM_NOT_ALLOWED',
   /** Claim not found */
   CLAIM_NOT_FOUND = 'CLAIM_NOT_FOUND',
+  /** This claim's payment is already being recorded */
+  CLAIM_PAYMENT_RECORDING = 'CLAIM_PAYMENT_RECORDING',
   /** No such photo on this claim */
   CLAIM_PHOTO_NOT_FOUND = 'CLAIM_PHOTO_NOT_FOUND',
   /** This claim is {status} */
@@ -219,6 +221,12 @@ export enum ErrorCode {
   INCURRED_IN_FUTURE = 'INCURRED_IN_FUTURE',
   /** Insurance applies while the crop is in the field (funded or active); this project is {stage} */
   INSURANCE_PROJECT_STAGE = 'INSURANCE_PROJECT_STAGE',
+  /** This insurer is already assigned to the project */
+  INSURER_ALREADY_ASSIGNED = 'INSURER_ALREADY_ASSIGNED',
+  /** A claim was opened on this project, so its insurer can no longer be changed */
+  INSURER_FIXED = 'INSURER_FIXED',
+  /** No insurer is assigned to this project yet */
+  INSURER_NOT_ASSIGNED = 'INSURER_NOT_ASSIGNED',
   /** intakeDate cannot be in the future */
   INTAKE_IN_FUTURE = 'INTAKE_IN_FUTURE',
   /** Some batches cannot be used for this sale */
@@ -287,6 +295,8 @@ export enum ErrorCode {
   NOTHING_TO_DISTRIBUTE = 'NOTHING_TO_DISTRIBUTE',
   /** Notification not found */
   NOTIFICATION_NOT_FOUND = 'NOTIFICATION_NOT_FOUND',
+  /** Only a verified insurer can be assigned */
+  NOT_AN_INSURER = 'NOT_AN_INSURER',
   /** You are not assigned to a bank */
   NOT_ASSIGNED_TO_BANK = 'NOT_ASSIGNED_TO_BANK',
   /** Only farmers have a field officer */
@@ -355,7 +365,7 @@ export enum ErrorCode {
   OFFER_NOT_FOUND = 'OFFER_NOT_FOUND',
   /** This offer is {status} */
   OFFER_WRONG_STATUS = 'OFFER_WRONG_STATUS',
-  /** Another insurer covers this project */
+  /** This project is assigned to another insurer */
   OTHER_INSURER = 'OTHER_INSURER',
   /** Only admins manage participants */
   PARTICIPANTS_MANAGED_BY_ADMINS = 'PARTICIPANTS_MANAGED_BY_ADMINS',

@@ -466,9 +466,17 @@ export const en = {
       REQUEST_NOT_FOUND: 'This request could not be found.',
       REQUEST_ALREADY_CANCELLED: 'This request is already cancelled.',
       VALID_UNTIL_IN_PAST: 'The closing date can’t be in the past.',
-      NO_COVERAGE: 'No insurer covers this project yet.',
+      NO_COVERAGE: 'The insurer has not set this project’s cover yet.',
+      INSURER_NOT_ASSIGNED: 'No insurer is assigned to this project yet.',
+      INSURER_ALREADY_ASSIGNED:
+        'This insurer is already assigned to the project.',
+      INSURER_FIXED:
+        'A claim was opened on this project, so its insurer can no longer be changed.',
+      NOT_AN_INSURER: 'Only a verified insurer can be assigned.',
+      CLAIM_PAYMENT_RECORDING:
+        'This claim’s payment is already being recorded.',
       NOT_INSURED: 'This project is not insured.',
-      OTHER_INSURER: 'Another insurer covers this project.',
+      OTHER_INSURER: 'This project is assigned to another insurer.',
       INSURANCE_PROJECT_STAGE:
         'Insurance applies while the crop is in the field; this project is {{stage, word}}.',
       COVER_UNCHANGED: 'These are already the current terms.',
@@ -754,6 +762,20 @@ export const en = {
         body: '{{project}}',
       },
       rejected: { title: 'Insurance claim rejected', body: '{{project}}' },
+      'payment-due': {
+        title:
+          'Insurance claim approved: record the insurer’s payment of {{amount, taka}}',
+        body: '{{project}}',
+      },
+      paid: {
+        title: 'The insurer paid the claim: {{amount, taka}}',
+        body: '{{project}}',
+      },
+    },
+    insurer: {
+      assigned: {
+        title: 'You were assigned to insure {{project}}: set its cover',
+      },
     },
     round: {
       prepared: { title: 'Payout round #{{roundId}} needs a second approval' },
@@ -869,6 +891,9 @@ export const en = {
       sellerPayouts: 'Seller Payouts',
       buyerRequests: 'Buyer Requests',
       platformFees: 'Platform Fees',
+      insuredProjects: 'Insured Projects',
+      claims: 'Claims',
+      recordedEvents: 'Weather Events',
     },
     status: 'Registration Status',
     account: 'My Account',
@@ -2626,6 +2651,220 @@ export const en = {
       'Each upper limit must be more than the one before, and every slab needs a fee.',
     saveFees: 'Save Fees',
     feesSaved: 'Fees saved. They apply to offers approved from now on.',
+  },
+  insurance: {
+    projectsIntro: {
+      office:
+        'Insured projects with the crop in the field. Assign each an insurer, who then sets the cover.',
+      insurer:
+        'The projects WeGro assigned to you. Set each one’s cover and review its claims.',
+    },
+    projectTab: {
+      all: 'All',
+      unassigned: 'No Insurer Yet',
+      no_cover: 'Cover Not Set',
+      covered: 'Covered',
+    },
+    coverState: {
+      unassigned: 'No Insurer Yet',
+      no_cover: 'Cover Not Set',
+      covered: 'Covered',
+    },
+    searchProjects: 'Project title, farmer name, mobile or NID',
+    noProjects: 'No insured projects here.',
+    noProjectMatch: 'No insured projects match.',
+    farmer: 'Farmer',
+    insurer: 'Insurer',
+    noInsurer: 'No insurer yet',
+    insuredBy: 'Insured by {{insurer}}.',
+    upTo: 'up to {{amount}}',
+    stage: { inField: 'Crop in the field', harvested: 'Harvested' },
+    openProject: 'Open Project',
+    viewInsurance: 'View Insurance',
+    cover: 'Cover',
+    maxCover: 'Maximum Cover',
+    maxCoverHint:
+      'The most the insurer pays for all claims on this project, in taka.',
+    coveredEvents: 'Covered Events',
+    approvedTotal: 'Approved So Far',
+    paidTotal: 'Paid by the Insurer',
+    remaining: 'Cover Remaining',
+    openClaims: 'Claims Waiting for the Insurer',
+    unpaidClaims: 'Approved Claims Not Yet Paid',
+    coverSetOn: 'Cover Set On',
+    coverLeft: '{{remaining}} of {{max}} cover left.',
+    claimsWaiting_one: '{{count, number}} claim waiting.',
+    claimsWaiting_other: '{{count, number}} claims waiting.',
+    waitingForInsurer: 'An admin has not assigned an insurer yet.',
+    waitingForCover: 'Waiting for {{insurer}} to set the cover.',
+    earlierCover: 'Earlier Cover',
+    noClaimsYet: 'No claims yet.',
+    manage: 'Actions',
+    manageText: {
+      unassigned: 'Assign the insurer who will cover this project.',
+      no_cover: 'The insurer sets the cover; claims can be opened after that.',
+      covered:
+        'Claims can be opened for damage from a covered weather event in the project’s district.',
+    },
+    move: {
+      assignInsurer: 'Assign Insurer',
+      changeInsurer: 'Change Insurer',
+      setCover: 'Set Cover',
+      changeCover: 'Change Cover',
+      openClaim: 'Open Claim',
+    },
+    insurerFixed:
+      'A claim was opened, so the insurer can no longer be changed.',
+    assignInsurerText:
+      'Only this insurer can set the project’s cover and decide its claims.',
+    changeInsurerText:
+      '{{insurer}}’s cover terms stop counting; the new insurer sets their own. This is possible until the first claim.',
+    findInsurer: 'Find an insurer by name or mobile',
+    assign: 'Assign',
+    assigned: 'Insurer assigned.',
+    coverText:
+      'What this project is covered for. Each change is kept as a new version on the ledger.',
+    terms: 'Terms',
+    termsHint: 'What is covered and on what terms.',
+    coverVersionNote:
+      'The current terms stay in the history; claims already approved still count against the cover.',
+    saveCover: 'Save Cover',
+    coverSaved: 'Cover saved.',
+    required: {
+      amount: 'Enter an amount in taka, more than 0.',
+      amountAbove: 'Enter at least {{amount}}, already approved in claims.',
+      types: 'Choose at least one weather event.',
+      event: 'Choose the weather event.',
+      damage:
+        'Enter a percentage above 0, up to 100, with at most one decimal.',
+      notes: 'Say what happened to the crop.',
+      approvedAmount:
+        'Enter an amount in taka, more than 0 and at most {{remaining}}.',
+      damageFound:
+        'Enter 0 to 100, with at most one decimal, or leave it empty.',
+      findings: 'Write what you found.',
+      eventType: 'Choose the event type.',
+      occurredOn: 'Choose today or an earlier day.',
+      severity: 'Choose how severe it was.',
+    },
+    claimsIntro: {
+      office:
+        'Every claim: opened by a farmer’s officer or an admin, decided by the project’s insurer, paid to WeGro.',
+      insurer:
+        'Claims on the projects you insure. Review each and approve an amount or reject it.',
+      officer:
+        'Claims on your farmers’ insured projects. Open one when a recorded weather event damaged a crop.',
+      farmer: 'Claims on your insured projects.',
+      accounts:
+        'Approved claims count for the farmer and investors once you record the insurer’s payment.',
+    },
+    claimTab: {
+      all: 'All',
+      triggered: 'New',
+      under_review: 'Under Review',
+      payment_due: 'Payment Due',
+      paid: 'Paid',
+      rejected: 'Rejected',
+    },
+    claimStatus: {
+      submitted: 'Being Recorded',
+      triggered: 'New',
+      under_review: 'Under Review',
+      approved: 'Payment Due',
+      paid: 'Paid',
+      rejected: 'Rejected',
+    },
+    searchClaims: 'Project title, event type, farmer name, mobile or NID',
+    noClaims: 'No claims here.',
+    noClaimMatch: 'No claims match.',
+    damage: '{{percent}}% damage',
+    happenedOn: 'happened {{date}}',
+    openedOn: 'opened {{date}}',
+    openedBy: 'Opened by {{name}}',
+    openClaimText:
+      'For crop damage from a recorded weather event in the project’s district that the cover includes.',
+    noInsuredProjects: 'No insured projects in the field.',
+    coverSummary: 'Insured by {{insurer}}; {{remaining}} of cover left.',
+    weatherEvent: 'Weather Event',
+    chooseEvent: 'Choose the event',
+    noCoveredEvents: 'No recorded event of a covered type in this district.',
+    eventHint:
+      'Recorded events of the covered types in the project’s district. Ask an admin or the insurer to record a new one.',
+    damageSeen: 'Damage Seen (%)',
+    damageHint: 'The share of the crop lost, for example 40.5.',
+    whatHappened: 'What Happened',
+    photosHint_one: 'One photo of the damage.',
+    photosHint_other: 'Up to {{count, number}} photos of the damage.',
+    claimOpened: 'Claim opened. The insurer is told.',
+    reported: 'Reported',
+    eventNotes: 'About the Event',
+    photoAlt: 'Damage photo {{n, number}}',
+    assessment: 'Insurer’s Assessment',
+    damageFound: 'Damage Found (%)',
+    damageFoundHint: 'The officer reported {{percent}}%. Optional.',
+    assessmentPhoto: 'Photo',
+    assessmentPhotoAlt: 'The insurer’s photo',
+    findings: 'Findings',
+    approvedAmount: 'Approved Amount',
+    decidedAt: 'Decided On',
+    paidAt: 'Insurer Paid',
+    paymentDueText:
+      'Approved. It counts for the farmer and investors once Accounts records the insurer’s payment.',
+    remainingHint: 'Cover remaining: {{remaining}}.',
+    rejectedText: 'The insurer rejected this claim.',
+    step: {
+      opened: 'Claim Opened',
+      under_review: 'Under Review',
+      approved: 'Approved',
+      paid: 'Insurer Paid WeGro',
+      rejected: 'Rejected',
+    },
+    claimManageText: {
+      triggered:
+        'Start the review, or reject the claim if there is clearly no loss.',
+      under_review:
+        'Approve an amount within the cover remaining, or reject it.',
+      approved: 'Record the insurer’s payment when it reaches WeGro’s account.',
+    },
+    claimMove: {
+      review: 'Start Review',
+      approve: 'Approve Claim',
+      reject: 'Reject Claim',
+      payment: 'Record Insurer’s Payment',
+    },
+    claimMoved: {
+      review: 'Review started.',
+      approve: 'Claim approved. Accounts records the payment when it arrives.',
+      reject: 'Claim rejected.',
+      payment: 'Payment recorded. It now counts for the project.',
+    },
+    reviewText: 'The officer and the farmer see that you are reviewing it.',
+    decideText: {
+      approve:
+        'Your assessment and the amount are fingerprinted on the ledger. WeGro collects the money from you.',
+      reject:
+        'Your assessment is fingerprinted on the ledger; the officer and farmer see it.',
+    },
+    paymentText:
+      'Confirm that {{insurer}}’s {{amount}} reached WeGro’s account. The reference is kept encrypted; the ledger keeps only its fingerprint.',
+    eventsIntro:
+      'Weather events recorded per district. Claims cite them; admins and insurers record them.',
+    searchEvents: 'Event type or district',
+    noEvents: 'No weather events recorded.',
+    noEventMatch: 'No weather events match.',
+    recordedBy: 'recorded by {{name}}',
+    recordEvent: 'Record Event',
+    recordEventText:
+      'Claims on insured projects in this district can then cite it. It is fingerprinted on the ledger.',
+    eventType: 'Event Type',
+    chooseEventType: 'Choose the type',
+    noEventTypes: 'No event types match.',
+    noDistrict: 'No district matches.',
+    occurredOn: 'Day It Happened',
+    severityLabel: 'Severity',
+    severity: { low: 'Low', moderate: 'Moderate', severe: 'Severe' },
+    eventNotesHint: 'For example: river above danger level for four days.',
+    eventRecorded: 'Weather event recorded.',
   },
   verifyReceipt: {
     title: 'Receipt Check',
