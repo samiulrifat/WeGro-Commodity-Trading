@@ -5,7 +5,7 @@ import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
 import { ContractsRegistry } from '../src/blockchain/contracts.registry';
 import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
-import { uuidToBytes32 } from '../src/blockchain/utils/ids';
+import { SUPER_ADMIN_ID, uuidToBytes32 } from '../src/blockchain/utils/ids';
 import { bdDate } from '../src/common/time/bd-dates';
 import { BACKFILL_STAGE_DATES } from '../src/database/migrations/1791873366982-TrackRecord';
 import { User } from '../src/modules/users/entities/user.entity';
@@ -53,6 +53,7 @@ describe('Track record and bank permission (node + database)', () => {
   let bankB: string;
   let version: number;
   let firstGrant: string;
+  let finished = 0;
 
   const as = (token: string) => ({
     get: (path: string) =>
@@ -114,6 +115,112 @@ describe('Track record and bank permission (node + database)', () => {
     ).body.data.accessToken;
   }
 
+  /**
+   * A tomato project of the demo farmer, taken all the way to paid out:
+   * 950 kg harvested, 900 kg sold at 40.00 = 36000.00, 1000.00 transport.
+   */
+  async function finishProject(title: string): Promise<string> {
+    const ref = `${RUN}-${++finished}`;
+    const project = (
+      await as(t.admin)
+        .post('/projects', {
+          title,
+          produceCode: 'TOMATO',
+          districtCode: 'BOGURA',
+          location: 'Shibganj',
+          farmerId: user.farmer.id,
+          durationType: 'short_term',
+          durationMonths: 5,
+          fundingTarget: '50000',
+          slotPrice: '10000',
+          estimatedReturnMinBps: 0,
+          estimatedReturnMaxBps: 1500,
+        })
+        .expect(201)
+    ).body.data.id;
+    await as(t.admin).post(`/projects/${project}/publish`).expect(200);
+    const r = await as(t.investor)
+      .post(`/projects/${project}/reservations`, { slots: 5 })
+      .expect(201);
+    await as(t.accounts)
+      .post(`/reservations/${r.body.data.id}/confirm`, {
+        paymentReference: `T-RES-${ref}`,
+      })
+      .expect(200);
+    await as(t.admin).post(`/projects/${project}/activate`).expect(200);
+
+    // 950 kg harvested, 900 kg sold at 40.00 = 36000.00.
+    const now = await chain.app.get(ChainClock).now();
+    await as(t.field_officer)
+      .post('/field-records/sync', {
+        records: [
+          {
+            id: randomUUID(),
+            projectId: project,
+            entryTypeCode: 'HARVEST',
+            notes: 'Picked and crated',
+            measurements: { quantity: 950 },
+            latitude: '24.846512',
+            longitude: '89.377621',
+            accuracyMeters: 8,
+            photoId: await upload(t.field_officer, `harvest-${ref}`),
+            observedAt: new Date(now.getTime() - 60_000).toISOString(),
+          },
+        ],
+      })
+      .expect(200);
+    const listing = (
+      await as(t.field_officer)
+        .post('/listings/produce', {
+          projectId: project,
+          quantity: 900,
+          askingUnitPrice: '42',
+        })
+        .expect(201)
+    ).body.data.id;
+    const offer = (
+      await as(t.buyer)
+        .post(`/listings/${listing}/offers`, { quantity: 900, unitPrice: '40' })
+        .expect(201)
+    ).body.data.id;
+    await as(t.admin).post(`/offers/${offer}/approve`).expect(200);
+    await as(t.accounts)
+      .post(`/offers/${offer}/payment`, { paymentReference: `T-SALE-${ref}` })
+      .expect(200);
+    for (const token of [t.buyer, t.field_officer]) {
+      await as(token)
+        .post(`/offers/${offer}/delivery`, { quantity: 900 })
+        .expect(200);
+    }
+    await as(t.accounts)
+      .post(`/settlement/projects/${project}/costs`, {
+        category: 'transport',
+        amount: '1000',
+        incurredOn: await day(),
+        note: 'Crates to market',
+        photoId: await upload(t.accounts, `crates-bill-${ref}`),
+      })
+      .expect(201);
+    await as(t.admin).post(`/projects/${project}/ready-for-sale`).expect(200);
+    const round = (
+      await as(t.accounts)
+        .post(`/settlement/projects/${project}/rounds`, { final: true })
+        .expect(201)
+    ).body.data;
+    await as(accounts2)
+      .post(`/settlement/rounds/${round.id}/approve`)
+      .expect(200);
+    for (const [i, line] of round.lines.entries()) {
+      await as(t.accounts)
+        .post(`/settlement/rounds/${round.id}/payments`, {
+          payeeId: line.payee.id,
+          paymentReference: `T-PAY-${i}-${ref}`,
+        })
+        .expect(200);
+    }
+    return project;
+  }
+
   beforeAll(async () => {
     chain = await startChainApp({ DEMO_MODE: 'true' });
     http = request(chain.app.getHttpServer());
@@ -137,104 +244,7 @@ describe('Track record and bank permission (node + database)', () => {
     }
     accounts2 = await registerAccounts();
 
-    // A tomato project of the demo farmer, taken all the way to paid out.
-    project = (
-      await as(t.admin)
-        .post('/projects', {
-          title: `Finished tomatoes ${RUN}`,
-          produceCode: 'TOMATO',
-          districtCode: 'BOGURA',
-          location: 'Shibganj',
-          farmerId: user.farmer.id,
-          durationType: 'short_term',
-          durationMonths: 5,
-          fundingTarget: '50000',
-          slotPrice: '10000',
-          estimatedReturnMinBps: 0,
-          estimatedReturnMaxBps: 1500,
-        })
-        .expect(201)
-    ).body.data.id;
-    await as(t.admin).post(`/projects/${project}/publish`).expect(200);
-    const r = await as(t.investor)
-      .post(`/projects/${project}/reservations`, { slots: 5 })
-      .expect(201);
-    await as(t.accounts)
-      .post(`/reservations/${r.body.data.id}/confirm`, {
-        paymentReference: `T-RES-${RUN}`,
-      })
-      .expect(200);
-    await as(t.admin).post(`/projects/${project}/activate`).expect(200);
-
-    // 950 kg harvested, 900 kg sold at 40.00 = 36000.00.
-    const now = await chain.app.get(ChainClock).now();
-    await as(t.field_officer)
-      .post('/field-records/sync', {
-        records: [
-          {
-            id: randomUUID(),
-            projectId: project,
-            entryTypeCode: 'HARVEST',
-            notes: 'Picked and crated',
-            measurements: { quantity: 950 },
-            latitude: '24.846512',
-            longitude: '89.377621',
-            accuracyMeters: 8,
-            photoId: await upload(t.field_officer, 'harvest'),
-            observedAt: new Date(now.getTime() - 60_000).toISOString(),
-          },
-        ],
-      })
-      .expect(200);
-    const listing = (
-      await as(t.field_officer)
-        .post('/listings/produce', {
-          projectId: project,
-          quantity: 900,
-          askingUnitPrice: '42',
-        })
-        .expect(201)
-    ).body.data.id;
-    const offer = (
-      await as(t.buyer)
-        .post(`/listings/${listing}/offers`, { quantity: 900, unitPrice: '40' })
-        .expect(201)
-    ).body.data.id;
-    await as(t.admin).post(`/offers/${offer}/approve`).expect(200);
-    await as(t.accounts)
-      .post(`/offers/${offer}/payment`, { paymentReference: `T-SALE-${RUN}` })
-      .expect(200);
-    for (const token of [t.buyer, t.field_officer]) {
-      await as(token)
-        .post(`/offers/${offer}/delivery`, { quantity: 900 })
-        .expect(200);
-    }
-    await as(t.accounts)
-      .post(`/settlement/projects/${project}/costs`, {
-        category: 'transport',
-        amount: '1000',
-        incurredOn: await day(),
-        note: 'Crates to market',
-        photoId: await upload(t.accounts, 'crates-bill'),
-      })
-      .expect(201);
-    await as(t.admin).post(`/projects/${project}/ready-for-sale`).expect(200);
-    const round = (
-      await as(t.accounts)
-        .post(`/settlement/projects/${project}/rounds`, { final: true })
-        .expect(201)
-    ).body.data;
-    await as(accounts2)
-      .post(`/settlement/rounds/${round.id}/approve`)
-      .expect(200);
-    for (const [i, line] of round.lines.entries()) {
-      await as(t.accounts)
-        .post(`/settlement/rounds/${round.id}/payments`, {
-          payeeId: line.payee.id,
-          paymentReference: `T-PAY-${i}-${RUN}`,
-        })
-        .expect(200);
-    }
+    project = await finishProject(`Finished tomatoes ${RUN}`);
   });
 
   afterAll(async () => {
@@ -384,6 +394,60 @@ describe('Track record and bank permission (node + database)', () => {
         .get(`${farmerPath()}/track-records/${version}`)
         .expect(200);
     });
+
+    it('flags finished projects the latest version lacks; the super admin may publish them', async () => {
+      type Row = { farmer: { id: string }; pendingProjects: number };
+      const pending = async () =>
+        (
+          await as(t.field_officer)
+            .get('/track-records/farmers?state=pending_additions&limit=100')
+            .expect(200)
+        ).body.data.find((f: Row) => f.farmer.id === user.farmer.id);
+      expect(await pending()).toBeUndefined();
+
+      const second = await finishProject(`Second tomatoes ${RUN}`);
+      expect(await pending()).toMatchObject({
+        latestVersion: version,
+        finishedProjects: 2,
+        pendingProjects: 1,
+      });
+      const preview = await as(t.super_admin)
+        .get(`${farmerPath()}/track-record/preview`)
+        .expect(200);
+      expect(preview.body.data).toMatchObject({
+        latestVersion: version,
+        pendingProjects: 1,
+        officer: { id: user.field_officer.id },
+      });
+
+      // For a farmer whose officer is gone; admins still may not.
+      await as(t.admin).post(`${farmerPath()}/track-records`).expect(403);
+      const res = await as(t.super_admin)
+        .post(`${farmerPath()}/track-records`)
+        .expect(201);
+      expect(res.body.data).toMatchObject({
+        version: version + 1,
+        verified: true,
+        publishedBy: { id: user.super_admin.id },
+      });
+      version = res.body.data.version;
+      const onChain = await consent().getTrackRecord(
+        uuidToBytes32(user.farmer.id),
+        version,
+      );
+      expect(onChain.publishedBy).toBe(SUPER_ADMIN_ID);
+      expect(
+        await consent().getTrackRecordProjects(
+          uuidToBytes32(user.farmer.id),
+          version,
+        ),
+      ).toContain(uuidToBytes32(second));
+      expect(await pending()).toBeUndefined();
+      const after = await as(t.field_officer)
+        .get(`${farmerPath()}/track-record/preview`)
+        .expect(200);
+      expect(after.body.data.pendingProjects).toBe(0);
+    });
   });
 
   describe('bank permission', () => {
@@ -402,8 +466,16 @@ describe('Track record and bank permission (node + database)', () => {
           evidencePhotoId: form,
           ...body,
         });
-      const late = await grant({ expiresOn: await day(366) }).expect(422);
-      expect(late.body.code).toBe('EXPIRY_TOO_LATE');
+      const late = await grant({ expiresOn: await day(365) }).expect(422);
+      expect(late.body).toMatchObject({
+        code: 'EXPIRY_TOO_LATE',
+        details: { latest: await day(364) },
+      });
+      // The day it suggests is accepted (renewed just below).
+      await grant({
+        expiresOn: late.body.details.latest,
+        evidencePhotoId: await upload(t.field_officer, 'year-form'),
+      }).expect(201);
       await grant({ expiresOn: await day(-1) }).expect(422);
       await grant({
         expiresOn: await day(30),
@@ -485,6 +557,44 @@ describe('Track record and bank permission (node + database)', () => {
       ).toMatchObject({ views: 1 });
     });
 
+    it('is listed across farmers, searched by farmer or bank', async () => {
+      const farmers = await as(t.admin)
+        .get('/track-records/farmers?state=published&limit=100')
+        .expect(200);
+      expect(
+        farmers.body.data.find(
+          (f: { farmer: { id: string } }) => f.farmer.id === user.farmer.id,
+        ),
+      ).toMatchObject({ latestVersion: version, currentPermissions: 2 }); // bank A and bank B
+      const mine = await as(t.field_officer)
+        .get(`/track-records/farmers?q=${encodeURIComponent('Demo Farmer')}`)
+        .expect(200);
+      expect(
+        mine.body.data.map((f: { farmer: { id: string } }) => f.farmer.id),
+      ).toContain(user.farmer.id);
+      await as(t.farmer).get('/track-records/farmers').expect(403);
+
+      const current = await as(t.auditor)
+        .get(`/consents?state=current&q=${encodeURIComponent(`Krishi ${RUN}`)}`)
+        .expect(200);
+      expect(current.body.data[0]).toMatchObject({
+        id: firstGrant,
+        farmer: { id: user.farmer.id },
+        bank: { id: bankA },
+        views: 1,
+      });
+      const banks = await as(t.admin)
+        .get(`/banks?q=${encodeURIComponent(`Krishi ${RUN}`)}`)
+        .expect(200);
+      expect(banks.body.data.map((b: { id: string }) => b.id)).toEqual([bankA]);
+      const byFarmer = await as(t.bank)
+        .get(`/bank/farmers?q=${encodeURIComponent('Demo Farmer')}`)
+        .expect(200);
+      expect(
+        byFarmer.body.data.map((f: { farmer: { id: string } }) => f.farmer.id),
+      ).toContain(user.farmer.id);
+    });
+
     it('is renewed by a new grant, keeping the old one as history', async () => {
       const res = await as(t.field_officer)
         .post(`${farmerPath()}/consents`, {
@@ -493,13 +603,18 @@ describe('Track record and bank permission (node + database)', () => {
           expiresOn: await day(300),
         })
         .expect(201);
-      expect(res.body.data).toMatchObject({ status: 'active', current: true });
+      // The views so far stay with the grant they were made under.
+      expect(res.body.data).toMatchObject({
+        status: 'active',
+        current: true,
+        views: 0,
+      });
       const all = await as(t.farmer)
         .get(`${farmerPath()}/consents`)
         .expect(200);
       expect(
         all.body.data.find((c: { id: string }) => c.id === firstGrant),
-      ).toMatchObject({ status: 'replaced', current: false });
+      ).toMatchObject({ status: 'replaced', current: false, views: 1 });
       await as(t.farmer)
         .get(`/consents/${firstGrant}/evidence-photo`)
         .expect(200);
@@ -523,10 +638,44 @@ describe('Track record and bank permission (node + database)', () => {
         .post(`${farmerPath()}/consents/${bankA}/revoke`)
         .expect(409);
       expect(again.body.code).toBe('NO_CONSENT_TO_WITHDRAW');
+      const revoked = await as(t.admin)
+        .get(`/consents?state=revoked&bankId=${bankA}`)
+        .expect(200);
+      expect(
+        revoked.body.data.map((c: { farmer: { id: string } }) => c.farmer.id),
+      ).toContain(user.farmer.id);
       const list = await as(t.bank).get('/bank/farmers').expect(200);
       expect(
         list.body.data.map((f: { farmer: { id: string } }) => f.farmer.id),
       ).not.toContain(user.farmer.id);
+    });
+
+    it('is given and withdrawn by the super admin too, recorded as them', async () => {
+      const withdrawn = await as(t.super_admin)
+        .post(`${farmerPath()}/consents/${bankB}/revoke`)
+        .expect(200);
+      expect(withdrawn.body.data).toMatchObject({ status: 'revoked' });
+      const [row] = await db.query(
+        'SELECT revoked_by_id FROM bank_consents WHERE id = $1',
+        [withdrawn.body.data.id],
+      );
+      expect(row.revoked_by_id).toBe(user.super_admin.id);
+      const given = await as(t.super_admin)
+        .post(`${farmerPath()}/consents`, {
+          bankId: bankB,
+          evidencePhotoId: await upload(t.super_admin, 'super-admin-form'),
+          expiresOn: await day(60),
+        })
+        .expect(201);
+      expect(given.body.data).toMatchObject({
+        current: true,
+        grantedBy: { id: user.super_admin.id },
+      });
+      const onChain = await consent().getConsent(
+        uuidToBytes32(user.farmer.id),
+        uuidToBytes32(bankB),
+      );
+      expect(onChain.grantedBy).toBe(SUPER_ADMIN_ID);
     });
 
     it('ends by itself after its last day', async () => {
@@ -562,7 +711,7 @@ describe('Track record and bank permission (node + database)', () => {
           'SELECT id, version, status, published_at FROM track_records ORDER BY id',
         ),
         consents: await db.query(
-          'SELECT id, status, granted_at, revoked_at FROM bank_consents ORDER BY id',
+          'SELECT id, status, granted_at, revoked_at, revoked_by_id FROM bank_consents ORDER BY id',
         ),
         views: await db.query(
           'SELECT block_number, log_index, viewer_id, version FROM summary_views ORDER BY 1, 2',

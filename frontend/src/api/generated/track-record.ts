@@ -25,6 +25,7 @@ const injectedRtkApi = api
           url: `/api/banks`,
           params: {
             districtCode: queryArg.districtCode,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Track record'],
@@ -46,6 +47,37 @@ const injectedRtkApi = api
           body: queryArg.assignBankOfficerDto,
         }),
         invalidatesTags: ['Track record'],
+      }),
+      trackRecordTrackRecordFarmers: build.query<
+        TrackRecordTrackRecordFarmersApiResponse,
+        TrackRecordTrackRecordFarmersApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/track-records/farmers`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            state: queryArg.state,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Track record'],
+      }),
+      trackRecordAllConsents: build.query<
+        TrackRecordAllConsentsApiResponse,
+        TrackRecordAllConsentsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/consents`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            state: queryArg.state,
+            bankId: queryArg.bankId,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Track record'],
       }),
       trackRecordPreview: build.query<
         TrackRecordPreviewApiResponse,
@@ -152,6 +184,7 @@ const injectedRtkApi = api
           params: {
             page: queryArg.page,
             limit: queryArg.limit,
+            q: queryArg.q,
           },
         }),
         providesTags: ['Track record'],
@@ -181,6 +214,8 @@ export type TrackRecordListBanksApiResponse = /** status 200  */ {
 };
 export type TrackRecordListBanksApiArg = {
   districtCode?: District;
+  /** Words of the bank name or branch */
+  q?: string;
 };
 export type TrackRecordBankApiResponse = /** status 200  */ {
   data: BankDto;
@@ -195,6 +230,33 @@ export type TrackRecordAssignOfficerApiResponse =
 export type TrackRecordAssignOfficerApiArg = {
   officerId: string;
   assignBankOfficerDto: AssignBankOfficerDto;
+};
+export type TrackRecordTrackRecordFarmersApiResponse =
+  /** status 200 Farmers with their latest track record and current bank permissions; an officer's own */ {
+    data: TrackRecordFarmerDto[];
+    meta: PageMetaDto;
+  };
+export type TrackRecordTrackRecordFarmersApiArg = {
+  page?: number;
+  limit?: number;
+  /** published: any version; pending_additions: a version missing finished projects; not_published: none yet */
+  state?: 'published' | 'pending_additions' | 'not_published';
+  /** The farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
+};
+export type TrackRecordAllConsentsApiResponse =
+  /** status 200 Bank permissions across farmers, newest first; an officer's farmers' */ {
+    data: ConsentDto[];
+    meta: PageMetaDto;
+  };
+export type TrackRecordAllConsentsApiArg = {
+  page?: number;
+  limit?: number;
+  /** current: active and not expired; expired: active but past its last day; revoked: withdrawn */
+  state?: 'current' | 'expired' | 'revoked';
+  bankId?: string;
+  /** The farmer (a mobile number, an NID or whole words of their name) or words of the bank name */
+  q?: string;
 };
 export type TrackRecordPreviewApiResponse = /** status 200  */ {
   data: TrackRecordPreviewDto;
@@ -274,6 +336,8 @@ export type TrackRecordBankFarmersApiResponse =
 export type TrackRecordBankFarmersApiArg = {
   page?: number;
   limit?: number;
+  /** The farmer: a mobile number, an NID or whole words of their name */
+  q?: string;
 };
 export type TrackRecordBankViewApiResponse =
   /** status 200 Logged on the ledger; checked against its fingerprint */ {
@@ -376,6 +440,44 @@ export type AssignBankOfficerDto = {
   /** Null removes the officer from their bank */
   bankId: string | null;
 };
+export type TrackRecordFarmerDto = {
+  farmer: TrackPartyDto;
+  district?: string | null;
+  officer?: TrackPartyDto | null;
+  /** Projects paid out or closed on the platform */
+  finishedProjects: number;
+  latestVersion?: number | null;
+  publishedAt?: string | null;
+  /** Finished projects the latest version does not hold yet (0 before the first version) */
+  pendingProjects: number;
+  /** Banks whose permission is current */
+  currentPermissions: number;
+};
+export type PageMetaDto = {
+  page: number;
+  limit: number;
+  /** Matching items on all pages */
+  total: number;
+  totalPages: number;
+};
+export type ConsentDto = {
+  id: string;
+  farmer: TrackPartyDto;
+  bank: TrackPartyDto;
+  status: 'submitted' | 'active' | 'replaced' | 'revoked';
+  /** Active and not expired: the bank can view now */
+  current: boolean;
+  expiresOn: string;
+  expiresAt: string;
+  grantedBy: TrackPartyDto;
+  grantedAt?: string | null;
+  revokedAt?: string | null;
+  evidencePhotoUrl: string;
+  evidenceHash: string;
+  /** Times this bank viewed the track record */
+  views: number;
+  lastViewedAt?: string | null;
+};
 export type SummaryFarmerDto = {
   id: string;
   name: string;
@@ -470,7 +572,11 @@ export type TrackRecordSummaryDto = {
 export type TrackRecordPreviewDto = {
   /** What would be published now */
   summary: TrackRecordSummaryDto;
+  /** The farmer's field officer; null when they have none */
+  officer?: TrackPartyDto | null;
   latestVersion?: number | null;
+  /** Finished projects the latest version does not hold yet (0 before the first version) */
+  pendingProjects: number;
 };
 export type TrackRecordDto = {
   version: number;
@@ -507,23 +613,6 @@ export type ImportedProjectDto = {
   harvested?: string | null;
   sold?: string | null;
 };
-export type ConsentDto = {
-  id: string;
-  bank: TrackPartyDto;
-  status: 'submitted' | 'active' | 'replaced' | 'revoked';
-  /** Active and not expired: the bank can view now */
-  current: boolean;
-  expiresOn: string;
-  expiresAt: string;
-  grantedBy: TrackPartyDto;
-  grantedAt?: string | null;
-  revokedAt?: string | null;
-  evidencePhotoUrl: string;
-  evidenceHash: string;
-  /** Times this bank viewed the track record */
-  views: number;
-  lastViewedAt?: string | null;
-};
 export type GrantConsentDto = {
   bankId: string;
   /** Last day the bank may view (Bangladesh), within a year */
@@ -536,13 +625,6 @@ export type SummaryViewDto = {
   viewer: TrackPartyDto;
   version: number;
   viewedAt: string;
-};
-export type PageMetaDto = {
-  page: number;
-  limit: number;
-  /** Matching items on all pages */
-  total: number;
-  totalPages: number;
 };
 export type MyBankDto = {
   bank?: BankDto | null;
@@ -573,6 +655,10 @@ export const {
   useTrackRecordBankQuery,
   useLazyTrackRecordBankQuery,
   useTrackRecordAssignOfficerMutation,
+  useTrackRecordTrackRecordFarmersQuery,
+  useLazyTrackRecordTrackRecordFarmersQuery,
+  useTrackRecordAllConsentsQuery,
+  useLazyTrackRecordAllConsentsQuery,
   useTrackRecordPreviewQuery,
   useLazyTrackRecordPreviewQuery,
   useTrackRecordPublishMutation,

@@ -149,7 +149,10 @@ export type SubLabel =
   | 'payoutRounds'
   | 'settleProjects'
   | 'costs'
-  | 'reports';
+  | 'reports'
+  | 'farmerRecords'
+  | 'banks'
+  | 'bankPermissions';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -192,7 +195,10 @@ export type SubPath =
   | '/payouts'
   | '/payouts/projects'
   | '/payouts/costs'
-  | '/payouts/reports';
+  | '/payouts/reports'
+  | '/track-records'
+  | '/track-records/banks'
+  | '/track-records/permissions';
 
 export interface SubPage {
   to: SubPath;
@@ -286,6 +292,14 @@ const PAYOUTS = item('payouts', 'payouts', [
   sub('/payouts/costs', 'costs'),
   sub('/payouts/reports', 'reports'),
 ]);
+/** Track records: farmers' records, the banks that may see them, and their permissions. */
+const FARMER_RECORDS = sub('/track-records', 'farmerRecords');
+const BANK_PERMISSIONS = sub('/track-records/permissions', 'bankPermissions');
+const OFFICE_TRACK_RECORDS = item('track-records', 'trackRecords', [
+  FARMER_RECORDS,
+  sub('/track-records/banks', 'banks'),
+  BANK_PERMISSIONS,
+]);
 const OFFICE_VOUCHERS = item('vouchers', 'vouchers', [
   ALL_VOUCHERS,
   PENDING_VOUCHERS,
@@ -308,7 +322,7 @@ const OFFICE: NavItem[] = [
   marketplace(...WHOLE_MARKETPLACE),
   WHOLE_INSURANCE,
   PAYOUTS,
-  item('track-records', 'trackRecords'),
+  OFFICE_TRACK_RECORDS,
   catalog(...WHOLE_CATALOG),
   item('audit', 'audit'),
   item('system', 'system'),
@@ -356,7 +370,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     marketplace(...WHOLE_MARKETPLACE),
     WHOLE_INSURANCE,
     PAYOUTS,
-    item('track-records', 'trackRecords'),
+    OFFICE_TRACK_RECORDS,
     catalog(...WHOLE_CATALOG),
     item('system', 'system'),
   ],
@@ -375,7 +389,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     WAREHOUSE,
     marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS),
     insurance(CLAIMS, RECORDED_EVENTS),
-    item('track-records', 'trackRecords'),
+    item('track-records', 'trackRecords', [FARMER_RECORDS, BANK_PERMISSIONS]),
     catalog(PRODUCE, INPUTS, FARM_UPDATE_TYPES, WEATHER_EVENTS),
   ],
   farmer: [

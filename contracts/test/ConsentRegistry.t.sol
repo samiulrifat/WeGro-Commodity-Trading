@@ -380,6 +380,35 @@ contract ConsentRegistryTest is Test {
         consent.revokeConsent(RAHIM, BRAC);
     }
 
+    function test_SuperAdminActsForAFarmer() public {
+        // For a farmer whose officer is gone: publish, grant and withdraw,
+        // recorded as the super admin. Admins still may not (see the guards).
+        bytes32 superAdminId = keccak256("SUPER_ADMIN");
+        vm.startPrank(superAdmin);
+        vm.expectEmit(address(consent));
+        emit ConsentRegistry.TrackRecordPublished(RAHIM, 1, keccak256("by the super admin"), _two(), superAdminId);
+        consent.publishTrackRecord(RAHIM, _two(), keccak256("by the super admin"));
+        assertEq(consent.getTrackRecord(RAHIM, 1).publishedBy, superAdminId);
+
+        vm.expectEmit(address(consent));
+        emit ConsentRegistry.ConsentGranted(RAHIM, BRAC, _until(), FORM, superAdminId);
+        consent.grantConsent(RAHIM, BRAC, _until(), FORM);
+        assertEq(consent.getConsent(RAHIM, BRAC).grantedBy, superAdminId);
+
+        vm.expectEmit(address(consent));
+        emit ConsentRegistry.ConsentRevoked(RAHIM, BRAC, superAdminId);
+        consent.revokeConsent(RAHIM, BRAC);
+        vm.stopPrank();
+        assertFalse(consent.hasConsent(RAHIM, BRAC));
+
+        // The same rules hold: finished projects of this farmer only.
+        bytes32[] memory karims = new bytes32[](1);
+        karims[0] = P_KARIM;
+        vm.prank(superAdmin);
+        vm.expectRevert(abi.encodeWithSelector(ConsentRegistry.NotFarmersProject.selector, P_KARIM));
+        consent.publishTrackRecord(RAHIM, karims, keccak256("x"));
+    }
+
     function test_ConsentIsPerFarmer() public {
         _publish();
         _grant();

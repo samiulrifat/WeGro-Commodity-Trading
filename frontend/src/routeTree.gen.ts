@@ -56,6 +56,8 @@ import { Route as AppRequestsIndexRouteImport } from './routes/_app/requests/ind
 import { Route as AppStatementIndexRouteImport } from './routes/_app/statement/index'
 import { Route as AppSystemIndexRouteImport } from './routes/_app/system/index'
 import { Route as AppTrackRecordsIndexRouteImport } from './routes/_app/track-records/index'
+import { Route as AppTrackRecordsBanksRouteImport } from './routes/_app/track-records/banks'
+import { Route as AppTrackRecordsPermissionsRouteImport } from './routes/_app/track-records/permissions'
 import { Route as AppVouchersIndexRouteImport } from './routes/_app/vouchers/index'
 import { Route as AppVouchersVoucherIdRouteImport } from './routes/_app/vouchers/$voucherId'
 import { Route as AppVouchersPendingRouteImport } from './routes/_app/vouchers/pending'
@@ -66,6 +68,7 @@ import { Route as AppWarehouseSitesRouteImport } from './routes/_app/warehouse/s
 import { Route as VerifyBatchBatchIdRouteImport } from './routes/verify/batch.$batchId'
 import { Route as VerifyReceiptReceiptIdRouteImport } from './routes/verify/receipt.$receiptId'
 import { Route as AppBankFarmersIndexRouteImport } from './routes/_app/bank/farmers/index'
+import { Route as AppBankFarmersFarmerIdRouteImport } from './routes/_app/bank/farmers/$farmerId'
 import { Route as AppCatalogFarmUpdateTypesIndexRouteImport } from './routes/_app/catalog/farm-update-types/index'
 import { Route as AppCatalogFarmUpdateTypesCodeRouteImport } from './routes/_app/catalog/farm-update-types/$code'
 import { Route as AppCatalogInputsIndexRouteImport } from './routes/_app/catalog/inputs/index'
@@ -90,6 +93,7 @@ import { Route as AppPeopleChangesIndexRouteImport } from './routes/_app/people/
 import { Route as AppPeopleChangesChangeIdRouteImport } from './routes/_app/people/changes/$changeId'
 import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/_app/projects/$projectId/index'
 import { Route as AppProjectsProjectIdEditRouteImport } from './routes/_app/projects/$projectId/edit'
+import { Route as AppTrackRecordsFarmersFarmerIdRouteImport } from './routes/_app/track-records/farmers/$farmerId'
 import { Route as AppVouchersBatchesIndexRouteImport } from './routes/_app/vouchers/batches/index'
 import { Route as AppVouchersBatchesBatchIdRouteImport } from './routes/_app/vouchers/batches/$batchId'
 import { Route as AppWarehouseReceiptsReceiptIdRouteImport } from './routes/_app/warehouse/receipts/$receiptId'
@@ -331,6 +335,17 @@ const AppTrackRecordsIndexRoute = AppTrackRecordsIndexRouteImport.update({
   path: '/track-records/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTrackRecordsBanksRoute = AppTrackRecordsBanksRouteImport.update({
+  id: '/track-records/banks',
+  path: '/track-records/banks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrackRecordsPermissionsRoute =
+  AppTrackRecordsPermissionsRouteImport.update({
+    id: '/track-records/permissions',
+    path: '/track-records/permissions',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppVouchersIndexRoute = AppVouchersIndexRouteImport.update({
   id: '/vouchers/',
   path: '/vouchers/',
@@ -379,6 +394,11 @@ const VerifyReceiptReceiptIdRoute = VerifyReceiptReceiptIdRouteImport.update({
 const AppBankFarmersIndexRoute = AppBankFarmersIndexRouteImport.update({
   id: '/bank/farmers/',
   path: '/bank/farmers/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBankFarmersFarmerIdRoute = AppBankFarmersFarmerIdRouteImport.update({
+  id: '/bank/farmers/$farmerId',
+  path: '/bank/farmers/$farmerId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCatalogFarmUpdateTypesIndexRoute =
@@ -515,6 +535,12 @@ const AppProjectsProjectIdEditRoute =
     path: '/projects/$projectId/edit',
     getParentRoute: () => AppRoute,
   } as any)
+const AppTrackRecordsFarmersFarmerIdRoute =
+  AppTrackRecordsFarmersFarmerIdRouteImport.update({
+    id: '/track-records/farmers/$farmerId',
+    path: '/track-records/farmers/$farmerId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppVouchersBatchesIndexRoute = AppVouchersBatchesIndexRouteImport.update({
   id: '/vouchers/batches/',
   path: '/vouchers/batches/',
@@ -564,6 +590,8 @@ export interface FileRoutesByFullPath {
   '/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
   '/projects/payments': typeof AppProjectsPaymentsRoute
   '/projects/refunds': typeof AppProjectsRefundsRoute
+  '/track-records/banks': typeof AppTrackRecordsBanksRoute
+  '/track-records/permissions': typeof AppTrackRecordsPermissionsRoute
   '/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
   '/vouchers/pending': typeof AppVouchersPendingRoute
   '/vouchers/sales': typeof AppVouchersSalesRoute
@@ -589,6 +617,7 @@ export interface FileRoutesByFullPath {
   '/track-records/': typeof AppTrackRecordsIndexRoute
   '/vouchers/': typeof AppVouchersIndexRoute
   '/warehouse/': typeof AppWarehouseIndexRoute
+  '/bank/farmers/$farmerId': typeof AppBankFarmersFarmerIdRoute
   '/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
   '/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
   '/catalog/produce/$code': typeof AppCatalogProduceCodeRoute
@@ -603,6 +632,7 @@ export interface FileRoutesByFullPath {
   '/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
   '/bank/farmers/': typeof AppBankFarmersIndexRoute
@@ -649,6 +679,8 @@ export interface FileRoutesByTo {
   '/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
   '/projects/payments': typeof AppProjectsPaymentsRoute
   '/projects/refunds': typeof AppProjectsRefundsRoute
+  '/track-records/banks': typeof AppTrackRecordsBanksRoute
+  '/track-records/permissions': typeof AppTrackRecordsPermissionsRoute
   '/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
   '/vouchers/pending': typeof AppVouchersPendingRoute
   '/vouchers/sales': typeof AppVouchersSalesRoute
@@ -674,6 +706,7 @@ export interface FileRoutesByTo {
   '/track-records': typeof AppTrackRecordsIndexRoute
   '/vouchers': typeof AppVouchersIndexRoute
   '/warehouse': typeof AppWarehouseIndexRoute
+  '/bank/farmers/$farmerId': typeof AppBankFarmersFarmerIdRoute
   '/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
   '/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
   '/catalog/produce/$code': typeof AppCatalogProduceCodeRoute
@@ -688,6 +721,7 @@ export interface FileRoutesByTo {
   '/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
   '/bank/farmers': typeof AppBankFarmersIndexRoute
@@ -736,6 +770,8 @@ export interface FileRoutesById {
   '/_app/projects/payment-accounts': typeof AppProjectsPaymentAccountsRoute
   '/_app/projects/payments': typeof AppProjectsPaymentsRoute
   '/_app/projects/refunds': typeof AppProjectsRefundsRoute
+  '/_app/track-records/banks': typeof AppTrackRecordsBanksRoute
+  '/_app/track-records/permissions': typeof AppTrackRecordsPermissionsRoute
   '/_app/vouchers/$voucherId': typeof AppVouchersVoucherIdRoute
   '/_app/vouchers/pending': typeof AppVouchersPendingRoute
   '/_app/vouchers/sales': typeof AppVouchersSalesRoute
@@ -761,6 +797,7 @@ export interface FileRoutesById {
   '/_app/track-records/': typeof AppTrackRecordsIndexRoute
   '/_app/vouchers/': typeof AppVouchersIndexRoute
   '/_app/warehouse/': typeof AppWarehouseIndexRoute
+  '/_app/bank/farmers/$farmerId': typeof AppBankFarmersFarmerIdRoute
   '/_app/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
   '/_app/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
   '/_app/catalog/produce/$code': typeof AppCatalogProduceCodeRoute
@@ -775,6 +812,7 @@ export interface FileRoutesById {
   '/_app/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/_app/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/_app/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/_app/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/_app/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
   '/_app/bank/farmers/': typeof AppBankFarmersIndexRoute
@@ -823,6 +861,8 @@ export interface FileRouteTypes {
     | '/projects/payment-accounts'
     | '/projects/payments'
     | '/projects/refunds'
+    | '/track-records/banks'
+    | '/track-records/permissions'
     | '/vouchers/$voucherId'
     | '/vouchers/pending'
     | '/vouchers/sales'
@@ -848,6 +888,7 @@ export interface FileRouteTypes {
     | '/track-records/'
     | '/vouchers/'
     | '/warehouse/'
+    | '/bank/farmers/$farmerId'
     | '/catalog/farm-update-types/$code'
     | '/catalog/inputs/$code'
     | '/catalog/produce/$code'
@@ -862,6 +903,7 @@ export interface FileRouteTypes {
     | '/payouts/rounds/$roundId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
+    | '/track-records/farmers/$farmerId'
     | '/vouchers/batches/$batchId'
     | '/warehouse/receipts/$receiptId'
     | '/bank/farmers/'
@@ -908,6 +950,8 @@ export interface FileRouteTypes {
     | '/projects/payment-accounts'
     | '/projects/payments'
     | '/projects/refunds'
+    | '/track-records/banks'
+    | '/track-records/permissions'
     | '/vouchers/$voucherId'
     | '/vouchers/pending'
     | '/vouchers/sales'
@@ -933,6 +977,7 @@ export interface FileRouteTypes {
     | '/track-records'
     | '/vouchers'
     | '/warehouse'
+    | '/bank/farmers/$farmerId'
     | '/catalog/farm-update-types/$code'
     | '/catalog/inputs/$code'
     | '/catalog/produce/$code'
@@ -947,6 +992,7 @@ export interface FileRouteTypes {
     | '/payouts/rounds/$roundId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
+    | '/track-records/farmers/$farmerId'
     | '/vouchers/batches/$batchId'
     | '/warehouse/receipts/$receiptId'
     | '/bank/farmers'
@@ -994,6 +1040,8 @@ export interface FileRouteTypes {
     | '/_app/projects/payment-accounts'
     | '/_app/projects/payments'
     | '/_app/projects/refunds'
+    | '/_app/track-records/banks'
+    | '/_app/track-records/permissions'
     | '/_app/vouchers/$voucherId'
     | '/_app/vouchers/pending'
     | '/_app/vouchers/sales'
@@ -1019,6 +1067,7 @@ export interface FileRouteTypes {
     | '/_app/track-records/'
     | '/_app/vouchers/'
     | '/_app/warehouse/'
+    | '/_app/bank/farmers/$farmerId'
     | '/_app/catalog/farm-update-types/$code'
     | '/_app/catalog/inputs/$code'
     | '/_app/catalog/produce/$code'
@@ -1033,6 +1082,7 @@ export interface FileRouteTypes {
     | '/_app/payouts/rounds/$roundId'
     | '/_app/people/changes/$changeId'
     | '/_app/projects/$projectId/edit'
+    | '/_app/track-records/farmers/$farmerId'
     | '/_app/vouchers/batches/$batchId'
     | '/_app/warehouse/receipts/$receiptId'
     | '/_app/bank/farmers/'
@@ -1391,6 +1441,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTrackRecordsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/track-records/banks': {
+      id: '/_app/track-records/banks'
+      path: '/track-records/banks'
+      fullPath: '/track-records/banks'
+      preLoaderRoute: typeof AppTrackRecordsBanksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/track-records/permissions': {
+      id: '/_app/track-records/permissions'
+      path: '/track-records/permissions'
+      fullPath: '/track-records/permissions'
+      preLoaderRoute: typeof AppTrackRecordsPermissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/vouchers/': {
       id: '/_app/vouchers/'
       path: '/vouchers'
@@ -1459,6 +1523,13 @@ declare module '@tanstack/react-router' {
       path: '/bank/farmers'
       fullPath: '/bank/farmers/'
       preLoaderRoute: typeof AppBankFarmersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/bank/farmers/$farmerId': {
+      id: '/_app/bank/farmers/$farmerId'
+      path: '/bank/farmers/$farmerId'
+      fullPath: '/bank/farmers/$farmerId'
+      preLoaderRoute: typeof AppBankFarmersFarmerIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/catalog/farm-update-types/': {
@@ -1629,6 +1700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsProjectIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/track-records/farmers/$farmerId': {
+      id: '/_app/track-records/farmers/$farmerId'
+      path: '/track-records/farmers/$farmerId'
+      fullPath: '/track-records/farmers/$farmerId'
+      preLoaderRoute: typeof AppTrackRecordsFarmersFarmerIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/vouchers/batches/': {
       id: '/_app/vouchers/batches/'
       path: '/vouchers/batches'
@@ -1679,6 +1757,8 @@ interface AppRouteChildren {
   AppProjectsPaymentAccountsRoute: typeof AppProjectsPaymentAccountsRoute
   AppProjectsPaymentsRoute: typeof AppProjectsPaymentsRoute
   AppProjectsRefundsRoute: typeof AppProjectsRefundsRoute
+  AppTrackRecordsBanksRoute: typeof AppTrackRecordsBanksRoute
+  AppTrackRecordsPermissionsRoute: typeof AppTrackRecordsPermissionsRoute
   AppVouchersVoucherIdRoute: typeof AppVouchersVoucherIdRoute
   AppVouchersPendingRoute: typeof AppVouchersPendingRoute
   AppVouchersSalesRoute: typeof AppVouchersSalesRoute
@@ -1702,6 +1782,7 @@ interface AppRouteChildren {
   AppTrackRecordsIndexRoute: typeof AppTrackRecordsIndexRoute
   AppVouchersIndexRoute: typeof AppVouchersIndexRoute
   AppWarehouseIndexRoute: typeof AppWarehouseIndexRoute
+  AppBankFarmersFarmerIdRoute: typeof AppBankFarmersFarmerIdRoute
   AppCatalogFarmUpdateTypesCodeRoute: typeof AppCatalogFarmUpdateTypesCodeRoute
   AppCatalogInputsCodeRoute: typeof AppCatalogInputsCodeRoute
   AppCatalogProduceCodeRoute: typeof AppCatalogProduceCodeRoute
@@ -1716,6 +1797,7 @@ interface AppRouteChildren {
   AppPayoutsRoundsRoundIdRoute: typeof AppPayoutsRoundsRoundIdRoute
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
   AppProjectsProjectIdEditRoute: typeof AppProjectsProjectIdEditRoute
+  AppTrackRecordsFarmersFarmerIdRoute: typeof AppTrackRecordsFarmersFarmerIdRoute
   AppVouchersBatchesBatchIdRoute: typeof AppVouchersBatchesBatchIdRoute
   AppWarehouseReceiptsReceiptIdRoute: typeof AppWarehouseReceiptsReceiptIdRoute
   AppBankFarmersIndexRoute: typeof AppBankFarmersIndexRoute
@@ -1758,6 +1840,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppProjectsPaymentAccountsRoute: AppProjectsPaymentAccountsRoute,
   AppProjectsPaymentsRoute: AppProjectsPaymentsRoute,
   AppProjectsRefundsRoute: AppProjectsRefundsRoute,
+  AppTrackRecordsBanksRoute: AppTrackRecordsBanksRoute,
+  AppTrackRecordsPermissionsRoute: AppTrackRecordsPermissionsRoute,
   AppVouchersVoucherIdRoute: AppVouchersVoucherIdRoute,
   AppVouchersPendingRoute: AppVouchersPendingRoute,
   AppVouchersSalesRoute: AppVouchersSalesRoute,
@@ -1781,6 +1865,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackRecordsIndexRoute: AppTrackRecordsIndexRoute,
   AppVouchersIndexRoute: AppVouchersIndexRoute,
   AppWarehouseIndexRoute: AppWarehouseIndexRoute,
+  AppBankFarmersFarmerIdRoute: AppBankFarmersFarmerIdRoute,
   AppCatalogFarmUpdateTypesCodeRoute: AppCatalogFarmUpdateTypesCodeRoute,
   AppCatalogInputsCodeRoute: AppCatalogInputsCodeRoute,
   AppCatalogProduceCodeRoute: AppCatalogProduceCodeRoute,
@@ -1795,6 +1880,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPayoutsRoundsRoundIdRoute: AppPayoutsRoundsRoundIdRoute,
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
   AppProjectsProjectIdEditRoute: AppProjectsProjectIdEditRoute,
+  AppTrackRecordsFarmersFarmerIdRoute: AppTrackRecordsFarmersFarmerIdRoute,
   AppVouchersBatchesBatchIdRoute: AppVouchersBatchesBatchIdRoute,
   AppWarehouseReceiptsReceiptIdRoute: AppWarehouseReceiptsReceiptIdRoute,
   AppBankFarmersIndexRoute: AppBankFarmersIndexRoute,

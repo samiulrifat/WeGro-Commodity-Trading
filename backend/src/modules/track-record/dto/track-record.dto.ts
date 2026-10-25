@@ -90,7 +90,16 @@ export class GrantConsentDto {
   evidencePhotoId: string;
 }
 
-export class ListBankFarmersQueryDto extends PaginationQueryDto {}
+export class ListBankFarmersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    description:
+      'The farmer: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+}
 
 export class ListViewsQueryDto extends PaginationQueryDto {}
 
@@ -99,6 +108,70 @@ export class ListBanksQueryDto {
   @IsOptional()
   @IsIn(DISTRICT_CODES)
   districtCode?: string;
+
+  @ApiPropertyOptional({ description: 'Words of the bank name or branch' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+}
+
+/**
+ * Where a farmer's track record stands: published, with finished projects
+ * the latest version does not hold yet, or never published.
+ */
+export const RECORD_STATES = [
+  'published',
+  'pending_additions',
+  'not_published',
+] as const;
+
+export class ListTrackRecordFarmersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    enum: RECORD_STATES,
+    description:
+      'published: any version; pending_additions: a version missing finished projects; not_published: none yet',
+  })
+  @IsOptional()
+  @IsIn(RECORD_STATES)
+  state?: (typeof RECORD_STATES)[number];
+
+  @ApiPropertyOptional({
+    description:
+      'The farmer: a mobile number, an NID or whole words of their name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+}
+
+/** Where a bank permission stands now. */
+export const CONSENT_STATES = ['current', 'expired', 'revoked'] as const;
+
+export class ListAllConsentsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    enum: CONSENT_STATES,
+    description:
+      'current: active and not expired; expired: active but past its last day; revoked: withdrawn',
+  })
+  @IsOptional()
+  @IsIn(CONSENT_STATES)
+  state?: (typeof CONSENT_STATES)[number];
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
+  bankId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'The farmer (a mobile number, an NID or whole words of their name) or words of the bank name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }
 
 // --- Responses ---
@@ -178,13 +251,29 @@ export class TrackRecordPreviewDto {
   })
   summary: TrackRecordSummary;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    type: TrackPartyDto,
+    description: "The farmer's field officer; null when they have none",
+  })
+  officer: TrackPartyDto | null;
+
   @ApiPropertyOptional({ nullable: true, type: Number })
   latestVersion: number | null;
+
+  @ApiProperty({
+    description:
+      'Finished projects the latest version does not hold yet (0 before the first version)',
+  })
+  pendingProjects: number;
 }
 
 export class ConsentDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
+
+  @ApiProperty({ type: TrackPartyDto })
+  farmer: TrackPartyDto;
 
   @ApiProperty({ type: TrackPartyDto })
   bank: TrackPartyDto;
@@ -235,6 +324,36 @@ export class SummaryViewDto {
 
   @ApiProperty()
   viewedAt: Date;
+}
+
+/** A farmer with where their track record and bank permissions stand. */
+export class TrackRecordFarmerDto {
+  @ApiProperty({ type: TrackPartyDto })
+  farmer: TrackPartyDto;
+
+  @ApiPropertyOptional({ nullable: true, type: String, example: 'Bogura' })
+  district: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: TrackPartyDto })
+  officer: TrackPartyDto | null;
+
+  @ApiProperty({ description: 'Projects paid out or closed on the platform' })
+  finishedProjects: number;
+
+  @ApiPropertyOptional({ nullable: true, type: Number })
+  latestVersion: number | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Date })
+  publishedAt: Date | null;
+
+  @ApiProperty({
+    description:
+      'Finished projects the latest version does not hold yet (0 before the first version)',
+  })
+  pendingProjects: number;
+
+  @ApiProperty({ description: 'Banks whose permission is current' })
+  currentPermissions: number;
 }
 
 export class BankFarmerDto {

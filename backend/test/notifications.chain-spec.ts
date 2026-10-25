@@ -121,8 +121,11 @@ describe('Notifications (node + database)', () => {
       subject: { type: 'participant', id: registered },
       readAt: null,
     });
-    // Staff registrations go to the super admin instead.
-    expect(await ofKind(t.super_admin, 'participant.registered')).toEqual([]);
+    // Staff registrations go to the super admin instead (the demo staff's
+    // among them); this buyer's does not.
+    const superAdmins = await ofKind(t.super_admin, 'participant.registered');
+    expect(superAdmins.map((n) => n.subject?.id)).not.toContain(registered);
+    expect(superAdmins.map((n) => n.params?.role)).toContain('auditor');
   });
 
   it('puts a new reservation in Accounts’ inbox, then reminds the investor once', async () => {

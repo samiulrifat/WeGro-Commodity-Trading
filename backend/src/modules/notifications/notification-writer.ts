@@ -71,7 +71,7 @@ export class NotificationWriter {
     return inserted.length;
   }
 
-  /** Verified people in these roles (staff queues are small). */
+  /** Verified people in these roles, the super admin among them (staff queues are small). */
   async withRole(
     m: EntityManager,
     roles: readonly Role[],
@@ -79,7 +79,8 @@ export class NotificationWriter {
   ): Promise<string[]> {
     const rows: Array<{ id: string }> = await m.query(
       `SELECT id FROM users
-        WHERE role = ANY($1) AND status = 'verified' AND chain_state = 'confirmed'
+        WHERE role = ANY($1) AND status = 'verified'
+          AND chain_state IN ('confirmed', 'operator')
           AND NOT (id = ANY($2::uuid[]))`,
       [roles, except.filter((x): x is string => !!x)],
     );

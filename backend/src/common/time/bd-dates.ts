@@ -24,6 +24,10 @@ export function bdDate(at: Date): string {
 export const bdLastDay = (endSeconds: number): string =>
   bdDate(new Date((endSeconds - 1) * 1000));
 
+/** The latest day whose end is still within a limit (an expiry may not pass it). */
+export const bdLastDayWithin = (limitSeconds: number): string =>
+  bdDate(new Date((limitSeconds - DAY_S) * 1000));
+
 /** True once `now` has passed the end of day `date`; never for null. */
 export function isPastDay(date: string | null, now: Date): boolean {
   return date !== null && now.getTime() / 1000 >= bdDayEnd(date);

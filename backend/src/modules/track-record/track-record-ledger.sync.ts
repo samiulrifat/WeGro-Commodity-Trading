@@ -3,6 +3,7 @@ import type { EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
 import { bytes32ToUuid, ZERO_BYTES32 } from '../../blockchain/utils/ids';
+import { personId } from '../../blockchain/utils/person-id';
 
 /**
  * Keeps banks, bank officers, track records, consents and the view log in
@@ -145,7 +146,7 @@ export class TrackRecordLedgerSync implements OnModuleInit {
                   "chain_event_block" = $5, "chain_event_log" = $6
             WHERE "farmer_id" = $1 AND "bank_id" = $2 AND "status" = 'active'
               AND ("chain_event_block", "chain_event_log") < ($5, $6)`,
-          [farmerId, bankId, when, toUuid(a.revokedBy), ...at],
+          [farmerId, bankId, when, await personId(m, a.revokedBy), ...at],
         );
         return;
       }

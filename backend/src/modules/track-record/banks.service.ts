@@ -6,6 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { matchesWord, searchWords } from '../../common/search/words';
 import type { ContractTransaction } from 'ethers';
 import { In, Repository } from 'typeorm';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
@@ -99,7 +100,18 @@ export class BanksService {
       },
       order: { name: 'ASC', branchName: 'ASC' },
     });
-    return this.dtos(actor, rows);
+    // Banks are few: words of the name or branch are matched in memory.
+    const words = searchWords(q.q);
+    return this.dtos(
+      actor,
+      words.length === 0
+        ? rows
+        : rows.filter((b) =>
+            words.every(
+              (w) => matchesWord(b.name, w) || matchesWord(b.branchName, w),
+            ),
+          ),
+    );
   }
 
   async one(actor: AuthUser, id: string): Promise<BankDto> {

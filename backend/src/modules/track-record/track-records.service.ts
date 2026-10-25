@@ -7,27 +7,36 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, MoreThan, Not, Repository } from 'typeorm';
+import { Brackets, DataSource, In, MoreThan, Not, Repository } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ContractsRegistry } from '../../blockchain/contracts.registry';
 import { ContractRevertException } from '../../blockchain/errors/contract-errors';
 import { canonicalJson } from '../../blockchain/utils/fingerprint';
 import { uuidToBytes32 } from '../../blockchain/utils/ids';
 import { Paginated } from '../../common/dto/pagination.dto';
+import { matchesWord, searchWords } from '../../common/search/words';
 import {
   BD_DISTRICTS,
   isDistrictCode,
 } from '../../common/reference/bd-districts';
-import { bdDayEnd, bdLastDay } from '../../common/time/bd-dates';
+import {
+  bdDayEnd,
+  bdLastDay,
+  bdLastDayWithin,
+} from '../../common/time/bd-dates';
 import type { AuthUser } from '../auth/auth-user';
 import { Photo } from '../field-records/entities/photo.entity';
 import { photoHash, PhotosService } from '../field-records/photos.service';
 import { ProjectViews } from '../projects/project-views';
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { User } from '../users/entities/user.entity';
-import { Role } from '../users/roles';
+import { PersonSearch } from '../users/person-search';
+import { ParticipantStatus, Role } from '../users/roles';
 import { BanksService } from './banks.service';
 import type {
+  ListAllConsentsQueryDto,
+  ListTrackRecordFarmersQueryDto,
+  TrackRecordFarmerDto,
   BankFarmerDto,
   BankViewDto,
   ConsentDto,
@@ -50,8 +59,27 @@ import {
   type TrackRecordSummary,
   TrackRecordBuilder,
 } from './track-record-summary';
-import { ConsentStatus, MAX_CONSENT_SECONDS } from './track-record.enums';
+import {
+  ConsentStatus,
+  FINISHED_STAGES,
+  MAX_CONSENT_SECONDS,
+  MAX_PROJECTS_PER_RECORD,
+} from './track-record.enums';
 import { ErrorCode } from '../../common/errors/error-code';
+
+/**
+ * Whether farmer `u` has finished projects that their latest published
+ * version does not hold, among those a new version would hold (the newest
+ * 50, ranked as TrackRecordBuilder picks them). False before any version.
+ */
+const PENDING_ADDITIONS = `EXISTS (
+  SELECT 1
+    FROM (SELECT t.project_ids FROM track_records t
+           WHERE t.farmer_id = u.id AND t.status = 'recorded'
+           ORDER BY t.version DESC LIMIT 1) l,
+         (SELECT p.id, ROW_NUMBER() OVER (ORDER BY p.finished_at DESC NULLS LAST, p.id) AS rn
+            FROM projects p WHERE p.farmer_id = u.id AND p.stage IN (:...finishedStages)) r
+   WHERE r.rn <= :maxProjects AND NOT (r.id = ANY(l.project_ids)))`;
 
 /** See any farmer's track record, consents and view log. */
 const STAFF: ReadonlySet<Role> = new Set([
@@ -88,6 +116,7 @@ export class TrackRecordsService {
     private readonly views: ProjectViews,
     private readonly contracts: ContractsRegistry,
     private readonly clock: ChainClock,
+    private readonly search: PersonSearch,
   ) {}
 
   // --- Track records ---
@@ -98,11 +127,19 @@ export class TrackRecordsService {
     farmerId: string,
   ): Promise<TrackRecordPreviewDto> {
     await this.visibleFarmer(actor, farmerId);
-    const [{ summary }, latest] = await Promise.all([
+    const [{ summary, projectIds }, latest] = await Promise.all([
       this.build(randomUUID(), farmerId),
       this.latest(farmerId),
     ]);
-    return { summary, latestVersion: latest?.version ?? null };
+    const held = new Set(latest?.projectIds);
+    return {
+      summary,
+      officer: await this.officerOf(farmerId),
+      latestVersion: latest?.version ?? null,
+      pendingProjects: latest
+        ? projectIds.filter((id) => !held.has(id)).length
+        : 0,
+    };
   }
 
   /**
@@ -251,7 +288,7 @@ export class TrackRecordsService {
       throw new UnprocessableEntityException({
         message: 'Permission lasts at most a year; renew it when it ends',
         code: ErrorCode.EXPIRY_TOO_LATE,
-        details: { latest: bdLastDay(now + MAX_CONSENT_SECONDS) },
+        details: { latest: bdLastDayWithin(now + MAX_CONSENT_SECONDS) },
       });
     }
     const photo = await this.photoRows.findOneBy({
@@ -372,6 +409,191 @@ export class TrackRecordsService {
     );
   }
 
+  // --- Lists across farmers ---
+
+  /**
+   * Farmers with where their track record and bank permissions stand: every
+   * farmer for staff, an officer's own farmers. Searched as people; filtered
+   * by whether a record is published. One query for the page, then one
+   * grouped query each for records, finished projects and permissions.
+   */
+  async farmers(
+    actor: AuthUser,
+    q: ListTrackRecordFarmersQueryDto,
+  ): Promise<Paginated<TrackRecordFarmerDto>> {
+    const qb = this.users
+      .createQueryBuilder('u')
+      .where('u.role = :farmer AND u.status = :verified', {
+        farmer: Role.FARMER,
+        verified: ParticipantStatus.VERIFIED,
+      });
+    if (actor.role === Role.FIELD_OFFICER) {
+      qb.andWhere('u.field_officer_id = :me', { me: actor.id });
+    }
+    const published = `EXISTS (SELECT 1 FROM track_records t WHERE t.farmer_id = u.id AND t.status = 'recorded')`;
+    if (q.state === 'published') qb.andWhere(published);
+    if (q.state === 'not_published') qb.andWhere(`NOT ${published}`);
+    if (q.state === 'pending_additions') {
+      qb.andWhere(PENDING_ADDITIONS, {
+        finishedStages: [...FINISHED_STAGES],
+        maxProjects: MAX_PROJECTS_PER_RECORD,
+      });
+    }
+    this.search.apply(qb, 'u.id', q.q);
+    const [rows, total] = await qb
+      .orderBy('u.created_at', 'DESC')
+      .addOrderBy('u.id', 'DESC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
+    const ids = rows.map((u) => u.id);
+    if (ids.length === 0) return new Paginated([], total, q);
+    const now = await this.clock.now();
+    const [records, finished, permissions, districts, names] =
+      await Promise.all([
+        this.dataSource.query<
+          Array<{
+            farmer_id: string;
+            version: number;
+            published_at: Date;
+            project_ids: string[];
+          }>
+        >(
+          `SELECT DISTINCT ON (farmer_id) farmer_id, version, published_at, project_ids
+             FROM track_records
+            WHERE farmer_id = ANY($1) AND status = 'recorded'
+            ORDER BY farmer_id, version DESC`,
+          [ids],
+        ),
+        // Newest first, ranked as the builder picks a version's projects.
+        this.dataSource.query<Array<{ farmer_id: string; id: string }>>(
+          `SELECT farmer_id, id FROM projects
+            WHERE farmer_id = ANY($1) AND stage = ANY($2)
+            ORDER BY farmer_id, finished_at DESC NULLS LAST, id`,
+          [ids, FINISHED_STAGES],
+        ),
+        this.dataSource.query<Array<{ farmer_id: string; n: string }>>(
+          `SELECT farmer_id, COUNT(*) AS n FROM bank_consents
+            WHERE farmer_id = ANY($1) AND status = 'active' AND expires_at > $2 GROUP BY farmer_id`,
+          [ids, now],
+        ),
+        this.details.find({
+          where: { userId: In(ids) },
+          select: { userId: true, district: true },
+        }),
+        this.views.names([
+          ...ids,
+          ...rows.flatMap((u) => (u.fieldOfficerId ? [u.fieldOfficerId] : [])),
+        ]),
+      ]);
+    const recordOf = new Map(records.map((r) => [r.farmer_id, r]));
+    const finishedOf = new Map<string, string[]>();
+    for (const p of finished) {
+      const list = finishedOf.get(p.farmer_id);
+      if (list) list.push(p.id);
+      else finishedOf.set(p.farmer_id, [p.id]);
+    }
+    const permissionsOf = new Map(
+      permissions.map((r) => [r.farmer_id, Number(r.n)]),
+    );
+    const districtOf = new Map(districts.map((d) => [d.userId, d.district]));
+    return new Paginated(
+      rows.map((u) => {
+        const district = districtOf.get(u.id) ?? null;
+        const record = recordOf.get(u.id);
+        const done = finishedOf.get(u.id) ?? [];
+        const held = new Set(record?.project_ids);
+        return {
+          farmer: { id: u.id, name: names.get(u.id) ?? '' },
+          district:
+            district && isDistrictCode(district)
+              ? BD_DISTRICTS[district].name
+              : district,
+          officer: u.fieldOfficerId
+            ? {
+                id: u.fieldOfficerId,
+                name: names.get(u.fieldOfficerId) ?? '',
+              }
+            : null,
+          finishedProjects: done.length,
+          latestVersion: record?.version ?? null,
+          publishedAt: record?.published_at ?? null,
+          pendingProjects: record
+            ? done
+                .slice(0, MAX_PROJECTS_PER_RECORD)
+                .filter((id) => !held.has(id)).length
+            : 0,
+          currentPermissions: permissionsOf.get(u.id) ?? 0,
+        };
+      }),
+      total,
+      q,
+    );
+  }
+
+  /**
+   * Bank permissions across farmers (staff; an officer's own farmers'),
+   * newest first: filtered by where they stand and by bank, searched by the
+   * farmer or the bank's name.
+   */
+  async allConsents(
+    actor: AuthUser,
+    q: ListAllConsentsQueryDto,
+  ): Promise<Paginated<ConsentDto>> {
+    const now = await this.clock.now();
+    const qb = this.consents
+      .createQueryBuilder('c')
+      .where('c.status IN (:...shown)', {
+        shown: [ConsentStatus.ACTIVE, ConsentStatus.REVOKED],
+      });
+    if (actor.role === Role.FIELD_OFFICER) {
+      qb.andWhere(
+        'EXISTS (SELECT 1 FROM users f WHERE f.id = c.farmer_id AND f.field_officer_id = :me)',
+        { me: actor.id },
+      );
+    }
+    if (q.state === 'current')
+      qb.andWhere("c.status = 'active' AND c.expires_at > :now", { now });
+    if (q.state === 'expired')
+      qb.andWhere("c.status = 'active' AND c.expires_at <= :now", { now });
+    if (q.state === 'revoked') qb.andWhere("c.status = 'revoked'");
+    if (q.bankId) qb.andWhere('c.bank_id = :bank', { bank: q.bankId });
+    const text = (q.q ?? '').trim();
+    if (text) {
+      const words = searchWords(text);
+      const banks =
+        words.length === 0
+          ? []
+          : (
+              await this.bankRows.find({
+                select: { id: true, name: true, branchName: true },
+              })
+            )
+              .filter((b) =>
+                words.every(
+                  (w) => matchesWord(b.name, w) || matchesWord(b.branchName, w),
+                ),
+              )
+              .map((b) => b.id);
+      const farmer = this.search.condition('c.farmer_id', text, 'Farmer');
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where('1 = 0');
+          if (farmer) b.orWhere(farmer.sql, farmer.params);
+          if (banks.length > 0)
+            b.orWhere('c.bank_id IN (:...qbanks)', { qbanks: banks });
+        }),
+      );
+    }
+    const [rows, total] = await qb
+      .orderBy('c.created_at', 'DESC')
+      .addOrderBy('c.id', 'DESC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
+    return new Paginated(await this.consentDtos(rows), total, q);
+  }
+
   // --- Bank officers ---
 
   /** Farmers whose permission for the officer's bank is current. */
@@ -380,16 +602,23 @@ export class TrackRecordsService {
     q: ListBankFarmersQueryDto,
   ): Promise<Paginated<BankFarmerDto>> {
     const bankId = await this.requireBank(actor);
-    const [rows, total] = await this.consents.findAndCount({
-      where: {
-        bankId,
-        status: ConsentStatus.ACTIVE,
-        expiresAt: MoreThan(await this.clock.now()),
-      },
-      order: { grantedAt: 'DESC' },
-      skip: q.skip,
-      take: q.limit,
-    });
+    const qb = this.consents
+      .createQueryBuilder('c')
+      .where(
+        'c.bank_id = :bankId AND c.status = :active AND c.expires_at > :now',
+        {
+          bankId,
+          active: ConsentStatus.ACTIVE,
+          now: await this.clock.now(),
+        },
+      );
+    this.search.apply(qb, 'c.farmer_id', q.q);
+    const [rows, total] = await qb
+      .orderBy('c.granted_at', 'DESC')
+      .addOrderBy('c.id', 'DESC')
+      .skip(q.skip)
+      .take(q.limit)
+      .getManyAndCount();
     const farmerIds = rows.map((r) => r.farmerId);
     const [names, districts, latest] = await Promise.all([
       this.views.names(farmerIds),
@@ -494,12 +723,16 @@ export class TrackRecordsService {
       });
   }
 
-  /** Only the farmer's own field officer publishes, grants and withdraws. */
+  /**
+   * Only the farmer's own field officer publishes, grants and withdraws, or
+   * the super admin (for a farmer whose officer is gone), as on the ledger.
+   */
   private async requireOfficer(
     actor: AuthUser,
     farmerId: string,
   ): Promise<void> {
     await this.visibleFarmer(actor, farmerId);
+    if (actor.role === Role.SUPER_ADMIN) return;
     const isOfficer =
       actor.role === Role.FIELD_OFFICER &&
       (await this.users.exists({
@@ -507,7 +740,8 @@ export class TrackRecordsService {
       }));
     if (!isOfficer) {
       throw new ForbiddenException({
-        message: "Only the farmer's field officer can do this",
+        message:
+          "Only the farmer's field officer or the super admin can do this",
         code: ErrorCode.NOT_FARMERS_OFFICER,
       });
     }
@@ -535,6 +769,22 @@ export class TrackRecordsService {
       status: ConsentStatus.ACTIVE,
       expiresAt: MoreThan(await this.clock.now()),
     });
+  }
+
+  /** The farmer's field officer, or null when they have none. */
+  private async officerOf(
+    farmerId: string,
+  ): Promise<{ id: string; name: string } | null> {
+    const farmer = await this.users.findOne({
+      where: { id: farmerId },
+      select: { id: true, fieldOfficerId: true },
+    });
+    if (!farmer?.fieldOfficerId) return null;
+    const names = await this.views.names([farmer.fieldOfficerId]);
+    return {
+      id: farmer.fieldOfficerId,
+      name: names.get(farmer.fieldOfficerId) ?? '',
+    };
   }
 
   private latest(farmerId: string): Promise<TrackRecord | null> {
@@ -591,27 +841,41 @@ export class TrackRecordsService {
     return (await this.consentDtos([row]))[0];
   }
 
-  /** Bank names, people and view counts for all rows in three queries. */
+  /**
+   * Bank names, people and view counts for all rows in three queries. A
+   * grant counts the views made while it stood: from its grant until it was
+   * withdrawn or the next grant for the same bank renewed it.
+   */
   private async consentDtos(rows: BankConsent[]): Promise<ConsentDto[]> {
     if (rows.length === 0) return [];
-    const farmerId = rows[0].farmerId;
+    const farmerIds = [...new Set(rows.map((r) => r.farmerId))];
     const [banks, names, counts, now] = await Promise.all([
       this.banks.names(rows.map((r) => r.bankId)),
-      this.views.names(rows.map((r) => r.grantedById)),
-      this.dataSource.query<
-        Array<{ bank_id: string; views: string; last: Date }>
-      >(
-        `SELECT bank_id, COUNT(*) AS views, MAX(viewed_at) AS last
-           FROM summary_views WHERE farmer_id = $1 GROUP BY bank_id`,
-        [farmerId],
+      this.views.names([...rows.map((r) => r.grantedById), ...farmerIds]),
+      this.dataSource.query<Array<{ id: string; views: string; last: Date }>>(
+        `WITH g AS (
+           SELECT id, farmer_id, bank_id, granted_at,
+                  COALESCE(revoked_at, LEAD(granted_at) OVER (
+                    PARTITION BY farmer_id, bank_id ORDER BY granted_at, id)) AS ended
+             FROM bank_consents
+            WHERE farmer_id = ANY($1) AND granted_at IS NOT NULL)
+         SELECT g.id, COUNT(*) AS views, MAX(v.viewed_at) AS last
+           FROM g JOIN summary_views v
+             ON v.farmer_id = g.farmer_id AND v.bank_id = g.bank_id
+            AND v.viewed_at >= g.granted_at
+            AND (g.ended IS NULL OR v.viewed_at < g.ended)
+          WHERE g.id = ANY($2)
+          GROUP BY g.id`,
+        [farmerIds, rows.map((r) => r.id)],
       ),
       this.clock.now(),
     ]);
-    const viewsOf = new Map(counts.map((c) => [c.bank_id, c]));
+    const viewsOf = new Map(counts.map((c) => [c.id, c]));
     return rows.map((r) => {
-      const v = viewsOf.get(r.bankId);
+      const v = viewsOf.get(r.id);
       return {
         id: r.id,
+        farmer: { id: r.farmerId, name: names.get(r.farmerId) ?? '' },
         bank: { id: r.bankId, name: banks.get(r.bankId) ?? '' },
         status: r.status,
         current: r.status === ConsentStatus.ACTIVE && r.expiresAt > now,

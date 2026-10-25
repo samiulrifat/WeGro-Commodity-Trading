@@ -59,14 +59,17 @@ export class ReminderJob implements ScheduledJobRunner {
     // Independent reads, each on its own pooled connection, then one insert
     // (atomic by itself; the dedupe key makes a repeat harmless).
     const m = this.dataSource.manager;
-    const admins = await this.writer.withRole(m, [Role.ADMIN]);
+    const [admins, superAdmins] = await Promise.all([
+      this.writer.withRole(m, [Role.ADMIN]),
+      this.writer.withRole(m, [Role.SUPER_ADMIN]),
+    ]);
     const batches = await Promise.all([
       this.reservations(m, now),
       this.deals(m, now),
       this.sales(m, now),
       this.vouchers(m, now, admins),
       this.receipts(m, now, admins),
-      this.consents(m, now),
+      this.consents(m, now, superAdmins),
     ]);
     const sent = await this.writer.sendMany(m, batches.flat());
     if (sent > 0) this.logger.log(`Sent ${sent} reminder(s)`);
@@ -271,8 +274,15 @@ export class ReminderJob implements ScheduledJobRunner {
     });
   }
 
-  /** Bank permission ending within 7 days: the farmer and their officer. */
-  private async consents(m: EntityManager, now: Date): Promise<Item[]> {
+  /**
+   * Bank permission ending within 7 days: the farmer and their officer, or
+   * the super admin, who renews it for a farmer without one.
+   */
+  private async consents(
+    m: EntityManager,
+    now: Date,
+    superAdmins: string[],
+  ): Promise<Item[]> {
     const rows: Array<{
       id: string;
       farmer_id: string;
@@ -297,9 +307,10 @@ export class ReminderJob implements ScheduledJobRunner {
         subject: { type: 'consent', id: r.id },
         key: `consent:${r.id}:expiring`,
       };
-      return [r.farmer_id, r.officer_id]
-        .filter((u): u is string => !!u)
-        .map((userId) => ({ userId, note }));
+      return [
+        r.farmer_id,
+        ...(r.officer_id ? [r.officer_id] : superAdmins),
+      ].map((userId) => ({ userId, note }));
     });
   }
 }

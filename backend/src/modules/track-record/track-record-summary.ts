@@ -9,7 +9,7 @@ import {
 import { addMonths, bdDate } from '../../common/time/bd-dates';
 import { CatalogService } from '../catalog/catalog.service';
 import { signedTaka } from '../settlement/settlement-math';
-import { MAX_PROJECTS_PER_RECORD } from './track-record.enums';
+import { FINISHED_STAGES, MAX_PROJECTS_PER_RECORD } from './track-record.enums';
 
 /**
  * A farmer's track record as published. Every value is a string, boolean,
@@ -138,8 +138,8 @@ export class TrackRecordBuilder {
       `SELECT id, title, produce_code, district_code, duration_type, duration_months, issued_slots,
               slot_price::text AS slot_price, activated_at, finished_at
          FROM projects
-        WHERE farmer_id = $1 AND stage IN ('paid_out', 'closed')`,
-      [input.farmer.id],
+        WHERE farmer_id = $1 AND stage = ANY($2)`,
+      [input.farmer.id, FINISHED_STAGES],
     );
     const ids = finished.map((p) => p.id);
 
@@ -225,11 +225,13 @@ export class TrackRecordBuilder {
       else claimsOf.set(c.project_id, [c]);
     }
 
-    // The newest 50 finished projects, then in the ledger's order.
+    // The newest 50 finished projects (ties by id, as PENDING_ADDITIONS
+    // ranks them), then in the ledger's order.
     const chosen = finished
       .sort(
         (a, b) =>
-          (b.finished_at?.getTime() ?? 0) - (a.finished_at?.getTime() ?? 0),
+          (b.finished_at?.getTime() ?? 0) - (a.finished_at?.getTime() ?? 0) ||
+          (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
       )
       .slice(0, MAX_PROJECTS_PER_RECORD)
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

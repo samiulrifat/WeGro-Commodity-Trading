@@ -8,9 +8,10 @@ import {ProjectLedger} from "../projects/ProjectLedger.sol";
 
 /// @title ConsentRegistry
 /// @notice Farmer track records and bank permissions. The farmer's field
-/// officer publishes a track record built from the farmer's finished projects (only
-/// its hash goes on-chain) and grants or withdraws a bank's permission on the
-/// farmer's behalf, with a fingerprint of the farmer's signed consent form. Permission
+/// officer (or the super admin, when the officer cannot) publishes a track record
+/// built from the farmer's finished projects (only its hash goes on-chain) and grants
+/// or withdraws a bank's permission on the farmer's behalf, with a fingerprint of the
+/// farmer's signed consent form. Permission
 /// covers a whole bank for at most a year (renewable); any officer assigned to that
 /// bank can view the summary while it is active, and every view is logged.
 contract ConsentRegistry is AccessGuarded {
@@ -96,7 +97,7 @@ contract ConsentRegistry is AccessGuarded {
     /// @notice Publish a new version of a farmer's track record. Every project
     /// listed (in ascending id order, no repeats) must be the farmer's and finished.
     function publishTrackRecord(bytes32 farmerId, bytes32[] calldata projectIds, bytes32 summaryHash) external {
-        bytes32 officerId = _farmersOfficer(farmerId);
+        bytes32 actorId = _farmersOfficerOrSuperAdmin(farmerId);
         if (summaryHash == bytes32(0)) revert ZeroValue();
         if (projectIds.length == 0 || projectIds.length > MAX_PROJECTS_PER_RECORD) revert BadProjectList();
 
@@ -111,9 +112,9 @@ contract ConsentRegistry is AccessGuarded {
 
         uint32 version = ++latestVersion[farmerId];
         _records[farmerId][version] =
-            TrackRecord({summaryHash: summaryHash, publishedBy: officerId, publishedAt: uint64(block.timestamp)});
+            TrackRecord({summaryHash: summaryHash, publishedBy: actorId, publishedAt: uint64(block.timestamp)});
         _recordProjects[farmerId][version] = projectIds;
-        emit TrackRecordPublished(farmerId, version, summaryHash, projectIds, officerId);
+        emit TrackRecordPublished(farmerId, version, summaryHash, projectIds, actorId);
     }
 
     // --- Consent ---
@@ -122,7 +123,7 @@ contract ConsentRegistry is AccessGuarded {
     /// until `expiresAt` (at most a year ahead). `evidenceHash` fingerprints the farmer's
     /// signed consent form.
     function grantConsent(bytes32 farmerId, bytes32 bankId, uint64 expiresAt, bytes32 evidenceHash) external {
-        bytes32 officerId = _farmersOfficer(farmerId);
+        bytes32 actorId = _farmersOfficerOrSuperAdmin(farmerId);
         if (evidenceHash == bytes32(0)) revert ZeroValue();
         if (bankDetails[bankId] == bytes32(0)) revert BankNotFound(bankId);
         if (expiresAt <= block.timestamp || expiresAt > block.timestamp + MAX_CONSENT_DURATION) {
@@ -130,21 +131,21 @@ contract ConsentRegistry is AccessGuarded {
         }
 
         _consents[farmerId][bankId] = Consent({
-            grantedBy: officerId,
+            grantedBy: actorId,
             evidenceHash: evidenceHash,
             grantedAt: uint64(block.timestamp),
             expiresAt: expiresAt,
             revoked: false
         });
-        emit ConsentGranted(farmerId, bankId, expiresAt, evidenceHash, officerId);
+        emit ConsentGranted(farmerId, bankId, expiresAt, evidenceHash, actorId);
     }
 
     /// @notice The farmer withdraws permission; the bank's access ends at once.
     function revokeConsent(bytes32 farmerId, bytes32 bankId) external {
-        bytes32 officerId = _farmersOfficer(farmerId);
+        bytes32 actorId = _farmersOfficerOrSuperAdmin(farmerId);
         if (!hasConsent(farmerId, bankId)) revert NoActiveConsent(farmerId, bankId);
         _consents[farmerId][bankId].revoked = true;
-        emit ConsentRevoked(farmerId, bankId, officerId);
+        emit ConsentRevoked(farmerId, bankId, actorId);
     }
 
     // --- Bank access ---
@@ -191,10 +192,13 @@ contract ConsentRegistry is AccessGuarded {
 
     // --- Internals ---
 
-    /// @dev Caller must be the farmer's field officer. Returns the officer's id.
-    function _farmersOfficer(bytes32 farmerId) private view returns (bytes32 officerId) {
-        officerId = _callerId();
-        if (!_hasRole(Roles.FIELD_OFFICER) || registry.fieldOfficerOf(farmerId) != officerId) {
+    /// @dev Caller must be the farmer's field officer, or the super admin (for a
+    /// farmer whose officer is gone). Returns the caller's id (SUPER_ADMIN_ID for
+    /// the super admin).
+    function _farmersOfficerOrSuperAdmin(bytes32 farmerId) private view returns (bytes32 actorId) {
+        if (_isSuperAdmin()) return Roles.SUPER_ADMIN_ID;
+        actorId = _callerId();
+        if (!_hasRole(Roles.FIELD_OFFICER) || registry.fieldOfficerOf(farmerId) != actorId) {
             revert NotFarmersOfficer(msg.sender);
         }
     }

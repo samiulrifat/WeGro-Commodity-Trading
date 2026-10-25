@@ -179,6 +179,7 @@ describe('TrackRecordsService', () => {
       { names: () => Promise.resolve(new Map()) } as never,
       { get: () => ({ getTrackRecord: ledgerHash }) } as never,
       fakeClock(NOW) as never,
+      { condition: () => null, apply: (qb: unknown) => qb } as never,
     );
     return { service, records, consents, chain, ledgerHash };
   };
@@ -249,6 +250,55 @@ describe('TrackRecordsService', () => {
       });
     });
 
+    it('lets the super admin act for a farmer whose officer is gone', async () => {
+      const superAdmin = actor(Role.SUPER_ADMIN);
+      const orphan = { id: FARMER, role: Role.FARMER, fieldOfficerId: null };
+      const { service, chain } = build({
+        farmer: orphan,
+        officerOf: false,
+        latest: { summaryHash: '0xold', summary: summary([PX]) },
+      });
+      await service.publish(superAdmin, FARMER);
+      await service.grant(superAdmin, FARMER, {
+        bankId: BANK,
+        expiresOn: '2027-01-01',
+        evidencePhotoId: 'ph',
+      });
+      expect(chain.methods()).toEqual(['publishTrackRecord', 'grantConsent']);
+      const withConsent = build({
+        farmer: orphan,
+        officerOf: false,
+        consent: {},
+      });
+      await withConsent.service.revoke(superAdmin, FARMER, BANK);
+      expect(withConsent.chain.methods()).toEqual(['revokeConsent']);
+      // Admins still may not.
+      await expect(
+        build({ farmer: orphan }).service.publish(actor(Role.ADMIN), FARMER),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('previews with the officer and the finished projects the latest version lacks', async () => {
+      const behind = await build({
+        projects: [P1, P2],
+        latest: { projectIds: [P1], summary: summary([P1]) },
+      }).service.preview(actor(Role.SUPER_ADMIN), FARMER);
+      expect(behind).toMatchObject({
+        latestVersion: 1,
+        pendingProjects: 1,
+        officer: { id: officer.id },
+      });
+      const first = await build({
+        projects: [P1],
+        farmer: { id: FARMER, role: Role.FARMER, fieldOfficerId: null },
+      }).service.preview(actor(Role.ADMIN), FARMER);
+      expect(first).toMatchObject({
+        latestVersion: null,
+        pendingProjects: 0,
+        officer: null,
+      });
+    });
+
     it('removes a version the ledger refuses', async () => {
       const { service, records, chain } = build();
       chain.fail(revert('NotFarmersOfficer'));
@@ -310,8 +360,15 @@ describe('TrackRecordsService', () => {
         .catch((e: UnprocessableEntityException) => e.getResponse());
       expect(late).toMatchObject({
         code: 'EXPIRY_TOO_LATE',
-        details: { latest: '2027-10-14' },
+        details: { latest: '2027-10-13' },
       });
+      // That suggested day is accepted; the day after is refused.
+      await expect(
+        build().service.grant(officer, FARMER, until('2027-10-13') as never),
+      ).resolves.toBeDefined();
+      await expect(
+        build().service.grant(officer, FARMER, until('2027-10-14') as never),
+      ).rejects.toThrow('Permission lasts at most a year');
       await expect(
         build().service.grant(officer, FARMER, until('2026-10-13') as never),
       ).rejects.toThrow('expiresOn must be today or later');

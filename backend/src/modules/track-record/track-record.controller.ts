@@ -36,7 +36,10 @@ import {
   ConsentDto,
   GrantConsentDto,
   ImportedProjectDto,
+  ListAllConsentsQueryDto,
   ListBankFarmersQueryDto,
+  ListTrackRecordFarmersQueryDto,
+  TrackRecordFarmerDto,
   ListBanksQueryDto,
   ListViewsQueryDto,
   MyBankDto,
@@ -117,6 +120,38 @@ export class TrackRecordController {
     return this.banks.assignOfficer(actor, officerId, dto.bankId);
   }
 
+  // --- Lists across farmers ---
+
+  @Get('track-records/farmers')
+  @ApiPaged()
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR, Role.FIELD_OFFICER)
+  @ApiOkResponse({
+    type: [TrackRecordFarmerDto],
+    description:
+      "Farmers with their latest track record and current bank permissions; an officer's own",
+  })
+  trackRecordFarmers(
+    @CurrentUser() actor: AuthUser,
+    @Query() query: ListTrackRecordFarmersQueryDto,
+  ): Promise<Paginated<TrackRecordFarmerDto>> {
+    return this.records.farmers(actor, query);
+  }
+
+  @Get('consents')
+  @ApiPaged()
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR, Role.FIELD_OFFICER)
+  @ApiOkResponse({
+    type: [ConsentDto],
+    description:
+      "Bank permissions across farmers, newest first; an officer's farmers'",
+  })
+  allConsents(
+    @CurrentUser() actor: AuthUser,
+    @Query() query: ListAllConsentsQueryDto,
+  ): Promise<Paginated<ConsentDto>> {
+    return this.records.allConsents(actor, query);
+  }
+
   // --- Track records ---
 
   @Get('farmers/:farmerId/track-record/preview')
@@ -130,7 +165,7 @@ export class TrackRecordController {
   }
 
   @Post('farmers/:farmerId/track-records')
-  @Roles(Role.FIELD_OFFICER)
+  @Roles(Role.FIELD_OFFICER, Role.SUPER_ADMIN)
   @ApiCreatedResponse({
     type: TrackRecordDto,
     description:
@@ -194,7 +229,7 @@ export class TrackRecordController {
   }
 
   @Post('farmers/:farmerId/consents')
-  @Roles(Role.FIELD_OFFICER)
+  @Roles(Role.FIELD_OFFICER, Role.SUPER_ADMIN)
   @ApiCreatedResponse({
     type: ConsentDto,
     description:
@@ -209,7 +244,7 @@ export class TrackRecordController {
   }
 
   @Post('farmers/:farmerId/consents/:bankId/revoke')
-  @Roles(Role.FIELD_OFFICER)
+  @Roles(Role.FIELD_OFFICER, Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ConsentDto,

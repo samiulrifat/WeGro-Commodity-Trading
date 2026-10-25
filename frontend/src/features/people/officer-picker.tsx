@@ -22,7 +22,7 @@ export function OfficerPicker({
   exclude: readonly string[];
   value: string | null;
   onChange: (personId: string | null) => void;
-  personRole?: 'field_officer' | 'farmer' | 'insurer' | 'investor';
+  personRole?: 'field_officer' | 'farmer' | 'insurer' | 'investor' | 'bank';
   placeholder?: string;
 }) {
   const { t } = useTranslation();
