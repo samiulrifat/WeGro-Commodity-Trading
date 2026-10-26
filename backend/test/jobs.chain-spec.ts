@@ -41,6 +41,27 @@ describe('Jobs (node + database)', () => {
       await app.as(app.t.investor).get('/jobs').expect(403);
     });
 
+    it('says how the platform stands, for staff', async () => {
+      const res = await app.as(app.t.auditor).get('/system/status').expect(200);
+      expect(res.body.data).toMatchObject({
+        database: 'up',
+        chain: {
+          status: 'up',
+          chainId: expect.any(Number) as number,
+          blockNumber: expect.any(Number) as number,
+          ledgerTime: expect.any(String) as string,
+        },
+        indexer: {
+          allowedBehind: expect.any(Number) as number,
+          failures: 0,
+        },
+        incident: null,
+      });
+      expect(['ok', 'degraded']).toContain(res.body.data.status);
+      await app.as(app.t.admin).get('/system/status').expect(200);
+      await app.as(app.t.investor).get('/system/status').expect(403);
+    });
+
     it('lets only the super admin run a job now, and keeps the run', async () => {
       const reservation = await app.unpaidReservation('Manual expiry');
       await app.travel(7 * 24 * 3600 + 1);

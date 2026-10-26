@@ -6,7 +6,8 @@ import { ProjectsModule } from '../projects/projects.module';
 import { JobRun } from './entities/job-run.entity';
 import { IndexerWatchdogJob } from './indexer-watchdog.job';
 import { JobScheduler } from './job-scheduler';
-import { JobsController } from './jobs.controller';
+import { JobsController, SystemController } from './jobs.controller';
+import { SystemStatusService } from './system-status.service';
 
 /**
  * Runs every @ScheduledJob in the app (found at startup) and shows their
@@ -19,7 +20,7 @@ import { JobsController } from './jobs.controller';
     ProjectsModule,
     NotificationsModule,
   ],
-  controllers: [JobsController],
-  providers: [JobScheduler, IndexerWatchdogJob],
+  controllers: [JobsController, SystemController],
+  providers: [JobScheduler, IndexerWatchdogJob, SystemStatusService],
 })
 export class JobsModule {}

@@ -155,7 +155,9 @@ export type SubLabel =
   | 'bankPermissions'
   | 'ledgerActivity'
   | 'ledgerChecks'
-  | 'requestLog';
+  | 'requestLog'
+  | 'systemStatus'
+  | 'scheduledJobs';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -204,7 +206,9 @@ export type SubPath =
   | '/track-records/permissions'
   | '/audit'
   | '/audit/checks'
-  | '/audit/log';
+  | '/audit/log'
+  | '/system'
+  | '/system/jobs';
 
 export interface SubPage {
   to: SubPath;
@@ -304,6 +308,10 @@ const BANK_PERMISSIONS = sub('/track-records/permissions', 'bankPermissions');
 const LEDGER_ACTIVITY = sub('/audit', 'ledgerActivity');
 const LEDGER_CHECKS = sub('/audit/checks', 'ledgerChecks');
 const REQUEST_LOG = sub('/audit/log', 'requestLog');
+const SYSTEM = item('system', 'system', [
+  sub('/system', 'systemStatus'),
+  sub('/system/jobs', 'scheduledJobs'),
+]);
 const OFFICE_TRACK_RECORDS = item('track-records', 'trackRecords', [
   FARMER_RECORDS,
   sub('/track-records/banks', 'banks'),
@@ -334,7 +342,7 @@ const OFFICE: NavItem[] = [
   OFFICE_TRACK_RECORDS,
   catalog(...WHOLE_CATALOG),
   item('audit', 'audit', [LEDGER_ACTIVITY, LEDGER_CHECKS]),
-  item('system', 'system'),
+  SYSTEM,
 ];
 
 /**
@@ -385,7 +393,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     PAYOUTS,
     OFFICE_TRACK_RECORDS,
     catalog(...WHOLE_CATALOG),
-    item('system', 'system'),
+    SYSTEM,
   ],
   field_officer: [
     item('farm-updates', 'farmUpdates', [

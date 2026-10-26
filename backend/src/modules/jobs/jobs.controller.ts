@@ -14,7 +14,9 @@ import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { Role } from '../users/roles';
 import { JobHistoryQueryDto, JobRunDto, JobStatusDto } from './dto/job.dto';
+import { SystemStatusDto } from './dto/system.dto';
 import { JobScheduler } from './job-scheduler';
+import { SystemStatusService } from './system-status.service';
 
 const READERS = [Role.SUPER_ADMIN, Role.ADMIN, Role.AUDITOR];
 
@@ -59,5 +61,20 @@ export class JobsController {
     @Param('name') name: string,
   ): Promise<JobRunDto> {
     return this.scheduler.runNow(name, actor);
+  }
+}
+
+/** How the platform stands, for staff (the public health check says less). */
+@ApiTags('Jobs')
+@ApiBearerAuth()
+@Controller('system')
+export class SystemController {
+  constructor(private readonly system: SystemStatusService) {}
+
+  @Get('status')
+  @Roles(...READERS)
+  @ApiOkResponse({ type: SystemStatusDto })
+  status(): Promise<SystemStatusDto> {
+    return this.system.status();
   }
 }

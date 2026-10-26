@@ -273,7 +273,7 @@ This redeploys the contracts, rebuilds the database schema, empties `UPLOAD_DIR`
 
 The indexer copies every platform event from the chain into the database, one block range per pass, each pass in a single database transaction, and rebuilds the read models from them. It starts from the deployment block by itself. If a pass fails, the next one tries half the range, so a range the node will not serve cannot stall it. If the chain was rewritten below the last block it read (a restarted local node, for example), it rebuilds everything from the deployment block.
 
-`GET /api/health` shows the chain head, the last indexed block and the lag between them.
+`GET /api/health` shows the chain head, the last indexed block and the lag between them. Staff (the super admin, admins and auditors) get more at `GET /api/system/status`: an overall `ok`, `degraded` or `down`, the ledger's own time, how far the copy is behind as the watchdog counts it against `WATCHDOG_LAG_BLOCKS`, the indexer's failures and last error, and the watchdog's open incident.
 
 ### Background jobs
 

@@ -96,6 +96,8 @@ import { Route as AppPeopleChangesIndexRouteImport } from './routes/_app/people/
 import { Route as AppPeopleChangesChangeIdRouteImport } from './routes/_app/people/changes/$changeId'
 import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/_app/projects/$projectId/index'
 import { Route as AppProjectsProjectIdEditRouteImport } from './routes/_app/projects/$projectId/edit'
+import { Route as AppSystemJobsIndexRouteImport } from './routes/_app/system/jobs/index'
+import { Route as AppSystemJobsNameRouteImport } from './routes/_app/system/jobs/$name'
 import { Route as AppTrackRecordsFarmersFarmerIdRouteImport } from './routes/_app/track-records/farmers/$farmerId'
 import { Route as AppVouchersBatchesIndexRouteImport } from './routes/_app/vouchers/batches/index'
 import { Route as AppVouchersBatchesBatchIdRouteImport } from './routes/_app/vouchers/batches/$batchId'
@@ -554,6 +556,16 @@ const AppProjectsProjectIdEditRoute =
     path: '/projects/$projectId/edit',
     getParentRoute: () => AppRoute,
   } as any)
+const AppSystemJobsIndexRoute = AppSystemJobsIndexRouteImport.update({
+  id: '/system/jobs/',
+  path: '/system/jobs/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemJobsNameRoute = AppSystemJobsNameRouteImport.update({
+  id: '/system/jobs/$name',
+  path: '/system/jobs/$name',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTrackRecordsFarmersFarmerIdRoute =
   AppTrackRecordsFarmersFarmerIdRouteImport.update({
     id: '/track-records/farmers/$farmerId',
@@ -658,6 +670,7 @@ export interface FileRoutesByFullPath {
   '/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/system/jobs/$name': typeof AppSystemJobsNameRoute
   '/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
@@ -673,6 +686,7 @@ export interface FileRoutesByFullPath {
   '/payouts/projects/': typeof AppPayoutsProjectsIndexRoute
   '/people/changes/': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/system/jobs/': typeof AppSystemJobsIndexRoute
   '/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
   '/audit/history/$type/$id': typeof AppAuditHistoryTypeIdRoute
 }
@@ -751,6 +765,7 @@ export interface FileRoutesByTo {
   '/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/system/jobs/$name': typeof AppSystemJobsNameRoute
   '/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
@@ -766,6 +781,7 @@ export interface FileRoutesByTo {
   '/payouts/projects': typeof AppPayoutsProjectsIndexRoute
   '/people/changes': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
+  '/system/jobs': typeof AppSystemJobsIndexRoute
   '/vouchers/batches': typeof AppVouchersBatchesIndexRoute
   '/audit/history/$type/$id': typeof AppAuditHistoryTypeIdRoute
 }
@@ -846,6 +862,7 @@ export interface FileRoutesById {
   '/_app/payouts/rounds/$roundId': typeof AppPayoutsRoundsRoundIdRoute
   '/_app/people/changes/$changeId': typeof AppPeopleChangesChangeIdRoute
   '/_app/projects/$projectId/edit': typeof AppProjectsProjectIdEditRoute
+  '/_app/system/jobs/$name': typeof AppSystemJobsNameRoute
   '/_app/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/_app/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/_app/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
@@ -861,6 +878,7 @@ export interface FileRoutesById {
   '/_app/payouts/projects/': typeof AppPayoutsProjectsIndexRoute
   '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
   '/_app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/_app/system/jobs/': typeof AppSystemJobsIndexRoute
   '/_app/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
   '/_app/audit/history/$type/$id': typeof AppAuditHistoryTypeIdRoute
 }
@@ -941,6 +959,7 @@ export interface FileRouteTypes {
     | '/payouts/rounds/$roundId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
+    | '/system/jobs/$name'
     | '/track-records/farmers/$farmerId'
     | '/vouchers/batches/$batchId'
     | '/warehouse/receipts/$receiptId'
@@ -956,6 +975,7 @@ export interface FileRouteTypes {
     | '/payouts/projects/'
     | '/people/changes/'
     | '/projects/$projectId/'
+    | '/system/jobs/'
     | '/vouchers/batches/'
     | '/audit/history/$type/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -1034,6 +1054,7 @@ export interface FileRouteTypes {
     | '/payouts/rounds/$roundId'
     | '/people/changes/$changeId'
     | '/projects/$projectId/edit'
+    | '/system/jobs/$name'
     | '/track-records/farmers/$farmerId'
     | '/vouchers/batches/$batchId'
     | '/warehouse/receipts/$receiptId'
@@ -1049,6 +1070,7 @@ export interface FileRouteTypes {
     | '/payouts/projects'
     | '/people/changes'
     | '/projects/$projectId'
+    | '/system/jobs'
     | '/vouchers/batches'
     | '/audit/history/$type/$id'
   id:
@@ -1128,6 +1150,7 @@ export interface FileRouteTypes {
     | '/_app/payouts/rounds/$roundId'
     | '/_app/people/changes/$changeId'
     | '/_app/projects/$projectId/edit'
+    | '/_app/system/jobs/$name'
     | '/_app/track-records/farmers/$farmerId'
     | '/_app/vouchers/batches/$batchId'
     | '/_app/warehouse/receipts/$receiptId'
@@ -1143,6 +1166,7 @@ export interface FileRouteTypes {
     | '/_app/payouts/projects/'
     | '/_app/people/changes/'
     | '/_app/projects/$projectId/'
+    | '/_app/system/jobs/'
     | '/_app/vouchers/batches/'
     | '/_app/audit/history/$type/$id'
   fileRoutesById: FileRoutesById
@@ -1769,6 +1793,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsProjectIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/system/jobs/': {
+      id: '/_app/system/jobs/'
+      path: '/system/jobs'
+      fullPath: '/system/jobs/'
+      preLoaderRoute: typeof AppSystemJobsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system/jobs/$name': {
+      id: '/_app/system/jobs/$name'
+      path: '/system/jobs/$name'
+      fullPath: '/system/jobs/$name'
+      preLoaderRoute: typeof AppSystemJobsNameRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/track-records/farmers/$farmerId': {
       id: '/_app/track-records/farmers/$farmerId'
       path: '/track-records/farmers/$farmerId'
@@ -1875,6 +1913,7 @@ interface AppRouteChildren {
   AppPayoutsRoundsRoundIdRoute: typeof AppPayoutsRoundsRoundIdRoute
   AppPeopleChangesChangeIdRoute: typeof AppPeopleChangesChangeIdRoute
   AppProjectsProjectIdEditRoute: typeof AppProjectsProjectIdEditRoute
+  AppSystemJobsNameRoute: typeof AppSystemJobsNameRoute
   AppTrackRecordsFarmersFarmerIdRoute: typeof AppTrackRecordsFarmersFarmerIdRoute
   AppVouchersBatchesBatchIdRoute: typeof AppVouchersBatchesBatchIdRoute
   AppWarehouseReceiptsReceiptIdRoute: typeof AppWarehouseReceiptsReceiptIdRoute
@@ -1890,6 +1929,7 @@ interface AppRouteChildren {
   AppPayoutsProjectsIndexRoute: typeof AppPayoutsProjectsIndexRoute
   AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
   AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
+  AppSystemJobsIndexRoute: typeof AppSystemJobsIndexRoute
   AppVouchersBatchesIndexRoute: typeof AppVouchersBatchesIndexRoute
   AppAuditHistoryTypeIdRoute: typeof AppAuditHistoryTypeIdRoute
 }
@@ -1962,6 +2002,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPayoutsRoundsRoundIdRoute: AppPayoutsRoundsRoundIdRoute,
   AppPeopleChangesChangeIdRoute: AppPeopleChangesChangeIdRoute,
   AppProjectsProjectIdEditRoute: AppProjectsProjectIdEditRoute,
+  AppSystemJobsNameRoute: AppSystemJobsNameRoute,
   AppTrackRecordsFarmersFarmerIdRoute: AppTrackRecordsFarmersFarmerIdRoute,
   AppVouchersBatchesBatchIdRoute: AppVouchersBatchesBatchIdRoute,
   AppWarehouseReceiptsReceiptIdRoute: AppWarehouseReceiptsReceiptIdRoute,
@@ -1977,6 +2018,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPayoutsProjectsIndexRoute: AppPayoutsProjectsIndexRoute,
   AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
   AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
+  AppSystemJobsIndexRoute: AppSystemJobsIndexRoute,
   AppVouchersBatchesIndexRoute: AppVouchersBatchesIndexRoute,
   AppAuditHistoryTypeIdRoute: AppAuditHistoryTypeIdRoute,
 }

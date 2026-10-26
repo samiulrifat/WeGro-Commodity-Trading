@@ -27,6 +27,10 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Jobs'],
       }),
+      systemStatus: build.query<SystemStatusApiResponse, SystemStatusApiArg>({
+        query: () => ({ url: `/api/system/status` }),
+        providesTags: ['Jobs'],
+      }),
     }),
     overrideExisting: false,
   });
@@ -52,6 +56,10 @@ export type JobsRunNowApiResponse =
 export type JobsRunNowApiArg = {
   name: string;
 };
+export type SystemStatusApiResponse = /** status 200  */ {
+  data: SystemStatusDto;
+};
+export type SystemStatusApiArg = void;
 export type PersonNameDto = {
   id: string;
   name: string;
@@ -85,10 +93,51 @@ export type PageMetaDto = {
   total: number;
   totalPages: number;
 };
+export type SystemChainDto = {
+  status: 'up' | 'down';
+  chainId: number;
+  blockNumber?: number | null;
+  /** The ledger's own time (its latest block) */
+  ledgerTime?: string | null;
+};
+export type SystemIndexerDto = {
+  /** Copying ledger events is switched on */
+  enabled: boolean;
+  /** The copying loop is running */
+  running: boolean;
+  /** Last block whose events are in the database */
+  indexedBlock?: number | null;
+  /** Blocks behind the ledger beyond those still awaiting confirmation (as the watchdog counts) */
+  behind?: number | null;
+  /** How far behind it may fall (WATCHDOG_LAG_BLOCKS) */
+  allowedBehind: number;
+  /** Blocks on top before one is copied */
+  confirmations: number;
+  /** Copying passes failed in a row */
+  failures: number;
+  lastError?: string | null;
+};
+export type SystemIncidentDto = {
+  problem: 'node-unreachable' | 'indexer-behind' | 'indexer-failing';
+  since: string;
+};
+export type SystemStatusDto = {
+  /** ok: all well; degraded: the node, the copy of the ledger or an incident needs attention; down: no database */
+  status: 'ok' | 'degraded' | 'down';
+  checkedAt: string;
+  database: 'up' | 'down';
+  chain: SystemChainDto;
+  indexer: SystemIndexerDto;
+  /** What the watchdog last found wrong, until it is resolved */
+  incident?: SystemIncidentDto | null;
+  uptimeSeconds: number;
+};
 export const {
   useJobsStatusQuery,
   useLazyJobsStatusQuery,
   useJobsHistoryQuery,
   useLazyJobsHistoryQuery,
   useJobsRunNowMutation,
+  useSystemStatusQuery,
+  useLazySystemStatusQuery,
 } = injectedRtkApi;

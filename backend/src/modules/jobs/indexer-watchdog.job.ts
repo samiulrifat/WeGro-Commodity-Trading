@@ -19,7 +19,12 @@ import {
 /** Consecutive failed indexer passes that count as "failing". */
 const FAILING_PASSES = 3;
 
-type Problem = 'node-unreachable' | 'indexer-behind' | 'indexer-failing';
+export const PROBLEMS = [
+  'node-unreachable',
+  'indexer-behind',
+  'indexer-failing',
+] as const;
+export type Problem = (typeof PROBLEMS)[number];
 
 const KINDS: Record<Problem, NotificationKind> = {
   'node-unreachable': NotificationKind.SYSTEM_NODE_UNREACHABLE,
@@ -62,6 +67,21 @@ export class IndexerWatchdogJob implements ScheduledJobRunner {
   ) {
     this.lagBlocks = config.get('WATCHDOG_LAG_BLOCKS', { infer: true });
     this.confirmations = config.get('INDEXER_CONFIRMATIONS', { infer: true });
+  }
+
+  /** What is wrong now and since when, as the last run found; null when all is well. */
+  openIncident(): { problem: Problem; since: Date } | null {
+    return this.incident;
+  }
+
+  /** How far behind the ledger the database may fall before it is a problem. */
+  get allowedLag(): number {
+    return this.lagBlocks;
+  }
+
+  /** Blocks the ledger needs on top of one before it is copied. */
+  get confirmationBlocks(): number {
+    return this.confirmations;
   }
 
   /** Returns how many notifications it sent. */
