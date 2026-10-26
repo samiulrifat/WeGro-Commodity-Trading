@@ -634,6 +634,12 @@ export const en = {
     },
     farmer: {
       assigned: { title: 'A farmer was assigned to you' },
+      verified: { title: 'A farmer of yours is verified' },
+      rejected: { title: 'A farmer’s registration was not accepted' },
+      'access-revoked': { title: 'A farmer of yours lost access to WeGro' },
+    },
+    officer: {
+      assigned: { title: 'You have a new field officer' },
     },
     reservation: {
       made: {
@@ -663,6 +669,10 @@ export const en = {
         title: '{{project}} was cancelled: your money will be refunded',
       },
       'refunds-due': { title: '{{project}} was cancelled: refunds are due' },
+      live: { title: '{{project}} is open for funding' },
+      'fully-funded': { title: '{{project}} is fully funded' },
+      'on-sale': { title: '{{project}} is harvested and ready for sale' },
+      'called-off': { title: '{{project}} was cancelled' },
     },
     refund: {
       paid: { title: 'Your refund has been paid', body: '{{project}}' },
@@ -707,6 +717,11 @@ export const en = {
           'Storage of {{quantity, number}} {{produce}} ends on {{expiresOn, date}}',
         body: 'Re-check and extend the receipt, sell, or collect the goods',
       },
+      extended: { title: 'Storage of your receipt was extended' },
+      collected: { title: 'Goods on your receipt were collected' },
+    },
+    site: {
+      assigned: { title: 'You were placed at {{site}}' },
     },
     handover: {
       offered: { title: 'Buy-back offered: accept or decline the receipt' },
@@ -723,6 +738,7 @@ export const en = {
         body: 'Pay by {{paymentDueAt, datetime}}, or the deal lapses',
       },
       rejected: { title: 'Your offer was rejected' },
+      withdrawn: { title: 'Offer #{{offerId}} was withdrawn by the buyer' },
     },
     deal: {
       'awaiting-payment': {
@@ -735,6 +751,11 @@ export const en = {
       cancelled: { title: 'Your deal was cancelled' },
       expired: { title: 'Your deal lapsed: payment was not confirmed in time' },
       paid: { title: 'Your payment is confirmed' },
+      agreed: {
+        title:
+          'Offer #{{offerId}} on your produce was approved: awaiting the buyer’s payment',
+      },
+      'buyer-paid': { title: 'The buyer paid for deal #{{offerId}}' },
       deliver: {
         title:
           'Deal #{{offerId}} is paid: hand over the goods and confirm delivery',
@@ -742,6 +763,18 @@ export const en = {
       delivered: {
         title: 'Deal #{{offerId}} delivered',
         body: '{{amount, taka}}',
+      },
+    },
+    delivery: {
+      mismatch: {
+        title: 'Deal #{{offerId}}: a delivery does not match the deal',
+        body: 'Confirmed {{confirmed, number}}; the deal is for {{quantity, number}}',
+      },
+    },
+    request: {
+      posted: {
+        title: 'A buyer wants {{quantity, number}} {{produce}}',
+        body: 'At most {{maxUnitPrice, taka}} each',
       },
     },
     listing: {
@@ -760,6 +793,7 @@ export const en = {
     },
     claim: {
       opened: { title: 'A claim was opened on a project you cover' },
+      filed: { title: 'An insurance claim was opened on {{project}}' },
       approved: {
         title: 'Insurance claim approved: {{amount, taka}}',
         body: '{{project}}',
@@ -780,6 +814,12 @@ export const en = {
         title: 'You were assigned to insure {{project}}: set its cover',
       },
     },
+    weather: {
+      recorded: {
+        title: '{{event}} recorded in {{district, district}}',
+        body: 'Check your farmers’ insured crops there for damage',
+      },
+    },
     round: {
       prepared: { title: 'Payout round #{{roundId}} needs a second approval' },
       rejected: { title: 'Payout round #{{roundId}} was sent back' },
@@ -789,12 +829,17 @@ export const en = {
     },
     payout: {
       paid: { title: 'You were paid {{amount, taka}}' },
+      'farmer-paid': { title: 'A farmer of yours was paid {{amount, taka}}' },
     },
     'track-record': {
       published: {
         title: 'Your track record version {{version, number}} was published',
       },
       viewed: { title: 'Your track record was viewed by {{bank}}' },
+      updated: {
+        title:
+          'A farmer’s track record has a new version ({{version, number}})',
+      },
     },
     consent: {
       granted: { title: 'You gave permission to {{bank}}' },
@@ -803,6 +848,17 @@ export const en = {
         title: 'Permission for {{bank}} ends soon',
         body: 'It ends at {{expiresAt, datetime}}; renew it if the farmer agrees',
       },
+      'bank-granted': {
+        title: 'A farmer gave {{bank}} permission to see their track record',
+      },
+      'bank-revoked': {
+        title:
+          'A farmer withdrew {{bank}}’s permission to see their track record',
+      },
+    },
+    bank: {
+      'officer-assigned': { title: 'You were placed at {{bank}}' },
+      'officer-removed': { title: 'You were taken off your bank' },
     },
     'bank-account': {
       submitted: { title: 'Bank details awaiting verification' },
@@ -3098,6 +3154,156 @@ export const en = {
     statementNote:
       'Figures come from the ledger, and each payout can be checked against it. Returns are never guaranteed.',
     noStatement: 'Nothing in this period.',
+  },
+  notificationsPage: {
+    intro:
+      'What waits for you to act, reminders of deadlines, and what happened to your records.',
+    readAll: 'Mark All Read',
+    tabs: 'Show',
+    tab: { all: 'All', unread: 'Unread', unreadCount: 'Unread ({{n}})' },
+    none: 'No notifications yet.',
+    noneUnread: 'Nothing unread. You are up to date.',
+    older: 'Show Older',
+    category: {
+      action: 'Needs Your Action',
+      reminder: 'Reminder',
+      outcome: 'Update',
+    },
+    unread: 'Unread',
+    markRead: 'Mark Read',
+    bellUnread_one: 'Notifications: {{n}} unread',
+    bellUnread_other: 'Notifications: {{n}} unread',
+  },
+  dashboard: {
+    intro: 'What is waiting, how funding is going and where projects stand.',
+    asOf: 'As of {{time}}, by the ledger’s clock.',
+    refresh: 'Refresh',
+    tiles: {
+      open: 'Open for Funding',
+      raised: 'Raised of Target',
+      active: 'Active Projects',
+      activeOverdue: 'Active Projects ({{n}} Overdue)',
+      waiting: 'Items Waiting',
+    },
+    waitingTitle: 'Waiting for You',
+    nothingWaiting: 'Nothing is waiting. Every queue is clear.',
+    allClear: 'All Clear:',
+    queue: {
+      participants: { pending: 'Registrations Awaiting Verification' },
+      'bank-accounts': { pending: 'Bank Details Awaiting Verification' },
+      reservations: { pending: 'Bookings Awaiting Payment Confirmation' },
+      vouchers: {
+        proposed: 'Vouchers Awaiting Approval',
+        inactive: 'Vouchers Past Their Inactivity Limit',
+      },
+      'voucher-sales': { pending: 'Input Sales Awaiting the Field Officer' },
+      offers: { pending: 'Offers Awaiting Approval' },
+      deals: { 'awaiting-payment': 'Deals Awaiting the Buyer’s Payment' },
+      deliveries: { discrepancy: 'Deliveries That Do Not Match' },
+      handovers: { pending: 'Buy-Back Handovers Awaiting an Admin' },
+      rounds: {
+        'awaiting-approval': 'Payout Rounds Awaiting Approval',
+        unpaid: 'Approved Rounds With Unpaid Lines',
+      },
+      projects: { 'ready-for-settlement': 'Projects Due a Final Payout' },
+      claims: {
+        open: 'Open Insurance Claims',
+        'payment-due': 'Approved Claims Awaiting the Insurer’s Payment',
+      },
+    },
+    urgent: {
+      overdue_one: '{{n}} Overdue',
+      overdue_other: '{{n}} Overdue',
+      expiringSoon_one: '{{n}} Ends Within 24 Hours',
+      expiringSoon_other: '{{n}} End Within 24 Hours',
+    },
+    openAll: 'Open the List',
+    openAllMore_one: 'Open the List ({{n}} more)',
+    openAllMore_other: 'Open the List ({{n}} more)',
+    waitingWhen: 'waiting since {{when}}',
+    dueWhen: 'due {{when}}',
+    item: {
+      registration: 'Registration as {{role}}',
+      bankNew: 'New bank details',
+      bankChange: 'Changed bank details',
+      reservation_one: 'Booking #{{id}}: {{n}} unit',
+      reservation_other: 'Booking #{{id}}: {{n}} units',
+      voucherProposed: 'Voucher for {{quantity}} {{input}}, worth {{value}}',
+      inputSale: 'Input sale #{{id}}: {{quantity}} {{input}}',
+      voucherInactive_one:
+        'Voucher for {{quantity}} {{input}}: unused for {{n}} day',
+      voucherInactive_other:
+        'Voucher for {{quantity}} {{input}}: unused for {{n}} days',
+      offer: 'Offer #{{id}}: {{quantity}} {{produce}} at {{price}}',
+      dealUnpaid: 'Deal #{{id}}: {{quantity}} {{produce}}',
+      delivery:
+        'Deal #{{id}}: {{quantity}} sold; buyer confirmed {{buyer}}, handler {{handler}}',
+      notYet: 'nothing yet',
+      handover: 'Receipt {{receipt}}…: {{quantity}} {{produce}}',
+      roundFinal_one: 'Final round #{{id}} for {{n}} payee',
+      roundFinal_other: 'Final round #{{id}} for {{n}} payees',
+      roundStaged_one: 'Staged round #{{id}} for {{n}} payee',
+      roundStaged_other: 'Staged round #{{id}} for {{n}} payees',
+      roundUnpaid: 'Round #{{id}}: {{paid}} of {{payees}} paid',
+      finalDue: 'Final payout due ({{produce}})',
+      claimOpen: 'Claim, {{status}}: {{damage}}% damage',
+      claimPaymentDue: 'Approved claim of {{amount}}',
+    },
+    fundingTitle: 'Funding Progress',
+    fundingText_one:
+      '{{raised}} raised of {{target}} across {{n}} project open for funding.',
+    fundingText_other:
+      '{{raised}} raised of {{target}} across {{n}} projects open for funding.',
+    noFunding: 'No project is open for funding.',
+    ofTarget: 'of {{target}}',
+    fundedLabel: '{{name}}: {{percent}}% funded',
+    slots: '{{issued}} of {{total}} units taken',
+    reserved_one: '{{n}} held by a booking',
+    reserved_other: '{{n}} held by bookings',
+    daysOpen_one: 'open {{n}} day',
+    daysOpen_other: 'open {{n}} days',
+    pendingPayments_one: '{{n}} Payment to Confirm',
+    pendingPayments_other: '{{n}} Payments to Confirm',
+    activeTitle: 'Active Projects',
+    activeText_one: '{{n}} project in the field, longest running first.',
+    activeText_other: '{{n}} projects in the field, longest running first.',
+    noActive: 'No project is in the field.',
+    overdue: 'Past Its Planned End',
+    term: 'Started – Planned End',
+    inputs: 'Inputs',
+    inputsValue: '{{spent}} used of {{committed}}',
+    lastUpdate: 'last farm update {{when}}',
+    noUpdate: 'no farm update yet',
+    openClaims_one: '{{n}} open claim',
+    openClaims_other: '{{n}} open claims',
+    openListings_one: '{{n}} listing on sale',
+    openListings_other: '{{n}} listings on sale',
+    stagesTitle: 'Projects by Stage',
+    figuresTitle: 'All-Time Figures',
+    figuresAsOf: 'Worked out at {{time}}; refreshed at most once a minute.',
+    figures: {
+      fundingRaised: 'Funding Raised',
+      salesIncome: 'Sales Income',
+      payoutsPaid: 'Payouts Paid',
+      inputsSpent: 'Inputs Used',
+      insuranceApproved: 'Insurance Approved',
+      refunded: 'Refunded',
+    },
+    peopleTitle: 'Verified People',
+    trendsTitle: 'Last 12 Months',
+    trendsText:
+      'Month by month in Bangladesh time. Point at a month for its figure.',
+    trend: {
+      fundingRaised: 'Funding Raised',
+      salesIncome: 'Sales Income',
+      payoutsPaid: 'Payouts Paid',
+      projectsStarted: 'Projects Started',
+      projectsFinished: 'Projects Finished',
+    },
+    trendTotal: '{{total}} in all',
+    chartLabel:
+      '{{title}} by month for the last 12 months; this month {{latest}}.',
+    showFigures: 'Show Figures',
   },
   trackRecords: {
     farmersIntro: {

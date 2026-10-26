@@ -578,6 +578,34 @@ export const bn: Translation = {
   },
   /** By notification kind: reservation.made -> reservation.made.title. */
   notifications: {
+    officer: {
+      assigned: { title: 'আপনার নতুন মাঠ কর্মকর্তা নিযুক্ত হয়েছেন' },
+    },
+    site: {
+      assigned: { title: 'আপনাকে {{site}}-এ নিযুক্ত করা হয়েছে' },
+    },
+    delivery: {
+      mismatch: {
+        title: 'চুক্তি #{{offerId}}: একটি ডেলিভারি চুক্তির সঙ্গে মেলেনি',
+        body: 'নিশ্চিত করা হয়েছে {{confirmed, number}}; চুক্তি {{quantity, number}}-এর',
+      },
+    },
+    request: {
+      posted: {
+        title: 'একজন ক্রেতা {{quantity, number}} {{produce}} কিনতে চান',
+        body: 'প্রতিটি সর্বোচ্চ {{maxUnitPrice, taka}}',
+      },
+    },
+    weather: {
+      recorded: {
+        title: '{{district, district}}-এ {{event}} নথিভুক্ত হয়েছে',
+        body: 'সেখানে আপনার কৃষকদের বিমাকৃত ফসলের ক্ষতি দেখুন',
+      },
+    },
+    bank: {
+      'officer-assigned': { title: 'আপনাকে {{bank}}-এ নিযুক্ত করা হয়েছে' },
+      'officer-removed': { title: 'আপনাকে আপনার ব্যাংক থেকে সরানো হয়েছে' },
+    },
     'payment-proof': {
       submitted: {
         title:
@@ -616,6 +644,11 @@ export const bn: Translation = {
       },
     },
     farmer: {
+      verified: { title: 'আপনার একজন কৃষক যাচাই হয়েছেন' },
+      rejected: { title: 'একজন কৃষকের নিবন্ধন গ্রহণ করা হয়নি' },
+      'access-revoked': {
+        title: 'আপনার একজন কৃষক WeGro-তে প্রবেশাধিকার হারিয়েছেন',
+      },
       assigned: { title: 'আপনার দায়িত্বে একজন কৃষক যোগ হয়েছেন' },
     },
     reservation: {
@@ -638,6 +671,12 @@ export const bn: Translation = {
       },
     },
     project: {
+      live: { title: '{{project}} অর্থায়নের জন্য খোলা হয়েছে' },
+      'fully-funded': { title: '{{project}} সম্পূর্ণ অর্থায়িত হয়েছে' },
+      'on-sale': {
+        title: '{{project}}-এর ফসল তোলা হয়েছে, বিক্রির জন্য প্রস্তুত',
+      },
+      'called-off': { title: '{{project}} বাতিল করা হয়েছে' },
       funded: {
         title: '{{project}} পুরোপুরি অর্থায়িত: এর উপকরণ ভাউচার প্রস্তাব করুন',
       },
@@ -689,6 +728,8 @@ export const bn: Translation = {
       },
     },
     receipt: {
+      extended: { title: 'আপনার রসিদের সংরক্ষণের মেয়াদ বাড়ানো হয়েছে' },
+      collected: { title: 'আপনার রসিদের পণ্য তুলে নেওয়া হয়েছে' },
       issued: {
         title: 'গুদাম রসিদ দেওয়া হয়েছে',
         body: '{{quantity, number}} {{produce}} গুদামে রাখা হয়েছে',
@@ -709,6 +750,7 @@ export const bn: Translation = {
       accepted: { title: 'WeGro ফেরত কেনা গ্রহণ করেছে' },
     },
     offer: {
+      withdrawn: { title: 'ক্রেতা অফার #{{offerId}} প্রত্যাহার করেছেন' },
       made: {
         title: 'প্রস্তাব #{{offerId}} অনুমোদনের অপেক্ষায়',
         body: 'তালিকা #{{listingId}}-এ প্রতিটি {{unitPrice, taka}} দরে {{quantity, number}}',
@@ -720,6 +762,13 @@ export const bn: Translation = {
       rejected: { title: 'আপনার প্রস্তাব প্রত্যাখ্যাত হয়েছে' },
     },
     deal: {
+      agreed: {
+        title:
+          'আপনার পণ্যের ওপর অফার #{{offerId}} অনুমোদিত হয়েছে: ক্রেতার পেমেন্টের অপেক্ষা',
+      },
+      'buyer-paid': {
+        title: 'ক্রেতা চুক্তি #{{offerId}}-এর দাম পরিশোধ করেছেন',
+      },
       'awaiting-payment': {
         title: 'চুক্তি #{{offerId}}: ক্রেতার পেমেন্ট এলে নিশ্চিত করুন',
       },
@@ -759,6 +808,7 @@ export const bn: Translation = {
       },
     },
     claim: {
+      filed: { title: '{{project}}-এ একটি বিমা দাবি খোলা হয়েছে' },
       opened: { title: 'আপনার বীমা করা একটি প্রকল্পে দাবি করা হয়েছে' },
       approved: {
         title: 'বীমা দাবি অনুমোদিত: {{amount, taka}}',
@@ -791,9 +841,16 @@ export const bn: Translation = {
       },
     },
     payout: {
+      'farmer-paid': {
+        title: 'আপনার একজন কৃষককে {{amount, taka}} পরিশোধ করা হয়েছে',
+      },
       paid: { title: 'আপনাকে {{amount, taka}} দেওয়া হয়েছে' },
     },
     'track-record': {
+      updated: {
+        title:
+          'একজন কৃষকের ট্র্যাক রেকর্ডের নতুন সংস্করণ ({{version, number}})',
+      },
       published: {
         title:
           'আপনার ট্র্যাক রেকর্ডের সংস্করণ {{version, number}} প্রকাশিত হয়েছে',
@@ -801,6 +858,14 @@ export const bn: Translation = {
       viewed: { title: '{{bank}} আপনার ট্র্যাক রেকর্ড দেখেছে' },
     },
     consent: {
+      'bank-granted': {
+        title:
+          'একজন কৃষক {{bank}}-কে তাঁর ট্র্যাক রেকর্ড দেখার অনুমতি দিয়েছেন',
+      },
+      'bank-revoked': {
+        title:
+          'একজন কৃষক {{bank}}-এর ট্র্যাক রেকর্ড দেখার অনুমতি প্রত্যাহার করেছেন',
+      },
       granted: { title: 'আপনি {{bank}}-কে অনুমতি দিয়েছেন' },
       revoked: { title: 'আপনি {{bank}}-এর অনুমতি প্রত্যাহার করেছেন' },
       expiring: {
@@ -3081,6 +3146,155 @@ export const bn: Translation = {
     statementNote:
       'অঙ্কগুলো লেজার থেকে নেওয়া, এবং প্রতিটি পরিশোধ লেজারের সঙ্গে মিলিয়ে দেখা যায়। মুনাফা কখনো নিশ্চিত নয়।',
     noStatement: 'এই সময়ে কিছু নেই।',
+  },
+  notificationsPage: {
+    intro:
+      'যা আপনার পদক্ষেপের অপেক্ষায়, সময়সীমার অনুস্মারক, এবং আপনার রেকর্ডে কী ঘটেছে।',
+    readAll: 'সব পড়া হয়েছে চিহ্নিত করুন',
+    tabs: 'দেখান',
+    tab: { all: 'সব', unread: 'অপঠিত', unreadCount: 'অপঠিত ({{n}})' },
+    none: 'এখনো কোনো বিজ্ঞপ্তি নেই।',
+    noneUnread: 'অপঠিত কিছু নেই। আপনি সব দেখেছেন।',
+    older: 'পুরোনোগুলো দেখান',
+    category: {
+      action: 'আপনার পদক্ষেপ দরকার',
+      reminder: 'অনুস্মারক',
+      outcome: 'হালনাগাদ',
+    },
+    unread: 'অপঠিত',
+    markRead: 'পড়া হয়েছে',
+    bellUnread_one: 'বিজ্ঞপ্তি: {{n}}টি অপঠিত',
+    bellUnread_other: 'বিজ্ঞপ্তি: {{n}}টি অপঠিত',
+  },
+  dashboard: {
+    intro: 'কী অপেক্ষায় আছে, অর্থায়ন কেমন চলছে এবং প্রকল্পগুলো কোন ধাপে।',
+    asOf: '{{time}} পর্যন্ত, লেজারের ঘড়ি অনুযায়ী।',
+    refresh: 'রিফ্রেশ',
+    tiles: {
+      open: 'অর্থায়নের জন্য খোলা',
+      raised: 'লক্ষ্যের সংগৃহীত অংশ',
+      active: 'চলমান প্রকল্প',
+      activeOverdue: 'চলমান প্রকল্প ({{n}}টি মেয়াদোত্তীর্ণ)',
+      waiting: 'অপেক্ষমাণ কাজ',
+    },
+    waitingTitle: 'আপনার অপেক্ষায়',
+    nothingWaiting: 'কিছুই অপেক্ষায় নেই। সব তালিকা খালি।',
+    allClear: 'সব খালি:',
+    queue: {
+      participants: { pending: 'যাচাইয়ের অপেক্ষায় নিবন্ধন' },
+      'bank-accounts': { pending: 'যাচাইয়ের অপেক্ষায় ব্যাংক তথ্য' },
+      reservations: { pending: 'পেমেন্ট নিশ্চিতকরণের অপেক্ষায় বুকিং' },
+      vouchers: {
+        proposed: 'অনুমোদনের অপেক্ষায় ভাউচার',
+        inactive: 'নিষ্ক্রিয়তার সীমা পেরোনো ভাউচার',
+      },
+      'voucher-sales': { pending: 'মাঠ কর্মকর্তার অপেক্ষায় উপকরণ বিক্রি' },
+      offers: { pending: 'অনুমোদনের অপেক্ষায় অফার' },
+      deals: { 'awaiting-payment': 'ক্রেতার পেমেন্টের অপেক্ষায় চুক্তি' },
+      deliveries: { discrepancy: 'যে ডেলিভারি মেলেনি' },
+      handovers: { pending: 'অ্যাডমিনের অপেক্ষায় বাই-ব্যাক হস্তান্তর' },
+      rounds: {
+        'awaiting-approval': 'অনুমোদনের অপেক্ষায় পেআউট রাউন্ড',
+        unpaid: 'অপরিশোধিত লাইনসহ অনুমোদিত রাউন্ড',
+      },
+      projects: { 'ready-for-settlement': 'চূড়ান্ত পেআউট বাকি প্রকল্প' },
+      claims: {
+        open: 'খোলা বিমা দাবি',
+        'payment-due': 'বিমাকারীর পেমেন্টের অপেক্ষায় অনুমোদিত দাবি',
+      },
+    },
+    urgent: {
+      overdue_one: '{{n}}টি মেয়াদোত্তীর্ণ',
+      overdue_other: '{{n}}টি মেয়াদোত্তীর্ণ',
+      expiringSoon_one: '{{n}}টি ২৪ ঘণ্টার মধ্যে শেষ',
+      expiringSoon_other: '{{n}}টি ২৪ ঘণ্টার মধ্যে শেষ',
+    },
+    openAll: 'তালিকা খুলুন',
+    openAllMore_one: 'তালিকা খুলুন (আরও {{n}}টি)',
+    openAllMore_other: 'তালিকা খুলুন (আরও {{n}}টি)',
+    waitingWhen: '{{when}} থেকে অপেক্ষায়',
+    dueWhen: 'শেষ সময় {{when}}',
+    item: {
+      registration: '{{role}} হিসেবে নিবন্ধন',
+      bankNew: 'নতুন ব্যাংক তথ্য',
+      bankChange: 'পরিবর্তিত ব্যাংক তথ্য',
+      reservation_one: 'বুকিং #{{id}}: {{n}} ইউনিট',
+      reservation_other: 'বুকিং #{{id}}: {{n}} ইউনিট',
+      voucherProposed: '{{quantity}} {{input}}-এর ভাউচার, মূল্য {{value}}',
+      inputSale: 'উপকরণ বিক্রি #{{id}}: {{quantity}} {{input}}',
+      voucherInactive_one:
+        '{{quantity}} {{input}}-এর ভাউচার: {{n}} দিন ব্যবহার হয়নি',
+      voucherInactive_other:
+        '{{quantity}} {{input}}-এর ভাউচার: {{n}} দিন ব্যবহার হয়নি',
+      offer: 'অফার #{{id}}: {{quantity}} {{produce}}, দর {{price}}',
+      dealUnpaid: 'চুক্তি #{{id}}: {{quantity}} {{produce}}',
+      delivery:
+        'চুক্তি #{{id}}: বিক্রি {{quantity}}; ক্রেতা নিশ্চিত করেছেন {{buyer}}, হ্যান্ডলার {{handler}}',
+      notYet: 'এখনো কিছু নয়',
+      handover: 'রসিদ {{receipt}}…: {{quantity}} {{produce}}',
+      roundFinal_one: '{{n}} জন প্রাপকের চূড়ান্ত রাউন্ড #{{id}}',
+      roundFinal_other: '{{n}} জন প্রাপকের চূড়ান্ত রাউন্ড #{{id}}',
+      roundStaged_one: '{{n}} জন প্রাপকের ধাপভিত্তিক রাউন্ড #{{id}}',
+      roundStaged_other: '{{n}} জন প্রাপকের ধাপভিত্তিক রাউন্ড #{{id}}',
+      roundUnpaid: 'রাউন্ড #{{id}}: {{payees}} জনের মধ্যে {{paid}} জন পরিশোধিত',
+      finalDue: 'চূড়ান্ত পেআউট বাকি ({{produce}})',
+      claimOpen: 'দাবি, {{status}}: {{damage}}% ক্ষতি',
+      claimPaymentDue: '{{amount}}-এর অনুমোদিত দাবি',
+    },
+    fundingTitle: 'অর্থায়নের অগ্রগতি',
+    fundingText_one:
+      'অর্থায়নের জন্য খোলা {{n}}টি প্রকল্পে {{target}}-এর মধ্যে {{raised}} সংগৃহীত।',
+    fundingText_other:
+      'অর্থায়নের জন্য খোলা {{n}}টি প্রকল্পে {{target}}-এর মধ্যে {{raised}} সংগৃহীত।',
+    noFunding: 'কোনো প্রকল্প অর্থায়নের জন্য খোলা নেই।',
+    ofTarget: '{{target}}-এর মধ্যে',
+    fundedLabel: '{{name}}: {{percent}}% অর্থায়িত',
+    slots: '{{total}} ইউনিটের মধ্যে {{issued}} নেওয়া হয়েছে',
+    reserved_one: '{{n}}টি বুকিংয়ে আটকে',
+    reserved_other: '{{n}}টি বুকিংয়ে আটকে',
+    daysOpen_one: '{{n}} দিন খোলা',
+    daysOpen_other: '{{n}} দিন খোলা',
+    pendingPayments_one: '{{n}}টি পেমেন্ট নিশ্চিত করা বাকি',
+    pendingPayments_other: '{{n}}টি পেমেন্ট নিশ্চিত করা বাকি',
+    activeTitle: 'চলমান প্রকল্প',
+    activeText_one: 'মাঠে {{n}}টি প্রকল্প, সবচেয়ে পুরোনোটি আগে।',
+    activeText_other: 'মাঠে {{n}}টি প্রকল্প, সবচেয়ে পুরোনোটি আগে।',
+    noActive: 'কোনো প্রকল্প মাঠে নেই।',
+    overdue: 'পরিকল্পিত শেষ পেরিয়েছে',
+    term: 'শুরু – পরিকল্পিত শেষ',
+    inputs: 'উপকরণ',
+    inputsValue: '{{committed}}-এর মধ্যে {{spent}} ব্যবহৃত',
+    lastUpdate: 'সর্বশেষ খামার হালনাগাদ {{when}}',
+    noUpdate: 'এখনো খামার হালনাগাদ নেই',
+    openClaims_one: '{{n}}টি খোলা দাবি',
+    openClaims_other: '{{n}}টি খোলা দাবি',
+    openListings_one: '{{n}}টি তালিকা বিক্রিতে',
+    openListings_other: '{{n}}টি তালিকা বিক্রিতে',
+    stagesTitle: 'ধাপ অনুযায়ী প্রকল্প',
+    figuresTitle: 'সর্বমোট হিসাব',
+    figuresAsOf: '{{time}}-এ হিসাব করা; মিনিটে সর্বোচ্চ একবার হালনাগাদ হয়।',
+    figures: {
+      fundingRaised: 'সংগৃহীত অর্থায়ন',
+      salesIncome: 'বিক্রির আয়',
+      payoutsPaid: 'পরিশোধিত পেআউট',
+      inputsSpent: 'ব্যবহৃত উপকরণ',
+      insuranceApproved: 'অনুমোদিত বিমা',
+      refunded: 'ফেরত দেওয়া',
+    },
+    peopleTitle: 'যাচাইকৃত ব্যক্তি',
+    trendsTitle: 'গত ১২ মাস',
+    trendsText:
+      'বাংলাদেশ সময়ে মাস অনুযায়ী। কোনো মাসের হিসাব দেখতে সেটির ওপর রাখুন।',
+    trend: {
+      fundingRaised: 'সংগৃহীত অর্থায়ন',
+      salesIncome: 'বিক্রির আয়',
+      payoutsPaid: 'পরিশোধিত পেআউট',
+      projectsStarted: 'শুরু হওয়া প্রকল্প',
+      projectsFinished: 'শেষ হওয়া প্রকল্প',
+    },
+    trendTotal: 'মোট {{total}}',
+    chartLabel: 'গত ১২ মাসে মাস অনুযায়ী {{title}}; এই মাসে {{latest}}।',
+    showFigures: 'হিসাব দেখুন',
   },
   trackRecords: {
     farmersIntro: {

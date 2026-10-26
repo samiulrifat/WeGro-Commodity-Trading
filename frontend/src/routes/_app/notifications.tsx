@@ -1,24 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Construction } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { PageHeader } from '@/components/page-header';
-import { EmptyState } from '@/components/states';
+import { InboxPage } from '@/features/notifications/inbox-page';
 
-/** Open to everyone signed in; built in a later item. */
+/** Open to everyone signed in: each sees their own. */
 export const Route = createFileRoute('/_app/notifications')({
-  component: Page,
+  component: InboxPage,
 });
-
-function Page() {
-  const { t } = useTranslation();
-  return (
-    <>
-      <PageHeader title={t('nav.notifications')} />
-      <EmptyState
-        icon={Construction}
-        title={t('states.comingSoon')}
-        description={t('states.comingSoonHint')}
-      />
-    </>
-  );
-}

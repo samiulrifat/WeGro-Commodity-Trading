@@ -158,6 +158,18 @@ export class QueueItemDto {
 
   @ApiProperty({ description: 'Waiting since (or due at, for deadlines)' })
   since: Date;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: {
+      oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
+      nullable: true,
+    },
+    example: { id: 12, quantity: '2000', produce: 'MAIZE', unitPrice: '31.00' },
+    description:
+      "The item's values, by queue key, for wording it in any language (money in taka)",
+  })
+  params: Record<string, string | number | boolean | null>;
 }
 
 export class QueueDto {

@@ -86,6 +86,11 @@ export type QueueItemDto = {
   project?: DashRefDto | null;
   /** Waiting since (or due at, for deadlines) */
   since: string;
+  /** The item's values, by queue key, for wording it in any language (money in taka) */
+  params: {
+    [key: string]:
+      ((string | null) | (number | null) | (boolean | null)) | null;
+  };
 };
 export type QueueDto = {
   key: string;

@@ -13,7 +13,7 @@ import type {
   QueueDto,
   TrendsDto,
 } from './dto/dashboard.dto';
-import { type QueueDef, queuesFor } from './dashboard-queues';
+import { ITEM_MONEY, type QueueDef, queuesFor } from './dashboard-queues';
 
 /** Figures and trends are sums over whole tables: computed at most this often. */
 const FIGURES_TTL_MS = 60_000;
@@ -28,6 +28,7 @@ interface QueueRow {
   project_id: string | null;
   project_title: string | null;
   since: Date;
+  params: Record<string, string | number | boolean | null> | null;
 }
 
 interface Cached {
@@ -132,6 +133,7 @@ export class DashboardService {
           id: r.id.trim(),
           title: r.title,
           detail: r.detail,
+          params: itemParams(r.params),
           person: r.person_id
             ? { id: r.person_id, name: names.get(r.person_id) ?? '' }
             : null,
@@ -390,4 +392,16 @@ export function lastMonths(last: string, count: number): string[] {
 export function monthAfter(month: string): string {
   const [y, m] = month.split('-').map(Number);
   return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7);
+}
+
+/** An item's values as sent: money in taka, everything else as stored. */
+function itemParams(
+  params: QueueRow['params'],
+): Record<string, string | number | boolean | null> {
+  return Object.fromEntries(
+    Object.entries(params ?? {}).map(([k, v]) => [
+      k,
+      ITEM_MONEY.has(k) && typeof v === 'string' ? poishaToTaka(BigInt(v)) : v,
+    ]),
+  );
 }

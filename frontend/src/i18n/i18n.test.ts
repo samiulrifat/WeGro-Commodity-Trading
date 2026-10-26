@@ -43,6 +43,7 @@ describe('formats in sentences', () => {
       'datetime',
       'role',
       'word',
+      'district',
     ]);
     const used = [...leaves(en).values()].flatMap((text) =>
       [...text.matchAll(/\{\{\s*\w+\s*,\s*(\w+)\s*\}\}/g)].map((m) => m[1]),

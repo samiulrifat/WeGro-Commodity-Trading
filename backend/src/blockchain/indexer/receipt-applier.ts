@@ -91,6 +91,7 @@ function toEvent(result: TxResult, e: TxResult['events'][number]): ChainEvent {
     blockNumber: result.blockNumber,
     logIndex: e.logIndex,
     txHash: result.hash,
+    txFrom: result.from,
     blockTime: result.blockTime,
   } as ChainEvent;
 }

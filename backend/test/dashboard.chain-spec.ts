@@ -23,6 +23,7 @@ interface Queue {
   oldest: Array<{
     id: string;
     title: string;
+    params: Record<string, unknown>;
     person: { id: string; name: string } | null;
     project: { id: string; name: string } | null;
   }>;
@@ -255,28 +256,52 @@ describe('Dashboard (node + database)', () => {
     expect(people.oldest[0]).toMatchObject({
       id: newcomer.id,
       person: { id: newcomer.id, name: 'Waiting Buyer' },
+      params: { role: 'buyer' },
     });
-    expect(queue(d, 'bank-accounts.pending').oldest[0].person).toMatchObject({
-      id: user.investor.id,
+    expect(queue(d, 'bank-accounts.pending').oldest[0]).toMatchObject({
+      person: { id: user.investor.id },
+      params: { change: expect.any(Boolean) as boolean },
     });
     expect(queue(d, 'reservations.pending')).toMatchObject({
       count: 1,
       urgent: { expiringSoon: 0 },
-      oldest: [{ id: String(pendingReservation), project: { id: funding } }],
+      oldest: [
+        {
+          id: String(pendingReservation),
+          project: { id: funding },
+          params: {
+            id: pendingReservation,
+            slots: expect.any(Number) as number,
+          },
+        },
+      ],
     });
     expect(queue(d, 'offers.pending').oldest[0]).toMatchObject({
       id: String(pendingOffer),
       person: { id: user.buyer.id },
       project: { id: tomato },
+      // Money in taka, quantities as text: worded by the app in any language.
+      params: {
+        id: pendingOffer,
+        produce: 'TOMATO',
+        quantity: expect.any(String) as string,
+        unitPrice: expect.stringMatching(/^\d+\.\d\d$/) as string,
+      },
     });
     expect(queue(d, 'deals.awaiting-payment')).toMatchObject({
       count: 1,
       urgent: { overdue: 0 },
-      oldest: [{ id: String(deal) }],
+      oldest: [{ id: String(deal), params: { id: deal } }],
     });
     expect(queue(d, 'handovers.pending')).toMatchObject({
       count: 1,
-      oldest: [{ id: receipt, project: { id: maize } }],
+      oldest: [
+        {
+          id: receipt,
+          project: { id: maize },
+          params: { receipt: receipt.slice(0, 10), produce: 'MAIZE' },
+        },
+      ],
     });
     for (const key of [
       'vouchers.proposed',

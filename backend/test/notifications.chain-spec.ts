@@ -22,6 +22,7 @@ interface Note {
   category: string;
   kind: string;
   title: string;
+  params: Record<string, unknown> | null;
   subject: { type: string; id: string } | null;
   readAt: string | null;
 }
@@ -69,6 +70,7 @@ describe('Notifications (node + database)', () => {
       Role.OPERATIONS,
       Role.INVESTOR,
       Role.FARMER,
+      Role.FIELD_OFFICER,
       Role.AUDITOR,
     ]) {
       t[r] = await demoToken(http, r);
@@ -100,32 +102,31 @@ describe('Notifications (node + database)', () => {
     await chain?.close();
   });
 
-  it('tells the admins about a registration waiting for them', async () => {
-    const reg = await as(t.admin)
+  it('tells the admins about a registration waiting for them, not whoever registered it', async () => {
+    const reg = await as(t.field_officer)
       .post('/participants', {
-        role: 'buyer',
-        fullName: 'Notified Buyer',
+        role: 'farmer',
+        fullName: 'Notified Farmer',
         phone: `0199${String(randomInt(1e6, 1e7))}`,
         nid: `${randomInt(2, 9)}${randomInt(1e8, 1e9)}`,
         dateOfBirth: '1987-07-07',
-        district: 'DHAKA',
-        address: 'Made-up address, Dhaka',
+        district: 'BOGURA',
+        address: 'Made-up address, Bogura',
       })
       .expect(201);
     registered = reg.body.data.participant.id;
     const [note] = await ofKind(t.admin, 'participant.registered');
     expect(note).toMatchObject({
       category: 'action',
-      title: 'New buyer registration awaiting verification',
-      params: { role: 'buyer' },
+      title: 'New farmer registration awaiting verification',
+      params: { role: 'farmer' },
       subject: { type: 'participant', id: registered },
       readAt: null,
     });
-    // Staff registrations go to the super admin instead (the demo staff's
-    // among them); this buyer's does not.
-    const superAdmins = await ofKind(t.super_admin, 'participant.registered');
-    expect(superAdmins.map((n) => n.subject?.id)).not.toContain(registered);
-    expect(superAdmins.map((n) => n.params?.role)).toContain('auditor');
+    // The officer did it, so is not told. Staff registrations go to the
+    // super admin, who registered the demo staff themselves: nothing either.
+    expect(await ofKind(t.field_officer, 'participant.registered')).toEqual([]);
+    expect(await ofKind(t.super_admin, 'participant.registered')).toEqual([]);
   });
 
   it('puts a new reservation in Accounts’ inbox, then reminds the investor once', async () => {
@@ -190,6 +191,19 @@ describe('Notifications (node + database)', () => {
       category: 'action',
       subject: { type: 'project', id: project },
     });
+    // Everyone connected hears it: the farmer, their officer and the investor.
+    for (const token of [t.farmer, t.field_officer, t.investor]) {
+      expect(await ofKind(token, 'project.fully-funded')).toMatchObject([
+        { category: 'outcome', subject: { type: 'project', id: project } },
+      ]);
+    }
+    // The farmer and their officer heard when it opened for funding.
+    for (const token of [t.farmer, t.field_officer]) {
+      expect(await ofKind(token, 'project.live')).toHaveLength(1);
+    }
+    // Operations' action, nobody else's; the super admin only when theirs alone.
+    expect(await ofKind(t.super_admin, 'project.funded')).toEqual([]);
+    expect(await ofKind(t.super_admin, 'project.fully-funded')).toEqual([]);
   });
 
   it('notifies about bank details off the ledger too', async () => {

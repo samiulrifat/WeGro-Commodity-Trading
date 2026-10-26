@@ -179,6 +179,7 @@ export function fakeTx(events: (call: SentCall) => DecodedEvent[] = () => []) {
         blockNumber: sent.length,
         blockTime: new Date('2026-10-14T00:00:00Z'),
         gasUsed: 21_000n,
+        from: `0x${'0'.repeat(40)}`,
         events: events(call),
       };
     },

@@ -489,6 +489,21 @@ export function currentPage(
 }
 
 /**
+ * Whether `user` may open `path` (no query): its section is theirs and, if
+ * the section has pages, `path` is on one of them (or below one, such as a
+ * record of a list). Links on shared screens use it to skip dead ends.
+ */
+export function mayOpen(user: User, path: string): boolean {
+  const area = (Object.keys(AREAS) as Area[]).find((a) => {
+    const to: string = AREAS[a].to;
+    return path === to || path.startsWith(`${to}/`);
+  });
+  const section = area && navFor(user).find((n) => n.area === area);
+  if (!section) return false;
+  return !section.pages || !!currentPage(section.pages, path);
+}
+
+/**
  * Where to go after signing in: back to `target` if this person may open
  * it (it may have been another person's page, before a sign-out), else home.
  */

@@ -29,6 +29,8 @@ export interface TxResult {
   /** The block's timestamp: the time the ledger itself records for these events. */
   blockTime: Date;
   gasUsed: bigint;
+  /** The sending key's address: whose action this was. */
+  from: string;
   /** Platform contract events emitted by this transaction, in log order. */
   events: DecodedEvent[];
 }
@@ -171,6 +173,7 @@ export class TransactionService {
       blockNumber: receipt.blockNumber,
       blockTime: new Date((block?.timestamp ?? Date.now() / 1000) * 1000),
       gasUsed: receipt.gasUsed,
+      from: wallet.address,
       events: this.decodeLogs(receipt),
     };
   }

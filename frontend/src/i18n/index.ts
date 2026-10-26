@@ -46,6 +46,9 @@ export async function initI18n(lang: Language): Promise<void> {
   f?.add('role', (value: string, lng) =>
     i18n.t(`roles.${value}` as never, { lng, defaultValue: value }),
   );
+  f?.add('district', (value: string, lng) =>
+    i18n.t(`districts.${value}` as never, { lng, defaultValue: value }),
+  );
   // Statuses, stages and the like; a missing one reads "no longer active".
   f?.add('word', (value: string | null, lng) =>
     i18n.t(`words.${value || 'none'}` as never, {

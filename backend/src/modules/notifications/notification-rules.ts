@@ -22,13 +22,31 @@ class Context {
     private readonly e: ChainEvent,
   ) {}
 
+  private doerId: Promise<string | null> | null = null;
+
   /** Occasion key: this event, this kind of notice. */
   key(kind: string): string {
     return `ev:${this.e.blockNumber}:${this.e.logIndex}:${kind}`;
   }
 
-  send(to: Iterable<string | null | undefined>, note: Omit<Note, 'key'>) {
-    return this.writer.send(this.m, to, { ...note, key: this.key(note.kind) });
+  /** Whose transaction this was (by the sending key); they did it, so they are not told. */
+  doer(): Promise<string | null> {
+    this.doerId ??= this.e.txFrom
+      ? this.one<{ id: string }>('SELECT id FROM users WHERE account = $1', [
+          this.e.txFrom,
+        ]).then((r) => r?.id ?? null)
+      : Promise.resolve(null);
+    return this.doerId;
+  }
+
+  /** To everyone listed except the doer. */
+  async send(to: Iterable<string | null | undefined>, note: Omit<Note, 'key'>) {
+    const doer = await this.doer();
+    return this.writer.send(
+      this.m,
+      [...to].filter((id) => id !== doer),
+      { ...note, key: this.key(note.kind) },
+    );
   }
 
   role(roles: readonly Role[], except: Array<string | null> = []) {
@@ -38,6 +56,10 @@ class Context {
   async one<T>(sql: string, params: unknown[]): Promise<T | undefined> {
     const rows: T[] = await this.m.query(sql, params);
     return rows[0];
+  }
+
+  many<T>(sql: string, params: unknown[]): Promise<T[]> {
+    return this.m.query(sql, params);
   }
 
   /** A catalog entry's English and Bengali names, for wording in either language. */
@@ -86,6 +108,39 @@ class Context {
     );
   }
 
+  /** A bank's officers. */
+  async bankOfficers(bankId: string | null): Promise<string[]> {
+    if (!bankId) return [];
+    const rows: Array<{ officer_id: string }> = await this.m.query(
+      'SELECT officer_id FROM bank_officers WHERE bank_id = $1',
+      [bankId],
+    );
+    return rows.map((r) => r.officer_id);
+  }
+
+  /** "Bank, Branch", or null if unknown. */
+  async bankName(bankId: string | null): Promise<string | null> {
+    const bank = bankId
+      ? await this.one<{ name: string; branch_name: string }>(
+          'SELECT name, branch_name FROM banks WHERE id = $1',
+          [bankId],
+        )
+      : undefined;
+    return bank ? `${bank.name}, ${bank.branch_name}` : null;
+  }
+
+  /** The seller side of a deal: the outside seller, or the farmer and their officer (none for WeGro's own). */
+  async sellers(o: {
+    project_id: string | null;
+    seller_is_wegro: boolean;
+    seller_id: string | null;
+    farmer_id: string | null;
+  }): Promise<Array<string | null>> {
+    if (o.project_id === null) return [o.seller_id];
+    if (o.seller_is_wegro) return [];
+    return [o.farmer_id, await this.officerOf(o.farmer_id)];
+  }
+
   /** Everyone holding confirmed slots in the project. */
   async holders(projectId: string): Promise<string[]> {
     const rows: Array<{ investor_id: string }> = await this.m.query(
@@ -111,6 +166,7 @@ const code = (v: unknown) => {
   }
 };
 const taka = (v: unknown) => poishaToTaka(BigInt(String(v)));
+const ZERO = `0x${'0'.repeat(64)}`;
 const date = (seconds: unknown) =>
   new Date(Number(seconds) * 1000).toISOString().slice(0, 16).replace('T', ' ');
 /** A ledger time as ISO, for params: the app shows it in Bangladesh time. */
@@ -183,6 +239,24 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         params: {},
         subject: id ? { type: 'participant', id } : null,
       });
+      // A farmer's field officer hears how their farmer's registration went.
+      await x.send([await x.officerOf(id)], {
+        category: OUTCOME,
+        kind:
+          status === 2
+            ? NotificationKind.FARMER_VERIFIED
+            : revoked
+              ? NotificationKind.FARMER_ACCESS_REVOKED
+              : NotificationKind.FARMER_REJECTED,
+        title:
+          status === 2
+            ? 'A farmer of yours is verified'
+            : revoked
+              ? 'A farmer of yours lost access to WeGro'
+              : "A farmer's registration was not accepted",
+        params: {},
+        subject: id ? { type: 'participant', id } : null,
+      });
     },
     FieldOfficerAssigned: async (e, _m, x) => {
       const farmer = uuid(e.args.farmerId);
@@ -190,6 +264,13 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         category: OUTCOME,
         kind: NotificationKind.FARMER_ASSIGNED,
         title: 'A farmer was assigned to you',
+        params: {},
+        subject: farmer ? { type: 'participant', id: farmer } : null,
+      });
+      await x.send([farmer], {
+        category: OUTCOME,
+        kind: NotificationKind.OFFICER_ASSIGNED,
+        title: 'You have a new field officer',
         params: {},
         subject: farmer ? { type: 'participant', id: farmer } : null,
       });
@@ -238,36 +319,60 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       const p = await x.project(id);
       if (!p) return;
       const subject = { type: 'project', id };
+      const params = { project: p.title };
+      const farmerSide = [p.farmer_id, await x.officerOf(p.farmer_id)];
       switch (Number(e.args.newStage)) {
+        case 2: // OpenForFunding
+          return x.send(farmerSide, {
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_LIVE,
+            params,
+            title: `${p.title} is open for funding`,
+            subject,
+          });
         case 3: // Funded
-          return x.send(await x.role([Role.OPERATIONS]), {
+          await x.send(await x.role([Role.OPERATIONS]), {
             category: ACTION,
             kind: NotificationKind.PROJECT_FUNDED,
-            params: { project: p.title },
+            params,
             title: `${p.title} is fully funded: propose its input vouchers`,
             subject,
           });
+          return x.send([...farmerSide, ...(await x.holders(id))], {
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_FULLY_FUNDED,
+            params,
+            title: `${p.title} is fully funded`,
+            subject,
+          });
         case 4: // Active
-          return x.send([p.farmer_id, await x.officerOf(p.farmer_id)], {
+          return x.send([...farmerSide, ...(await x.holders(id))], {
             category: OUTCOME,
             kind: NotificationKind.PROJECT_ACTIVE,
-            params: { project: p.title },
+            params,
             title: `${p.title} is active`,
             subject,
           });
         case 5: // ReadyForSale
-          return x.send(await x.role([Role.ACCOUNTS]), {
+          await x.send(await x.role([Role.ACCOUNTS]), {
             category: ACTION,
             kind: NotificationKind.PROJECT_READY_FOR_SALE,
-            params: { project: p.title },
+            params,
             title: `${p.title} is ready for its final payout`,
             subject,
           });
+          return x.send(await x.holders(id), {
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_ON_SALE,
+            params,
+            title: `${p.title} is harvested and ready for sale`,
+            subject,
+          });
         case 6: // PaidOut
-          return x.send([p.farmer_id, ...(await x.holders(id))], {
+          return x.send([...farmerSide, ...(await x.holders(id))], {
             category: OUTCOME,
             kind: NotificationKind.PROJECT_PAID_OUT,
-            params: { project: p.title },
+            params,
             title: `${p.title} is paid out`,
             subject,
           });
@@ -276,8 +381,15 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
           await x.send(await x.holders(id), {
             category: OUTCOME,
             kind: NotificationKind.PROJECT_CANCELLED,
-            params: { project: p.title },
+            params,
             title: `${p.title} was cancelled: your money will be refunded`,
+            subject,
+          });
+          await x.send(farmerSide, {
+            category: OUTCOME,
+            kind: NotificationKind.PROJECT_CALLED_OFF,
+            params,
+            title: `${p.title} was cancelled`,
             subject,
           });
           await x.send(await x.role([Role.ACCOUNTS]), {
@@ -388,6 +500,29 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         subject: { type: 'receipt', id: String(e.args.receiptId) },
       });
     },
+    ExpiryExtended: receiptOutcome(
+      NotificationKind.RECEIPT_EXTENDED,
+      'Storage of your receipt was extended',
+    ),
+    ReceiptCollected: receiptOutcome(
+      NotificationKind.RECEIPT_COLLECTED,
+      'Goods on your receipt were collected',
+    ),
+    OperatorAssigned: async (e, _m, x) => {
+      const site = uuid(e.args.siteId);
+      if (!site) return; // taken off a site: their access ends with it
+      const s = await x.one<{ name: string }>(
+        'SELECT name FROM warehouse_sites WHERE id = $1',
+        [site],
+      );
+      await x.send([uuid(e.args.operatorId)], {
+        category: OUTCOME,
+        kind: NotificationKind.SITE_ASSIGNED,
+        title: `You were placed at ${s?.name ?? 'a warehouse site'}`,
+        params: { site: s?.name ?? null },
+        subject: { type: 'site', id: site },
+      });
+    },
     ReceiptTransferred: async (e, _m, x) => {
       // Only the buy-back: a buyer's part is covered by the deal's notices.
       if (e.args.to !== WEGRO_OWNER) return;
@@ -457,6 +592,25 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         subject: { type: 'offer', id: String(e.args.offerId) },
       });
     },
+    OfferWithdrawn: async (e, _m, x) => {
+      const l = await x.one<{
+        seller_id: string | null;
+        project_id: string | null;
+      }>(
+        `SELECT l.seller_id, l.project_id FROM offers o JOIN listings l ON l.id = o.listing_id
+          WHERE o.id = $1`,
+        [Number(e.args.offerId)],
+      );
+      const deciders =
+        l && l.project_id === null ? [l.seller_id] : await x.role([Role.ADMIN]);
+      await x.send(deciders, {
+        category: OUTCOME,
+        kind: NotificationKind.OFFER_WITHDRAWN,
+        title: `Offer #${String(e.args.offerId)} was withdrawn by the buyer`,
+        params: { offerId: String(e.args.offerId) },
+        subject: { type: 'offer', id: String(e.args.offerId) },
+      });
+    },
     OfferApproved: async (e, _m, x) => {
       const o = await x.offer(e);
       await x.send([o?.buyer_id], {
@@ -474,6 +628,16 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         params: { offerId: String(e.args.offerId) },
         subject: { type: 'offer', id: String(e.args.offerId) },
       });
+      // The farmer's side of an offer on their produce (an outside seller approved it themselves).
+      if (o && o.project_id !== null) {
+        await x.send(await x.sellers(o), {
+          category: OUTCOME,
+          kind: NotificationKind.DEAL_AGREED,
+          title: `Offer #${String(e.args.offerId)} on your produce was approved: awaiting the buyer's payment`,
+          params: { offerId: String(e.args.offerId) },
+          subject: { type: 'offer', id: String(e.args.offerId) },
+        });
+      }
     },
     OfferRejected: offerOutcome(
       NotificationKind.OFFER_REJECTED,
@@ -482,10 +646,12 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
     DealCancelled: offerOutcome(
       NotificationKind.DEAL_CANCELLED,
       'Your deal was cancelled',
+      true,
     ),
     DealExpired: offerOutcome(
       NotificationKind.DEAL_EXPIRED,
       'Your deal lapsed: payment was not confirmed in time',
+      true,
     ),
     BuyerPaymentConfirmed: async (e, m, x) => {
       const o = await x.offer(e);
@@ -506,20 +672,67 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
             [o.receipt_id],
           )
         : [];
-      await x.send(
+      const deliverers =
         o.project_id === null
           ? [o.seller_id]
           : o.receipt_id
             ? handlers.map((h) => h.operator_id)
-            : [await x.officerOf(o.farmer_id!)],
-        {
-          category: ACTION,
-          kind: NotificationKind.DEAL_DELIVER,
-          title: `Deal #${String(e.args.offerId)} is paid: hand over and confirm delivery`,
-          params: { offerId: String(e.args.offerId) },
-          subject,
-        },
+            : [await x.officerOf(o.farmer_id!)];
+      await x.send(deliverers, {
+        category: ACTION,
+        kind: NotificationKind.DEAL_DELIVER,
+        title: `Deal #${String(e.args.offerId)} is paid: hand over and confirm delivery`,
+        params: { offerId: String(e.args.offerId) },
+        subject,
+      });
+      // The farmer's side hears of the payment, unless already asked to deliver.
+      if (o.project_id !== null) {
+        await x.send(
+          (await x.sellers(o)).filter((id) => !deliverers.includes(id)),
+          {
+            category: OUTCOME,
+            kind: NotificationKind.DEAL_BUYER_PAID,
+            title: `The buyer paid for deal #${String(e.args.offerId)}`,
+            params: { offerId: String(e.args.offerId) },
+            subject,
+          },
+        );
+      }
+    },
+    DeliveryConfirmed: async (e, _m, x) => {
+      const o = await x.one<{ quantity: string }>(
+        'SELECT quantity::text AS quantity FROM offers WHERE id = $1',
+        [Number(e.args.offerId)],
       );
+      if (!o || BigInt(o.quantity) === BigInt(String(e.args.quantity))) return;
+      await x.send(await x.role([Role.ADMIN]), {
+        category: ACTION,
+        kind: NotificationKind.DELIVERY_MISMATCH,
+        title: `Deal #${String(e.args.offerId)}: the ${e.args.isBuyer ? 'buyer' : 'handler'} confirmed ${String(e.args.quantity)}, not ${o.quantity}`,
+        params: {
+          offerId: String(e.args.offerId),
+          buyer: Boolean(e.args.isBuyer),
+          confirmed: String(e.args.quantity),
+          quantity: o.quantity,
+        },
+        subject: { type: 'offer', id: String(e.args.offerId) },
+      });
+    },
+    RequestPosted: async (e, _m, x) => {
+      const produce = await x.named('produce_types', code(e.args.produceCode));
+      await x.send(await x.role([Role.ADMIN, Role.OPERATIONS]), {
+        category: ACTION,
+        kind: NotificationKind.REQUEST_POSTED,
+        title: `A buyer wants ${String(e.args.quantity)} ${produce.name}`,
+        params: {
+          requestId: String(e.args.requestId),
+          quantity: String(e.args.quantity),
+          produce: produce.name,
+          produceBn: produce.nameBn,
+          maxUnitPrice: taka(e.args.maxUnitPrice),
+        },
+        subject: { type: 'request', id: String(e.args.requestId) },
+      });
     },
     DealDelivered: async (e, _m, x) => {
       const o = await x.offer(e);
@@ -554,6 +767,47 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
   },
 
   InsuranceRegistry: {
+    WeatherEventRecorded: async (e, _m, x) => {
+      const district = code(e.args.regionCode);
+      const type = code(e.args.eventType);
+      // Officers of farmers whose insured crop in the district is in the field
+      // and whose current cover pays for this kind of event.
+      const officers: Array<{ officer_id: string }> = await x.many(
+        `SELECT DISTINCT u.field_officer_id AS officer_id
+           FROM projects p JOIN users u ON u.id = p.farmer_id
+          WHERE p.district_code = $1 AND p.insured AND p.stage IN ('funded', 'active')
+            AND u.field_officer_id IS NOT NULL
+            AND EXISTS (
+              SELECT 1 FROM (
+                SELECT c.covered_event_types FROM coverage_terms c
+                 WHERE c.project_id = p.id AND c.status = 'recorded'
+                   AND c.insurer_id = (
+                     SELECT a.insurer_id FROM insurer_assignments a
+                      WHERE a.project_id = p.id AND a.status = 'recorded'
+                      ORDER BY a.chain_event_block DESC, a.chain_event_log DESC LIMIT 1)
+                 ORDER BY c.chain_event_block DESC, c.chain_event_log DESC LIMIT 1) l
+              WHERE $2 = ANY(l.covered_event_types))`,
+        [district, type],
+      );
+      const t = await x.one<{ name: string; name_bn: string }>(
+        'SELECT name, name_bn FROM weather_event_types WHERE code = $1',
+        [type],
+      );
+      await x.send(
+        officers.map((o) => o.officer_id),
+        {
+          category: ACTION,
+          kind: NotificationKind.WEATHER_RECORDED,
+          title: `${t?.name ?? type} recorded in ${district}: check your farmers' insured crops`,
+          params: {
+            event: t?.name ?? type,
+            eventBn: t?.name_bn ?? null,
+            district,
+          },
+          subject: { type: 'weather-event', id: uuid(e.args.eventId) ?? '' },
+        },
+      );
+    },
     InsurerAssigned: async (e, _m, x) => {
       const projectId = uuid(e.args.projectId);
       if (!projectId) return;
@@ -580,6 +834,14 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         title: 'A claim was opened on a project you cover',
         subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
       });
+      const p = await x.project(uuid(e.args.projectId));
+      await x.send([p?.farmer_id, await x.officerOf(p?.farmer_id)], {
+        category: OUTCOME,
+        kind: NotificationKind.CLAIM_FILED,
+        params: { project: p?.title ?? null },
+        title: `An insurance claim was opened on ${p?.title ?? 'a project'}`,
+        subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
+      });
     },
     ClaimStatusChanged: async (e, _m, x) => {
       const status = Number(e.args.status);
@@ -590,23 +852,29 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       );
       if (!c) return;
       const p = await x.project(c.project_id);
-      await x.send([c.opened_by_id, p?.farmer_id], {
-        category: OUTCOME,
-        kind:
-          status === 3
-            ? NotificationKind.CLAIM_APPROVED
-            : NotificationKind.CLAIM_REJECTED,
-        title:
-          status === 3
-            ? `Insurance claim approved: ${taka(e.args.approvedAmount)} taka`
-            : 'Insurance claim rejected',
-        body: p?.title,
-        params:
-          status === 3
-            ? { amount: taka(e.args.approvedAmount), project: p?.title ?? null }
-            : { project: p?.title ?? null },
-        subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
-      });
+      await x.send(
+        [c.opened_by_id, p?.farmer_id, await x.officerOf(p?.farmer_id)],
+        {
+          category: OUTCOME,
+          kind:
+            status === 3
+              ? NotificationKind.CLAIM_APPROVED
+              : NotificationKind.CLAIM_REJECTED,
+          title:
+            status === 3
+              ? `Insurance claim approved: ${taka(e.args.approvedAmount)} taka`
+              : 'Insurance claim rejected',
+          body: p?.title,
+          params:
+            status === 3
+              ? {
+                  amount: taka(e.args.approvedAmount),
+                  project: p?.title ?? null,
+                }
+              : { project: p?.title ?? null },
+          subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
+        },
+      );
       if (status === 3) {
         await x.send(await x.role([Role.ACCOUNTS]), {
           category: ACTION,
@@ -628,14 +896,17 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       );
       if (!c) return;
       const p = await x.project(c.project_id);
-      await x.send([c.opened_by_id, p?.farmer_id], {
-        category: OUTCOME,
-        kind: NotificationKind.CLAIM_PAID,
-        title: `The insurer paid the claim: ${taka(e.args.amount)} taka`,
-        body: p?.title,
-        params: { amount: taka(e.args.amount), project: p?.title ?? null },
-        subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
-      });
+      await x.send(
+        [c.opened_by_id, p?.farmer_id, await x.officerOf(p?.farmer_id)],
+        {
+          category: OUTCOME,
+          kind: NotificationKind.CLAIM_PAID,
+          title: `The insurer paid the claim: ${taka(e.args.amount)} taka`,
+          body: p?.title,
+          params: { amount: taka(e.args.amount), project: p?.title ?? null },
+          subject: { type: 'claim', id: uuid(e.args.claimId) ?? '' },
+        },
+      );
     },
   },
 
@@ -687,27 +958,71 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
           : 'A payout to you was paid',
         subject: { type: 'round', id: String(e.args.roundId) },
       });
+      await x.send([await x.officerOf(payee)], {
+        category: OUTCOME,
+        kind: NotificationKind.PAYOUT_FARMER_PAID,
+        params: { amount: line?.amount ? taka(line.amount) : null },
+        title: line?.amount
+          ? `A farmer of yours was paid ${taka(line.amount)} taka`
+          : 'A farmer of yours was paid',
+        subject: { type: 'round', id: String(e.args.roundId) },
+      });
     },
   },
 
   ConsentRegistry: {
     TrackRecordPublished: async (e, _m, x) => {
-      await x.send([uuid(e.args.farmerId)], {
+      const farmer = uuid(e.args.farmerId);
+      await x.send([farmer], {
         category: OUTCOME,
         kind: NotificationKind.TRACK_RECORD_PUBLISHED,
         params: { version: Number(e.args.version) },
         title: `Your track record version ${String(e.args.version)} was published`,
-        subject: { type: 'track-record', id: uuid(e.args.farmerId) ?? '' },
+        subject: { type: 'track-record', id: farmer ?? '' },
       });
+      // Officers of banks whose permission is current see the new version from now on.
+      const officers: Array<{ officer_id: string }> = await x.many(
+        `SELECT DISTINCT o.officer_id FROM bank_consents c
+           JOIN bank_officers o ON o.bank_id = c.bank_id
+          WHERE c.farmer_id = $1 AND c.status = 'active' AND c.expires_at > $2`,
+        [farmer, e.blockTime],
+      );
+      await x.send(
+        officers.map((o) => o.officer_id),
+        {
+          category: OUTCOME,
+          kind: NotificationKind.TRACK_RECORD_UPDATED,
+          params: { version: Number(e.args.version) },
+          title: `A farmer's track record has a new version (${String(e.args.version)})`,
+          subject: { type: 'bank-farmer', id: farmer ?? '' },
+        },
+      );
     },
     ConsentGranted: consentNotice(
       NotificationKind.CONSENT_GRANTED,
       'gave permission to',
+      NotificationKind.CONSENT_BANK_GRANTED,
     ),
     ConsentRevoked: consentNotice(
       NotificationKind.CONSENT_REVOKED,
       'withdrew permission from',
+      NotificationKind.CONSENT_BANK_REVOKED,
     ),
+    BankOfficerAssigned: async (e, _m, x) => {
+      const bank = e.args.bankId === ZERO ? null : uuid(e.args.bankId);
+      const name = await x.bankName(bank);
+      await x.send([uuid(e.args.officerId)], {
+        category: OUTCOME,
+        kind: bank
+          ? NotificationKind.BANK_OFFICER_ASSIGNED
+          : NotificationKind.BANK_OFFICER_REMOVED,
+        title: bank
+          ? `You were placed at ${name ?? 'a bank'}`
+          : 'You were taken off your bank',
+        params: { bank: name },
+        subject: bank ? { type: 'bank', id: bank } : null,
+      });
+    },
     SummaryViewed: consentNotice(
       NotificationKind.TRACK_RECORD_VIEWED,
       'was viewed by',
@@ -803,10 +1118,16 @@ function listingOutcome(kind: NotificationKind, title: string): Rule {
   };
 }
 
-function offerOutcome(kind: NotificationKind, title: string): Rule {
+/** To the buyer and, when `sellerToo`, the seller side of the deal. */
+function offerOutcome(
+  kind: NotificationKind,
+  title: string,
+  sellerToo = false,
+): Rule {
   return async (e, _m, x) => {
     const o = await x.offer(e);
-    await x.send([o?.buyer_id], {
+    const sellers = o && sellerToo ? await x.sellers(o) : [];
+    await x.send([o?.buyer_id, ...sellers], {
       category: OUTCOME,
       kind,
       title,
@@ -816,14 +1137,28 @@ function offerOutcome(kind: NotificationKind, title: string): Rule {
   };
 }
 
-function consentNotice(kind: NotificationKind, verb: string): Rule {
+/** To the farmer; with `bankKind`, also to the bank's officers. */
+function consentNotice(
+  kind: NotificationKind,
+  verb: string,
+  bankKind?: NotificationKind,
+): Rule {
   return async (e, _m, x) => {
-    const bank = await x.one<{ name: string; branch_name: string }>(
-      'SELECT name, branch_name FROM banks WHERE id = $1',
-      [uuid(e.args.bankId)],
-    );
-    const bankName = bank ? `${bank.name}, ${bank.branch_name}` : 'a bank';
+    const bankId = uuid(e.args.bankId);
+    const bankName = (await x.bankName(bankId)) ?? 'a bank';
     const farmer = uuid(e.args.farmerId);
+    if (bankKind) {
+      await x.send(await x.bankOfficers(bankId), {
+        category: OUTCOME,
+        kind: bankKind,
+        title:
+          bankKind === NotificationKind.CONSENT_BANK_GRANTED
+            ? `A farmer gave ${bankName} permission to see their track record`
+            : `A farmer withdrew ${bankName}'s permission to see their track record`,
+        params: { bank: bankName },
+        subject: farmer ? { type: 'bank-farmer', id: farmer } : null,
+      });
+    }
     await x.send([farmer], {
       category: OUTCOME,
       kind,
@@ -833,6 +1168,23 @@ function consentNotice(kind: NotificationKind, verb: string): Rule {
           : `You ${verb} ${bankName}`,
       params: { bank: bankName },
       subject: farmer ? { type: 'track-record', id: farmer } : null,
+    });
+  };
+}
+
+/** To a receipt's owner (a farmer or an outside party) and the farmer's officer. */
+function receiptOutcome(kind: NotificationKind, title: string): Rule {
+  return async (e, _m, x) => {
+    const r = await x.one<{ owner_id: string | null }>(
+      'SELECT owner_id FROM warehouse_receipts WHERE id = $1',
+      [String(e.args.receiptId)],
+    );
+    await x.send([r?.owner_id, await x.officerOf(r?.owner_id)], {
+      category: OUTCOME,
+      kind,
+      title,
+      params: {},
+      subject: { type: 'receipt', id: String(e.args.receiptId) },
     });
   };
 }
