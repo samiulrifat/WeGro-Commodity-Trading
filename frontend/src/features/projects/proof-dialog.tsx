@@ -1,13 +1,11 @@
 import { Paperclip, Upload, X } from 'lucide-react';
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type ApiError, toApiError } from '@/api/errors';
-import { useBankListBanksQuery } from '@/api/generated/bank-list';
 import type { ReservationDto } from '@/api/generated/projects';
 import { FormError } from '@/app/auth/form-error';
 import { Button } from '@/components/ui/button';
-import { SearchSelect } from '@/components/ui/combobox';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +22,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFormat } from '@/i18n/use-format';
+import {
+  BranchPicker,
+  type Choice,
+} from '@/features/bank-details/branch-picker';
 import { todayBd } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { usePaymentProofsSubmitMutation } from './api';
@@ -42,7 +44,8 @@ const TYPES = new Set([
 
 /**
  * Sending proof of a transfer: how much (at most what is left), when, how,
- * from which bank, and 1 to 3 photos or PDFs. The booking's clock stops
+ * from which bank branch (bank, then district, then branch, its routing
+ * number shown as the list has it), and 1 to 3 photos or PDFs. The booking's clock stops
  * while Accounts checks it.
  */
 export function ProofDialog({
@@ -54,12 +57,15 @@ export function ProofDialog({
 }) {
   const { t } = useTranslation();
   const fmt = useFormat();
-  const banks = useBankListBanksQuery();
   const [submit, submitting] = usePaymentProofsSubmitMutation();
   const [amount, setAmount] = useState(r.remaining.replace(/\.00$/, ''));
   const [date, setDate] = useState(todayBd());
   const [method, setMethod] = useState<Method>('bank_deposit');
-  const [bank, setBank] = useState<string | null>(null);
+  const [paidFrom, setPaidFrom] = useState<Choice>({
+    bankCode: null,
+    districtCode: null,
+    routingNumber: null,
+  });
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -69,18 +75,12 @@ export function ProofDialog({
   const typed = typedTaka(amount);
   const value = typed ? toPoisha(typed) : null;
   const banked = method !== 'cash';
-  const bankOptions = useMemo(
-    () =>
-      (banks.data?.data ?? []).map((b) => ({
-        value: String(b.code),
-        label: b.name,
-      })),
-    [banks.data],
-  );
   const problems = {
     amount: value === null || value <= 0n || value > left,
     date: !date || date > todayBd(),
-    bank: banked && bank === null,
+    bank: banked && paidFrom.bankCode === null,
+    district: banked && paidFrom.districtCode === null,
+    branch: banked && paidFrom.routingNumber === null,
     files: files.length === 0,
   };
   const show = (k: keyof typeof problems) => tried && problems[k];
@@ -108,7 +108,10 @@ export function ProofDialog({
           amount: typed!,
           transferredOn: date,
           method,
-          ...(banked && bank !== null && { bankCode: Number(bank) }),
+          ...(banked &&
+            paidFrom.routingNumber !== null && {
+              routingNumber: paidFrom.routingNumber,
+            }),
           ...(reference.trim() && { reference: reference.trim() }),
           ...(note.trim() && { note: note.trim() }),
         },
@@ -196,23 +199,16 @@ export function ProofDialog({
           </fieldset>
 
           {banked && (
-            <Field data-invalid={show('bank') || undefined}>
-              <FieldLabel htmlFor="proof-bank">
-                {t('booking.bankFrom')}
-              </FieldLabel>
-              <SearchSelect
-                id="proof-bank"
-                options={bankOptions}
-                value={bank}
-                onValueChange={setBank}
-                placeholder={t('bank.chooseBank')}
-                emptyText={t('bank.noMatch')}
-                invalid={show('bank')}
-              />
-              {show('bank') && (
-                <FieldError>{t('bank.required.bank')}</FieldError>
-              )}
-            </Field>
+            <BranchPicker
+              bankLabel={t('booking.bankFrom')}
+              choice={paidFrom}
+              onChange={(patch) => setPaidFrom((c) => ({ ...c, ...patch }))}
+              invalid={{
+                bank: !!show('bank'),
+                district: !!show('district'),
+                branch: !!show('branch'),
+              }}
+            />
           )}
 
           <Field>

@@ -23,6 +23,8 @@ import type { AuthUser } from '../auth/auth-user';
 import { AuditAction, CurrentUser, Roles } from '../auth/decorators';
 import { Role } from '../users/roles';
 import {
+  ActivityEntryDto,
+  ActivityQueryDto,
   AuditLogEntryDto,
   AuditLogQueryDto,
   HistoryEntryDto,
@@ -81,6 +83,20 @@ export class AuditController {
     private readonly sweeps: SweepService,
     private readonly log: AuditLogService,
   ) {}
+
+  @Get('events')
+  @ApiPaged()
+  @Roles(...STAFF)
+  @ApiOkResponse({
+    type: [ActivityEntryDto],
+    description:
+      'Ledger events newest first, by kind of record or one record, with the records each names',
+  })
+  activity(
+    @Query() query: ActivityQueryDto,
+  ): Promise<Paginated<ActivityEntryDto>> {
+    return this.history.activity(query);
+  }
 
   @Get('history/:type/:id')
   @ApiPaged()

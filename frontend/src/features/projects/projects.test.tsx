@@ -173,8 +173,85 @@ describe('the booking page', () => {
       if (url.pathname === '/api/bank-list/banks') {
         return { body: { data: [{ code: 200, name: 'SONALI BANK LTD.' }] } };
       }
+      if (url.pathname === '/api/bank-list/banks/200/districts') {
+        return { body: { data: [{ code: 610, name: 'BOGRA' }] } };
+      }
+      if (url.pathname === '/api/bank-list/banks/200/districts/610/branches') {
+        return {
+          body: {
+            data: [
+              { routingNumber: '200100405', name: 'BOGRA BAZAR' },
+              { routingNumber: '200100434', name: 'BOGRA CANTONMENT' },
+            ],
+          },
+        };
+      }
       return undefined;
     });
+
+  it('asks a deposit’s bank, then district, then branch, and sends its routing number', async () => {
+    const forms: Array<Array<[string, string]>> = [];
+    vi.stubGlobal(
+      'FormData',
+      class {
+        entries: Array<[string, string]> = [];
+        constructor() {
+          forms.push(this.entries);
+        }
+        append(key: string, value: string | File) {
+          this.entries.push([
+            key,
+            typeof value === 'string' ? value : value.name,
+          ]);
+        }
+      },
+    );
+    await signedInAs('investor');
+    const sent = server(booking());
+    await renderPage(<BookingPage id={61} />, '/holdings/bookings/61');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Upload Payment Proof/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    // A deposit, nothing chosen: each missing piece is named.
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: /Submit for Review/ }),
+    );
+    expect(within(dialog).getByText('Choose the bank.')).toBeTruthy();
+    expect(within(dialog).getByText('Choose the branch.')).toBeTruthy();
+
+    const choose = async (label: string, typed: string, option: string) => {
+      const box = within(dialog).getByLabelText(label, { selector: 'input' });
+      await waitFor(() => expect(box.hasAttribute('disabled')).toBe(false));
+      await userEvent.type(box, typed);
+      await userEvent.click(
+        await screen.findByRole('option', { name: option }),
+      );
+    };
+    await choose('Bank Name', 'sona', 'SONALI BANK LTD.');
+    await choose('District', 'bog', 'BOGRA');
+    await choose('Branch', 'bazar', 'BOGRA BAZAR');
+    const routing = within(dialog).getByLabelText(
+      'Routing Number',
+    ) as HTMLInputElement;
+    expect(routing.value).toBe('200100405');
+    expect(routing.readOnly).toBe(true);
+
+    await userEvent.upload(
+      within(dialog).getByLabelText('Payment Proof'),
+      new File(['%PDF-1.4'], 'slip.pdf', { type: 'application/pdf' }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: /Submit for Review/ }),
+    );
+    await waitFor(() =>
+      expect(sent.some((s) => s.method === 'POST')).toBe(true),
+    );
+    expect(Object.fromEntries(forms.at(-1)!)).toMatchObject({
+      method: 'bank_deposit',
+      routingNumber: '200100405',
+    });
+  });
 
   it('shows where to pay, and sends a proof of part of the amount', async () => {
     // jsdom's File and Node's FormData do not mix: record what the app appends.

@@ -56,6 +56,7 @@ import {
   wholeNumber,
 } from './receipt-utils';
 import { ReceiptStatus } from './status';
+import { HistoryButton } from '@/features/audit/history-button';
 
 type Move = 'collect' | 'offer' | 'withdraw' | 'accept' | 'decline';
 const RECHECKABLE = new Set(['issued', 'pending_handover', 'listed', 'sold']);
@@ -69,13 +70,16 @@ export function ReceiptPage({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useWarehouseFindOneQuery({ id });
   const back = (
-    <Link
-      to="/warehouse"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {t('nav.sub.allReceipts')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/warehouse"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('nav.sub.allReceipts')}
+      </Link>
+      <HistoryButton type="receipt" id={id} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

@@ -282,7 +282,7 @@ describe('Payments (node + database)', () => {
           amount: '15000',
           transferredOn: today(),
           method: 'bank_deposit',
-          bankCode: '200',
+          routingNumber: '200010074',
           reference: 'TRX 1',
           note: 'First part',
         },
@@ -296,6 +296,9 @@ describe('Payments (node + database)', () => {
         status: 'pending',
         amount: '15000.00',
         bankName: 'SONALI BANK LTD.',
+        branchName: 'BAGERHAT',
+        districtName: 'BAGERHAT',
+        routingNumber: '200010074',
         reference: 'TRX 1',
       });
       expect(sent.body.data.files).toHaveLength(2);
@@ -371,7 +374,7 @@ describe('Payments (node + database)', () => {
         amount: '25000',
         transferredOn: today(),
         method: 'cheque',
-        bankCode: '185',
+        routingNumber: '185010078',
       }).expect(201);
       // The same statement line cannot pay twice.
       await as(accounts)

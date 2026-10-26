@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { ConsentStatusPill } from './consent-status';
 import { SummaryView } from './summary-view';
+import { HistoryButton } from '@/features/audit/history-button';
 
 const FRESH = { refetchOnMountOrArgChange: true } as const;
 /**
@@ -92,13 +93,16 @@ export function FarmerRecordPage({
     shown !== null ? { farmerId, version: shown } : skipToken,
   );
   const back = !own && (
-    <Link
-      to="/track-records"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {t('nav.sub.farmerRecords')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/track-records"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('nav.sub.farmerRecords')}
+      </Link>
+      <HistoryButton type="track-record" id={farmerId} />
+    </div>
   );
   if (versions.isLoading || preview.isLoading) return <LoadingState />;
   const failed = versions.error ?? preview.error;

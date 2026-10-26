@@ -7,12 +7,18 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsString,
   IsUUID,
   Matches,
+  MaxLength,
   Max,
   Min,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import {
+  HISTORY_TYPE_NAMES,
+  type HistoryTypeName,
+} from '../history/history-types';
 import {
   AUDIT_OUTCOMES,
   type AuditOutcome,
@@ -89,6 +95,43 @@ export class HistoryEntryDto {
     description: 'Names of the people the event refers to, by id or address',
   })
   parties: Record<string, string>;
+}
+
+// --- Ledger activity ---
+
+export class ActivityQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    enum: HISTORY_TYPE_NAMES,
+    description: 'Only events naming this kind of record',
+  })
+  @IsOptional()
+  @IsIn(HISTORY_TYPE_NAMES)
+  type?: HistoryTypeName;
+
+  @ApiPropertyOptional({
+    description:
+      "A record's number or id (uuid, or 0x… for a receipt): events naming it",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  q?: string;
+}
+
+export class RecordRefDto {
+  @ApiProperty({ enum: HISTORY_TYPE_NAMES })
+  type: HistoryTypeName;
+
+  @ApiProperty()
+  id: string;
+}
+
+export class ActivityEntryDto extends HistoryEntryDto {
+  @ApiProperty({
+    type: [RecordRefDto],
+    description: 'The records this event names, to open their histories',
+  })
+  records: RecordRefDto[];
 }
 
 // --- Verify ---
@@ -183,8 +226,8 @@ export class AuditLogQueryDto extends PaginationQueryDto {
   to?: string;
 
   @ApiPropertyOptional({
-    example: '/api/settlement/rounds/:id/approve',
-    description: 'Route pattern',
+    example: '/api/settlement/rounds',
+    description: 'Route pattern, or its start: every route under it',
   })
   @IsOptional()
   @Matches(/^\/[\w\-/:.]{0,200}$/)

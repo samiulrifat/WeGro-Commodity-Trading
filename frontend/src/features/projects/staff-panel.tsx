@@ -43,6 +43,7 @@ import {
 import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
 import { canRunProjects } from './permissions';
+import { useAuditWords } from '@/features/audit/words';
 
 type Move =
   'publish' | 'activate' | 'readyForSale' | 'close' | 'cancel' | 'remove';
@@ -195,6 +196,7 @@ function MoveDialog({
 
 function LedgerCheck({ project: p }: { project: ProjectDto }) {
   const { t } = useTranslation();
+  const words = useAuditWords();
   const [check, result] = useLazyProjectsIntegrityQuery();
   const data = result.data?.data;
   return (
@@ -225,7 +227,9 @@ function LedgerCheck({ project: p }: { project: ProjectDto }) {
             <Alert variant="destructive">
               <CircleX />
               <AlertTitle>{t('projects.ledgerDiffers')}</AlertTitle>
-              <AlertDescription>{data.mismatches.join(', ')}</AlertDescription>
+              <AlertDescription>
+                {data.mismatches.map((m) => words.mismatch(m)).join(' · ')}
+              </AlertDescription>
             </Alert>
           ))}
       </CardContent>

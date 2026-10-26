@@ -20,6 +20,7 @@ import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppStatusRouteImport } from './routes/_app/status'
 import { Route as AppAuditIndexRouteImport } from './routes/_app/audit/index'
+import { Route as AppAuditLogRouteImport } from './routes/_app/audit/log'
 import { Route as AppBatchesIndexRouteImport } from './routes/_app/batches/index'
 import { Route as AppBatchesBatchIdRouteImport } from './routes/_app/batches/$batchId'
 import { Route as AppCatalogIndexRouteImport } from './routes/_app/catalog/index'
@@ -67,6 +68,8 @@ import { Route as AppWarehouseHandoversRouteImport } from './routes/_app/warehou
 import { Route as AppWarehouseSitesRouteImport } from './routes/_app/warehouse/sites'
 import { Route as VerifyBatchBatchIdRouteImport } from './routes/verify/batch.$batchId'
 import { Route as VerifyReceiptReceiptIdRouteImport } from './routes/verify/receipt.$receiptId'
+import { Route as AppAuditChecksIndexRouteImport } from './routes/_app/audit/checks/index'
+import { Route as AppAuditChecksSweepIdRouteImport } from './routes/_app/audit/checks/$sweepId'
 import { Route as AppBankFarmersIndexRouteImport } from './routes/_app/bank/farmers/index'
 import { Route as AppBankFarmersFarmerIdRouteImport } from './routes/_app/bank/farmers/$farmerId'
 import { Route as AppCatalogFarmUpdateTypesIndexRouteImport } from './routes/_app/catalog/farm-update-types/index'
@@ -97,6 +100,7 @@ import { Route as AppTrackRecordsFarmersFarmerIdRouteImport } from './routes/_ap
 import { Route as AppVouchersBatchesIndexRouteImport } from './routes/_app/vouchers/batches/index'
 import { Route as AppVouchersBatchesBatchIdRouteImport } from './routes/_app/vouchers/batches/$batchId'
 import { Route as AppWarehouseReceiptsReceiptIdRouteImport } from './routes/_app/warehouse/receipts/$receiptId'
+import { Route as AppAuditHistoryTypeIdRouteImport } from './routes/_app/audit/history/$type/$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -150,6 +154,11 @@ const AppStatusRoute = AppStatusRouteImport.update({
 const AppAuditIndexRoute = AppAuditIndexRouteImport.update({
   id: '/audit/',
   path: '/audit/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditLogRoute = AppAuditLogRouteImport.update({
+  id: '/audit/log',
+  path: '/audit/log',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBatchesIndexRoute = AppBatchesIndexRouteImport.update({
@@ -391,6 +400,16 @@ const VerifyReceiptReceiptIdRoute = VerifyReceiptReceiptIdRouteImport.update({
   path: '/verify/receipt/$receiptId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAuditChecksIndexRoute = AppAuditChecksIndexRouteImport.update({
+  id: '/audit/checks/',
+  path: '/audit/checks/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditChecksSweepIdRoute = AppAuditChecksSweepIdRouteImport.update({
+  id: '/audit/checks/$sweepId',
+  path: '/audit/checks/$sweepId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBankFarmersIndexRoute = AppBankFarmersIndexRouteImport.update({
   id: '/bank/farmers/',
   path: '/bank/farmers/',
@@ -558,6 +577,11 @@ const AppWarehouseReceiptsReceiptIdRoute =
     path: '/warehouse/receipts/$receiptId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAuditHistoryTypeIdRoute = AppAuditHistoryTypeIdRouteImport.update({
+  id: '/audit/history/$type/$id',
+  path: '/audit/history/$type/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -569,6 +593,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
+  '/audit/log': typeof AppAuditLogRoute
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
@@ -617,6 +642,7 @@ export interface FileRoutesByFullPath {
   '/track-records/': typeof AppTrackRecordsIndexRoute
   '/vouchers/': typeof AppVouchersIndexRoute
   '/warehouse/': typeof AppWarehouseIndexRoute
+  '/audit/checks/$sweepId': typeof AppAuditChecksSweepIdRoute
   '/bank/farmers/$farmerId': typeof AppBankFarmersFarmerIdRoute
   '/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
   '/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
@@ -635,6 +661,7 @@ export interface FileRoutesByFullPath {
   '/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
+  '/audit/checks/': typeof AppAuditChecksIndexRoute
   '/bank/farmers/': typeof AppBankFarmersIndexRoute
   '/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/catalog/inputs/': typeof AppCatalogInputsIndexRoute
@@ -647,6 +674,7 @@ export interface FileRoutesByFullPath {
   '/people/changes/': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
   '/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
+  '/audit/history/$type/$id': typeof AppAuditHistoryTypeIdRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
@@ -658,6 +686,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AppNotificationsRoute
   '/status': typeof AppStatusRoute
   '/': typeof AppIndexRoute
+  '/audit/log': typeof AppAuditLogRoute
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
@@ -706,6 +735,7 @@ export interface FileRoutesByTo {
   '/track-records': typeof AppTrackRecordsIndexRoute
   '/vouchers': typeof AppVouchersIndexRoute
   '/warehouse': typeof AppWarehouseIndexRoute
+  '/audit/checks/$sweepId': typeof AppAuditChecksSweepIdRoute
   '/bank/farmers/$farmerId': typeof AppBankFarmersFarmerIdRoute
   '/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
   '/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
@@ -724,6 +754,7 @@ export interface FileRoutesByTo {
   '/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
+  '/audit/checks': typeof AppAuditChecksIndexRoute
   '/bank/farmers': typeof AppBankFarmersIndexRoute
   '/catalog/farm-update-types': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/catalog/inputs': typeof AppCatalogInputsIndexRoute
@@ -736,6 +767,7 @@ export interface FileRoutesByTo {
   '/people/changes': typeof AppPeopleChangesIndexRoute
   '/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
   '/vouchers/batches': typeof AppVouchersBatchesIndexRoute
+  '/audit/history/$type/$id': typeof AppAuditHistoryTypeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -749,6 +781,7 @@ export interface FileRoutesById {
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/status': typeof AppStatusRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/audit/log': typeof AppAuditLogRoute
   '/_app/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/_app/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/_app/farm-updates/sent': typeof AppFarmUpdatesSentRoute
@@ -797,6 +830,7 @@ export interface FileRoutesById {
   '/_app/track-records/': typeof AppTrackRecordsIndexRoute
   '/_app/vouchers/': typeof AppVouchersIndexRoute
   '/_app/warehouse/': typeof AppWarehouseIndexRoute
+  '/_app/audit/checks/$sweepId': typeof AppAuditChecksSweepIdRoute
   '/_app/bank/farmers/$farmerId': typeof AppBankFarmersFarmerIdRoute
   '/_app/catalog/farm-update-types/$code': typeof AppCatalogFarmUpdateTypesCodeRoute
   '/_app/catalog/inputs/$code': typeof AppCatalogInputsCodeRoute
@@ -815,6 +849,7 @@ export interface FileRoutesById {
   '/_app/track-records/farmers/$farmerId': typeof AppTrackRecordsFarmersFarmerIdRoute
   '/_app/vouchers/batches/$batchId': typeof AppVouchersBatchesBatchIdRoute
   '/_app/warehouse/receipts/$receiptId': typeof AppWarehouseReceiptsReceiptIdRoute
+  '/_app/audit/checks/': typeof AppAuditChecksIndexRoute
   '/_app/bank/farmers/': typeof AppBankFarmersIndexRoute
   '/_app/catalog/farm-update-types/': typeof AppCatalogFarmUpdateTypesIndexRoute
   '/_app/catalog/inputs/': typeof AppCatalogInputsIndexRoute
@@ -827,6 +862,7 @@ export interface FileRoutesById {
   '/_app/people/changes/': typeof AppPeopleChangesIndexRoute
   '/_app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
   '/_app/vouchers/batches/': typeof AppVouchersBatchesIndexRoute
+  '/_app/audit/history/$type/$id': typeof AppAuditHistoryTypeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -840,6 +876,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/notifications'
     | '/status'
+    | '/audit/log'
     | '/batches/$batchId'
     | '/farm-updates/drafts'
     | '/farm-updates/sent'
@@ -888,6 +925,7 @@ export interface FileRouteTypes {
     | '/track-records/'
     | '/vouchers/'
     | '/warehouse/'
+    | '/audit/checks/$sweepId'
     | '/bank/farmers/$farmerId'
     | '/catalog/farm-update-types/$code'
     | '/catalog/inputs/$code'
@@ -906,6 +944,7 @@ export interface FileRouteTypes {
     | '/track-records/farmers/$farmerId'
     | '/vouchers/batches/$batchId'
     | '/warehouse/receipts/$receiptId'
+    | '/audit/checks/'
     | '/bank/farmers/'
     | '/catalog/farm-update-types/'
     | '/catalog/inputs/'
@@ -918,6 +957,7 @@ export interface FileRouteTypes {
     | '/people/changes/'
     | '/projects/$projectId/'
     | '/vouchers/batches/'
+    | '/audit/history/$type/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
@@ -929,6 +969,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/status'
     | '/'
+    | '/audit/log'
     | '/batches/$batchId'
     | '/farm-updates/drafts'
     | '/farm-updates/sent'
@@ -977,6 +1018,7 @@ export interface FileRouteTypes {
     | '/track-records'
     | '/vouchers'
     | '/warehouse'
+    | '/audit/checks/$sweepId'
     | '/bank/farmers/$farmerId'
     | '/catalog/farm-update-types/$code'
     | '/catalog/inputs/$code'
@@ -995,6 +1037,7 @@ export interface FileRouteTypes {
     | '/track-records/farmers/$farmerId'
     | '/vouchers/batches/$batchId'
     | '/warehouse/receipts/$receiptId'
+    | '/audit/checks'
     | '/bank/farmers'
     | '/catalog/farm-update-types'
     | '/catalog/inputs'
@@ -1007,6 +1050,7 @@ export interface FileRouteTypes {
     | '/people/changes'
     | '/projects/$projectId'
     | '/vouchers/batches'
+    | '/audit/history/$type/$id'
   id:
     | '__root__'
     | '/_app'
@@ -1019,6 +1063,7 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/status'
     | '/_app/'
+    | '/_app/audit/log'
     | '/_app/batches/$batchId'
     | '/_app/farm-updates/drafts'
     | '/_app/farm-updates/sent'
@@ -1067,6 +1112,7 @@ export interface FileRouteTypes {
     | '/_app/track-records/'
     | '/_app/vouchers/'
     | '/_app/warehouse/'
+    | '/_app/audit/checks/$sweepId'
     | '/_app/bank/farmers/$farmerId'
     | '/_app/catalog/farm-update-types/$code'
     | '/_app/catalog/inputs/$code'
@@ -1085,6 +1131,7 @@ export interface FileRouteTypes {
     | '/_app/track-records/farmers/$farmerId'
     | '/_app/vouchers/batches/$batchId'
     | '/_app/warehouse/receipts/$receiptId'
+    | '/_app/audit/checks/'
     | '/_app/bank/farmers/'
     | '/_app/catalog/farm-update-types/'
     | '/_app/catalog/inputs/'
@@ -1097,6 +1144,7 @@ export interface FileRouteTypes {
     | '/_app/people/changes/'
     | '/_app/projects/$projectId/'
     | '/_app/vouchers/batches/'
+    | '/_app/audit/history/$type/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1187,6 +1235,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit/'
       preLoaderRoute: typeof AppAuditIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audit/log': {
+      id: '/_app/audit/log'
+      path: '/audit/log'
+      fullPath: '/audit/log'
+      preLoaderRoute: typeof AppAuditLogRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/batches/': {
@@ -1518,6 +1573,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyReceiptReceiptIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/audit/checks/': {
+      id: '/_app/audit/checks/'
+      path: '/audit/checks'
+      fullPath: '/audit/checks/'
+      preLoaderRoute: typeof AppAuditChecksIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audit/checks/$sweepId': {
+      id: '/_app/audit/checks/$sweepId'
+      path: '/audit/checks/$sweepId'
+      fullPath: '/audit/checks/$sweepId'
+      preLoaderRoute: typeof AppAuditChecksSweepIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bank/farmers/': {
       id: '/_app/bank/farmers/'
       path: '/bank/farmers'
@@ -1728,6 +1797,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWarehouseReceiptsReceiptIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/audit/history/$type/$id': {
+      id: '/_app/audit/history/$type/$id'
+      path: '/audit/history/$type/$id'
+      fullPath: '/audit/history/$type/$id'
+      preLoaderRoute: typeof AppAuditHistoryTypeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -1736,6 +1812,7 @@ interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppStatusRoute: typeof AppStatusRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAuditLogRoute: typeof AppAuditLogRoute
   AppBatchesBatchIdRoute: typeof AppBatchesBatchIdRoute
   AppFarmUpdatesDraftsRoute: typeof AppFarmUpdatesDraftsRoute
   AppFarmUpdatesSentRoute: typeof AppFarmUpdatesSentRoute
@@ -1782,6 +1859,7 @@ interface AppRouteChildren {
   AppTrackRecordsIndexRoute: typeof AppTrackRecordsIndexRoute
   AppVouchersIndexRoute: typeof AppVouchersIndexRoute
   AppWarehouseIndexRoute: typeof AppWarehouseIndexRoute
+  AppAuditChecksSweepIdRoute: typeof AppAuditChecksSweepIdRoute
   AppBankFarmersFarmerIdRoute: typeof AppBankFarmersFarmerIdRoute
   AppCatalogFarmUpdateTypesCodeRoute: typeof AppCatalogFarmUpdateTypesCodeRoute
   AppCatalogInputsCodeRoute: typeof AppCatalogInputsCodeRoute
@@ -1800,6 +1878,7 @@ interface AppRouteChildren {
   AppTrackRecordsFarmersFarmerIdRoute: typeof AppTrackRecordsFarmersFarmerIdRoute
   AppVouchersBatchesBatchIdRoute: typeof AppVouchersBatchesBatchIdRoute
   AppWarehouseReceiptsReceiptIdRoute: typeof AppWarehouseReceiptsReceiptIdRoute
+  AppAuditChecksIndexRoute: typeof AppAuditChecksIndexRoute
   AppBankFarmersIndexRoute: typeof AppBankFarmersIndexRoute
   AppCatalogFarmUpdateTypesIndexRoute: typeof AppCatalogFarmUpdateTypesIndexRoute
   AppCatalogInputsIndexRoute: typeof AppCatalogInputsIndexRoute
@@ -1812,6 +1891,7 @@ interface AppRouteChildren {
   AppPeopleChangesIndexRoute: typeof AppPeopleChangesIndexRoute
   AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
   AppVouchersBatchesIndexRoute: typeof AppVouchersBatchesIndexRoute
+  AppAuditHistoryTypeIdRoute: typeof AppAuditHistoryTypeIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1819,6 +1899,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
   AppStatusRoute: AppStatusRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAuditLogRoute: AppAuditLogRoute,
   AppBatchesBatchIdRoute: AppBatchesBatchIdRoute,
   AppFarmUpdatesDraftsRoute: AppFarmUpdatesDraftsRoute,
   AppFarmUpdatesSentRoute: AppFarmUpdatesSentRoute,
@@ -1865,6 +1946,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackRecordsIndexRoute: AppTrackRecordsIndexRoute,
   AppVouchersIndexRoute: AppVouchersIndexRoute,
   AppWarehouseIndexRoute: AppWarehouseIndexRoute,
+  AppAuditChecksSweepIdRoute: AppAuditChecksSweepIdRoute,
   AppBankFarmersFarmerIdRoute: AppBankFarmersFarmerIdRoute,
   AppCatalogFarmUpdateTypesCodeRoute: AppCatalogFarmUpdateTypesCodeRoute,
   AppCatalogInputsCodeRoute: AppCatalogInputsCodeRoute,
@@ -1883,6 +1965,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackRecordsFarmersFarmerIdRoute: AppTrackRecordsFarmersFarmerIdRoute,
   AppVouchersBatchesBatchIdRoute: AppVouchersBatchesBatchIdRoute,
   AppWarehouseReceiptsReceiptIdRoute: AppWarehouseReceiptsReceiptIdRoute,
+  AppAuditChecksIndexRoute: AppAuditChecksIndexRoute,
   AppBankFarmersIndexRoute: AppBankFarmersIndexRoute,
   AppCatalogFarmUpdateTypesIndexRoute: AppCatalogFarmUpdateTypesIndexRoute,
   AppCatalogInputsIndexRoute: AppCatalogInputsIndexRoute,
@@ -1895,6 +1978,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPeopleChangesIndexRoute: AppPeopleChangesIndexRoute,
   AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
   AppVouchersBatchesIndexRoute: AppVouchersBatchesIndexRoute,
+  AppAuditHistoryTypeIdRoute: AppAuditHistoryTypeIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

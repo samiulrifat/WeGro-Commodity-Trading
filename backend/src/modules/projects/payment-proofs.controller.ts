@@ -85,7 +85,11 @@ export class PaymentProofsController {
         amount: { type: 'string', example: '100000' },
         transferredOn: { type: 'string', format: 'date' },
         method: { type: 'string', enum: Object.values(PaymentMethod) },
-        bankCode: { type: 'integer', description: 'Deposit or cheque' },
+        routingNumber: {
+          type: 'string',
+          pattern: '^\\d{9}$',
+          description: 'The branch paid from (deposit or cheque)',
+        },
         reference: { type: 'string' },
         note: { type: 'string' },
       },

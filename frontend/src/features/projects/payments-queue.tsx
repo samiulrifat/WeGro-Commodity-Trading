@@ -241,6 +241,19 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
             {p.bankName && (
               <span className="block text-sm font-normal text-muted-foreground">
                 {p.bankName}
+                {p.branchName && (
+                  <>
+                    <br />
+                    {[p.branchName, p.districtName].filter(Boolean).join(', ')}
+                  </>
+                )}
+                {p.routingNumber && (
+                  <>
+                    <br />
+                    {t('bank.routing')}:{' '}
+                    <span className="font-mono">{p.routingNumber}</span>
+                  </>
+                )}
               </span>
             )}
           </dd>

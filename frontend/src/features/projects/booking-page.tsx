@@ -423,6 +423,7 @@ function Proofs({
               <p className="text-sm text-muted-foreground">
                 {t(`booking.method.${p.method}`)}
                 {p.bankName && ` · ${p.bankName}`}
+                {p.branchName && `, ${p.branchName}`}
                 {' · '}
                 {fmt.date(p.transferredOn)}
                 {p.reference && ` · ${p.reference}`}

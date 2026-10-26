@@ -18,6 +18,10 @@ import { PaymentProofFile } from './payment-proof-file.entity';
 @Entity('payment_proofs')
 @Check('ck_payment_proofs_amount', `"amount" > 0`)
 @Check(
+  'ck_payment_proofs_routing',
+  `"routing_number" IS NULL OR "routing_number" ~ '^[0-9]{9}$'`,
+)
+@Check(
   'ck_payment_proofs_status',
   `"status" IN ('pending', 'accepted', 'rejected')`,
 )
@@ -57,6 +61,16 @@ export class PaymentProof extends BaseEntity {
   /** The bank paid from (deposit or cheque), as the bank list names it. */
   @Column({ type: 'varchar', length: 100, nullable: true })
   bankName: string | null;
+
+  /** The branch paid from, its district and routing number, as the bank list had them. */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  branchName: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  districtName: string | null;
+
+  @Column({ type: 'char', length: 9, nullable: true })
+  routingNumber: string | null;
 
   /** The transaction reference as the investor typed it; encrypted. */
   @Column({ type: 'text', nullable: true })

@@ -35,8 +35,8 @@ const proofs = paymentProofsApi
           form.append('amount', body.amount);
           form.append('transferredOn', body.transferredOn);
           form.append('method', body.method);
-          if (body.bankCode !== undefined) {
-            form.append('bankCode', String(body.bankCode));
+          if (body.routingNumber !== undefined) {
+            form.append('routingNumber', body.routingNumber);
           }
           if (body.reference) form.append('reference', body.reference);
           if (body.note) form.append('note', body.note);

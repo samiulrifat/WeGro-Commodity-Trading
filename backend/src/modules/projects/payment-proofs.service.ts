@@ -133,19 +133,34 @@ export class PaymentProofsService {
         code: ErrorCode.PROOF_DATE_FUTURE,
       });
     }
-    let bankName: string | null = null;
+    // Deposits and cheques name the branch paid from; the list gives its
+    // bank, district and routing number, kept as they were at the time.
+    let paidFrom: Pick<
+      PaymentProof,
+      'bankName' | 'branchName' | 'districtName' | 'routingNumber'
+    > = {
+      bankName: null,
+      branchName: null,
+      districtName: null,
+      routingNumber: null,
+    };
     if (BANKED.has(dto.method)) {
-      const bank =
-        dto.bankCode === undefined
-          ? undefined
-          : (await this.bankList.banks()).find((b) => b.code === dto.bankCode);
-      if (!bank) {
+      const branch = dto.routingNumber
+        ? await this.bankList.find(dto.routingNumber)
+        : null;
+      if (!branch) {
         throw new UnprocessableEntityException({
-          message: 'Choose the bank the money was paid from',
+          message:
+            'Choose the bank, district and branch the money was paid from',
           code: ErrorCode.PROOF_BANK_REQUIRED,
         });
       }
-      bankName = bank.name;
+      paidFrom = {
+        bankName: branch.bank.name,
+        branchName: branch.name,
+        districtName: branch.district.name,
+        routingNumber: branch.routingNumber,
+      };
     }
 
     // Files first (encrypted); a row only points at files that exist.
@@ -162,7 +177,7 @@ export class PaymentProofsService {
           amount,
           transferredOn: dto.transferredOn,
           method: dto.method,
-          bankName,
+          ...paidFrom,
           // Bound to the row: the reference opens only for this proof.
           referenceEnc: dto.reference
             ? this.crypto.encrypt(dto.reference, referenceContext(proofId))
@@ -490,6 +505,9 @@ export class PaymentProofsService {
         transferredOn: p.transferredOn,
         method: p.method,
         bankName: p.bankName,
+        branchName: p.branchName,
+        districtName: p.districtName,
+        routingNumber: p.routingNumber,
         reference: p.referenceEnc
           ? this.crypto.decrypt(p.referenceEnc, referenceContext(p.id))
           : null,

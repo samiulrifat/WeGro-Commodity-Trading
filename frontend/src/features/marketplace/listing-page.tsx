@@ -60,6 +60,7 @@ import {
   wholeNumber,
 } from './market-utils';
 import { ListingStatus } from './status';
+import { HistoryButton } from '@/features/audit/history-button';
 
 type Move = 'offer' | 'approve' | 'reject' | 'cancel';
 
@@ -74,13 +75,16 @@ export function ListingPage({ id }: { id: number }) {
   const seller = useAppSelector((s) => s.session.user!.role) === 'seller';
   const query = useTradeListingQuery({ id }, FRESH);
   const back = (
-    <Link
-      to={seller ? '/marketplace/mine' : '/marketplace'}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {seller ? t('nav.sub.myListings') : t('nav.sub.listings')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to={seller ? '/marketplace/mine' : '/marketplace'}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {seller ? t('nav.sub.myListings') : t('nav.sub.listings')}
+      </Link>
+      <HistoryButton type="listing" id={String(id)} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

@@ -21,6 +21,7 @@ import { annualized, installments, shortPercent } from './project-math';
 import { InvestBar, Simulator } from './simulator';
 import { StaffPanel, Timeline } from './staff-panel';
 import { StagePill } from './stage-pill';
+import { HistoryButton } from '@/features/audit/history-button';
 
 /**
  * One project, as investors see it in WeGro's app: photo, the estimate and
@@ -32,13 +33,16 @@ export function ProjectPage({ id }: { id: string }) {
   const role = useAppSelector((s) => s.session.user!.role);
   const query = useProjectsFindOneQuery({ id });
   const back = (
-    <Link
-      to="/projects"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {t('nav.projects')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/projects"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('nav.projects')}
+      </Link>
+      <HistoryButton type="project" id={id} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

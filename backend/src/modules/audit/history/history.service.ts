@@ -7,6 +7,8 @@ import { Paginated } from '../../../common/dto/pagination.dto';
 import { ProjectViews } from '../../projects/project-views';
 import { User } from '../../users/entities/user.entity';
 import type {
+  ActivityEntryDto,
+  ActivityQueryDto,
   HistoryActorDto,
   HistoryEntryDto,
   HistoryQueryDto,
@@ -18,7 +20,12 @@ import {
   SYSTEM_EVENTS,
   titleOf,
 } from './event-format';
-import { HISTORY_TYPES, type HistoryTypeName } from './history-types';
+import {
+  HISTORY_TYPE_NAMES,
+  HISTORY_TYPES,
+  type HistoryTypeName,
+  type IdKind,
+} from './history-types';
 import { ErrorCode } from '../../../common/errors/error-code';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -85,6 +92,73 @@ export class HistoryService {
       ),
     ]);
     return new Paginated(await this.entries(rows), Number(total), q);
+  }
+
+  /**
+   * Ledger activity, newest first: every indexed event, or those naming a
+   * kind of record, or naming one record by its number or id (of any kind
+   * when no kind is given). Each with the records it names, to open their
+   * histories. The same GIN index serves every filter.
+   */
+  async activity(q: ActivityQueryDto): Promise<Paginated<ActivityEntryDto>> {
+    const params: unknown[] = [];
+    const conditions: string[] = [];
+    const text = q.q?.trim();
+    // Nothing to filter on: every event.
+    const types = q.type ? [q.type] : text ? HISTORY_TYPE_NAMES : [];
+    for (const type of types) {
+      const def: { kind: IdKind; sources: readonly Source[] } =
+        HISTORY_TYPES[type];
+      const value = text ? asLedgerValue(def.kind, text) : null;
+      if (text && value === null) continue; // cannot be this kind's id
+      for (const source of def.sources) {
+        for (const key of source.keys) {
+          if (value !== null) {
+            params.push(
+              JSON.stringify({ [key]: key.endsWith('Ids') ? [value] : value }),
+            );
+          } else {
+            params.push(key);
+          }
+          const match =
+            value !== null
+              ? `args @> $${params.length}::jsonb`
+              : `args ? $${params.length}`;
+          if (!source.contract) {
+            conditions.push(match);
+          } else {
+            params.push(source.contract);
+            conditions.push(`(contract = $${params.length} AND ${match})`);
+          }
+        }
+      }
+    }
+    // A search no kind can match: nothing.
+    const where =
+      !q.type && !text
+        ? 'TRUE'
+        : conditions.length > 0
+          ? conditions.join(' OR ')
+          : 'FALSE';
+    const [rows, [{ total }]] = await Promise.all([
+      this.dataSource.query<Row[]>(
+        `SELECT block_number, log_index, block_time, tx_hash, tx_from, contract, event_name, args
+           FROM chain_event WHERE ${where}
+          ORDER BY block_number DESC, log_index DESC
+          LIMIT ${q.limit} OFFSET ${q.skip}`,
+        params,
+      ),
+      this.dataSource.query<Array<{ total: string }>>(
+        `SELECT COUNT(*) AS total FROM chain_event WHERE ${where}`,
+        params,
+      ),
+    ]);
+    const entries = await this.entries(rows);
+    return new Paginated(
+      entries.map((e, i) => Object.assign(e, { records: recordsIn(rows[i]) })),
+      Number(total),
+      q,
+    );
   }
 
   private async entries(rows: Row[]): Promise<HistoryEntryDto[]> {
@@ -228,3 +302,49 @@ function ledgerValue(kind: 'uuid' | 'number' | 'bytes32', id: string): string {
 
 const isUuid = (v: unknown): v is string =>
   typeof v === 'string' && UUID.test(v);
+
+interface Source {
+  contract: string | null;
+  keys: readonly string[];
+}
+
+/** `id` as a ledger argument of this kind, or null if it cannot be one. */
+function asLedgerValue(kind: IdKind, id: string): string | null {
+  try {
+    return ledgerValue(kind, id);
+  } catch {
+    return null;
+  }
+}
+
+/** A ledger argument back as the record id the API uses. */
+function recordId(kind: IdKind, value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const v = String(value);
+  try {
+    if (kind === 'uuid') return BYTES32.test(v) ? bytes32ToUuid(v) : null;
+    if (kind === 'number') return NUMBER.test(v) && v !== '0' ? v : null;
+    return BYTES32.test(v) && !/^0x0{64}$/.test(v) ? v.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The records an event names, by kind, each once. */
+function recordsIn(r: Row): Array<{ type: HistoryTypeName; id: string }> {
+  const out = new Map<string, { type: HistoryTypeName; id: string }>();
+  for (const type of HISTORY_TYPE_NAMES) {
+    const def: { kind: IdKind; sources: readonly Source[] } =
+      HISTORY_TYPES[type];
+    for (const source of def.sources) {
+      if (source.contract && source.contract !== r.contract) continue;
+      for (const key of source.keys) {
+        for (const raw of [r.args[key]].flat()) {
+          const id = recordId(def.kind, raw);
+          if (id) out.set(`${type}:${id}`, { type, id });
+        }
+      }
+    }
+  }
+  return [...out.values()];
+}

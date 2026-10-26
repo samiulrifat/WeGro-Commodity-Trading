@@ -60,6 +60,7 @@ import {
   wholeNumber,
 } from './market-utils';
 import { OfferStatus } from './status';
+import { HistoryButton } from '@/features/audit/history-button';
 
 type Move =
   | 'withdraw'
@@ -88,13 +89,16 @@ export function DealPage({ id }: { id: number }) {
   const role = useAppSelector((s) => s.session.user!.role);
   const query = useTradeOfferQuery({ id }, FRESH);
   const back = (
-    <Link
-      to={role === 'buyer' ? '/offers' : '/marketplace/deals'}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {role === 'buyer' ? t('nav.offers') : t('nav.sub.deals')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to={role === 'buyer' ? '/offers' : '/marketplace/deals'}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {role === 'buyer' ? t('nav.offers') : t('nav.sub.deals')}
+      </Link>
+      <HistoryButton type="offer" id={String(id)} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

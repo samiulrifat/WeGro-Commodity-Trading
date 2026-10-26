@@ -47,6 +47,7 @@ import { useAppSelector } from '@/store/hooks';
 import { DownloadButton } from './download-button';
 import { FRESH, payoutTotal } from './payouts-utils';
 import { RoundKindPill, RoundStatusPill } from './status';
+import { HistoryButton } from '@/features/audit/history-button';
 
 type Move = 'approve' | 'reject' | 'upload';
 
@@ -60,13 +61,16 @@ export function RoundPage({ id }: { id: number }) {
   const { t } = useTranslation();
   const query = useSettlementRoundQuery({ id }, FRESH);
   const back = (
-    <Link
-      to="/payouts"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {t('nav.sub.payoutRounds')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/payouts"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('nav.sub.payoutRounds')}
+      </Link>
+      <HistoryButton type="round" id={String(id)} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

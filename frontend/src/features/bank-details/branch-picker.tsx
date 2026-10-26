@@ -30,10 +30,13 @@ export function BranchPicker({
   choice,
   onChange,
   invalid,
+  bankLabel,
 }: {
   choice: Choice;
   onChange: (patch: Partial<Choice>) => void;
   invalid: { bank: boolean; district: boolean; branch: boolean };
+  /** The bank field's label, where "Bank" alone would not say enough. */
+  bankLabel?: string;
 }) {
   const { t } = useTranslation();
   const { bankCode, districtCode, routingNumber } = choice;
@@ -74,7 +77,9 @@ export function BranchPicker({
   return (
     <>
       <Field data-invalid={invalid.bank || undefined}>
-        <FieldLabel htmlFor="bank-bank">{t('bank.bank')}</FieldLabel>
+        <FieldLabel htmlFor="bank-bank">
+          {bankLabel ?? t('bank.bank')}
+        </FieldLabel>
         <SearchSelect
           id="bank-bank"
           options={bankOptions}

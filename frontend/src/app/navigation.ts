@@ -152,7 +152,10 @@ export type SubLabel =
   | 'reports'
   | 'farmerRecords'
   | 'banks'
-  | 'bankPermissions';
+  | 'bankPermissions'
+  | 'ledgerActivity'
+  | 'ledgerChecks'
+  | 'requestLog';
 
 /** The pages of sections that have several, as their routes are named. */
 export type SubPath =
@@ -198,7 +201,10 @@ export type SubPath =
   | '/payouts/reports'
   | '/track-records'
   | '/track-records/banks'
-  | '/track-records/permissions';
+  | '/track-records/permissions'
+  | '/audit'
+  | '/audit/checks'
+  | '/audit/log';
 
 export interface SubPage {
   to: SubPath;
@@ -295,6 +301,9 @@ const PAYOUTS = item('payouts', 'payouts', [
 /** Track records: farmers' records, the banks that may see them, and their permissions. */
 const FARMER_RECORDS = sub('/track-records', 'farmerRecords');
 const BANK_PERMISSIONS = sub('/track-records/permissions', 'bankPermissions');
+const LEDGER_ACTIVITY = sub('/audit', 'ledgerActivity');
+const LEDGER_CHECKS = sub('/audit/checks', 'ledgerChecks');
+const REQUEST_LOG = sub('/audit/log', 'requestLog');
 const OFFICE_TRACK_RECORDS = item('track-records', 'trackRecords', [
   FARMER_RECORDS,
   sub('/track-records/banks', 'banks'),
@@ -324,7 +333,7 @@ const OFFICE: NavItem[] = [
   PAYOUTS,
   OFFICE_TRACK_RECORDS,
   catalog(...WHOLE_CATALOG),
-  item('audit', 'audit'),
+  item('audit', 'audit', [LEDGER_ACTIVITY, LEDGER_CHECKS]),
   item('system', 'system'),
 ];
 
@@ -334,11 +343,13 @@ const OFFICE: NavItem[] = [
  * behind them too, or they are not this role's work).
  */
 export const NAV: Record<Role, readonly NavItem[]> = {
-  // The super admin also keeps WeGro's payment accounts.
+  // The super admin also keeps WeGro's payment accounts and reads the request log.
   super_admin: OFFICE.map((n) =>
     n.area === 'projects'
       ? projects(ALL_PROJECTS, DRAFTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS)
-      : n,
+      : n.area === 'audit'
+        ? item('audit', 'audit', [LEDGER_ACTIVITY, LEDGER_CHECKS, REQUEST_LOG])
+        : n,
   ),
   admin: OFFICE,
   operations: [
@@ -349,6 +360,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS, FEES),
     WAREHOUSE,
     WHOLE_INSURANCE,
+    item('audit', 'audit', [LEDGER_ACTIVITY]),
   ],
   accounts: [
     item('dashboard', 'dashboard'),
@@ -359,10 +371,11 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     WAREHOUSE,
     insurance(CLAIMS, INSURED_PROJECTS, RECORDED_EVENTS),
     catalog(PRODUCE, INPUTS),
+    item('audit', 'audit', [LEDGER_ACTIVITY]),
   ],
   auditor: [
     item('dashboard', 'dashboard'),
-    item('audit', 'audit'),
+    item('audit', 'audit', [LEDGER_ACTIVITY, LEDGER_CHECKS, REQUEST_LOG]),
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS),
     item('people', 'people'),
     OFFICE_VOUCHERS,
@@ -499,9 +512,25 @@ export function mayOpen(user: User, path: string): boolean {
     return path === to || path.startsWith(`${to}/`);
   });
   const section = area && navFor(user).find((n) => n.area === area);
-  if (!section) return false;
-  return !section.pages || !!currentPage(section.pages, path);
+  if (!area || !section) return false;
+  // A section page (of any role) needs the role to have that page, as the
+  // page itself checks; a record below one needs only the section, as its
+  // page checks (a buyer opens a deal without the Deals list).
+  const page = ALL_PAGES.find((p) => p.to === path);
+  if (!page) return true;
+  if (!section.pages) return page.to === AREAS[area].to;
+  return section.pages.some((p) => p.to === page.to);
 }
+
+/** Every section page of every role, once. */
+const ALL_PAGES: readonly SubPage[] = [
+  ...new Map(
+    Object.values(NAV)
+      .flat()
+      .flatMap((n) => n.pages ?? [])
+      .map((p) => [p.to, p] as const),
+  ).values(),
+];
 
 /**
  * Where to go after signing in: back to `target` if this person may open

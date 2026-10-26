@@ -1,16 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
   IsIn,
-  IsInt,
   IsOptional,
   IsString,
   Matches,
-  Max,
   MaxLength,
-  Min,
   MinLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
@@ -50,17 +47,14 @@ export class SubmitProofDto {
   method: PaymentMethod;
 
   @ApiPropertyOptional({
-    example: 245,
+    example: '200010074',
     description:
-      'The bank paid from, by its code on the bank list (deposit or cheque)',
+      'The branch paid from, by its routing number on the bank list (deposit or cheque); its bank and district come from the list',
   })
   @Blank()
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  @Max(999)
-  bankCode?: number;
+  @Matches(/^\d{9}$/, { message: 'routingNumber must be 9 digits' })
+  routingNumber?: string;
 
   @ApiPropertyOptional({
     maxLength: 64,
@@ -191,6 +185,20 @@ export class PaymentProofDto {
 
   @ApiPropertyOptional({ nullable: true, type: String })
   bankName: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description:
+      'The branch paid from (proofs before branches were asked: null)',
+  })
+  branchName: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  districtName: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, example: '200010074' })
+  routingNumber: string | null;
 
   @ApiPropertyOptional({
     nullable: true,

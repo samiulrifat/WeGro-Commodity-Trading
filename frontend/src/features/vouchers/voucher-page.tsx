@@ -52,6 +52,7 @@ import { actsAs, type Role } from '@/app/navigation';
 import { SaleItem } from './sales-list';
 import { VoucherStatus } from './status';
 import { canProposeVouchers, usedShare } from './voucher-search';
+import { HistoryButton } from '@/features/audit/history-button';
 
 type Move = 'approve' | 'reject' | 'cancel' | 'discard';
 const OPEN = new Set(['proposed', 'active']);
@@ -65,13 +66,16 @@ export function VoucherPage({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useVouchersFindOneQuery({ id });
   const back = (
-    <Link
-      to="/vouchers"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {t('nav.vouchers')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/vouchers"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('nav.vouchers')}
+      </Link>
+      <HistoryButton type="voucher" id={id} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

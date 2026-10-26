@@ -239,6 +239,60 @@ describe('Audit (node + database)', () => {
       expect(p.data[1].details).toMatchObject({ newStatus: 'verified' });
     });
 
+    it('lists ledger activity newest first, by kind of record or one record', async () => {
+      type Entry = {
+        event: string;
+        records: Array<{ type: string; id: string }>;
+      };
+      const all = await as(t.accounts).get('/audit/events?limit=5').expect(200);
+      expect(all.body.data).toHaveLength(5);
+      const blocks = all.body.data.map(
+        (e: { blockNumber: number }) => e.blockNumber,
+      );
+      expect([...blocks].sort((a, b) => b - a)).toEqual(blocks);
+
+      // One record by its id, of whatever kind: the same events as its history.
+      const one = await as(t.auditor)
+        .get(`/audit/events?q=${project}&limit=50`)
+        .expect(200);
+      expect(one.body.meta.total).toBe(7);
+      expect(one.body.data[0].event).toBe('ReservationExpired');
+      expect(
+        one.body.data.every((e: Entry) =>
+          e.records.some((r) => r.type === 'project' && r.id === project),
+        ),
+      ).toBe(true);
+      // Each event names its records, to open their histories.
+      const confirmed = one.body.data.find(
+        (e: Entry) => e.event === 'ReservationConfirmed',
+      );
+      expect(confirmed.records).toEqual([
+        { type: 'project', id: project },
+        { type: 'reservation', id: String(reservation) },
+      ]);
+
+      // By kind: only reservation events; a number finds that reservation.
+      const kind = await as(t.auditor)
+        .get('/audit/events?type=reservation&limit=50')
+        .expect(200);
+      expect(
+        kind.body.data.every((e: Entry) =>
+          e.records.some((r) => r.type === 'reservation'),
+        ),
+      ).toBe(true);
+      const byNumber = await as(t.auditor)
+        .get(`/audit/events?type=reservation&q=${reservation}`)
+        .expect(200);
+      expect(byNumber.body.data.map((e: Entry) => e.event)).toEqual([
+        'ReservationConfirmed',
+        'SlotsReserved',
+      ]);
+      // Text no record id can be: nothing.
+      const none = await as(t.auditor).get('/audit/events?q=maize').expect(200);
+      expect(none.body.meta.total).toBe(0);
+      await as(t.farmer).get('/audit/events').expect(403);
+    });
+
     it('is for staff, and only for record types it knows', async () => {
       await as(t.auditor)
         .get(`/audit/history/spaceship/${project}`)
@@ -351,6 +405,17 @@ describe('Audit (node + database)', () => {
         statusCode: 200,
         outcome: 'ok',
       });
+      // A route's start finds every route under it.
+      const under = await as(t.auditor)
+        .get(
+          `/audit/log?actorId=${user.admin.id}&route=/api/projects&limit=100`,
+        )
+        .expect(200);
+      const routes = under.body.data.map((r: { route: string }) => r.route);
+      expect(routes).toContain('/api/projects/:id/publish');
+      expect(routes.every((r: string) => r.startsWith('/api/projects'))).toBe(
+        true,
+      );
       const failed = await as(t.super_admin)
         .get('/audit/log?outcome=failed&statusCode=403')
         .expect(200);

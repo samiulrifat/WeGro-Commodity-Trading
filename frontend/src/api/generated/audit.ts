@@ -6,6 +6,20 @@ const injectedRtkApi = api
   })
   .injectEndpoints({
     endpoints: (build) => ({
+      auditActivity: build.query<AuditActivityApiResponse, AuditActivityApiArg>(
+        {
+          query: (queryArg) => ({
+            url: `/api/audit/events`,
+            params: {
+              page: queryArg.page,
+              limit: queryArg.limit,
+              type: queryArg['type'],
+              q: queryArg.q,
+            },
+          }),
+          providesTags: ['Audit'],
+        },
+      ),
       auditRecordHistory: build.query<
         AuditRecordHistoryApiResponse,
         AuditRecordHistoryApiArg
@@ -78,6 +92,37 @@ const injectedRtkApi = api
     overrideExisting: false,
   });
 export { injectedRtkApi as auditApi };
+export type AuditActivityApiResponse =
+  /** status 200 Ledger events newest first, by kind of record or one record, with the records each names */ {
+    data: ActivityEntryDto[];
+    meta: PageMetaDto;
+  };
+export type AuditActivityApiArg = {
+  page?: number;
+  limit?: number;
+  /** Only events naming this kind of record */
+  type?:
+    | 'participant'
+    | 'project'
+    | 'reservation'
+    | 'voucher'
+    | 'voucher-sale'
+    | 'batch'
+    | 'field-record'
+    | 'warehouse-site'
+    | 'receipt'
+    | 'listing'
+    | 'offer'
+    | 'buyer-request'
+    | 'weather-event'
+    | 'claim'
+    | 'round'
+    | 'cost'
+    | 'bank'
+    | 'track-record';
+  /** A record's number or id (uuid, or 0x… for a receipt): events naming it */
+  q?: string;
+};
 export type AuditRecordHistoryApiResponse =
   /** status 200 Every ledger event naming the record, with who sent it */ {
     data: HistoryEntryDto[];
@@ -174,7 +219,7 @@ export type AuditAuditLogApiArg = {
   from?: string;
   /** Through this day */
   to?: string;
-  /** Route pattern */
+  /** Route pattern, or its start: every route under it */
   route?: string;
   outcome?: 'ok' | 'failed' | 'aborted';
   statusCode?: number;
@@ -186,6 +231,56 @@ export type HistoryActorDto = {
   id?: string;
   name?: string;
   role?: string;
+};
+export type RecordRefDto = {
+  type:
+    | 'participant'
+    | 'project'
+    | 'reservation'
+    | 'voucher'
+    | 'voucher-sale'
+    | 'batch'
+    | 'field-record'
+    | 'warehouse-site'
+    | 'receipt'
+    | 'listing'
+    | 'offer'
+    | 'buyer-request'
+    | 'weather-event'
+    | 'claim'
+    | 'round'
+    | 'cost'
+    | 'bank'
+    | 'track-record';
+  id: string;
+};
+export type ActivityEntryDto = {
+  at: string;
+  blockNumber: number;
+  logIndex: number;
+  txHash: string;
+  contract: string;
+  event: string;
+  title: string;
+  /** Who sent the transaction */
+  actor: HistoryActorDto;
+  /** Event arguments, readable: taka, ISO times, codes, statuses by name, ids as uuids */
+  details: {
+    [key: string]: unknown;
+  };
+  /** Names of the people the event refers to, by id or address */
+  parties: {
+    [key: string]: string;
+  };
+  /** The records this event names, to open their histories */
+  records: RecordRefDto[];
+};
+export type PageMetaDto = {
+  page: number;
+  limit: number;
+  /** Matching items on all pages */
+  total: number;
+  totalPages: number;
 };
 export type HistoryEntryDto = {
   at: string;
@@ -205,13 +300,6 @@ export type HistoryEntryDto = {
   parties: {
     [key: string]: string;
   };
-};
-export type PageMetaDto = {
-  page: number;
-  limit: number;
-  /** Matching items on all pages */
-  total: number;
-  totalPages: number;
 };
 export type VerificationDto = {
   type: string;
@@ -267,6 +355,8 @@ export type AuditLogEntryDto = {
   durationMs: number;
 };
 export const {
+  useAuditActivityQuery,
+  useLazyAuditActivityQuery,
   useAuditRecordHistoryQuery,
   useLazyAuditRecordHistoryQuery,
   useAuditVerifyQuery,

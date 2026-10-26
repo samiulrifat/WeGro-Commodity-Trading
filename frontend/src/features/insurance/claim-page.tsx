@@ -52,6 +52,7 @@ import { useAppSelector } from '@/store/hooks';
 import { FRESH, type Severity, typedPercent } from './insurance-utils';
 import { ClaimStatusPill, SeverityPill } from './status';
 import { useDistrictName, useEventTypeName } from './use-names';
+import { HistoryButton } from '@/features/audit/history-button';
 
 type Move = 'review' | 'approve' | 'reject' | 'payment';
 const STEPS = ['opened', 'under_review', 'approved', 'paid'] as const;
@@ -72,13 +73,16 @@ export function ClaimPage({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useInsuranceClaimQuery({ id }, FRESH);
   const back = (
-    <Link
-      to="/insurance/claims"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {t('nav.sub.claims')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/insurance/claims"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('nav.sub.claims')}
+      </Link>
+      <HistoryButton type="claim" id={id} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

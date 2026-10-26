@@ -51,7 +51,9 @@ export class AuditLogService implements OnApplicationShutdown {
       });
     if (q.to)
       qb.andWhere('a.at < :to', { to: new Date(bdDayEnd(q.to) * 1000) });
-    if (q.route) qb.andWhere('a.route = :route', { route: q.route });
+    // The route or any under it: /api/projects finds /api/projects/:id/activate.
+    if (q.route)
+      qb.andWhere('starts_with(a.route, :route)', { route: q.route });
     if (q.outcome) qb.andWhere('a.outcome = :outcome', { outcome: q.outcome });
     if (q.statusCode)
       qb.andWhere('a.status_code = :status', { status: q.statusCode });

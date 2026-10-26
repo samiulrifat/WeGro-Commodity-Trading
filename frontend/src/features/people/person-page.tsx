@@ -36,6 +36,7 @@ import { canManage } from './permissions';
 import { type IdCheck, localPhone } from './person';
 import { PersonActions, SyncButton } from './person-actions';
 import { PersonStatus } from './person-status';
+import { HistoryButton } from '@/features/audit/history-button';
 
 /** Who is paid out, and who may see where. */
 const PAYEES = new Set<string>(['farmer', 'investor']);
@@ -56,13 +57,16 @@ export function PersonPage({ id }: { id: string }) {
   const viewer = useAppSelector((s) => s.session.user!.role);
   const query = useParticipantsFindOneQuery({ id });
   const back = (
-    <Link
-      to="/people"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {viewer === 'field_officer' ? t('nav.sub.myFarmers') : t('nav.people')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to="/people"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {viewer === 'field_officer' ? t('nav.sub.myFarmers') : t('nav.people')}
+      </Link>
+      <HistoryButton type="participant" id={id} />
+    </div>
   );
 
   if (query.isLoading) return <LoadingState />;

@@ -38,19 +38,23 @@ import { latinDigits } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { type BatchesBase, BatchStatus } from './batches-list';
 import { labelPages, MAX_LABELS, PER_SHEET } from './labels';
+import { HistoryButton } from '@/features/audit/history-button';
 
 /** One registered lot: its details, its QR, and printing labels for its bags. */
 export function BatchPage({ id, base }: { id: string; base: BatchesBase }) {
   const { t } = useTranslation();
   const query = useBatchesFindOneQuery({ id });
   const back = (
-    <Link
-      to={base}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {base === '/batches' ? t('nav.batches') : t('nav.sub.inputBatches')}
-    </Link>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Link
+        to={base}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {base === '/batches' ? t('nav.batches') : t('nav.sub.inputBatches')}
+      </Link>
+      <HistoryButton type="batch" id={id} />
+    </div>
   );
   if (query.isLoading) return <LoadingState />;
   if (query.error || !query.data) {

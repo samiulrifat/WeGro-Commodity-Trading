@@ -100,8 +100,8 @@ export type PaymentProofsSubmitApiArg = {
     amount: string;
     transferredOn: string;
     method: 'bank_deposit' | 'cash' | 'cheque';
-    /** Deposit or cheque */
-    bankCode?: number;
+    /** The branch paid from (deposit or cheque) */
+    routingNumber?: string;
     reference?: string;
     note?: string;
   };
@@ -183,6 +183,10 @@ export type PaymentProofDto = {
   transferredOn: string;
   method: PaymentMethod;
   bankName?: string | null;
+  /** The branch paid from (proofs before branches were asked: null) */
+  branchName?: string | null;
+  districtName?: string | null;
+  routingNumber?: string | null;
   /** As the investor typed it */
   reference?: string | null;
   note?: string | null;

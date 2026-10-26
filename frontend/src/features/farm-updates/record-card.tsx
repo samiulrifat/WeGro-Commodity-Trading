@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
 import { mapLink } from './draft';
+import { useAuditWords } from '@/features/audit/words';
 
 const LEDGER_CHECKERS = new Set(['super_admin', 'admin', 'auditor']);
 
@@ -193,6 +194,7 @@ export function RecordCard({
 
 function LedgerCheck({ id }: { id: string }) {
   const { t } = useTranslation();
+  const words = useAuditWords();
   const [check, result] = useLazyFieldRecordsVerifyQuery();
   const data = result.data?.data;
   return (
@@ -220,7 +222,9 @@ function LedgerCheck({ id }: { id: string }) {
           <Alert variant="destructive">
             <CircleX />
             <AlertTitle>{t('farmUpdates.ledgerDiffers')}</AlertTitle>
-            <AlertDescription>{data.mismatches.join(', ')}</AlertDescription>
+            <AlertDescription>
+              {data.mismatches.map((m) => words.mismatch(m)).join(' · ')}
+            </AlertDescription>
           </Alert>
         ))}
     </div>
