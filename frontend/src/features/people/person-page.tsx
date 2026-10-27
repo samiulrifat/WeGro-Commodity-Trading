@@ -112,7 +112,9 @@ export function PersonPage({ id }: { id: string }) {
                 at: person.revocation.at,
               })}
             </p>
-            {person.revocation.note && <p>{person.revocation.note}</p>}
+            {person.revocation.note && (
+              <p translate="no">{person.revocation.note}</p>
+            )}
           </AlertDescription>
         </Alert>
       )}

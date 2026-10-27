@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { MarketSearch } from '@/features/marketplace/market-utils';
 import { useFormat } from '@/i18n/use-format';
 import { cn } from '@/lib/utils';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 const PAGE_SIZE = 20;
 
@@ -22,6 +23,7 @@ const PAGE_SIZE = 20;
  * current, until their last day. Opening one is logged on the ledger.
  */
 export function BankFarmersList({ search }: { search: MarketSearch }) {
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   const navigate = useNavigate();
@@ -87,7 +89,7 @@ export function BankFarmersList({ search }: { search: MarketSearch }) {
                     <span className="font-medium">{f.farmer.name}</span>
                     <span className="text-sm text-muted-foreground">
                       {[
-                        f.district,
+                        districtName(f.district),
                         t('trackRecords.untilDay', {
                           date: fmt.date(f.expiresOn),
                         }),

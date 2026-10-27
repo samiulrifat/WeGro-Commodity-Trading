@@ -35,6 +35,7 @@ import { typedTaka } from '@/features/projects/project-math';
 import { useFormat } from '@/i18n/use-format';
 import { latinDigits } from '@/lib/format';
 import { voucherValue } from './voucher-search';
+import { useUnit } from '@/i18n/use-unit';
 
 const MAX_SUPPLIERS = 20;
 
@@ -50,6 +51,7 @@ export function ProposeDialog({
   projectId?: string;
   onClose: () => void;
 }) {
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
   const navigate = useNavigate();
@@ -94,9 +96,12 @@ export function ProposeDialog({
     [catalog.data, bengali],
   );
   const unit = catalog.data?.data.inputTypes.find((i) => i.code === input);
-  const unitSymbol =
-    catalog.data?.data.units.find((u) => u.code === unit?.unitCode)?.symbol ??
-    '';
+  const unitEntry = catalog.data?.data.units.find(
+    (u) => u.code === unit?.unitCode,
+  );
+  const unitSymbol = unitEntry
+    ? unitWord(unitEntry.symbol, unitEntry.symbolBn)
+    : '';
   const qty = Number(latinDigits(quantity));
   const unitPrice = typedTaka(price);
   const value =

@@ -26,6 +26,9 @@ export class UnitDto extends EntryDto {
 
   @ApiProperty({ example: 'kg' })
   symbol: string;
+
+  @ApiProperty({ example: 'কেজি' })
+  symbolBn: string;
 }
 
 export class ProduceTypeDto extends EntryDto {

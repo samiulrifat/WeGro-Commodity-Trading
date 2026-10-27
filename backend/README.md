@@ -230,7 +230,7 @@ Bold columns are required. Rows refer to each other by the `id` column (for exam
 
 | File | Columns |
 |---|---|
-| `units.csv` | **code**, **name**, **name_bn**, sort_order, **kind**, **symbol** |
+| `units.csv` | **code**, **name**, **name_bn**, sort_order, **kind**, **symbol**, **symbol_bn** |
 | `produce-types.csv` | **code**, **name**, **name_bn**, sort_order, **category**, **unit_code**, typical_duration_months, description, description_bn |
 | `input-types.csv` | **code**, **name**, **name_bn**, sort_order, **kind**, **unit_code**, produce_code, description |
 | `field-record-types.csv` | **code**, **name**, **name_bn**, sort_order, requires_photo, requires_location, measurements |

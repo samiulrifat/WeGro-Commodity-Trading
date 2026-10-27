@@ -53,6 +53,7 @@ import { SaleItem } from './sales-list';
 import { VoucherStatus } from './status';
 import { canProposeVouchers, usedShare } from './voucher-search';
 import { HistoryButton } from '@/features/audit/history-button';
+import { useUnit } from '@/i18n/use-unit';
 
 type Move = 'approve' | 'reject' | 'cancel' | 'discard';
 const OPEN = new Set(['proposed', 'active']);
@@ -471,6 +472,7 @@ function Suppliers({ voucher: v }: { voucher: VoucherDetailDto }) {
 
 /** A supplier records goods handed over; the farmer's officer confirms. */
 function RecordSale({ voucher: v }: { voucher: VoucherDetailDto }) {
+  const unitWord = useUnit();
   const { t } = useTranslation();
   const fmt = useFormat();
   const me = useAppSelector((s) => s.session.user!);
@@ -528,7 +530,8 @@ function RecordSale({ voucher: v }: { voucher: VoucherDetailDto }) {
         >
           <Field data-invalid={(tried && bad) || undefined}>
             <FieldLabel htmlFor="sale-quantity">
-              {t('vouchers.quantity')} ({v.input.unit})
+              {t('vouchers.quantity')} ({unitWord(v.input.unit, v.input.unitBn)}
+              )
             </FieldLabel>
             <Input
               id="sale-quantity"

@@ -113,6 +113,13 @@ export class CreateUnitDto extends CreateEntryDto {
   @MinLength(1)
   @MaxLength(12)
   symbol: string;
+
+  @ApiProperty({ example: 'কেজি' })
+  @Text()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(12)
+  symbolBn: string;
 }
 
 export class UpdateUnitDto extends UpdateEntryDto {
@@ -123,6 +130,14 @@ export class UpdateUnitDto extends UpdateEntryDto {
   @MinLength(1)
   @MaxLength(12)
   symbol?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Text()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(12)
+  symbolBn?: string;
 }
 
 // --- Produce ---

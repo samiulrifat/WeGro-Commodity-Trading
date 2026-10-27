@@ -80,6 +80,8 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: 'node',
+      // e2e/ is Playwright's (npm run e2e), against the running app.
+      include: ['src/**/*.test.{ts,tsx}'],
       setupFiles: ['src/test/setup.ts'],
       // Page tests type and click through whole flows: more than 5 s when
       // every file runs at once on a busy machine.

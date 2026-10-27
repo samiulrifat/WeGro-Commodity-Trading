@@ -237,6 +237,7 @@ export class BatchesService {
       name: input?.name ?? code,
       nameBn: input?.nameBn ?? code,
       unit: unit?.symbol ?? '',
+      unitBn: unit?.symbolBn ?? '',
     };
   }
 

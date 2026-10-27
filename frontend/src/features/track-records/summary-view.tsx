@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/card';
 import { shortPercent } from '@/features/projects/project-math';
 import { useFormat } from '@/i18n/use-format';
+import { useDistrictName } from '@/features/insurance/use-names';
+import { useProduceName } from '@/features/insurance/use-names';
 
 /**
  * A farmer's track record as published: totals across finished projects,
@@ -90,6 +92,8 @@ function Figure({ label, value }: { label: string; value: string }) {
 }
 
 function Outcome({ project: p }: { project: ProjectOutcomeDto }) {
+  const produceName = useProduceName();
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   return (
@@ -97,7 +101,7 @@ function Outcome({ project: p }: { project: ProjectOutcomeDto }) {
       <CardHeader>
         <CardTitle className="text-lg">{p.title}</CardTitle>
         <CardDescription>
-          {p.produce.name} · {p.district.name} ·{' '}
+          {produceName(p.produce.code)} · {districtName(p.district)} ·{' '}
           {p.startedOn ? fmt.date(p.startedOn) : '—'} –{' '}
           {p.finishedOn ? fmt.date(p.finishedOn) : '—'}
         </CardDescription>
@@ -192,6 +196,8 @@ export function ImportedHistory({
     >
   >;
 }) {
+  const produceName = useProduceName();
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   return (
@@ -210,8 +216,8 @@ export function ImportedHistory({
               <span className="grid gap-0.5">
                 <span className="font-medium">{p.title}</span>
                 <span className="text-sm text-muted-foreground">
-                  {p.produce.name} · {p.district.name} · {fmt.date(p.startedOn)}{' '}
-                  – {fmt.date(p.finishedOn)}
+                  {produceName(p.produce.code)} · {districtName(p.district)} ·{' '}
+                  {fmt.date(p.startedOn)} – {fmt.date(p.finishedOn)}
                 </span>
               </span>
               <span className="text-sm">

@@ -15,6 +15,7 @@ import type { MarketSearch } from '@/features/marketplace/market-utils';
 import { useFormat } from '@/i18n/use-format';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 const PAGE_SIZE = 12;
 const TABS = [
@@ -135,6 +136,7 @@ export function FarmersList({ search }: { search: MarketSearch }) {
 }
 
 function FarmerCard({ farmer: f }: { farmer: TrackRecordFarmerDto }) {
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   return (
@@ -151,7 +153,7 @@ function FarmerCard({ farmer: f }: { farmer: TrackRecordFarmerDto }) {
         </h3>
         <p className="text-sm text-muted-foreground">
           {[
-            f.district,
+            districtName(f.district),
             f.officer && t('trackRecords.officerIs', { name: f.officer.name }),
           ]
             .filter(Boolean)

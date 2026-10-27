@@ -138,7 +138,7 @@ describe('Notifications (node + database)', () => {
     const [made] = await ofKind(t.accounts, 'reservation.made');
     expect(made).toMatchObject({
       category: 'action',
-      title: `Reservation #${lapsing} awaiting payment confirmation`,
+      title: `Booking #${lapsing} awaiting payment confirmation`,
       params: {
         reservationId: String(lapsing),
         slots: 1,
@@ -156,7 +156,7 @@ describe('Notifications (node + database)', () => {
     const [reminder] = await ofKind(t.investor, 'reservation.expiring');
     expect(reminder).toMatchObject({
       category: 'reminder',
-      title: 'Your reservation of 1 slots expires soon',
+      title: 'Your booking of 1 units lapses soon',
       params: {
         slots: 1,
         project: expect.any(String) as string,
@@ -172,7 +172,7 @@ describe('Notifications (node + database)', () => {
     const [lapsed] = await ofKind(t.investor, 'reservation.expired');
     expect(lapsed).toMatchObject({
       category: 'outcome',
-      title: 'Your reservation expired unpaid',
+      title: 'Your booking lapsed unpaid',
     });
   });
 

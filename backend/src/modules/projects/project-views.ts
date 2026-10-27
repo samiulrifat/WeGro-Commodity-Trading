@@ -128,6 +128,7 @@ export class ProjectViews {
         name: produce?.name ?? p.produceCode,
         nameBn: produce?.nameBn,
         unit: unit?.symbol ?? '',
+        unitBn: unit?.symbolBn ?? '',
       },
       category: p.category,
       district: {

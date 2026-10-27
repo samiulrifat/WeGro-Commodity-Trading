@@ -447,6 +447,7 @@ export type ProduceRefDto = {
   name: string;
   nameBn?: string;
   unit: string;
+  unitBn: string;
 };
 export type NamedCodeDto = {
   code: string;

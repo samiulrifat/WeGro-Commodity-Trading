@@ -2,6 +2,7 @@ import { Outlet, useMatches, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBackgroundSending } from '@/features/farm-updates/hooks';
+import { UnitWords } from '@/i18n/units';
 import { useAppSelector } from '@/store/hooks';
 import { access, homeOf, navFor } from '../navigation';
 import { NoAccessPage } from '../pages';
@@ -59,6 +60,7 @@ export function AppShell() {
       >
         {t('shell.skipToContent')}
       </a>
+      <UnitWords />
       <Sidebar items={items} />
       <div className="flex min-w-0 flex-col">
         <TopBar />

@@ -92,7 +92,7 @@ const QUEUES: QueueDef[] = [
   },
   {
     key: 'reservations.pending',
-    title: 'Reservations awaiting payment confirmation',
+    title: 'Bookings awaiting payment confirmation',
     actionBy: 'accounts',
     roles: ACCOUNTS,
     count: `SELECT COUNT(*) AS n FROM reservations WHERE status = 'pending'`,

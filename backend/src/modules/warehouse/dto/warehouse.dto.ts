@@ -339,7 +339,7 @@ export class ReceiptDto {
   owner: OwnerDto;
 
   @ApiProperty({ type: ProduceRefDto })
-  produce: { code: string; name: string; unit: string };
+  produce: { code: string; name: string; unit: string; unitBn: string };
 
   @ApiProperty({ description: 'Still held under this receipt' })
   quantity: number;
@@ -407,7 +407,13 @@ export class ReceiptVerificationDto {
   genuine: boolean;
 
   @ApiPropertyOptional({ type: ProduceRefDto, nullable: true })
-  produce: { code: string; name: string; nameBn: string; unit: string } | null;
+  produce: {
+    code: string;
+    name: string;
+    nameBn: string;
+    unit: string;
+    unitBn: string;
+  } | null;
 
   @ApiPropertyOptional({ nullable: true, type: Number })
   quantity: number | null;

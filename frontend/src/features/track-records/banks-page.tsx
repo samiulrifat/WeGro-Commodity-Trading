@@ -33,6 +33,7 @@ import { OfficerPicker } from '@/features/people/officer-picker';
 import { useDistrictOptions } from '@/features/people/use-district-options';
 import { useAppSelector } from '@/store/hooks';
 import { useNavigate } from '@tanstack/react-router';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 /**
  * The banks that may be given permission to see farmers' track records,
@@ -104,6 +105,7 @@ export function BanksPage({ search }: { search: MarketSearch }) {
 }
 
 function BankCard({ bank: b, admin }: { bank: BankDto; admin: boolean }) {
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const [placing, setPlacing] = useState(false);
   const [assign] = useTrackRecordAssignOfficerMutation();
@@ -113,9 +115,11 @@ function BankCard({ bank: b, admin }: { bank: BankDto; admin: boolean }) {
       <div className="grid gap-0.5">
         <h3 className="font-bold leading-snug">{b.name}</h3>
         <p className="text-sm text-muted-foreground">
-          {b.branchName} · {b.district.name}
+          {b.branchName} · {districtName(b.district)}
         </p>
-        <p className="text-sm text-muted-foreground">{b.address}</p>
+        <p translate="no" className="text-sm text-muted-foreground">
+          {b.address}
+        </p>
       </div>
       <div className="grid gap-1.5">
         <p className="text-sm font-semibold">

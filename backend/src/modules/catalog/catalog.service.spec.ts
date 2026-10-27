@@ -67,6 +67,7 @@ const kg = {
   sortOrder: 0,
   kind: 'weight',
   symbol: 'kg',
+  symbolBn: 'কেজি',
 };
 const maize = {
   code: 'MAIZE',
@@ -91,7 +92,10 @@ describe('CatalogService', () => {
 
   it('loads every list at startup and serves lookups from memory', async () => {
     const { service } = await build();
-    expect(service.units.get('KG')).toMatchObject({ symbol: 'kg' });
+    expect(service.units.get('KG')).toMatchObject({
+      symbol: 'kg',
+      symbolBn: 'কেজি',
+    });
     expect(service.produceTypes.requireActive('MAIZE').unitCode).toBe('KG');
   });
 

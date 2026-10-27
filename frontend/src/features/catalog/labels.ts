@@ -12,7 +12,7 @@ export function useEntryLabels() {
     /** "Kilogram (kg)"; the code itself if the unit is unknown. */
     unit(catalog: CatalogDto, code: string): string {
       const u = catalog.units.find((x) => x.code === code);
-      return u ? `${name(u)} (${u.symbol})` : code;
+      return u ? `${name(u)} (${bengali ? u.symbolBn : u.symbol})` : code;
     },
     produce(catalog: CatalogDto, code: string): string {
       const p = catalog.produceTypes.find((x) => x.code === code);

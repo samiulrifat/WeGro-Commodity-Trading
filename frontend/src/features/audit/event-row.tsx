@@ -54,7 +54,11 @@ export function EventRow({
         <summary className="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
           {t('audit.details')}
         </summary>
-        <dl className="mt-2 grid gap-x-4 gap-y-1 rounded-lg bg-muted/50 p-3 font-mono text-xs break-all sm:grid-cols-[max-content_minmax(0,1fr)]">
+        <dl
+          // The ledger's own values, as recorded: not for translating.
+          translate="no"
+          className="mt-2 grid gap-x-4 gap-y-1 rounded-lg bg-muted/50 p-3 font-mono text-xs break-all sm:grid-cols-[max-content_minmax(0,1fr)]"
+        >
           {Object.entries(e.details).map(([k, v]) => (
             <Detail key={k} name={k} value={v} parties={e.parties} />
           ))}

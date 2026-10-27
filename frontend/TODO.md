@@ -86,7 +86,7 @@ Build in order: each phase depends on the ones above it.
 
 ## Phase 4: Quality and handover
 
-- [ ] 24. Translations: every Must and Should screen in Bengali, ready for a native speaker's check (NFR-8)
-- [ ] 25. Tests: component tests, end-to-end runs of the main stories with Playwright, accessibility checks
+- [x] 24. Translations: every Must and Should screen in Bengali, ready for a native speaker's check (NFR-8). Done 2026-10-27: no English left in any role's screens (e2e/bengali.spec.ts reads every menu page and one record of each kind, in Bengali, desktop and phone); bare numbers filled into sentences in Bengali digits; units in Bengali (catalog `symbolBn`, records carry `unitBn`; {{unit}} worded automatically); our districts in Bengali everywhere; one word per idea (glossary, checked by a test); people's own text marked translate="no"; review files for the native speaker: docs/bengali-glossary.md and docs/translations-review.csv (`npm run i18n:review`)
+- [ ] 25. (Started 2026-10-27: Playwright set up in e2e/ with sign-in helpers and the Bengali sweep; main stories and accessibility checks to do.) Tests: component tests, end-to-end runs of the main stories with Playwright, accessibility checks
 - [ ] 26. Speed and polish: code split per page, pages under 2 seconds, phone layouts checked
 - [ ] 27. Docs: frontend README, root README updated

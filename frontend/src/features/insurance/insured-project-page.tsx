@@ -225,7 +225,10 @@ function Cover({ coverage: c }: { coverage: CoverageDto }) {
           )}
         </dl>
         {v?.notes && (
-          <p className="mt-4 whitespace-pre-line text-muted-foreground">
+          <p
+            translate="no"
+            className="mt-4 whitespace-pre-line text-muted-foreground"
+          >
             {v.notes}
           </p>
         )}

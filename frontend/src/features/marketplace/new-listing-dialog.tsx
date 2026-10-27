@@ -53,6 +53,8 @@ import {
   validQuantity,
   wholeNumber,
 } from './market-utils';
+import { useUnit } from '@/i18n/use-unit';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 /**
  * An outside seller lists their own produce: a catalog crop, how much in
@@ -60,6 +62,7 @@ import {
  * photos. An admin approves it before buyers see it.
  */
 export function SellerListingDialog({ onClose }: { onClose: () => void }) {
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const bengali = i18n.resolvedLanguage === 'bn';
@@ -83,9 +86,10 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
     [catalog.data, bengali],
   );
   const type = catalog.data?.data.produceTypes.find((p) => p.code === produce);
-  const unit =
-    catalog.data?.data.units.find((u) => u.code === type?.unitCode)?.symbol ??
-    '';
+  const unitEntry = catalog.data?.data.units.find(
+    (u) => u.code === type?.unitCode,
+  );
+  const unit = unitEntry ? unitWord(unitEntry.symbol, unitEntry.symbolBn) : '';
   const qty = wholeNumber(quantity);
   const unitPrice = typedTaka(price);
   const { uploading } = picks;
@@ -270,6 +274,8 @@ type Kind = 'receipt' | 'fresh';
  * straight from an active project. Live at once; WeGro decides the offers.
  */
 export function NewListingDialog({ onClose }: { onClose: () => void }) {
+  const districtName = useDistrictName();
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const fmt = useFormat();
@@ -352,7 +358,8 @@ export function NewListingDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const unit = (kind === 'receipt' ? receipt : project)?.produce.unit ?? '';
+  const chosen = (kind === 'receipt' ? receipt : project)?.produce;
+  const unit = chosen ? unitWord(chosen.unit, chosen.unitBn) : '';
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
@@ -393,7 +400,7 @@ export function NewListingDialog({ onClose }: { onClose: () => void }) {
                 id="listing-receipt"
                 options={held.map((r) => ({
                   value: r.id,
-                  label: `${receiptNumber(r.id)} · ${produceName(r.produce, bengali)} · ${fmt.number(r.quantity)} ${r.produce.unit} · ${r.owner.name}`,
+                  label: `${receiptNumber(r.id)} · ${produceName(r.produce, bengali)} · ${fmt.number(r.quantity)} ${unitWord(r.produce.unit, r.produce.unitBn)} · ${r.owner.name}`,
                 }))}
                 value={receiptId}
                 onValueChange={setReceiptId}
@@ -434,7 +441,7 @@ export function NewListingDialog({ onClose }: { onClose: () => void }) {
                 ) : (
                   <FieldDescription>
                     {project
-                      ? `${produceName(project.produce, bengali)} · ${project.district.name}`
+                      ? `${produceName(project.produce, bengali)} · ${districtName(project.district)}`
                       : t('market.freshHint')}
                   </FieldDescription>
                 )}

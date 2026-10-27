@@ -107,7 +107,9 @@ export function ReceiptPrint({
             <h2 className="text-[10pt] font-semibold text-black/70">
               {t('warehouse.notes')}
             </h2>
-            <p className="whitespace-pre-line">{r.intake.notes}</p>
+            <p translate="no" className="whitespace-pre-line">
+              {r.intake.notes}
+            </p>
           </section>
         )}
         <p className="text-[9pt] text-black/70">

@@ -74,17 +74,24 @@ export function UnitForm({ entry, onClose }: EntryFormProps<UnitDto>) {
   const { t } = f;
   const [kind, setKind] = useState<UnitDto['kind'] | ''>(entry?.kind ?? '');
   const [symbol, setSymbol] = useState(entry?.symbol ?? '');
+  const [symbolBn, setSymbolBn] = useState(entry?.symbolBn ?? '');
   const [create] = useCatalogCreateUnitMutation();
   const [update] = useCatalogUpdateUnitMutation();
   const bad = {
     kind: f.creating && kind === '',
     symbol: symbol.trim() === '',
+    symbolBn: symbolBn.trim() === '',
   };
 
   async function submit() {
     f.setTried(true);
-    if (f.problems.size > 0 || bad.kind || bad.symbol) return false;
-    const common = { ...basicsRequest(f.basics), symbol: symbol.trim() };
+    if (f.problems.size > 0 || bad.kind || bad.symbol || bad.symbolBn)
+      return false;
+    const common = {
+      ...basicsRequest(f.basics),
+      symbol: symbol.trim(),
+      symbolBn: symbolBn.trim(),
+    };
     if (entry) {
       await update({
         code: entry.code,
@@ -148,6 +155,17 @@ export function UnitForm({ entry, onClose }: EntryFormProps<UnitDto>) {
           hint={t('catalog.fields.symbolHint')}
           error={
             f.tried && bad.symbol ? t('catalog.required.symbol') : undefined
+          }
+        />
+        <TextField
+          id="unit-symbol-bn"
+          label={t('catalog.fields.symbolBn')}
+          value={symbolBn}
+          maxLength={12}
+          onChange={setSymbolBn}
+          hint={t('catalog.fields.symbolBnHint')}
+          error={
+            f.tried && bad.symbolBn ? t('catalog.required.symbolBn') : undefined
           }
         />
       </div>

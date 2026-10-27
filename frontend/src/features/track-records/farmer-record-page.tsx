@@ -57,6 +57,7 @@ import { useAppSelector } from '@/store/hooks';
 import { ConsentStatusPill } from './consent-status';
 import { SummaryView } from './summary-view';
 import { HistoryButton } from '@/features/audit/history-button';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 const FRESH = { refetchOnMountOrArgChange: true } as const;
 /**
@@ -79,6 +80,7 @@ export function FarmerRecordPage({
   /** The farmer's own page: no way back to a list. */
   own?: boolean;
 }) {
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   const role = useAppSelector((s) => s.session.user!.role);
@@ -155,7 +157,7 @@ export function FarmerRecordPage({
           </p>
         )}
         {own && farmer.district && (
-          <p className="text-white/85">{farmer.district.name}</p>
+          <p className="text-white/85">{districtName(farmer.district)}</p>
         )}
       </section>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">

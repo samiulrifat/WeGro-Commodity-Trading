@@ -239,7 +239,10 @@ function Details({ receipt: r }: { receipt: ReceiptDetailDto }) {
           )}
         </dl>
         {r.intake.notes && (
-          <p className="mt-4 whitespace-pre-line text-muted-foreground">
+          <p
+            translate="no"
+            className="mt-4 whitespace-pre-line text-muted-foreground"
+          >
             {r.intake.notes}
           </p>
         )}
@@ -283,7 +286,9 @@ function Rechecks({ receipt: r }: { receipt: ReceiptDetailDto }) {
                   .join(' · ')}
               </p>
               {c.notes && (
-                <p className="text-sm whitespace-pre-line">{c.notes}</p>
+                <p translate="no" className="text-sm whitespace-pre-line">
+                  {c.notes}
+                </p>
               )}
             </li>
           ))}

@@ -38,6 +38,7 @@ export type InputRefDto = {
   name: string;
   nameBn: string;
   unit: string;
+  unitBn: string;
 };
 export type BatchVerificationDto = {
   /** Registered on the ledger, and the details here match it */
@@ -56,6 +57,7 @@ export type ProduceRefDto = {
   name: string;
   nameBn?: string;
   unit: string;
+  unitBn: string;
 };
 export type ReceiptSiteDto = {
   name: string;

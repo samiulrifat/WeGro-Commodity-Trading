@@ -32,6 +32,34 @@ describe('translations', () => {
       });
     }
   });
+
+  // The glossary (docs/bengali-glossary.md): one word per idea, so a reader
+  // never wonders whether two words mean two things.
+  it('keeps to the glossary’s one word per idea', () => {
+    const retired: Array<[RegExp, string]> = [
+      [/অফার/, 'প্রস্তাব (offer)'],
+      [/বিমা/, 'বীমা (insurance)'],
+      [/রিজার্ভেশন/, 'বুকিং (booking)'],
+      [/স্লট/, 'ইউনিট (unit)'],
+      [/ডেলিভারি/, 'সরবরাহ (delivery)'],
+      [/নোটিফিকেশন/, 'বিজ্ঞপ্তি (notification)'],
+      [/পেআউট|রাউন্ড(?!িং)/, 'অর্থ প্রদান পর্ব (payout round)'],
+      [/খামার আপডেট|খামার হালনাগাদ/, 'খামারের হালনাগাদ (farm update)'],
+    ];
+    const found = [...leaves(bn)].flatMap(([key, text]) =>
+      retired
+        .filter(([re]) => re.test(text))
+        .map(([, use]) => `${key}: use ${use}`),
+    );
+    expect(found).toEqual([]);
+    // English: a booking holds units (never "reservation" or "slots").
+    const shown = (text: string) =>
+      text.replace(/\{\{[^}]*\}\}|\$t\([^)]*\)/g, '');
+    const english = [...leaves(en)].filter(([, text]) =>
+      /\b(reservations?|slots?)\b/i.test(shown(text)),
+    );
+    expect(english.map(([key]) => key)).toEqual([]);
+  });
 });
 
 describe('formats in sentences', () => {
@@ -49,6 +77,35 @@ describe('formats in sentences', () => {
       [...text.matchAll(/\{\{\s*\w+\s*,\s*(\w+)\s*\}\}/g)].map((m) => m[1]),
     );
     expect(used.filter((f) => !known.has(f!))).toEqual([]);
+  });
+});
+
+describe('numbers put into sentences', () => {
+  beforeAll(() => initI18n('en'));
+
+  it('reads bare numbers in the reader’s digits, and leaves names, codes and written digits alone', async () => {
+    const t = i18n.t.bind(i18n) as unknown as (
+      key: string,
+      values?: Record<string, unknown>,
+    ) => string;
+    await applyLanguage('bn');
+    // A record number sent as text, and one as a number.
+    expect(
+      t('dashboard.item.dealUnpaid', {
+        id: '12',
+        quantity: '200 kg',
+        produce: 'টমেটো',
+      }),
+    ).toBe('চুক্তি #১২: 200 kg টমেটো');
+    expect(t('audit.block', { n: 4815 })).toBe('ব্লক ৪৮১৫');
+    // Mixed text (a name with digits, an id) is someone's own: unchanged.
+    expect(t('trackRecords.fieldOfficer', { name: 'Officer 2' })).toBe(
+      'মাঠ কর্মকর্তা: Officer 2',
+    );
+    // Digits written into the sentence itself stay: a phone number to copy.
+    expect(t('errors.code.PHONE_INVALID')).toContain('01712345678');
+    await applyLanguage('en');
+    expect(t('audit.block', { n: 4815 })).toBe('block 4815');
   });
 });
 
@@ -108,7 +165,7 @@ describe('server text in the reader’s language', () => {
         },
         i18n,
       ),
-    ).toBe('এই রিজার্ভেশনটি আর চালু নেই।');
+    ).toBe('এই বুকিংটি আর চালু নেই।');
   });
 
   it('lists each field an input check refused, and gives forms one per field', async () => {
@@ -187,8 +244,8 @@ describe('server text in the reader’s language', () => {
 
   const made = {
     kind: 'reservation.made' as const,
-    title: 'Reservation #12 awaiting payment confirmation',
-    body: '3 slots in Bogura maize; holds until 2026-10-18 15:30 UTC',
+    title: 'Booking #12 awaiting payment confirmation',
+    body: '3 units in Bogura maize; holds until 2026-10-18 15:30 UTC',
     params: {
       reservationId: '12',
       slots: 3,
@@ -200,14 +257,14 @@ describe('server text in the reader’s language', () => {
   it('words a notification from its kind and values', async () => {
     await applyLanguage('en');
     expect(notificationText(made, i18n)).toEqual({
-      title: 'Reservation #12 awaiting payment confirmation',
-      body: '3 slots in Bogura maize; held until 18 Oct 2026, 9:30 PM',
+      title: 'Booking #12 awaiting payment confirmation',
+      body: '3 units in Bogura maize; held until 18 Oct 2026, 9:30 PM',
     });
     await applyLanguage('bn');
     expect(notificationText(made, i18n)).toEqual({
       // The record number stays as sent; counts and times are Bengali.
-      title: 'রিজার্ভেশন #12 পেমেন্ট নিশ্চিতকরণের অপেক্ষায়',
-      body: 'Bogura maize-এ ৩টি স্লট; ১৮ অক্টোবর ২০২৬, রাত ৯:৩০ পর্যন্ত রাখা থাকবে',
+      title: 'বুকিং #১২ পেমেন্ট নিশ্চিতকরণের অপেক্ষায়',
+      body: 'Bogura maize-এ ৩টি ইউনিট; ১৮ অক্টোবর ২০২৬, রাত ৯:৩০ পর্যন্ত রাখা থাকবে',
     });
     expect(
       notificationText(

@@ -24,7 +24,9 @@ export function useItemText() {
   const bengali = i18n.resolvedLanguage === 'bn';
 
   const unitOf = (code: string) =>
-    catalog?.units.find((u) => u.code === code)?.symbol ?? '';
+    ((u) => (u ? (bengali ? u.symbolBn : u.symbol) : ''))(
+      catalog?.units.find((u) => u.code === code),
+    );
   const produce = (code: string) => {
     const p = catalog?.produceTypes.find((x) => x.code === code);
     return {

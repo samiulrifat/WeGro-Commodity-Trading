@@ -23,6 +23,7 @@ import { useFormat } from '@/i18n/use-format';
 import { useAppSelector } from '@/store/hooks';
 import { mapLink } from './draft';
 import { useAuditWords } from '@/features/audit/words';
+import { useUnit } from '@/i18n/use-unit';
 
 const LEDGER_CHECKERS = new Set(['super_admin', 'admin', 'auditor']);
 
@@ -38,6 +39,7 @@ export function RecordCard({
   record: FieldRecordDto;
   showProject?: boolean;
 }) {
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
   const me = useAppSelector((s) => s.session.user!);
@@ -122,13 +124,17 @@ export function RecordCard({
                 </dt>
                 <dd className="font-semibold">
                   {fmt.number(m.value)}
-                  {m.unit && ` ${m.unit}`}
+                  {m.unit && ` ${unitWord(m.unit)}`}
                 </dd>
               </div>
             ))}
           </dl>
         )}
-        {r.notes && <p className="text-sm whitespace-pre-line">{r.notes}</p>}
+        {r.notes && (
+          <p translate="no" className="text-sm whitespace-pre-line">
+            {r.notes}
+          </p>
+        )}
         {r.location && (
           <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
             <MapPin aria-hidden className="size-4" />

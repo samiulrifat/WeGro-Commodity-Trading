@@ -14,6 +14,7 @@ import type { MarketSearch } from '@/features/marketplace/market-utils';
 import { StagePill } from '@/features/projects/stage-pill';
 import { cn } from '@/lib/utils';
 import { FRESH } from './payouts-utils';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 const PAGE_SIZE = 12;
 /** Projects with money to settle: costs while funded, payouts once active. */
@@ -121,6 +122,7 @@ export function SettleProjectsList({ search }: { search: MarketSearch }) {
 }
 
 function ProjectCard({ project: p }: { project: ProjectDto }) {
+  const districtName = useDistrictName();
   const { i18n } = useTranslation();
   const produce =
     i18n.resolvedLanguage === 'bn' && p.produce.nameBn
@@ -139,7 +141,7 @@ function ProjectCard({ project: p }: { project: ProjectDto }) {
           </Link>
         </h3>
         <p className="text-sm text-muted-foreground">
-          {produce} · {p.district.name}
+          {produce} · {districtName(p.district)}
         </p>
       </div>
       <p className="truncate text-sm font-medium">{p.farmer.fullName}</p>

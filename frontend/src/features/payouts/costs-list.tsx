@@ -216,7 +216,9 @@ export function CostRow({
             </>
           )}
         </p>
-        <p className="text-sm whitespace-pre-line">{c.note}</p>
+        <p translate="no" className="text-sm whitespace-pre-line">
+          {c.note}
+        </p>
         {voided && (
           <span className="mt-1 flex">
             <StatusPill tone="neutral" appearance="soft">

@@ -142,6 +142,7 @@ export class CatalogService implements OnModuleInit {
       sortOrder: dto.sortOrder ?? 0,
       kind: dto.kind,
       symbol: dto.symbol,
+      symbolBn: dto.symbolBn,
     });
     return this.store(this.units, unitView(row));
   }
@@ -164,6 +165,7 @@ export class CatalogService implements OnModuleInit {
     const row = await this.update(Unit, code, {
       ...common(dto),
       ...(dto.symbol !== undefined && { symbol: dto.symbol }),
+      ...(dto.symbolBn !== undefined && { symbolBn: dto.symbolBn }),
     });
     return this.store(this.units, unitView(row));
   }
@@ -361,6 +363,7 @@ const unitView = (u: Unit): UnitDto => ({
   ...base(u),
   kind: u.kind,
   symbol: u.symbol,
+  symbolBn: u.symbolBn,
 });
 
 const produceView = (p: ProduceType): ProduceTypeDto => ({

@@ -40,7 +40,13 @@ const SLABS: FeeSlabDto[] = [
   { upTo: '500000.00', fee: '750.00' },
   { upTo: null, fee: '1500.00' },
 ];
-const MAIZE = { code: 'MAIZE', name: 'Maize', nameBn: 'ভুট্টা', unit: 'kg' };
+const MAIZE = {
+  code: 'MAIZE',
+  name: 'Maize',
+  nameBn: 'ভুট্টা',
+  unit: 'kg',
+  unitBn: 'কেজি',
+};
 
 const listing = (over: Partial<ListingDto> = {}): ListingDto => ({
   id: 7,

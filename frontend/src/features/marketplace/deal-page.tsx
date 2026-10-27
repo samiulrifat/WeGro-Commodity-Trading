@@ -61,6 +61,7 @@ import {
 } from './market-utils';
 import { OfferStatus } from './status';
 import { HistoryButton } from '@/features/audit/history-button';
+import { useUnit } from '@/i18n/use-unit';
 
 type Move =
   | 'withdraw'
@@ -384,7 +385,11 @@ function DeliverySide({
               ? t('market.confirmedAt', { date: fmt.dateTime(d.recordedAt) })
               : t('market.confirming')}
           </p>
-          {d.notes && <p className="text-sm whitespace-pre-line">{d.notes}</p>}
+          {d.notes && (
+            <p translate="no" className="text-sm whitespace-pre-line">
+              {d.notes}
+            </p>
+          )}
           {d.photoUrl &&
             (photo.url ? (
               <img
@@ -660,6 +665,7 @@ function DeliveryDialog({
   side: 'buyer' | 'handler';
   onClose: () => void;
 }) {
+  const unitWord = useUnit();
   const { t } = useTranslation();
   const [confirm, confirming] = useTradeConfirmDeliveryMutation();
   const [upload, uploading] = usePhotoUploadMutation();
@@ -716,7 +722,8 @@ function DeliveryDialog({
         >
           <Field data-invalid={(tried && bad) || undefined}>
             <FieldLabel htmlFor="delivery-quantity">
-              {t(`market.deliveredQuantity.${side}`)} ({o.produce.unit})
+              {t(`market.deliveredQuantity.${side}`)} (
+              {unitWord(o.produce.unit, o.produce.unitBn)})
             </FieldLabel>
             <Input
               id="delivery-quantity"

@@ -264,7 +264,7 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
         </div>
       </dl>
       {(p.reference || p.note) && (
-        <p className="text-sm">
+        <p translate="no" className="text-sm">
           {p.reference && <span className="font-mono">{p.reference}</span>}
           {p.reference && p.note && ' · '}
           {p.note}

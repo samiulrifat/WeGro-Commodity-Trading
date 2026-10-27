@@ -28,7 +28,13 @@ afterEach(() => {
   document.body.classList.remove('printing');
 });
 
-const input = { code: 'UREA', name: 'Urea', nameBn: 'ইউরিয়া', unit: 'kg' };
+const input = {
+  code: 'UREA',
+  name: 'Urea',
+  nameBn: 'ইউরিয়া',
+  unit: 'kg',
+  unitBn: 'কেজি',
+};
 
 const voucher = (over: Partial<VoucherDetailDto> = {}): VoucherDetailDto => ({
   id: 'v1',

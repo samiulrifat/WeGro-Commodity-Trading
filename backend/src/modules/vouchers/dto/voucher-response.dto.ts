@@ -21,6 +21,9 @@ export class InputRefDto {
 
   @ApiProperty({ example: 'kg' })
   unit: string;
+
+  @ApiProperty({ example: 'কেজি' })
+  unitBn: string;
 }
 
 export class BatchRefDto {

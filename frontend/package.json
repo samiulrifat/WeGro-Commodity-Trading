@@ -16,7 +16,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{ts,json,html}\"",
     "api:generate": "rtk-query-codegen-openapi openapi-config.cjs && node scripts/generate-codes.mjs && prettier --write src/api/generated --log-level warn",
     "test": "vitest run",
-    "api:check": "npm run api:generate && git diff --exit-code -- src/api/generated"
+    "api:check": "npm run api:generate && git diff --exit-code -- src/api/generated",
+    "i18n:review": "node scripts/translation-review.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -38,6 +40,8 @@
     "workbox-window": "7.4.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "1.58",
     "@rtk-query/codegen-openapi": "^2.2.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "1.168.42",

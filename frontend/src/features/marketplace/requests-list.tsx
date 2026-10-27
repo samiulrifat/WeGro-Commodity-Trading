@@ -47,6 +47,8 @@ import {
   validQuantity,
   wholeNumber,
 } from './market-utils';
+import { useUnit } from '@/i18n/use-unit';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 const PAGE_SIZE = 12;
 const TABS = ['open', 'all'] as const;
@@ -178,6 +180,7 @@ export function RequestsList({
 }
 
 function RequestCard({ request: r }: { request: BuyerRequestDto }) {
+  const districtName = useDistrictName();
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
   const user = useAppSelector((s) => s.session.user!);
@@ -234,7 +237,7 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
                       price: fmt.taka(m.askingUnitPrice),
                       unit: r.produce.unit,
                     })}{' '}
-                    · {fmt.number(m.available)} · {m.district}
+                    · {fmt.number(m.available)} · {districtName(m.district)}
                   </Link>
                 </li>
               ))}
@@ -316,6 +319,7 @@ function CancelRequestDialog({
 
 /** A buyer says what they want: produce, how much, the most per unit, until when. */
 function PostRequestDialog({ onClose }: { onClose: () => void }) {
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const bengali = i18n.resolvedLanguage === 'bn';
   const catalog = useCatalogGetQuery({});
@@ -335,9 +339,10 @@ function PostRequestDialog({ onClose }: { onClose: () => void }) {
     [catalog.data, bengali],
   );
   const type = catalog.data?.data.produceTypes.find((p) => p.code === produce);
-  const unit =
-    catalog.data?.data.units.find((u) => u.code === type?.unitCode)?.symbol ??
-    '';
+  const unitEntry = catalog.data?.data.units.find(
+    (u) => u.code === type?.unitCode,
+  );
+  const unit = unitEntry ? unitWord(unitEntry.symbol, unitEntry.symbolBn) : '';
   const qty = wholeNumber(quantity);
   const maxPrice = typedTaka(price);
   const missing = {

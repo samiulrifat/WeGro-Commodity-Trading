@@ -8,12 +8,16 @@ import { ErrorState, LoadingState } from '@/components/states';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFormat } from '@/i18n/use-format';
 import { receiptNumber } from './receipt-utils';
+import { useUnit } from '@/i18n/use-unit';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 /**
  * Opened by the QR on a printed receipt, by anyone, without signing in:
  * whether it is on WeGro's ledger and what it holds (never who owns it).
  */
 export function VerifyReceiptPage({ id }: { id: string }) {
+  const districtName = useDistrictName();
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
   const query = useReceiptVerifyVerifyQuery({ id });
@@ -71,14 +75,15 @@ export function VerifyReceiptPage({ id }: { id: string }) {
                 <Row label={t('warehouse.held')}>
                   {t('warehouse.quantityOf', {
                     quantity: fmt.number(v.quantity),
-                    unit: v.produce.unit,
+                    // No catalog before sign-in: the record brings its Bengali unit.
+                    unit: unitWord(v.produce.unit, v.produce.unitBn),
                   })}
                 </Row>
               )}
               {v.site && (
                 <Row
                   label={t('warehouse.site')}
-                >{`${v.site.name}, ${v.site.district}`}</Row>
+                >{`${v.site.name}, ${districtName(v.site.district)}`}</Row>
               )}
               {v.status && (
                 <Row label={t('verifyReceipt.status')}>

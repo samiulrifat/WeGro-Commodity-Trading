@@ -51,6 +51,8 @@ import { useObjectUrl, useOfficerProjects, useSendNow } from './hooks';
 import { shrinkPhoto } from './photo';
 import { fromLocalInput, type NewUpdateSearch, toLocalInput } from './search';
 import { useCurrentLocation } from './use-location';
+import { useUnit } from '@/i18n/use-unit';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 const STEPS = ['project', 'type', 'photo', 'details', 'review'] as const;
 type Step = (typeof STEPS)[number];
@@ -578,6 +580,7 @@ function ProjectStep({
   onPick: (p: { id: string; title: string; farmer: { name: string } }) => void;
   invalid: boolean;
 }) {
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   const online = useOnline();
@@ -641,7 +644,7 @@ function ProjectStep({
             checked={p.id === selected}
             onSelect={() => onPick(p)}
             title={p.title}
-            sub={`${p.farmer.name} · ${p.location}, ${p.district}`}
+            sub={`${p.farmer.name} · ${p.location}, ${districtName(p.district)}`}
           />
         ))}
       </div>
@@ -767,6 +770,7 @@ function DetailsStep({
   observedInvalid: boolean;
   showErrors: boolean;
 }) {
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
   const bengali = i18n.resolvedLanguage === 'bn';
@@ -796,7 +800,7 @@ function DetailsStep({
           <Field key={m.key} data-invalid={problem ? true : undefined}>
             <FieldLabel htmlFor={`m-${m.key}`}>
               {bengali ? m.labelBn : m.label}
-              {m.unit && ` (${m.unit})`}
+              {m.unit && ` (${unitWord(m.unit)})`}
               {!m.required && (
                 <span className="font-normal text-muted-foreground">
                   {' '}
@@ -928,6 +932,7 @@ function Review({
   problems: ReturnType<typeof draftProblems>;
   goTo: (s: Step) => void;
 }) {
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
   const bengali = i18n.resolvedLanguage === 'bn';
@@ -988,7 +993,7 @@ function Review({
             <span key={m.key}>
               {bengali ? m.labelBn : m.label}:{' '}
               {fmt.number(data.measurements[m.key]!)}
-              {m.unit && ` ${m.unit}`}
+              {m.unit && ` ${unitWord(m.unit)}`}
             </span>
           ))}
           {data.notes.trim() && (

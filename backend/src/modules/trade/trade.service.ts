@@ -1065,6 +1065,7 @@ export class TradeService {
       name: produce?.name ?? code,
       nameBn: produce?.nameBn ?? code,
       unit: unit?.symbol ?? '',
+      unitBn: unit?.symbolBn ?? '',
     };
   }
 

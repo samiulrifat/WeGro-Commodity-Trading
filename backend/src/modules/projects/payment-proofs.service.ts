@@ -216,7 +216,7 @@ export class PaymentProofsService {
       {
         category: NotificationCategory.ACTION,
         kind: NotificationKind.PAYMENT_PROOF_SUBMITTED,
-        title: `Payment proof for reservation #${reservationId} awaiting review`,
+        title: `Payment proof for booking #${reservationId} awaiting review`,
         params: {
           reservationId: String(reservationId),
           amount: poishaToTaka(amount),
@@ -328,7 +328,7 @@ export class PaymentProofsService {
     await this.notify([proof.investorId], {
       category: NotificationCategory.OUTCOME,
       kind: NotificationKind.PAYMENT_PROOF_ACCEPTED,
-      title: `Your payment of ${poishaToTaka(proof.amount)} for reservation #${proof.reservationId} is accepted`,
+      title: `Your payment of ${poishaToTaka(proof.amount)} for booking #${proof.reservationId} is accepted`,
       params: {
         reservationId: String(proof.reservationId),
         amount: poishaToTaka(proof.amount),
@@ -373,7 +373,7 @@ export class PaymentProofsService {
     await this.notify([proof.investorId], {
       category: NotificationCategory.OUTCOME,
       kind: NotificationKind.PAYMENT_PROOF_REJECTED,
-      title: `Your payment proof for reservation #${proof.reservationId} was not accepted`,
+      title: `Your payment proof for booking #${proof.reservationId} was not accepted`,
       body: reason,
       params: { reservationId: String(proof.reservationId), reason },
       subject: { type: 'reservation', id: proof.reservationId },
@@ -428,7 +428,7 @@ export class PaymentProofsService {
     await this.notify([proof.investorId], {
       category: NotificationCategory.OUTCOME,
       kind: NotificationKind.PAYMENT_REFUNDED,
-      title: `${poishaToTaka(proof.amount)} sent for reservation #${proof.reservationId} was refunded`,
+      title: `${poishaToTaka(proof.amount)} sent for booking #${proof.reservationId} was refunded`,
       params: {
         reservationId: String(proof.reservationId),
         amount: poishaToTaka(proof.amount),

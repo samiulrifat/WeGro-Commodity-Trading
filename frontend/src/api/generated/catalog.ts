@@ -209,6 +209,7 @@ export type UnitDto = {
   sortOrder: number;
   kind: 'mass' | 'volume' | 'count';
   symbol: string;
+  symbolBn: string;
 };
 export type ProduceTypeDto = {
   code: string;
@@ -286,6 +287,7 @@ export type CreateUnitDto = {
   /** Fixed once created */
   kind: 'mass' | 'volume' | 'count';
   symbol: string;
+  symbolBn: string;
 };
 export type UpdateUnitDto = {
   name?: string;
@@ -294,6 +296,7 @@ export type UpdateUnitDto = {
   /** false hides it from dropdowns; it can never be deleted */
   active?: boolean;
   symbol?: string;
+  symbolBn?: string;
 };
 export type CreateProduceTypeDto = {
   /** Written to the ledger; cannot be changed later */

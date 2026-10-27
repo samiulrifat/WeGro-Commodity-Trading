@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { actsAs } from '@/app/navigation';
 import { type SiteListSearch, wholeNumber } from './receipt-utils';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 type SiteMove = 'close' | 'reopen';
 const STATES = ['all', 'open', 'closed'] as const;
@@ -161,6 +162,7 @@ function SiteCard({
   admin: boolean;
   onEdit: () => void;
 }) {
+  const districtName = useDistrictName();
   const { t } = useTranslation();
   const fmt = useFormat();
   const [move, setMove] = useState<SiteMove | null>(null);
@@ -188,11 +190,14 @@ function SiteCard({
         </StatusPill>
       </div>
       <p className="text-sm text-muted-foreground">
-        {t(`warehouse.storageType.${s.storageType}`)} · {s.districtName}
+        {t(`warehouse.storageType.${s.storageType}`)} ·{' '}
+        {districtName({ code: s.districtCode, name: s.districtName })}
         {s.capacityKg != null &&
           ` · ${t('warehouse.capacityOf', { kg: fmt.number(s.capacityKg) })}`}
       </p>
-      <p className="text-sm">{s.address}</p>
+      <p translate="no" className="text-sm">
+        {s.address}
+      </p>
       {s.closed && s.closedAt && (
         <p className="text-sm text-muted-foreground">
           {t('warehouse.closedSince', { at: fmt.date(s.closedAt) })}

@@ -21,6 +21,9 @@ export class NamedCodeDto {
 export class ProduceRefDto extends NamedCodeDto {
   @ApiProperty({ example: 'kg' })
   unit: string;
+
+  @ApiProperty({ example: 'কেজি' })
+  unitBn: string;
 }
 
 export class PersonRefDto {

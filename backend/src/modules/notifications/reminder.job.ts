@@ -95,8 +95,8 @@ export class ReminderJob implements ScheduledJobRunner {
       note: {
         category: REMINDER,
         kind: NotificationKind.RESERVATION_EXPIRING,
-        title: `Your reservation of ${r.slots} slots expires soon`,
-        body: `${r.title}: pay before ${utc(r.expires_at)} UTC or the slots are released`,
+        title: `Your booking of ${r.slots} units lapses soon`,
+        body: `${r.title}: pay before ${utc(r.expires_at)} UTC or the units are released`,
         params: {
           slots: r.slots,
           project: r.title,

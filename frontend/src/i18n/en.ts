@@ -30,8 +30,8 @@ export const en = {
     try_other: '{{count, number}} tries',
     minute_one: '{{count, number}} minute',
     minute_other: '{{count, number}} minutes',
-    slot_one: '{{count, number}} slot',
-    slot_other: '{{count, number}} slots',
+    slot_one: '{{count, number}} unit',
+    slot_other: '{{count, number}} units',
   },
   roles: {
     super_admin: 'Super Admin',
@@ -315,9 +315,9 @@ export const en = {
         'A published project can’t be changed or deleted.',
       INVALID_TERMS: 'The project terms are not valid: {{problems}}',
       TERMS_AMOUNTS_NOT_POSITIVE:
-        'The funding target and slot price must be above zero.',
-      TERMS_PARTIAL_SLOT: 'The funding target must be a whole number of slots.',
-      TERMS_TOO_MANY_SLOTS: 'A project can have at most {{max, number}} slots.',
+        'The funding target and unit price must be above zero.',
+      TERMS_PARTIAL_SLOT: 'The funding target must be a whole number of units.',
+      TERMS_TOO_MANY_SLOTS: 'A project can have at most {{max, number}} units.',
       TERMS_SHARES_NOT_100:
         'The farmer, investor and WeGro shares must add up to 100%.',
       TERMS_DURATION_RANGE:
@@ -335,9 +335,9 @@ export const en = {
       PROJECT_NOT_OPEN: 'This project is not open for funding.',
       PROJECT_NOT_ACTIVE: 'This can be done only while the project is active.',
       NOT_ENOUGH_SLOTS: 'Only $t(units.slot, {"count": {{available}} }) left.',
-      RESERVATION_NOT_FOUND: 'This reservation could not be found.',
-      RESERVATION_WRONG_STATUS: 'This reservation is {{status, word}}.',
-      RESERVATION_CONFIRMING: 'This reservation is already being confirmed.',
+      RESERVATION_NOT_FOUND: 'This booking could not be found.',
+      RESERVATION_WRONG_STATUS: 'This booking is {{status, word}}.',
+      RESERVATION_CONFIRMING: 'This booking is already being confirmed.',
       PAYMENT_REF_INVALID: 'A payment reference must be 1 to 128 characters.',
       PAYMENT_SHEET_INVALID:
         'The payout sheet has problems, so nothing was recorded. Fix the rows listed and upload it again.',
@@ -345,7 +345,7 @@ export const en = {
       PAYMENT_REF_ALREADY_USED: 'This payment reference was already used.',
       REFUND_PROJECT_NOT_CANCELLED:
         'Refunds are recorded only for cancelled projects.',
-      NO_SLOTS_HELD: 'This investor holds no slots in the project.',
+      NO_SLOTS_HELD: 'This investor holds no units in the project.',
       ALREADY_REFUNDED: 'This investor is already refunded.',
       REFUND_IN_PROGRESS:
         'A different refund for this investor is being recorded.',
@@ -643,19 +643,19 @@ export const en = {
     },
     reservation: {
       made: {
-        title: 'Reservation #{{reservationId}} awaiting payment confirmation',
+        title: 'Booking #{{reservationId}} awaiting payment confirmation',
         body: '$t(units.slot, {"count": {{slots}} }) in {{project}}; held until {{expiresAt, datetime}}',
       },
       confirmed: {
-        title: 'Payment confirmed: your slots are issued',
+        title: 'Payment confirmed: your units are issued',
         body: '$t(units.slot, {"count": {{slots}} }) in {{project}}',
       },
-      expired: { title: 'Your reservation expired unpaid' },
-      cancelled: { title: 'Your reservation was cancelled' },
+      expired: { title: 'Your booking lapsed unpaid' },
+      cancelled: { title: 'Your booking was cancelled' },
       expiring: {
         title:
-          'Your reservation of $t(units.slot, {"count": {{slots}} }) expires soon',
-        body: '{{project}}: pay before {{expiresAt, datetime}} or the slots are released',
+          'Your booking of $t(units.slot, {"count": {{slots}} }) lapses soon',
+        body: '{{project}}: pay before {{expiresAt, datetime}} or the units are released',
       },
     },
     project: {
@@ -1228,9 +1228,9 @@ export const en = {
       projects_running_one: '{{count, number}} of their projects still running',
       projects_running_other:
         '{{count, number}} of their projects still running',
-      holdings_running_one: 'Slots in {{count, number}} project still running',
+      holdings_running_one: 'Units in {{count, number}} project still running',
       holdings_running_other:
-        'Slots in {{count, number}} projects still running',
+        'Units in {{count, number}} projects still running',
       offers_open_one: '{{count, number}} offer or deal not finished',
       offers_open_other: '{{count, number}} offers or deals not finished',
       vouchers_to_fill_one: '{{count, number}} active voucher they are to fill',
@@ -1894,6 +1894,8 @@ export const en = {
       unitKind: 'Measure',
       symbol: 'Symbol',
       symbolHint: 'Shown after numbers, such as kg.',
+      symbolBn: 'Symbol in Bengali',
+      symbolBnHint: 'Shown to Bengali readers, such as কেজি.',
       category: 'Category',
       unit: 'Unit',
       produceUnitHint:
@@ -1966,6 +1968,7 @@ export const en = {
       sortOrder: 'Enter a whole number from 0 to 10,000.',
       choose: 'Choose one.',
       symbol: 'Enter the symbol.',
+      symbolBn: 'Enter the symbol in Bengali.',
       duration:
         'Enter a whole number of months from 1 to 60, or leave it empty.',
       label: 'Enter the English label.',
@@ -3079,8 +3082,8 @@ export const en = {
     history: 'History',
     lines: 'Payees',
     linesText: 'Each payee’s line, its amount checked against the ledger.',
-    slots_one: '{{count, number}} slot',
-    slots_other: '{{count, number}} slots',
+    slots_one: '{{count, number}} unit',
+    slots_other: '{{count, number}} units',
     linePaid: 'Paid',
     lineUnpaid: 'Not Paid',
     paidOn: 'paid {{date}}',

@@ -283,8 +283,8 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       await x.send(await x.role([Role.ACCOUNTS]), {
         category: ACTION,
         kind: NotificationKind.RESERVATION_MADE,
-        title: `Reservation #${String(e.args.reservationId)} awaiting payment confirmation`,
-        body: `${String(e.args.slots)} slots in ${p?.title ?? 'a project'}; holds until ${date(e.args.expiresAt)} UTC`,
+        title: `Booking #${String(e.args.reservationId)} awaiting payment confirmation`,
+        body: `${String(e.args.slots)} units in ${p?.title ?? 'a project'}; holds until ${date(e.args.expiresAt)} UTC`,
         params: {
           reservationId: String(e.args.reservationId),
           slots: Number(e.args.slots),
@@ -299,19 +299,19 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
       await x.send([uuid(e.args.investorId)], {
         category: OUTCOME,
         kind: NotificationKind.RESERVATION_CONFIRMED,
-        title: 'Payment confirmed: your slots are issued',
-        body: `${String(e.args.slots)} slots in ${p?.title ?? 'the project'}`,
+        title: 'Payment confirmed: your units are issued',
+        body: `${String(e.args.slots)} units in ${p?.title ?? 'the project'}`,
         params: { slots: Number(e.args.slots), project: p?.title ?? null },
         subject: { type: 'reservation', id: String(e.args.reservationId) },
       });
     },
     ReservationExpired: reservationClosed(
       NotificationKind.RESERVATION_EXPIRED,
-      'Your reservation expired unpaid',
+      'Your booking lapsed unpaid',
     ),
     ReservationCancelled: reservationClosed(
       NotificationKind.RESERVATION_CANCELLED,
-      'Your reservation was cancelled',
+      'Your booking was cancelled',
     ),
     ProjectStageChanged: async (e, _m, x) => {
       const id = uuid(e.args.projectId);

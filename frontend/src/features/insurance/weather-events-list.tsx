@@ -150,7 +150,11 @@ function EventCard({ event: e }: { event: WeatherEventDto }) {
           {t('insurance.recordedBy', { name: e.recordedBy.name })}
         </p>
       </div>
-      {e.notes && <p className="text-sm whitespace-pre-line">{e.notes}</p>}
+      {e.notes && (
+        <p translate="no" className="text-sm whitespace-pre-line">
+          {e.notes}
+        </p>
+      )}
       <span className="flex flex-wrap gap-1.5">
         <SeverityPill severity={e.severity} />
       </span>

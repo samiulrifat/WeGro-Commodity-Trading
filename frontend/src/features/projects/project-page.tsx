@@ -75,7 +75,10 @@ export function ProjectPage({ id }: { id: string }) {
                 <CardTitle className="text-lg">{t('projects.why')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="leading-relaxed whitespace-pre-line text-muted-foreground">
+                <p
+                  translate="no"
+                  className="leading-relaxed whitespace-pre-line text-muted-foreground"
+                >
                   {p.description}
                 </p>
               </CardContent>

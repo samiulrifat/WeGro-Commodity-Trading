@@ -460,6 +460,7 @@ export type ProduceRefDto = {
   name: string;
   nameBn?: string;
   unit: string;
+  unitBn: string;
 };
 export type SellerDto = {
   kind: 'wegro' | 'farmer' | 'seller';

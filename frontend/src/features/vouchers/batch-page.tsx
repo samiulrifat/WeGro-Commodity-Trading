@@ -141,7 +141,10 @@ function Details({ batch: b }: { batch: BatchDto }) {
           )}
         </dl>
         {b.notes && (
-          <p className="mt-4 whitespace-pre-line text-muted-foreground">
+          <p
+            translate="no"
+            className="mt-4 whitespace-pre-line text-muted-foreground"
+          >
             {b.notes}
           </p>
         )}

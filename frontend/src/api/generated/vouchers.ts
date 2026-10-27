@@ -335,6 +335,7 @@ export type InputRefDto = {
   name: string;
   nameBn: string;
   unit: string;
+  unitBn: string;
 };
 export type BatchRefDto = {
   id: string;

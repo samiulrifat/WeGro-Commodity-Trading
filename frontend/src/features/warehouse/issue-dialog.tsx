@@ -30,6 +30,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { todayBd } from '@/lib/format';
 import { dayAfter, moisture, wholeNumber } from './receipt-utils';
+import { useUnit } from '@/i18n/use-unit';
+import { useDistrictName } from '@/features/insurance/use-names';
 
 /** Default storage term offered: about six months. */
 const DEFAULT_TERM_DAYS = 180;
@@ -41,6 +43,8 @@ const MAX_QUANTITY = 1_000_000_000_000;
  * can be stored (not fresh produce) take receipts.
  */
 export function IssueDialog({ onClose }: { onClose: () => void }) {
+  const districtName = useDistrictName();
+  const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const bengali = i18n.resolvedLanguage === 'bn';
@@ -122,7 +126,9 @@ export function IssueDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const unit = project?.produce.unit ?? '';
+  const unit = project
+    ? unitWord(project.produce.unit, project.produce.unitBn)
+    : '';
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
@@ -163,11 +169,11 @@ export function IssueDialog({ onClose }: { onClose: () => void }) {
               <FieldError>{t('warehouse.required.project')}</FieldError>
             ) : (
               project && (
-                <FieldDescription>
+                <FieldDescription translate="no">
                   {bengali && project.produce.nameBn
                     ? project.produce.nameBn
                     : project.produce.name}{' '}
-                  · {project.location}, {project.district.name}
+                  · {project.location}, {districtName(project.district)}
                 </FieldDescription>
               )
             )}

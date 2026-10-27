@@ -153,8 +153,13 @@ export const IMPORT_FILES: ImportFile[] = [
     file: 'units.csv',
     kind: 'unit',
     idColumn: 'code',
-    columns: { ...entry, kind: ['kind', 'text'], symbol: ['symbol', 'text'] },
-    required: ['code', 'name', 'name_bn', 'kind', 'symbol'],
+    columns: {
+      ...entry,
+      kind: ['kind', 'text'],
+      symbol: ['symbol', 'text'],
+      symbol_bn: ['symbolBn', 'text'],
+    },
+    required: ['code', 'name', 'name_bn', 'kind', 'symbol', 'symbol_bn'],
     dto: CreateUnitDto,
   },
   {

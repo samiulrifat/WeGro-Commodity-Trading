@@ -269,7 +269,10 @@ const list = (label: string, entries: Entry[]) => {
  */
 export function fakeCatalog(over: Record<string, Entry[]> = {}) {
   return {
-    units: list('unit', over.units ?? [{ code: 'KG', symbol: 'kg' }]),
+    units: list(
+      'unit',
+      over.units ?? [{ code: 'KG', symbol: 'kg', symbolBn: 'কেজি' }],
+    ),
     produceTypes: list(
       'produce type',
       over.produceTypes ?? [

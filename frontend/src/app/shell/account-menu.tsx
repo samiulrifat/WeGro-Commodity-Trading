@@ -46,14 +46,21 @@ export function AccountMenu() {
           </AvatarFallback>
         </Avatar>
         <span className="hidden max-w-40 truncate text-left text-sm leading-tight md:block">
-          <span className="block font-semibold">{name}</span>
+          <span className="block font-semibold" translate="no">
+            {name}
+          </span>
           <span className="block text-muted-foreground">{roleName}</span>
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
-            <span className="block font-semibold text-foreground">{name}</span>
+            <span
+              className="block font-semibold text-foreground"
+              translate="no"
+            >
+              {name}
+            </span>
             <span className="block font-normal">{roleName}</span>
           </DropdownMenuLabel>
         </DropdownMenuGroup>

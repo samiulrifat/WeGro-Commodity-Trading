@@ -39,7 +39,7 @@ const inputs = (c: CatalogDto) => c.inputTypes;
 const recordTypes = (c: CatalogDto) => c.fieldRecordTypes;
 const weather = (c: CatalogDto) => c.weatherEventTypes;
 
-const unitSearch = (u: UnitDto) => [u.symbol];
+const unitSearch = (u: UnitDto) => [u.symbol, u.symbolBn];
 
 // --- Units ---
 
@@ -62,6 +62,7 @@ export function UnitsPage({ search }: { search: CatalogSearch }) {
           cell: (u) => t(`catalog.unitKind.${u.kind}`),
         },
         { header: t('catalog.fields.symbol'), cell: (u) => u.symbol },
+        { header: t('catalog.fields.symbolBn'), cell: (u) => u.symbolBn },
       ]}
     />
   );
@@ -82,6 +83,7 @@ export function UnitPage({ code }: { code: string }) {
           value: t(`catalog.unitKind.${u.kind}`),
         },
         { label: t('catalog.fields.symbol'), value: u.symbol },
+        { label: t('catalog.fields.symbolBn'), value: u.symbolBn },
       ]}
     />
   );

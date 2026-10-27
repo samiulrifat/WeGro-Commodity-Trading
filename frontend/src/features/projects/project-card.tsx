@@ -53,7 +53,7 @@ export function Place({ project }: { project: ProjectDto }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
       <MapPin aria-hidden className="size-3.5 shrink-0 text-danger" />
-      <span className="truncate">
+      <span translate="no" className="truncate">
         {project.location},{' '}
         {t(`districts.${project.district.code as District}`)}
       </span>

@@ -117,6 +117,7 @@ describe('Catalog (database)', () => {
         nameBn: 'আঁটি',
         kind: 'count',
         symbol: 'bdl',
+        symbolBn: 'আঁটি',
       };
       await post(investor, 'units', body).expect(403);
       await post(ops, 'units', body).expect(201);
@@ -196,6 +197,7 @@ describe('Catalog (database)', () => {
         nameBn: 'x',
         kind: 'mass',
         symbol: 'x',
+        symbolBn: 'x',
       }).expect(400);
       await post(admin, 'units', {
         code: 'A'.repeat(32),
@@ -203,6 +205,7 @@ describe('Catalog (database)', () => {
         nameBn: 'x',
         kind: 'mass',
         symbol: 'x',
+        symbolBn: 'x',
       }).expect(400);
       await patch(admin, 'units/NOPE', { name: 'x' }).expect(404);
       await patch(admin, 'units/bad code', { name: 'x' }).expect(404);

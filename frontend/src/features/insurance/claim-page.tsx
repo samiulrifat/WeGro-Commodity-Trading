@@ -214,9 +214,11 @@ function Reported({ claim: c }: { claim: ClaimDto }) {
             {fmt.number(c.damagePercent, 1)}%
           </Row>
         </dl>
-        <p className="whitespace-pre-line">{c.notes}</p>
+        <p translate="no" className="whitespace-pre-line">
+          {c.notes}
+        </p>
         {c.event.notes && (
-          <p className="text-sm text-muted-foreground">
+          <p translate="no" className="text-sm text-muted-foreground">
             <span className="font-semibold">{t('insurance.eventNotes')}: </span>
             {c.event.notes}
           </p>
@@ -256,7 +258,9 @@ function Assessment({ claim: c }: { claim: ClaimDto }) {
             </Row>
           </dl>
         )}
-        <p className="whitespace-pre-line">{a.notes}</p>
+        <p translate="no" className="whitespace-pre-line">
+          {a.notes}
+        </p>
         {a.photoUrl && (
           <ClaimPhoto
             path={a.photoUrl}

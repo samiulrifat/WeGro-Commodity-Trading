@@ -30,3 +30,7 @@ dist-ssr
 
 # TanStack Router plugin working files
 .tanstack/
+
+# End-to-end runs (npm run e2e)
+/e2e-report
+/e2e-results

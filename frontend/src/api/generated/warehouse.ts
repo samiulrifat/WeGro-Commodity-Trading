@@ -401,6 +401,7 @@ export type ProduceRefDto = {
   name: string;
   nameBn?: string;
   unit: string;
+  unitBn: string;
 };
 export type IntakeDto = {
   bagCount?: number | null;

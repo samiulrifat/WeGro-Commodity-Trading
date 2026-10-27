@@ -224,7 +224,8 @@ export function EntryName({ entry }: { entry: Entry }) {
       <span className="font-semibold">
         {bengali ? entry.nameBn : entry.name}
       </span>
-      <span className="text-sm text-muted-foreground">
+      {/* The other language's name, for editors who keep both. */}
+      <span className="text-sm text-muted-foreground" translate="no">
         {bengali ? entry.name : entry.nameBn}
         {' · '}
         <span className="font-mono">{entry.code}</span>

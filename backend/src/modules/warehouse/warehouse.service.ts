@@ -655,6 +655,7 @@ export class WarehouseService {
         name: produce?.name ?? row.produceCode,
         nameBn: produce?.nameBn ?? row.produceCode,
         unit: unit?.symbol ?? '',
+        unitBn: unit?.symbolBn ?? '',
       },
       quantity: Number(onChain.quantity),
       site: site
@@ -931,6 +932,7 @@ export class WarehouseService {
           code: r.produceCode,
           name: produce?.name ?? r.produceCode,
           unit: unit?.symbol ?? '',
+          unitBn: unit?.symbolBn ?? '',
         },
         quantity: r.quantity,
         originalQuantity: r.originalQuantity,

@@ -61,6 +61,7 @@ import {
 } from './market-utils';
 import { ListingStatus } from './status';
 import { HistoryButton } from '@/features/audit/history-button';
+import { useUnit } from '@/i18n/use-unit';
 
 type Move = 'offer' | 'approve' | 'reject' | 'cancel';
 
@@ -206,7 +207,9 @@ function Photos({ listing: l }: { listing: ListingDto }) {
           </>
         )}
         {l.description && (
-          <p className="whitespace-pre-line">{l.description}</p>
+          <p translate="no" className="whitespace-pre-line">
+            {l.description}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -573,6 +576,7 @@ function OfferDialog({
   listing: ListingDto;
   onClose: () => void;
 }) {
+  const unitWord = useUnit();
   const { t } = useTranslation();
   const fmt = useFormat();
   const fees = useTradeFeesQuery();
@@ -630,7 +634,8 @@ function OfferDialog({
           <div className="grid gap-5 sm:grid-cols-2">
             <Field data-invalid={show('quantity') || undefined}>
               <FieldLabel htmlFor="offer-quantity">
-                {t('market.quantity')} ({l.produce.unit})
+                {t('market.quantity')} (
+                {unitWord(l.produce.unit, l.produce.unitBn)})
               </FieldLabel>
               <Input
                 id="offer-quantity"

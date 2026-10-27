@@ -18,4 +18,8 @@ export class Unit extends CatalogEntry {
   /** Short label shown after numbers, e.g. "kg". */
   @Column({ type: 'varchar', length: 12 })
   symbol: string;
+
+  /** The same in Bengali, e.g. "কেজি". */
+  @Column({ type: 'varchar', length: 12 })
+  symbolBn: string;
 }
