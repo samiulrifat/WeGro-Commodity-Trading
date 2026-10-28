@@ -34,7 +34,7 @@ export function LanguageSwitch({ className }: { className?: string }) {
               if (!active) dispatch(languageChosen(lang));
             }}
             className={cn(
-              'min-h-10 min-w-11 rounded-[calc(var(--radius-md)-2px)] px-3 text-sm font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+              'min-h-11 min-w-11 rounded-[calc(var(--radius-md)-2px)] px-3 text-sm font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
               active
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',

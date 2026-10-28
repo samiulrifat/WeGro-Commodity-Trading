@@ -157,7 +157,7 @@ export function RecordCard({
               href={mapLink(r.location.latitude, r.location.longitude)}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-brand hover:underline"
+              className="inline-flex min-h-11 items-center font-medium text-brand hover:underline"
             >
               {t('farmUpdates.openMap')}
             </a>

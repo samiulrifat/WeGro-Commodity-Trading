@@ -51,8 +51,10 @@ const PEOPLE_ORDER = [
 export function DashboardPage() {
   const { t } = useTranslation();
   const fmt = useFormat();
+  // Fresh on every visit; figures asked for by the page's loader a moment
+  // ago count as fresh.
   const query = useDashboardGetQuery(undefined, {
-    refetchOnMountOrArgChange: true,
+    refetchOnMountOrArgChange: 30,
   });
   const d = query.data?.data;
   return (
@@ -142,8 +144,13 @@ function Section({
   description?: string;
   children: ReactNode;
 }) {
+  // Laid out only once scrolled near: on a phone the page opens with what
+  // is on screen, not the charts below.
   return (
-    <section aria-labelledby={id} className="grid gap-4">
+    <section
+      aria-labelledby={id}
+      className="grid gap-4 [contain-intrinsic-size:auto_480px] [content-visibility:auto]"
+    >
       <div>
         <h2 id={id} className="text-xl font-bold">
           {title}
@@ -165,7 +172,7 @@ function ProjectName({ id, name }: { id: string; name: string }) {
     <Link
       to="/projects/$projectId"
       params={{ projectId: id }}
-      className="font-semibold hover:underline"
+      className="inline-flex min-h-11 items-center font-semibold hover:underline"
     >
       {name}
     </Link>

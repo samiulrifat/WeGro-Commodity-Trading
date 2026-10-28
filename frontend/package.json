@@ -18,7 +18,8 @@
     "test": "vitest run",
     "api:check": "npm run api:generate && git diff --exit-code -- src/api/generated",
     "i18n:review": "node scripts/translation-review.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:speed": "vite build && E2E_SPEED=1 playwright test speed"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

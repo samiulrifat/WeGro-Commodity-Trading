@@ -132,7 +132,7 @@ export function ProjectCard({
           )}
           <FavouriteButton
             project={project}
-            className="absolute -right-2 -bottom-2 z-10 size-9 rounded-full border bg-card shadow-xs"
+            className="absolute -right-2 -bottom-2 z-10 size-11 rounded-full border bg-card shadow-xs"
           />
         </div>
         <div className="grid min-w-0 flex-1 content-start gap-1.5">

@@ -156,7 +156,7 @@ function JobCard({ job: j }: { job: JobStatusDto }) {
         <Link
           to="/system/jobs/$name"
           params={{ name: j.name }}
-          className="inline-flex min-h-9 items-center px-2 text-sm font-semibold text-brand hover:underline"
+          className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-brand hover:underline"
         >
           {t('system.pastRuns')}
         </Link>

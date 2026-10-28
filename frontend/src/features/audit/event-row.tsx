@@ -42,7 +42,7 @@ export function EventRow({
                 key={`${r.type}:${r.id}`}
                 to="/audit/history/$type/$id"
                 params={{ type: r.type, id: r.id }}
-                className="rounded-full border bg-card px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                className="inline-flex min-h-11 items-center rounded-full border bg-card px-3 text-xs font-medium hover:bg-muted"
               >
                 {words.recordType(r.type)} {shortId(r.type, r.id)}
               </Link>

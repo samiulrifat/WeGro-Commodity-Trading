@@ -176,7 +176,7 @@ export function DetailChangeReview({ id }: { id: string }) {
   const back = (
     <Link
       to="/people/changes"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft className="size-4" /> {t('nav.sub.detailChanges')}
     </Link>

@@ -143,7 +143,7 @@ function BankCard({ bank: b, admin }: { bank: BankDto; admin: boolean }) {
                     aria-label={t('trackRecords.removeOfficer', {
                       name: o.name,
                     })}
-                    className="grid size-7 place-items-center rounded-full outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="-my-2 -mr-2 grid size-11 place-items-center rounded-full outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
                     onClick={() => {
                       assign({
                         officerId: o.id,

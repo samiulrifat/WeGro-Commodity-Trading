@@ -87,7 +87,14 @@ export default defineConfig(({ mode }) => {
       // every file runs at once on a busy machine.
       testTimeout: 15_000,
     },
-    server: { port: 5173, strictPort: true, proxy },
+    server: {
+      port: 5173,
+      strictPort: true,
+      proxy,
+      // Playwright writes traces (HTML among them) here while it runs: a
+      // change must not reload the page under test.
+      watch: { ignored: ['**/e2e-results/**', '**/e2e-report/**'] },
+    },
     // `npm run preview`: the production build, offline worker included.
     preview: { port: 4173, strictPort: true, proxy },
   };

@@ -48,7 +48,7 @@ export function BatchPage({ id, base }: { id: string; base: BatchesBase }) {
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
         to={base}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {base === '/batches' ? t('nav.batches') : t('nav.sub.inputBatches')}

@@ -76,7 +76,7 @@ export function ClaimPage({ id }: { id: string }) {
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
         to="/insurance/claims"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t('nav.sub.claims')}
@@ -134,7 +134,7 @@ function Header({ claim: c }: { claim: ClaimDto }) {
         <Link
           to="/insurance/projects/$projectId"
           params={{ projectId: c.project.id }}
-          className="w-fit font-semibold text-white hover:underline"
+          className="inline-flex min-h-11 w-fit items-center font-semibold text-white hover:underline"
         >
           {c.project.name}
         </Link>

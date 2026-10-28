@@ -64,7 +64,7 @@ export function RoundPage({ id }: { id: number }) {
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
         to="/payouts"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t('nav.sub.payoutRounds')}
@@ -123,7 +123,7 @@ function Header({ round: r }: { round: RoundDto }) {
         <Link
           to="/payouts/projects/$projectId"
           params={{ projectId: r.project.id }}
-          className="w-fit font-semibold text-white hover:underline"
+          className="inline-flex min-h-11 w-fit items-center font-semibold text-white hover:underline"
         >
           {r.project.name}
         </Link>

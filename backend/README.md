@@ -212,6 +212,7 @@ Every setting is in [`.env.example`](.env.example) with its default and what it 
 | `INDEXER_CONFIRMATIONS` | A chain without instant finality: stay this many blocks behind |
 | `KEY_FUNDING_WEI` | `0` on a network with free gas |
 | `EXPIRY_SWEEP_MS`, `REMINDER_SWEEP_MS`, `WATCHDOG_*` | How often the background jobs run |
+| `THROTTLE_LIMIT`, `AUTH_THROTTLE_LIMIT` | Requests a minute per address, overall (100) and for sign-in, codes and password changes (10). See [Rate limits and compression](#rate-limits-and-compression) |
 
 ## Data tools
 
@@ -294,6 +295,12 @@ The super admin, admins and auditors see each job's state and recent runs at `GE
 - `GET /api/audit/history/:type/:id` gives a record's full ledger history with who sent each transaction.
 - `GET /api/audit/events` lists ledger activity newest first (staff), filtered to one kind of record (`type`) or one record by its number or id (`q`, of any kind when no type is given); each event lists the records it names.
 - `GET /api/audit/log` lists every write request: who, which route (`route` finds that route or any under it), the outcome. Entries cannot be changed or deleted, and a request the client abandoned is logged as `aborted`.
+
+### Rate limits and compression
+
+Each address may send `THROTTLE_LIMIT` requests a minute (100 by default), and `AUTH_THROTTLE_LIMIT` (10) to the routes that take a password or a code: sign-in, demo sign-in, password change and reset, email codes. Renewing a session (`POST /api/auth/refresh`) is not among them: a refresh token is a 256-bit secret, not something to guess, and every app load and renewal calls it. In Bangladesh many phones reach the internet through one carrier address, so before going live, put the app behind a proxy that passes the real client address (and set Express's `trust proxy`), and choose limits for the traffic expected.
+
+Answers are gzip-compressed (JSON shrinks 5 to 10 times, which matters on phones), except sign-in and session answers under `/api/auth/`: they carry tokens, and compressing secrets next to what a request sends can let their length give them away (BREACH).
 
 ## Tests
 

@@ -79,7 +79,7 @@ export function ListingPage({ id }: { id: number }) {
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
         to={seller ? '/marketplace/mine' : '/marketplace'}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {seller ? t('nav.sub.myListings') : t('nav.sub.listings')}

@@ -36,10 +36,10 @@ export function renewSession(): Promise<boolean> {
         method: 'POST',
         credentials: 'same-origin',
       });
-      if (!res.ok) {
-        hooks?.onEnded();
-        return false;
-      }
+      // Only a refusal ends the session; too many requests or a server
+      // error keeps it, as being offline does, to be tried again.
+      if (res.status === 401) hooks?.onEnded();
+      if (!res.ok) return false;
       const body = (await res.json()) as { data: TokenResponseDto };
       hooks?.onRenewed(body.data);
       return true;

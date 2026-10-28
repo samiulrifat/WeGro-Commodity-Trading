@@ -35,7 +35,7 @@ export function SectionTabs({ className }: { className?: string }) {
               activeOptions={{ exact: true }}
               activeProps={{}}
               className={cn(
-                'flex min-h-10 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                'flex min-h-11 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                 current === page &&
                   'bg-nav-active text-nav-active-foreground shadow-sm',
               )}

@@ -224,7 +224,7 @@ function LogRow({
           <button
             type="button"
             onClick={() => onActor(e.actor!)}
-            className="font-medium text-foreground hover:underline"
+            className="inline-flex min-h-11 items-center font-medium text-foreground hover:underline"
           >
             {words.actor(e.actor.name, e.actor.role)}
           </button>

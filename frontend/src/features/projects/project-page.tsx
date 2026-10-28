@@ -36,7 +36,7 @@ export function ProjectPage({ id }: { id: string }) {
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
         to="/projects"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t('nav.projects')}

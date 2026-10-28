@@ -78,8 +78,11 @@ export class AuthController {
     );
   }
 
+  // Not under the sign-in limit: a refresh token is a 256-bit secret, not a
+  // password to guess, and every app load and renewal calls this. Many
+  // phones share one address behind a mobile carrier, so 10 a minute per
+  // address would sign people out at random.
   @Public()
-  @AuthThrottle()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiCookieAuth(REFRESH_COOKIE)

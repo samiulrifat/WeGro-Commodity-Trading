@@ -102,7 +102,7 @@ function QueueCard({ queue: q }: { queue: Known }) {
       )}
       <ul className="divide-y">
         {q.oldest.map((item) => (
-          <li key={item.id} className="py-2">
+          <li key={item.id} className="py-1">
             <QueueItem queueKey={q.key} item={item} />
           </li>
         ))}
@@ -111,7 +111,7 @@ function QueueCard({ queue: q }: { queue: Known }) {
         <Link
           to={list.to as never}
           search={list.search as never}
-          className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+          className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
         >
           {more > 0
             ? t('dashboard.openAllMore', { n: fmt.number(more), count: more })
@@ -142,7 +142,10 @@ function QueueItem({
   return (
     <div className="grid gap-0.5 text-sm">
       {path && mayOpen(user, path) ? (
-        <Link to={path as never} className="font-medium hover:underline">
+        <Link
+          to={path as never}
+          className="inline-flex min-h-11 items-center font-medium hover:underline"
+        >
           {line}
         </Link>
       ) : (

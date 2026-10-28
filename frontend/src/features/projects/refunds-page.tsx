@@ -115,7 +115,7 @@ function BookingRefunds({
                 <Link
                   to="/people/$personId"
                   params={{ personId: p.investor.id }}
-                  className="font-semibold hover:underline"
+                  className="inline-flex min-h-11 items-center font-semibold hover:underline"
                 >
                   {p.investor.fullName}
                 </Link>
@@ -208,7 +208,7 @@ function ProjectRefunds({ project: p }: { project: ProjectDto }) {
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
-          className="font-semibold hover:underline"
+          className="inline-flex min-h-11 items-center font-semibold hover:underline"
         >
           {p.title}
         </Link>

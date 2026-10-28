@@ -46,7 +46,7 @@ export function BankViewPage({ farmerId }: { farmerId: string }) {
     <div className="grid gap-6">
       <Link
         to="/bank/farmers"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {t('nav.farmers')}

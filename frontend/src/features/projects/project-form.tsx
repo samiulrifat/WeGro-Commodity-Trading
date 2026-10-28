@@ -269,7 +269,7 @@ function ProjectForm({ project }: { project: ProjectDto | null }) {
       <Link
         to={project ? '/projects/$projectId' : '/projects/drafts'}
         params={project ? { projectId: project.id } : undefined}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         {project ? project.title : t('nav.sub.drafts')}

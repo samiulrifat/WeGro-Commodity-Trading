@@ -53,7 +53,17 @@ async function tellServer(): Promise<boolean> {
  * Without a connection the app opens for the person who last signed in on
  * this device ("offline"), or, if nobody is, says so.
  */
-export async function ensureSession(store: AppStore): Promise<void> {
+export function ensureSession(store: AppStore): Promise<void> {
+  // Asked at start-up and again by the page guard: one check serves both.
+  checking ??= checkSession(store).finally(() => {
+    checking = null;
+  });
+  return checking;
+}
+
+let checking: Promise<void> | null = null;
+
+async function checkSession(store: AppStore): Promise<void> {
   if (store.getState().session.status !== 'unknown') return;
   if (storage.get(SIGN_OUT_PENDING)) {
     // A sign-out made offline is finished before anything else.

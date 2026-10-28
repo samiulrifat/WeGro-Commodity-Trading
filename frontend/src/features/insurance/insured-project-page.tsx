@@ -71,7 +71,7 @@ export function InsuredProjectPage({ projectId }: { projectId: string }) {
   const back = (
     <Link
       to={listsProjects ? '/insurance' : '/insurance/claims'}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft className="size-4" />
       {listsProjects ? t('nav.sub.insuredProjects') : t('nav.sub.claims')}
@@ -140,7 +140,7 @@ function Header({ coverage: c }: { coverage: CoverageDto }) {
         <Link
           to="/projects/$projectId"
           params={{ projectId: c.projectId }}
-          className="inline-flex w-fit items-center gap-1.5 font-semibold text-white hover:underline"
+          className="inline-flex min-h-11 w-fit items-center gap-1.5 font-semibold text-white hover:underline"
         >
           <ExternalLink className="size-4" /> {t('insurance.openProject')}
         </Link>

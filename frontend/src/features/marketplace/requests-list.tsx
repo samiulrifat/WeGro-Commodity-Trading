@@ -230,7 +230,7 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
                   <Link
                     to="/marketplace/listings/$listingId"
                     params={{ listingId: String(m.id) }}
-                    className="inline-flex min-h-9 items-center rounded-full border px-3 text-sm hover:bg-muted"
+                    className="inline-flex min-h-11 items-center rounded-full border px-3 text-sm hover:bg-muted"
                   >
                     {t('market.listingNumber', { id: m.id })} ·{' '}
                     {t('market.perUnit', {

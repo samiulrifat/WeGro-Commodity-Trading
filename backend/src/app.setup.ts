@@ -6,6 +6,7 @@ import {
   type OpenAPIObject,
   SwaggerModule,
 } from '@nestjs/swagger';
+import compression from 'compression';
 import helmet from 'helmet';
 import { InputValidationPipe } from './common/errors/validation';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -39,6 +40,16 @@ export function configureApp(app: INestApplication): void {
             },
           }
         : undefined,
+    }),
+  );
+  // JSON shrinks 5 to 10 times: much of the wait on a phone on 4G. Not for
+  // sign-in and session answers, which carry tokens (compressing secrets
+  // next to what a request sends lets their length give them away: BREACH).
+  app.use(
+    compression({
+      filter: (req, res) =>
+        !req.url.startsWith(`/${API_PREFIX}/auth/`) &&
+        compression.filter(req, res),
     }),
   );
   app.enableCors({

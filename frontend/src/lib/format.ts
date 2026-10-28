@@ -46,11 +46,21 @@ export function formatNumber(
     return localDigits(text, lang);
   }
   if (!Number.isFinite(value)) return '—';
-  const text = new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: decimals ?? 2,
-    minimumFractionDigits: decimals ?? 0,
-  }).format(value);
-  return localDigits(text, lang);
+  return localDigits(numberFormat(decimals).format(value), lang);
+}
+
+// A formatter is slow to make and quick to use: one per setting, kept.
+const numberFormats = new Map<number | undefined, Intl.NumberFormat>();
+function numberFormat(decimals: number | undefined): Intl.NumberFormat {
+  let f = numberFormats.get(decimals);
+  if (!f) {
+    f = new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: decimals ?? 2,
+      minimumFractionDigits: decimals ?? 0,
+    });
+    numberFormats.set(decimals, f);
+  }
+  return f;
 }
 
 const TAKA = '৳ ';
@@ -218,13 +228,23 @@ export function formatRelative(
   if (Number.isNaN(ms)) return '—';
   const seconds = Math.round((ms - now) / 1000);
   if (Math.abs(seconds) >= 7 * 86_400) return formatDate(value, lang);
-  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  const rtf = relativeFormat(lang);
   for (const [unit, size] of RELATIVE) {
     if (Math.abs(seconds) >= size) {
       return localDigits(rtf.format(Math.trunc(seconds / size), unit), lang);
     }
   }
   return localDigits(rtf.format(0, 'second'), lang);
+}
+
+const relativeFormats = new Map<Language, Intl.RelativeTimeFormat>();
+function relativeFormat(lang: Language): Intl.RelativeTimeFormat {
+  let f = relativeFormats.get(lang);
+  if (!f) {
+    f = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+    relativeFormats.set(lang, f);
+  }
+  return f;
 }
 
 /** Today in Bangladesh, as a date field takes it (YYYY-MM-DD). */

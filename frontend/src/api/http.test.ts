@@ -103,6 +103,14 @@ describe('apiFetch', () => {
     expect(ended).not.toHaveBeenCalled();
   });
 
+  it('keeps the session when the server is busy or failing', async () => {
+    for (const status of [429, 500, 503]) {
+      refreshAnswer = () => json(status, { statusCode: status });
+      await expect(renewSession()).resolves.toBe(false);
+    }
+    expect(ended).not.toHaveBeenCalled();
+  });
+
   it('does not renew for a wrong password, or when signed out', async () => {
     await call('/api/auth/login', { method: 'POST', body: '{}' });
     token = null;

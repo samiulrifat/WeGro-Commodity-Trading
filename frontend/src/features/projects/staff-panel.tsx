@@ -260,7 +260,7 @@ function Holders({ project: p }: { project: ProjectDto }) {
                 <Link
                   to="/people/$personId"
                   params={{ personId: h.investor.id }}
-                  className="font-medium hover:underline"
+                  className="inline-flex min-h-11 items-center font-medium hover:underline"
                 >
                   {h.investor.fullName}
                 </Link>
