@@ -46,6 +46,7 @@
   --wegro-red-500: #e6483f; /* product red: decoration only, 3.9:1 */
   --wegro-red-600: #e22d22; /* text and buttons, 4.5:1 */
   --wegro-red-700: #cf251b; /* text on red-50, 4.7:1 */
+  --wegro-red-800: #b81f16; /* text on red tints, 4.8:1 even at hover */
 
   /* Neutrals */
   --wegro-navy-900: #0e192b; /* titles and body text, 17.6:1 */
@@ -72,6 +73,7 @@
   --accent: var(--wegro-green-50);
   --accent-foreground: var(--wegro-green-800);
   --destructive: var(--wegro-red-600);
+  --destructive-on-soft: var(--wegro-red-800);
   --border: var(--wegro-grey-200);
   --input: #d5d9dd;
   --ring: var(--wegro-leaf-500);
@@ -81,7 +83,7 @@
   --success: var(--wegro-green-700);
   --success-soft: var(--wegro-green-50);
   --warning: var(--wegro-amber-700);
-  --warning-strong: var(--wegro-amber-600);
+  --warning-strong: var(--wegro-amber-600); /* large bold figures only (3:1) */
   --warning-soft: var(--wegro-amber-50);
   --warning-on-soft: var(--wegro-amber-800);
   --danger: var(--wegro-red-600);
@@ -160,6 +162,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-on-soft: var(--destructive-on-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);

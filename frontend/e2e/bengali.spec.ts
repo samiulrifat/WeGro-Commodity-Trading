@@ -1,12 +1,10 @@
 import { en } from '../src/i18n/en';
 import {
+  everyPage,
   expect,
-  go,
-  pagesOf,
-  type Role,
+  ROLES,
   signInAs,
   SUPER_ADMIN,
-  switchLanguage,
   test,
 } from './support';
 
@@ -15,22 +13,6 @@ import {
  * and no string from the English dictionary may show, and nothing may
  * scroll sideways. People's and projects' own names are theirs and stay.
  */
-const ROLES: Role[] = [
-  'super_admin',
-  'admin',
-  'operations',
-  'accounts',
-  'auditor',
-  'field_officer',
-  'farmer',
-  'investor',
-  'buyer',
-  'seller',
-  'supplier',
-  'warehouse',
-  'insurer',
-  'bank',
-];
 
 /** Every English string the app has, as written (with no values to fill). */
 function englishStrings(tree: object, out = new Set<string>()): Set<string> {
@@ -55,32 +37,9 @@ for (const role of ROLES) {
       role === 'super_admin' && !SUPER_ADMIN.password,
       'Set E2E_SUPER_ADMIN_PASSWORD to include the super admin',
     );
-    await signInAs(page, role);
-    await switchLanguage(page, 'bn');
+    await signInAs(page, role, 'bn');
     const problems: string[] = [];
-    // The menu's pages, then one record of each kind found linked from them
-    // (a project, a deal, a receipt…), so record pages are read too.
-    const seen = new Set<string>();
-    const queue = pagesOf(role);
-    for (let i = 0; i < queue.length; i++) {
-      const path = queue[i]!;
-      await go(page, path);
-      if (i < pagesOf(role).length) {
-        const links = await page
-          .locator('main a[href^="/"]')
-          .evaluateAll((as) => as.map((a) => a.getAttribute('href') ?? ''));
-        for (const href of links) {
-          const kind = href
-            .split('?')[0]!
-            .replace(/\/(0x)?[0-9a-f-]{8,}|\/\d+(?=\/|$)/gi, '/:id');
-          if (kind.includes(':id') && !seen.has(kind)) {
-            seen.add(kind);
-            queue.push(href);
-          }
-        }
-      }
-      // Let lists and charts settle.
-      await page.waitForTimeout(400);
+    await everyPage(page, role, async (path) => {
       const texts = await page.locator('body').evaluate((body) => {
         const out: string[] = [];
         const walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
@@ -112,7 +71,7 @@ for (const role of ROLES) {
         () => document.documentElement.scrollWidth > window.innerWidth + 1,
       );
       if (wide) problems.push(`${path}: scrolls sideways`);
-    }
+    });
     expect(problems).toEqual([]);
   });
 }

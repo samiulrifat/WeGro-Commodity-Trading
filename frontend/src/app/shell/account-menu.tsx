@@ -36,11 +36,11 @@ export function AccountMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={t('shell.account')}
-        className="flex min-h-11 items-center gap-2 rounded-md px-1.5 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <Avatar>
+      {/* Named "Account" and then the name and role shown, so what is heard
+          holds what is seen. */}
+      <DropdownMenuTrigger className="flex min-h-11 items-center gap-2 rounded-md px-1.5 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
+        <span className="sr-only">{t('shell.account')}</span>
+        <Avatar aria-hidden>
           <AvatarFallback className="bg-brand text-brand-foreground font-bold">
             {name ? initials(name) : <UserRound className="size-4" />}
           </AvatarFallback>

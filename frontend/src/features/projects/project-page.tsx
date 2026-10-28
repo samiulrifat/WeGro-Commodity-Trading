@@ -227,7 +227,7 @@ function Funding({ project: p }: { project: ProjectDto }) {
             {' · '}
             {t('projects.investors', { count: p.investorCount })}
           </span>
-          <span className="inline-flex items-center gap-1 font-semibold text-warning-strong">
+          <span className="inline-flex items-center gap-1 font-semibold text-warning">
             <Flame aria-hidden className="size-4" />
             {t('projects.unitsLeft', { count: p.availableSlots })}
           </span>

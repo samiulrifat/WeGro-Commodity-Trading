@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 import { toApiError } from '@/api/errors';
 import type { District } from '@/api/generated/codes';
 import {
@@ -154,9 +155,17 @@ export function PersonPage({ id }: { id: string }) {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="grid gap-0.5">
+    <div className={cn('grid gap-0.5', className)}>
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="font-medium break-words">{children}</dd>
     </div>
@@ -192,9 +201,9 @@ function DetailsCard({ person }: { person: ParticipantDetailDto }) {
               ? t(`districts.${person.district as District}`)
               : '—'}
           </Row>
-          <div className="sm:col-span-2">
-            <Row label={t('person.address')}>{shown(person.address)}</Row>
-          </div>
+          <Row label={t('person.address')} className="sm:col-span-2">
+            {shown(person.address)}
+          </Row>
         </dl>
       </CardContent>
     </Card>

@@ -195,7 +195,7 @@ function Item({ n }: { n: NotificationDto }) {
         className={cn(
           'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full',
           n.category === 'action'
-            ? 'bg-warning/15 text-warning-strong'
+            ? 'bg-warning/15 text-warning'
             : n.category === 'reminder'
               ? 'bg-danger/10 text-danger'
               : 'bg-brand/10 text-brand',

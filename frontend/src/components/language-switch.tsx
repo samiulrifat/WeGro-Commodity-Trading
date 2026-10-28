@@ -29,7 +29,6 @@ export function LanguageSwitch({ className }: { className?: string }) {
             key={lang}
             type="button"
             lang={lang}
-            aria-label={LANGUAGE_NAMES[lang]}
             aria-pressed={active}
             onClick={() => {
               if (!active) dispatch(languageChosen(lang));
@@ -42,6 +41,10 @@ export function LanguageSwitch({ className }: { className?: string }) {
             )}
           >
             {SHORT[lang]}
+            {/* Heard as "EN, English": the name must hold the words shown. */}
+            {SHORT[lang] !== LANGUAGE_NAMES[lang] && (
+              <span className="sr-only">, {LANGUAGE_NAMES[lang]}</span>
+            )}
           </button>
         );
       })}

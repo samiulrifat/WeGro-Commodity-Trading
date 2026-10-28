@@ -2515,8 +2515,8 @@ export const en = {
     descriptionHint: 'Variety, condition, packing, when it can be picked up.',
     photos: 'Photos',
     addPhoto: 'Add Photo',
-    removePhoto: 'Remove photo',
-    photoFailed: 'Not sent',
+    removePhoto: 'Remove Photo',
+    photoFailed: 'Not Sent',
     photosHint_one: 'One clear photo of the produce.',
     photosHint_other: 'One to {{count, number}} clear photos of the produce.',
     sellerFeeNote:
