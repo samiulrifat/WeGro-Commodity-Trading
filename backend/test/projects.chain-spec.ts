@@ -178,6 +178,22 @@ describe('Projects (node + database)', () => {
         .patch(`/projects/${projectId}`, { fundingTarget: '200000' })
         .expect(200);
     });
+
+    it('deletes a draft nobody needs, and answers 404 after', async () => {
+      const spare = (await as(admin).post('/projects', draft()).expect(201))
+        .body.data.id;
+      const cover = await as(admin).get(`/projects/${spare}/cover`).expect(404);
+      expect(cover.body.code).toBe('PHOTO_NOT_FOUND');
+      const noFile = await as(admin)
+        .post(`/projects/${spare}/cover`)
+        .expect(400);
+      expect(noFile.body.code).toBe('PHOTO_FIELD_MISSING');
+      await as(investor).delete(`/projects/${spare}`).expect(403);
+      await as(admin).delete(`/projects/${spare}`).expect(204);
+      const gone = await as(admin).get(`/projects/${spare}`).expect(404);
+      expect(gone.body.code).toBe('PROJECT_NOT_FOUND');
+      await as(admin).delete(`/projects/${spare}`).expect(404);
+    });
   });
 
   describe('publishing', () => {
@@ -219,6 +235,17 @@ describe('Projects (node + database)', () => {
         ledgerStage: 'open_for_funding',
       });
       await as(investor).get(`/projects/${projectId}/integrity`).expect(403);
+      // Units sold changed behind the ledger's back: named, then put back.
+      await db.query('UPDATE projects SET issued_slots = 7 WHERE id = $1', [
+        projectId,
+      ]);
+      const tampered = await as(auditor)
+        .get(`/projects/${projectId}/integrity`)
+        .expect(200);
+      expect(tampered.body.data.mismatches).toContain('issuedSlots');
+      await db.query('UPDATE projects SET issued_slots = 0 WHERE id = $1', [
+        projectId,
+      ]);
     });
 
     it('is visible to investors, buyers and its farmer now, and filterable', async () => {
@@ -232,6 +259,18 @@ describe('Projects (node + database)', () => {
       expect(filtered.body.data.map((p: { id: string }) => p.id)).toContain(
         projectId,
       );
+      // Staff narrow it to one farmer's projects.
+      const hers = await as(admin)
+        .get(`/projects?farmerId=${farmerId}&limit=100`)
+        .expect(200);
+      expect(hers.body.data.map((p: { id: string }) => p.id)).toContain(
+        projectId,
+      );
+      expect(
+        hers.body.data.every(
+          (p: { farmer: { id: string } }) => p.farmer.id === farmerId,
+        ),
+      ).toBe(true);
       const none = await as(investor)
         .get('/projects?produceCode=ONION')
         .expect(200);
@@ -315,6 +354,19 @@ describe('Projects (node + database)', () => {
       await as(accounts)
         .post(`/reservations/${first}/confirm`, { paymentReference: 'Y' })
         .expect(409);
+      // Staff find bookings by the investor's name.
+      const found = await as(accounts)
+        .get(`/reservations?projectId=${projectId}&q=Investor`)
+        .expect(200);
+      expect(found.body.data.map((r: { id: number }) => r.id)).toContain(first);
+      for (const req of [
+        as(investor).get('/reservations/999999'),
+        as(accounts).post('/reservations/999999/confirm', {
+          paymentReference: `NONE-${RUN}`,
+        }),
+      ]) {
+        expect((await req.expect(404)).body.code).toBe('RESERVATION_NOT_FOUND');
+      }
     });
 
     it('never accepts the same payment reference twice', async () => {
@@ -487,6 +539,26 @@ describe('Projects (node + database)', () => {
           paymentReference: ref('REFUND-80'),
         })
         .expect(403);
+    });
+
+    it("lists the investor's projects without payouts by name, each with a row", async () => {
+      const statement = await as(investor).get('/me/statement').expect(200);
+      const names = statement.body.data.projects.map(
+        (p: { project: { name: string } }) => p.project.name,
+      );
+      expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+      expect(names).toEqual(
+        expect.arrayContaining([
+          'Bogura maize, rabi season',
+          'Onion, to be cancelled',
+        ]),
+      );
+      const csv = (await as(investor).get('/me/statement.csv').expect(200))
+        .text;
+      const onion = csv
+        .split('\r\n')
+        .filter((r) => r.includes('Onion, to be cancelled'));
+      expect(onion).toHaveLength(1);
     });
 
     it('shows the project timeline from the ledger, in order', async () => {

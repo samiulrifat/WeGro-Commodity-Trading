@@ -84,7 +84,7 @@ export function shortId(type: string, id: string): string {
   return id.slice(0, 8);
 }
 
-/** "SlotsReserved" -> "Slots reserved": for a name the app has no words for. */
+/** "SlotsReserved" -> "Slots Reserved": for a name the app has no words for. */
 export const humanize = (name: string) =>
   name
     .replace(/([a-z])([A-Z])/g, '$1 $2')

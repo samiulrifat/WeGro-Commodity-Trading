@@ -119,13 +119,15 @@ describe('VouchersService', () => {
         Promise.resolve({ status: opts.onLedger ?? 0n }),
       ),
     };
+    const built: ReturnType<typeof fakeQueryBuilder>[] = [];
     const vouchers = fakeRepo({
       findOneBy: jest.fn(() => Promise.resolve(voucher)),
       findOneByOrFail: jest.fn(() => Promise.resolve(voucher)),
       find: jest.fn(() => Promise.resolve(voucher ? [voucher] : [])),
-      createQueryBuilder: jest.fn(
-        () => fakeQueryBuilder({ getOne: voucher }).qb,
-      ),
+      createQueryBuilder: jest.fn(() => {
+        built.push(fakeQueryBuilder({ getOne: voucher }));
+        return built[built.length - 1].qb;
+      }),
     });
     const service = new VouchersService(
       dataSource as never,
@@ -164,7 +166,7 @@ describe('VouchersService', () => {
       fakeClock(NOW) as never,
       { condition: () => null } as never,
     );
-    return { service, chain, inserted, deleted, vouchers };
+    return { service, chain, inserted, deleted, vouchers, built };
   };
 
   describe('proposing', () => {
@@ -397,5 +399,10 @@ describe('VouchersService', () => {
     await expect(
       service.setInactivityLimit(operations, VOUCHER, 7),
     ).rejects.toThrow('Limits apply only to proposed or active vouchers');
+  });
+  it('shows no vouchers to a role with no part in them', async () => {
+    const { service, built } = build();
+    await service.list(actor(Role.INVESTOR), { skip: 0, limit: 20 } as never);
+    expect(built[0].wheres()).toContain('FALSE');
   });
 });

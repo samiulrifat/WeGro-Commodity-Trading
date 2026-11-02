@@ -4,7 +4,7 @@ import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
 import {
   bytes32ToCode,
-  bytes32ToUuid,
+  bytes32ToUuidOrNull,
   ZERO_BYTES32,
 } from '../../blockchain/utils/ids';
 import { WEGRO_OWNER } from '../warehouse/warehouse.enums';
@@ -67,7 +67,7 @@ export class TradeLedgerSync implements OnModuleInit {
       case 'ListingCreated': {
         if (a.projectId === ZERO_BYTES32) {
           // An external seller's own produce: no project, waiting for an admin.
-          const sellerId = toUuid(a.seller);
+          const sellerId = bytes32ToUuidOrNull(a.seller);
           if (!sellerId) return;
           await m.query(
             `INSERT INTO "listings" ("id", "project_id", "farmer_id", "receipt_id", "seller_is_wegro", "seller_id",
@@ -86,10 +86,10 @@ export class TradeLedgerSync implements OnModuleInit {
           );
           return;
         }
-        const projectId = toUuid(a.projectId);
+        const projectId = bytes32ToUuidOrNull(a.projectId);
         if (!projectId) return;
         const wegro = a.seller === WEGRO_OWNER;
-        const sellerId = wegro ? null : toUuid(a.seller);
+        const sellerId = wegro ? null : bytes32ToUuidOrNull(a.seller);
         if (!wegro && !sellerId) return;
         await m.query(
           `INSERT INTO "listings" ("id", "project_id", "farmer_id", "receipt_id", "seller_is_wegro", "seller_id",
@@ -165,7 +165,7 @@ export class TradeLedgerSync implements OnModuleInit {
         return;
 
       case 'OfferMade': {
-        const buyerId = toUuid(a.buyerId);
+        const buyerId = bytes32ToUuidOrNull(a.buyerId);
         if (!buyerId) return;
         await m.query(
           `INSERT INTO "offers" ("id", "listing_id", "buyer_id", "quantity", "unit_price", "status", "made_at")
@@ -263,7 +263,7 @@ export class TradeLedgerSync implements OnModuleInit {
             side,
             String(a.quantity),
             String(a.qualityHash),
-            toUuid(a.confirmedBy),
+            bytes32ToUuidOrNull(a.confirmedBy),
             when,
           ],
         );
@@ -278,7 +278,7 @@ export class TradeLedgerSync implements OnModuleInit {
         return;
 
       case 'RequestPosted': {
-        const buyerId = toUuid(a.buyerId);
+        const buyerId = bytes32ToUuidOrNull(a.buyerId);
         if (!buyerId) return;
         await m.query(
           `INSERT INTO "buyer_requests" ("id", "buyer_id", "produce_code", "quantity", "max_unit_price", "valid_until", "status", "posted_at")
@@ -330,13 +330,5 @@ export class TradeLedgerSync implements OnModuleInit {
     return rows[0]
       ? { listingId: Number(rows[0].listing_id), quantity: rows[0].quantity }
       : null;
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }

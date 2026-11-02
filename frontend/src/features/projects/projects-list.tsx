@@ -89,9 +89,12 @@ export function ProjectsList({
     role === 'investor'
       ? ['all', 'long_term', 'short_term', 'saved']
       : ['all', 'long_term', 'short_term'];
-  const filtered = Boolean(
-    search.q || search.stage || search.produce || search.district || search.tab,
+  const narrowed = Boolean(
+    search.q || search.stage || search.produce || search.district,
   );
+  // Saved on its own is the investor's list, not a search that found nothing.
+  const savedOnly = search.tab === 'saved' && !narrowed;
+  const filtered = !savedOnly && (narrowed || Boolean(search.tab));
   const meta = query.data?.meta;
 
   return (
@@ -152,12 +155,12 @@ export function ProjectsList({
         <EmptyState
           icon={Sprout}
           title={
-            filtered
-              ? t('projects.noMatch')
-              : drafts
-                ? t('projects.noDrafts')
-                : search.tab === 'saved'
-                  ? t('projects.noneSaved')
+            savedOnly
+              ? t('projects.noneSaved')
+              : filtered
+                ? t('projects.noMatch')
+                : drafts
+                  ? t('projects.noDrafts')
                   : t('projects.none')
           }
           description={filtered ? t('projects.noMatchHint') : undefined}

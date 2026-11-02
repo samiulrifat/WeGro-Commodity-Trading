@@ -11,9 +11,5 @@ const subscribe = (onChange: () => void) => {
 
 /** Whether the device has a connection right now. */
 export function useOnline(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => navigator.onLine,
-    () => true,
-  );
+  return useSyncExternalStore(subscribe, () => navigator.onLine);
 }

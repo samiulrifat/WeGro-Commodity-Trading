@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { bytes32ToUuid } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull } from '../../blockchain/utils/ids';
 import { Project } from './entities/project.entity';
 import { Refund } from './entities/refund.entity';
 import { Reservation } from './entities/reservation.entity';
@@ -99,7 +99,7 @@ export class ProjectLedgerSync implements OnModuleInit {
     const when = event.blockTime ?? new Date();
     switch (event.eventName) {
       case 'ProjectCreated': {
-        const id = toUuid(a.projectId);
+        const id = bytes32ToUuidOrNull(a.projectId);
         if (!id) return;
         const project = await m.findOne(Project, {
           where: { id },
@@ -123,7 +123,7 @@ export class ProjectLedgerSync implements OnModuleInit {
       }
 
       case 'ProjectStageChanged': {
-        const id = toUuid(a.projectId);
+        const id = bytes32ToUuidOrNull(a.projectId);
         const stage = STAGE_BY_CHAIN[Number(a.newStage)];
         if (!id || !stage) return;
         const patch: Partial<Project> = { stage, stageChangedAt: when };
@@ -158,8 +158,8 @@ export class ProjectLedgerSync implements OnModuleInit {
 
       case 'SlotsReserved': {
         const id = Number(a.reservationId);
-        const projectId = toUuid(a.projectId);
-        const investorId = toUuid(a.investorId);
+        const projectId = bytes32ToUuidOrNull(a.projectId);
+        const investorId = bytes32ToUuidOrNull(a.investorId);
         if (!projectId || !investorId) return;
         const slots = Number(a.slots);
         // New row, or a row waiting for replay: either way it becomes pending
@@ -200,7 +200,7 @@ export class ProjectLedgerSync implements OnModuleInit {
               reservedSlots: () => `"reserved_slots" - ${slots}`,
               issuedSlots: () => `"issued_slots" + ${slots}`,
             })
-            .where('id = :id', { id: toUuid(a.projectId) })
+            .where('id = :id', { id: bytes32ToUuidOrNull(a.projectId) })
             .execute();
         }
         return;
@@ -221,7 +221,7 @@ export class ProjectLedgerSync implements OnModuleInit {
         if (slots !== null) {
           await m.decrement(
             Project,
-            { id: toUuid(a.projectId)! },
+            { id: bytes32ToUuidOrNull(a.projectId)! },
             'reservedSlots',
             slots,
           );
@@ -264,7 +264,7 @@ export class ProjectLedgerSync implements OnModuleInit {
       }
 
       case 'RefundsRequired': {
-        const id = toUuid(a.projectId);
+        const id = bytes32ToUuidOrNull(a.projectId);
         if (id)
           await m.update(
             Project,
@@ -275,8 +275,8 @@ export class ProjectLedgerSync implements OnModuleInit {
       }
 
       case 'RefundRecorded': {
-        const projectId = toUuid(a.projectId);
-        const investorId = toUuid(a.investorId);
+        const projectId = bytes32ToUuidOrNull(a.projectId);
+        const investorId = bytes32ToUuidOrNull(a.investorId);
         if (!projectId || !investorId) return;
         const hash = String(a.paymentRefHash);
         const updated = await m.update(
@@ -368,13 +368,5 @@ export class ProjectLedgerSync implements OnModuleInit {
     this.logger.debug(
       `${event.eventName} for project ${id} with no row; ignored`,
     );
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }

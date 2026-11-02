@@ -319,6 +319,20 @@ describe('Field records (node + database)', () => {
       expect(shown.body.data.correctedBy).toEqual([correction.id]);
     });
 
+    it('refuses a correction of nothing, a time before 1970 and an unknown project', async () => {
+      const res = await sync(t.field_officer, [
+        draft({ correctsEntryId: randomUUID() }),
+        draft({ observedAt: '1970-01-01T00:00:00.000Z' }),
+        draft({ projectId: randomUUID() }),
+      ]).expect(200);
+      expect(res.body.data.map((r: { code?: string }) => r.code)).toEqual([
+        'INVALID_RECORD',
+        'INVALID_RECORD',
+        'PROJECT_NOT_FOUND',
+      ]);
+      expect(res.body.data[0].message).toMatch(/correct/i);
+    });
+
     it('enforces the officer, the photo owner and the chain clock', async () => {
       const notMine = await sync(otherOfficer, [draft()]).expect(200);
       expect(notMine.body.data[0].code).toBe('NOT_FARMERS_OFFICER');
@@ -464,6 +478,30 @@ describe('Field records (node + database)', () => {
       expect(await ids(t.auditor, 'maize log')).toContain(growth.id);
       await as(t.investor).get('/field-records').expect(403);
       await as(t.farmer).get('/field-records').expect(403);
+    });
+
+    it('filters by type, and answers 404 for records or photos that are not there', async () => {
+      const irrigation = await as(t.admin)
+        .get('/field-records?limit=100&entryTypeCode=IRRIGATION')
+        .expect(200);
+      const rows = irrigation.body.data as Array<{
+        id: string;
+        entryTypeCode: string;
+      }>;
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((r) => r.entryTypeCode === 'IRRIGATION')).toBe(true);
+      // Irrigation was recorded without a photo.
+      const noPhoto = await as(t.admin)
+        .get(`/field-records/${rows[0].id}/photo`)
+        .expect(404);
+      expect(noPhoto.body.code).toBe('RECORD_HAS_NO_PHOTO');
+      for (const path of [
+        `/field-records/${randomUUID()}`,
+        `/field-records/${randomUUID()}/verify`,
+      ]) {
+        const res = await as(t.auditor).get(path).expect(404);
+        expect(res.body.code).toBe('FIELD_RECORD_NOT_FOUND');
+      }
     });
 
     it('verifies data and photo against the ledger, and catches tampering', async () => {

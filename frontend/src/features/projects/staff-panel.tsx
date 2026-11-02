@@ -198,7 +198,8 @@ function LedgerCheck({ project: p }: { project: ProjectDto }) {
   const { t } = useTranslation();
   const words = useAuditWords();
   const [check, result] = useLazyProjectsIntegrityQuery();
-  const data = result.data?.data;
+  // The latest check's answer only: a failed recheck shows its error alone.
+  const data = result.isError ? undefined : result.data?.data;
   return (
     <Card>
       <CardHeader>

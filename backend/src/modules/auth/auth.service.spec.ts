@@ -40,6 +40,7 @@ describe('AuthService', () => {
             ...opts.user,
           } as User);
     const manager = fakeRepo({
+      findOne: jest.fn(() => Promise.resolve(user)),
       findOneOrFail: jest.fn(() => Promise.resolve(user)),
     });
     manager.transaction = jest.fn((work: (m: unknown) => unknown) =>
@@ -74,6 +75,17 @@ describe('AuthService', () => {
     });
     const tokens = {
       issue: jest.fn(() => Promise.resolve({ accessToken: 'a' })),
+      // Rotation hands the stored session's user to `load`, as the store would.
+      rotate: jest.fn(
+        async (
+          _token: string,
+          load: (id: string, m: unknown) => Promise<User | null>,
+        ) => {
+          const loaded = await load('u1', manager);
+          if (!loaded) throw new Error('Session expired');
+          return { user: loaded, tokens: { accessToken: 'b' } };
+        },
+      ),
       revokeAllForUser: jest.fn(() => Promise.resolve()),
       revokeFamilyOf: jest.fn(() => Promise.resolve()),
     };
@@ -221,6 +233,13 @@ describe('AuthService', () => {
       await expect(service.demoAccounts()).rejects.toThrow(NotFoundException);
     });
 
+    it('says when a role has no ready-made account yet', async () => {
+      const { service } = build({ demo: true, user: null });
+      await expect(service.demoLogin(Role.BANK)).rejects.toMatchObject({
+        response: { code: 'NO_DEMO_ACCOUNT', details: { role: Role.BANK } },
+      });
+    });
+
     it('signs in as the ready-made account for a role', async () => {
       const { service, users } = build({ demo: true });
       await service.demoLogin(Role.FARMER);
@@ -305,5 +324,26 @@ describe('AuthService', () => {
     expect(tokens.revokeFamilyOf).not.toHaveBeenCalled();
     await service.logout('t');
     expect(tokens.revokeFamilyOf).toHaveBeenCalledWith('t');
+  });
+  describe('renewing a session', () => {
+    it('renews for someone who may still sign in', async () => {
+      await expect(build().service.refresh('t')).resolves.toMatchObject({
+        tokens: { accessToken: 'b' },
+      });
+    });
+
+    it('ends it for someone whose access was revoked or who is gone', async () => {
+      await expect(
+        build({
+          user: {
+            status: ParticipantStatus.REJECTED,
+            accessRevokedAt: new Date(),
+          },
+        }).service.refresh('t'),
+      ).rejects.toThrow('Session expired');
+      await expect(build({ user: null }).service.refresh('t')).rejects.toThrow(
+        'Session expired',
+      );
+    });
   });
 });

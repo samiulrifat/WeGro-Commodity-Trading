@@ -29,12 +29,15 @@ import { latinDigits } from '@/lib/format';
 import { useSecondsUntil } from '@/lib/use-seconds-until';
 import { useAppDispatch } from '@/store/hooks';
 import { sessionStarted } from '@/store/session-slice';
+import { onlyChecked } from '@/lib/search';
 
 export const Route = createFileRoute('/forgot-password')({
-  validateSearch: (search): { phone?: string } =>
-    typeof search.phone === 'string' && search.phone.length <= 32
-      ? { phone: search.phone }
-      : {},
+  validateSearch: onlyChecked(
+    (search: Record<string, unknown>): { phone?: string } =>
+      typeof search.phone === 'string' && search.phone.length <= 32
+        ? { phone: search.phone }
+        : {},
+  ),
   beforeLoad: async ({ context: { store } }) => {
     try {
       await ensureSession(store);

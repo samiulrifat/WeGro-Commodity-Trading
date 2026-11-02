@@ -191,4 +191,25 @@ describe('DemoAccountsService', () => {
     build(w, false).onApplicationBootstrap();
     expect(w.repo.findOne).not.toHaveBeenCalled();
   });
+  it('starts the API anyway when demo accounts cannot be set up, saying why', async () => {
+    const w = world();
+    const service = build(w);
+    const errors = jest
+      .spyOn(
+        (service as unknown as { logger: { error: (m: string) => void } })
+          .logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+    jest
+      .spyOn(service, 'ensureAll')
+      .mockRejectedValueOnce(new Error('node down'));
+    service.onApplicationBootstrap();
+    await new Promise((r) => setImmediate(r));
+    expect(errors).toHaveBeenCalledWith('Demo accounts not ready: node down');
+    const off = build(world(), false);
+    const ensure = jest.spyOn(off, 'ensureAll');
+    off.onApplicationBootstrap();
+    expect(ensure).not.toHaveBeenCalled();
+  });
 });

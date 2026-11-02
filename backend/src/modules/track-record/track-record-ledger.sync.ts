@@ -2,7 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { bytes32ToUuid, ZERO_BYTES32 } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull, ZERO_BYTES32 } from '../../blockchain/utils/ids';
 import { personId } from '../../blockchain/utils/person-id';
 
 /**
@@ -50,7 +50,7 @@ export class TrackRecordLedgerSync implements OnModuleInit {
     const at = [event.blockNumber, event.logIndex];
     switch (event.eventName) {
       case 'BankRegistered': {
-        const id = toUuid(a.bankId);
+        const id = bytes32ToUuidOrNull(a.bankId);
         if (!id) return;
         const [row] = await m.query<Array<{ details_hash: string }>>(
           `SELECT "details_hash" FROM "banks" WHERE "id" = $1`,
@@ -69,9 +69,10 @@ export class TrackRecordLedgerSync implements OnModuleInit {
       }
 
       case 'BankOfficerAssigned': {
-        const officerId = toUuid(a.officerId);
+        const officerId = bytes32ToUuidOrNull(a.officerId);
         if (!officerId) return;
-        const bankId = a.bankId === ZERO_BYTES32 ? null : toUuid(a.bankId);
+        const bankId =
+          a.bankId === ZERO_BYTES32 ? null : bytes32ToUuidOrNull(a.bankId);
         await m.query(
           `INSERT INTO "bank_officers" ("officer_id", "bank_id", "chain_event_block", "chain_event_log", "updated_at")
            SELECT $1, $2::uuid, $3, $4, now()
@@ -89,7 +90,7 @@ export class TrackRecordLedgerSync implements OnModuleInit {
       }
 
       case 'TrackRecordPublished': {
-        const farmerId = toUuid(a.farmerId);
+        const farmerId = bytes32ToUuidOrNull(a.farmerId);
         if (!farmerId) return;
         const res = await m.query<[unknown[], number]>(
           `UPDATE "track_records" SET "status" = 'recorded', "version" = $3, "published_at" = $4
@@ -105,8 +106,8 @@ export class TrackRecordLedgerSync implements OnModuleInit {
       }
 
       case 'ConsentGranted': {
-        const farmerId = toUuid(a.farmerId);
-        const bankId = toUuid(a.bankId);
+        const farmerId = bytes32ToUuidOrNull(a.farmerId);
+        const bankId = bytes32ToUuidOrNull(a.bankId);
         if (!farmerId || !bankId) return;
         const [granted] = await m.query<[Array<{ expires_at: Date }>, number]>(
           `UPDATE "bank_consents"
@@ -137,8 +138,8 @@ export class TrackRecordLedgerSync implements OnModuleInit {
       }
 
       case 'ConsentRevoked': {
-        const farmerId = toUuid(a.farmerId);
-        const bankId = toUuid(a.bankId);
+        const farmerId = bytes32ToUuidOrNull(a.farmerId);
+        const bankId = bytes32ToUuidOrNull(a.bankId);
         if (!farmerId || !bankId) return;
         await m.query(
           `UPDATE "bank_consents"
@@ -152,9 +153,9 @@ export class TrackRecordLedgerSync implements OnModuleInit {
       }
 
       case 'SummaryViewed': {
-        const farmerId = toUuid(a.farmerId);
-        const bankId = toUuid(a.bankId);
-        const viewerId = toUuid(a.viewerId);
+        const farmerId = bytes32ToUuidOrNull(a.farmerId);
+        const bankId = bytes32ToUuidOrNull(a.bankId);
+        const viewerId = bytes32ToUuidOrNull(a.viewerId);
         if (!farmerId || !bankId || !viewerId) return;
         await m.query(
           `INSERT INTO "summary_views" ("block_number", "log_index", "farmer_id", "bank_id", "viewer_id", "version", "viewed_at")
@@ -165,13 +166,5 @@ export class TrackRecordLedgerSync implements OnModuleInit {
         return;
       }
     }
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }

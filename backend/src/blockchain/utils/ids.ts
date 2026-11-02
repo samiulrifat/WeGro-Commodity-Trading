@@ -30,6 +30,18 @@ export function bytes32ToUuid(value: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
+/**
+ * A ledger event's id as a platform UUID, or null when it is not one (an id
+ * made outside the platform, or a malformed value): such events are ignored.
+ */
+export function bytes32ToUuidOrNull(value: unknown): string | null {
+  try {
+    return typeof value === 'string' ? bytes32ToUuid(value) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** A short readable code ("MAIZE", "BOGURA", "GROWTH_CHECK") as bytes32. */
 export function codeToBytes32(code: string): string {
   if (!CODE.test(code)) {

@@ -33,6 +33,16 @@ describe('IdentityCryptoService', () => {
     ).toThrow();
   });
 
+  it('round-trips files, and refuses one too short to be sealed or bound elsewhere', () => {
+    const file = Buffer.from('%PDF-1.4 statement');
+    const sealed = crypto.encryptBytes(file, 'proof:1');
+    expect(crypto.decryptBytes(sealed, 'proof:1')).toEqual(file);
+    expect(() => crypto.decryptBytes(sealed, 'proof:2')).toThrow();
+    expect(() => crypto.decryptBytes(Buffer.alloc(10), 'proof:1')).toThrow(
+      'Ciphertext too short',
+    );
+  });
+
   it('refuses tampered, truncated, foreign or unversioned ciphertexts', () => {
     const sealed = crypto.encrypt('secret', ctx);
     const body = Buffer.from(sealed.slice(3), 'base64url');

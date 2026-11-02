@@ -266,7 +266,7 @@ export type ParticipantsListApiArg = {
   phone?: string;
   /** Exact NID match (13- and 17-digit forms are equivalent) */
   nid?: string;
-  /** Only people the caller manages: staff for the super admin, everyone else for an admin */
+  /** Only people the caller manages: everyone for the super admin, all but staff for an admin */
   manageable?: boolean;
   /** A mobile number, an NID, or whole words of a name (every word must be in it) */
   q?: string;

@@ -86,6 +86,10 @@ describe('TokenService', () => {
     expect(rows[0].tokenHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('keeps a refresh token for the configured days', () => {
+    expect(build().service.refreshTtl).toBe(30 * 86_400_000);
+  });
+
   it('reads hour and second lifetimes too', async () => {
     await expect(build('2h').service.issue(user)).resolves.toMatchObject({
       expiresIn: 7200,

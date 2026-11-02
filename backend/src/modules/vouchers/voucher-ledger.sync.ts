@@ -2,7 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { bytes32ToUuid } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull } from '../../blockchain/utils/ids';
 import { InputBatch } from './entities/input-batch.entity';
 import { VoucherSale } from './entities/voucher-sale.entity';
 import { Voucher } from './entities/voucher.entity';
@@ -86,7 +86,7 @@ export class VoucherLedgerSync implements OnModuleInit {
         });
 
       case 'BatchRegistered': {
-        const id = toUuid(a.batchId);
+        const id = bytes32ToUuidOrNull(a.batchId);
         if (id) {
           await m.update(
             InputBatch,
@@ -98,8 +98,8 @@ export class VoucherLedgerSync implements OnModuleInit {
       }
 
       case 'SaleRecorded': {
-        const voucherId = toUuid(a.voucherId);
-        const supplierId = toUuid(a.supplierId);
+        const voucherId = bytes32ToUuidOrNull(a.voucherId);
+        const supplierId = bytes32ToUuidOrNull(a.supplierId);
         if (!voucherId || !supplierId) return;
         const id = Number(a.saleId);
         const quantity = Number(a.quantity);
@@ -129,7 +129,9 @@ export class VoucherLedgerSync implements OnModuleInit {
             WHERE "id" = $1`,
           [voucherId, quantity, when],
         );
-        const batchIds = ((a.batchIds as string[]) ?? []).map(toUuid);
+        const batchIds = ((a.batchIds as string[]) ?? []).map(
+          bytes32ToUuidOrNull,
+        );
         // Only batches known here; position keeps the ledger's order.
         await m.query(
           `INSERT INTO "voucher_sale_batches" ("sale_id", "batch_id", "position")
@@ -149,7 +151,7 @@ export class VoucherLedgerSync implements OnModuleInit {
           Number(a.saleId),
           SaleStatus.CONFIRMED,
           when,
-          toUuid(a.confirmedBy),
+          bytes32ToUuidOrNull(a.confirmedBy),
         );
         if (closed) {
           await m.query(
@@ -194,7 +196,7 @@ export class VoucherLedgerSync implements OnModuleInit {
     status: VoucherStatus,
     patch: Partial<Voucher>,
   ): Promise<void> {
-    const id = toUuid(event.args.voucherId);
+    const id = bytes32ToUuidOrNull(event.args.voucherId);
     if (!id) return;
     const res = await m
       .createQueryBuilder()
@@ -245,13 +247,5 @@ export class VoucherLedgerSync implements OnModuleInit {
           amount: row.amount,
         }
       : null;
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }

@@ -378,12 +378,12 @@ function AssignDialog({
   const [error, setError] = useState<ApiError | null>(null);
 
   async function go() {
-    if (!insurerId) return;
     setError(null);
     try {
       await assign({
         projectId: c.projectId,
-        assignInsurerDto: { insurerId },
+        // The button is disabled until an insurer is chosen.
+        assignInsurerDto: { insurerId: insurerId! },
       }).unwrap();
       toast.success(t('insurance.assigned'));
       onClose();

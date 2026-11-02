@@ -859,15 +859,13 @@ export class ParticipantsService {
     }
     if (query.role) qb.andWhere('u.role = :role', { role: query.role });
     if (query.manageable) {
-      // As the ledger has it: staff by the super admin, the rest by admins.
-      const staff = actor.role === Role.SUPER_ADMIN;
-      qb.andWhere(
-        staff ? 'u.role IN (:...managed)' : 'u.role NOT IN (:...managed)',
-        {
+      // As the ledger has it: the super admin manages everyone, admins all
+      // but staff, and nobody else anyone.
+      if (actor.role === Role.ADMIN) {
+        qb.andWhere('u.role NOT IN (:...managed)', {
           managed: [...STAFF_ROLES],
-        },
-      );
-      if (actor.role !== Role.SUPER_ADMIN && !actsAs(actor.role, Role.ADMIN)) {
+        });
+      } else if (actor.role !== Role.SUPER_ADMIN) {
         qb.andWhere('1 = 0');
       }
     }

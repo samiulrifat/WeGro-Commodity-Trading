@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { parseSiteSearch } from '@/features/warehouse/receipt-utils';
 import { SitesPage } from '@/features/warehouse/sites-page';
+import { onlyChecked } from '@/lib/search';
 
 export const Route = createFileRoute('/_app/warehouse/sites')({
   staticData: { area: 'warehouse', page: '/warehouse/sites' },
-  validateSearch: parseSiteSearch,
+  validateSearch: onlyChecked(parseSiteSearch),
   component: function Sites() {
     return <SitesPage search={Route.useSearch()} />;
   },

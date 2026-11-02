@@ -8,6 +8,7 @@ import {
   currentPage,
   homeOf,
   landingFor,
+  mayOpen,
   NAV,
   navFor,
   type Role,
@@ -262,5 +263,18 @@ describe('the super admin', () => {
       expect(actsAs('super_admin', r)).toBe(false);
     }
     expect(actsAs('admin', 'accounts')).toBe(false);
+  });
+});
+
+describe('which links lead somewhere', () => {
+  it('opens a section without pages only at its start', () => {
+    // Operations see projects as one list: the admins' Drafts page is not theirs.
+    expect(mayOpen(user('operations'), '/projects')).toBe(true);
+    expect(mayOpen(user('operations'), '/projects/drafts')).toBe(false);
+    expect(mayOpen(user('operations'), '/projects/p1')).toBe(true);
+    expect(mayOpen(user('admin'), '/projects/drafts')).toBe(true);
+    expect(mayOpen(user('accounts'), '/projects/drafts')).toBe(false);
+    expect(mayOpen(user('investor'), '/people')).toBe(false);
+    expect(mayOpen(user('investor'), '/nowhere')).toBe(false);
   });
 });

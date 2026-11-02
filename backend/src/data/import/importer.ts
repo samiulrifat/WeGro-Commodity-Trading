@@ -202,7 +202,8 @@ export class Importer {
     // Each row against the API's own DTO (refs replaced by placeholders).
     for (const row of this.rows) {
       const plain = { ...row.data };
-      delete plain[row.spec.columns[row.spec.idColumn][0]];
+      if (!row.spec.idIsField)
+        delete plain[row.spec.columns[row.spec.idColumn][0]];
       for (const col of Object.keys(row.spec.refs ?? {})) {
         const key = row.spec.columns[col][0];
         if (plain[key] !== undefined) plain[key] = PLACEHOLDER_UUID;
@@ -310,7 +311,8 @@ export class Importer {
     const data: Record<string, unknown> = {};
     let ok = true;
     for (const [col, raw] of Object.entries(r.values)) {
-      if (raw === '') continue;
+      // Unknown columns are reported once for the file; their cells are not read.
+      if (raw === '' || !(col in spec.columns)) continue;
       const [key, cell] = spec.columns[col];
       if (cell === 'int') data[key] = /^-?\d+$/.test(raw) ? Number(raw) : raw;
       else if (cell === 'bool') {
@@ -588,31 +590,55 @@ export class Importer {
     const kinds = new Set(this.rows.map((r) => r.spec.kind));
     const people = this.rows.filter((r) => r.spec.kind === 'person');
     const nonStaff = people.some((r) => !STAFF_ROLES.has(r.data.role as Role));
-    const has = async (role: Role, phone: string | undefined) =>
-      people.some((r) => r.data.role === role) ||
-      !!(await this.findStaff(role, phone, false));
+    // A phone on the command line names who acts: someone else in the role
+    // will not do, and one that is not a phone number matches nobody.
+    const has = async (role: Role, phone: string | undefined) => {
+      const wanted = phone === undefined ? undefined : normalisePhone(phone);
+      return (
+        people.some(
+          (r) =>
+            r.data.role === role &&
+            (wanted === undefined ||
+              (wanted !== null &&
+                normalisePhone((r.data as unknown as PersonRow).phone) ===
+                  wanted)),
+        ) || !!(await this.findStaff(role, phone))
+      );
+    };
+    const missing = (
+      option: string,
+      phone: string | undefined,
+      who: string,
+      task: string,
+    ) =>
+      add(
+        'people.csv',
+        0,
+        null,
+        phone === undefined
+          ? `no ${who} to ${task}: add one to people.csv or pass --${option}`
+          : `--${option} ${phone} is not a verified ${who} here or in people.csv`,
+      );
     if (
       (nonStaff || kinds.has('project')) &&
       !(await has(Role.ADMIN, this.opts.adminPhone))
-    ) {
-      add(
-        'people.csv',
-        0,
-        null,
-        'no admin to verify people and create projects: add one to people.csv or pass --admin-phone',
+    )
+      missing(
+        'admin-phone',
+        this.opts.adminPhone,
+        'admin',
+        'verify people and create projects',
       );
-    }
     if (
       kinds.has('investment') &&
       !(await has(Role.ACCOUNTS, this.opts.accountsPhone))
-    ) {
-      add(
-        'people.csv',
-        0,
-        null,
-        'no Accounts person to confirm investments: add one to people.csv or pass --accounts-phone',
+    )
+      missing(
+        'accounts-phone',
+        this.opts.accountsPhone,
+        'Accounts person',
+        'confirm investments',
       );
-    }
     if (
       people.some((r) => STAFF_ROLES.has(r.data.role as Role)) &&
       !(await this.superAdmin(false))
@@ -932,20 +958,27 @@ export class Importer {
     return this.staffActor(Role.ADMIN, this.opts.adminPhone);
   }
 
+  /** Validation found them; this one fails only if their own row did. */
   private async staffActor(role: Role, phone?: string): Promise<AuthUser> {
-    const u = await this.findStaff(role, phone, true);
-    return toActor(u!);
+    const u = await this.findStaff(role, phone);
+    if (!u)
+      throw new Error(
+        `No verified ${role}${phone ? ` with phone ${phone}` : ''}`,
+      );
+    return toActor(u);
   }
 
-  /** The verified person in `role` with this phone, or the first such one. */
+  /**
+   * The verified person in `role` with this phone, or without one the first
+   * such person. A phone that is not a phone number matches nobody.
+   */
   private async findStaff(
     role: Role,
     phone: string | undefined,
-    required: boolean,
   ): Promise<User | null> {
-    const repo = this.ds.getRepository(User);
-    const normalised = phone ? normalisePhone(phone) : null;
-    const u = await repo.findOne({
+    const normalised = phone === undefined ? undefined : normalisePhone(phone);
+    if (normalised === null) return null;
+    return this.ds.getRepository(User).findOne({
       where: {
         role,
         status: ParticipantStatus.VERIFIED,
@@ -953,11 +986,6 @@ export class Importer {
       },
       order: { createdAt: 'ASC' },
     });
-    if (!u && required)
-      throw new Error(
-        `No verified ${role}${phone ? ` with phone ${phone}` : ''}`,
-      );
-    return u;
   }
 
   private async actor(userId: string): Promise<AuthUser> {

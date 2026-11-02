@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { baseApi } from '@/api/base-api';
@@ -18,30 +18,35 @@ const sentCode = {
   body: { data: { resendAfterSeconds: 60, expiresInSeconds: 600 } },
 };
 
-/** Walks the steps up to creating the account. */
-async function upToCreate() {
-  await userEvent.click(screen.getByRole('button', { name: /Investor/ }));
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await userEvent.type(screen.getByLabelText('Mobile Number'), '01712345678');
-  await userEvent.click(screen.getByRole('button', { name: 'Send Code' }));
-  await userEvent.type(await screen.findByLabelText('SMS Code'), '123456');
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await userEvent.type(screen.getByLabelText('Full Name'), 'Nasrin Akter');
-  await userEvent.type(screen.getByLabelText('NID Number'), '7123456789');
-  await userEvent.type(screen.getByLabelText('Date of Birth'), '2015-06-01');
-  await userEvent.type(screen.getByLabelText('Address'), 'Road 3, Khulna');
-  await userEvent.click(screen.getByRole('combobox', { name: 'District' }));
-  await userEvent.click(await screen.findByRole('option', { name: 'Khulna' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await userEvent.type(
-    screen.getByLabelText('New Password', { exact: true }),
-    'my-own-password-1',
-  );
-  await userEvent.type(
-    screen.getByLabelText('Confirm New Password'),
-    'my-own-password-1',
-  );
-  await userEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+/**
+ * Walks the steps up to creating the account. Keys go in without a pause
+ * between them: about a hundred are typed, and with the default pause a
+ * busy machine (a coverage run) takes the test past its time limit.
+ */
+async function upToCreate(email = '', password = 'my-own-password-1') {
+  const user = userEvent.setup({ delay: null });
+  await user.click(screen.getByRole('button', { name: /Investor/ }));
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  await user.type(screen.getByLabelText('Mobile Number'), '01712345678');
+  await user.click(screen.getByRole('button', { name: 'Send Code' }));
+  await user.type(await screen.findByLabelText('SMS Code'), '123456');
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  await user.type(screen.getByLabelText('Full Name'), 'Nasrin Akter');
+  await user.type(screen.getByLabelText('NID Number'), '7123456789');
+  await user.type(screen.getByLabelText('Date of Birth'), '2015-06-01');
+  await user.type(screen.getByLabelText('Address'), 'Road 3, Khulna');
+  await user.click(screen.getByRole('combobox', { name: 'District' }));
+  await user.click(await screen.findByRole('option', { name: 'Khulna' }));
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  if (password) {
+    await user.type(
+      screen.getByLabelText('New Password', { exact: true }),
+      password,
+    );
+    await user.type(screen.getByLabelText('Confirm New Password'), password);
+  }
+  if (email) await user.type(screen.getByLabelText('Email'), email);
+  await user.click(screen.getByRole('button', { name: 'Create Account' }));
 }
 
 async function signedOut() {
@@ -111,5 +116,180 @@ describe('signing up', () => {
       district: 'KHULNA',
       language: 'en',
     });
+  });
+});
+
+const tokens = {
+  accessToken: 't',
+  tokenType: 'Bearer',
+  expiresIn: 900,
+  mustChangePassword: false,
+  user: { id: 'u9', role: 'investor', status: 'pending', language: 'en' },
+};
+const refusedWith = (code: string, status = 409) => ({
+  status,
+  body: { statusCode: status, code, message: code },
+});
+
+describe('signing up, further', () => {
+  it('asks for each step’s missing parts, and goes back a step', async () => {
+    await signedOut();
+    fakeServer(({ url }) =>
+      url.pathname.endsWith('/sign-up/code') ? sentCode : undefined,
+    );
+    await renderPage(<SignUpPage />, '/register');
+    const user = userEvent.setup({ delay: null });
+    await user.click(screen.getByRole('button', { name: /Investor/ }));
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    // No number, no code: still the number.
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByLabelText('Mobile Number')).toBeTruthy();
+    await user.type(screen.getByLabelText('Mobile Number'), '01712345678');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(
+      screen.getByText('Send a code first, then enter it here.'),
+    ).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Send Code' }));
+    await user.type(await screen.findByLabelText('SMS Code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getAllByText('Fill this in.').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: /Back/ }));
+    expect(screen.getByLabelText('SMS Code')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /Back/ }));
+    expect(screen.getByRole('button', { name: /Investor/ })).toBeTruthy();
+  });
+
+  it('goes back to the step a refusal is about', async () => {
+    await signedOut();
+    let refusal = refusedWith('CODE_INVALID', 400);
+    fakeServer(({ url }) =>
+      url.pathname.endsWith('/sign-up/code') ? sentCode : refusal,
+    );
+    await renderPage(<SignUpPage />, '/register');
+    await upToCreate();
+    // A wrong code: back at the number, the reason under the code.
+    expect(await screen.findByLabelText('SMS Code')).toBeTruthy();
+    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+    const user = userEvent.setup({ delay: null });
+    const forward = async () => {
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    };
+    refusal = refusedWith('PHONE_ALREADY_REGISTERED');
+    await forward();
+    expect(
+      await screen.findByText('This phone number is already registered.'),
+    ).toBeTruthy();
+    refusal = refusedWith('NID_ALREADY_REGISTERED');
+    await forward();
+    expect(
+      await screen.findByText('A person with this NID is already registered.'),
+    ).toBeTruthy();
+    refusal = refusedWith('SOMETHING_ELSE', 503);
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    // The password step stays, with the reason.
+    expect(screen.getByRole('button', { name: 'Create Account' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /Back/ }));
+    expect(screen.getByLabelText('Full Name')).toBeTruthy();
+  });
+
+  it('signs in at once, then confirms the email given, or later', async () => {
+    await signedOut();
+    let wrong = true;
+    const sent = fakeServer(({ url }) => {
+      if (url.pathname.endsWith('/sign-up/code')) return sentCode;
+      if (url.pathname === '/api/auth/sign-up')
+        return { status: 201, body: { data: tokens } };
+      if (url.pathname === '/api/auth/me/email/code')
+        return {
+          body: { data: { resendAfterSeconds: 0, expiresInSeconds: 600 } },
+        };
+      if (url.pathname === '/api/auth/me/email')
+        return wrong
+          ? refusedWith('CODE_INVALID', 400)
+          : { body: { data: {} } };
+      return undefined;
+    });
+    const { router } = await renderPage(<SignUpPage />, '/register');
+    await upToCreate('Nasrin@Example.com');
+    expect(
+      (await screen.findAllByText(/Nasrin@Example.com/)).length,
+    ).toBeGreaterThan(0);
+    expect(store.getState().session.accessToken).toBe('t');
+    await waitFor(() =>
+      expect(
+        sent.some((s) => s.url.pathname === '/api/auth/me/email/code'),
+      ).toBe(true),
+    );
+    const user = userEvent.setup({ delay: null });
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(screen.getByText('Enter the 6 digits of the code.')).toBeTruthy();
+    await user.type(await screen.findByLabelText('Email Code'), '654321');
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    wrong = false;
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).not.toBe('/register'),
+    );
+    expect(
+      sent.find((s) => s.url.pathname === '/api/auth/me/email')!.body,
+    ).toEqual({
+      email: 'nasrin@example.com',
+      code: '654321',
+    });
+  });
+
+  it('goes straight in without an email, and lets the email wait', async () => {
+    await signedOut();
+    fakeServer(({ url }) =>
+      url.pathname.endsWith('/sign-up/code')
+        ? sentCode
+        : url.pathname === '/api/auth/sign-up'
+          ? { status: 201, body: { data: tokens } }
+          : {
+              body: { data: { resendAfterSeconds: 0, expiresInSeconds: 600 } },
+            },
+    );
+    let view = await renderPage(<SignUpPage />, '/register');
+    await upToCreate();
+    await waitFor(() =>
+      expect(view.router.state.location.pathname).not.toBe('/register'),
+    );
+    cleanup();
+
+    await signedOut();
+    fakeServer(({ url }) =>
+      url.pathname.endsWith('/sign-up/code')
+        ? sentCode
+        : url.pathname === '/api/auth/sign-up'
+          ? { status: 201, body: { data: tokens } }
+          : {
+              body: { data: { resendAfterSeconds: 0, expiresInSeconds: 600 } },
+            },
+    );
+    view = await renderPage(<SignUpPage />, '/register');
+    await upToCreate('later@example.com');
+    await userEvent.click(await screen.findByRole('button', { name: /Later/ }));
+    await waitFor(() =>
+      expect(view.router.state.location.pathname).not.toBe('/register'),
+    );
+  });
+
+  it('wants a password before creating anything', async () => {
+    await signedOut();
+    const sent = fakeServer(({ url }) =>
+      url.pathname.endsWith('/sign-up/code') ? sentCode : undefined,
+    );
+    await renderPage(<SignUpPage />, '/register');
+    await upToCreate('', '');
+    expect(screen.getByText('Use at least 10 characters.')).toBeTruthy();
+    expect(sent.some((s) => s.url.pathname === '/api/auth/sign-up')).toBe(
+      false,
+    );
   });
 });

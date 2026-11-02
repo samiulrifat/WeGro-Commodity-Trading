@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { KeyService } from '../../../blockchain/keys/key.service';
-import { bytes32ToUuid, uuidToBytes32 } from '../../../blockchain/utils/ids';
+import {
+  bytes32ToUuid,
+  bytes32ToUuidOrNull,
+  uuidToBytes32,
+} from '../../../blockchain/utils/ids';
 import { Paginated } from '../../../common/dto/pagination.dto';
 import { ProjectViews } from '../../projects/project-views';
 import { User } from '../../users/entities/user.entity';
@@ -321,13 +325,9 @@ function asLedgerValue(kind: IdKind, id: string): string | null {
 function recordId(kind: IdKind, value: unknown): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const v = String(value);
-  try {
-    if (kind === 'uuid') return BYTES32.test(v) ? bytes32ToUuid(v) : null;
-    if (kind === 'number') return NUMBER.test(v) && v !== '0' ? v : null;
-    return BYTES32.test(v) && !/^0x0{64}$/.test(v) ? v.toLowerCase() : null;
-  } catch {
-    return null;
-  }
+  if (kind === 'uuid') return bytes32ToUuidOrNull(v);
+  if (kind === 'number') return NUMBER.test(v) && v !== '0' ? v : null;
+  return BYTES32.test(v) && !/^0x0{64}$/.test(v) ? v.toLowerCase() : null;
 }
 
 /** The records an event names, by kind, each once. */

@@ -32,8 +32,6 @@ const TAKEN = {
 export class MyEmailService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(PersonalDetails)
-    private readonly details: Repository<PersonalDetails>,
     private readonly codec: PersonalDetailsCodec,
     private readonly codes: VerificationCodeService,
   ) {}
@@ -109,15 +107,6 @@ export class MyEmailService {
       await m.update(User, { id: actor.id }, { emailIndex: null });
       await m.update(PersonalDetails, { userId: actor.id }, { emailEnc: null });
     });
-  }
-
-  /** The address as stored, or null. */
-  async current(userId: string): Promise<string | null> {
-    const row = await this.details.findOneOrFail({
-      where: { userId },
-      select: { userId: true, emailEnc: true },
-    });
-    return this.codec.openEmail(row);
   }
 
   private async assertFree(index: string, userId: string): Promise<void> {

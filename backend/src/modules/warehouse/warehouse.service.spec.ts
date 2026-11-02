@@ -90,6 +90,7 @@ describe('WarehouseService', () => {
     }
     if (opts.parent)
       stored.push({ ...stored[0], ...opts.parent } as WarehouseReceipt);
+    const built: ReturnType<typeof fakeQueryBuilder>[] = [];
     const receipts = fakeRepo({
       create: jest.fn((r: WarehouseReceipt) => ({ ...r })),
       insert: jest.fn(
@@ -105,9 +106,10 @@ describe('WarehouseService', () => {
         );
         return Promise.resolve({ affected: 1 });
       }),
-      createQueryBuilder: jest.fn(
-        () => fakeQueryBuilder({ getOne: stored[0] ?? null }).qb,
-      ),
+      createQueryBuilder: jest.fn(() => {
+        built.push(fakeQueryBuilder({ getOne: stored[0] ?? null }));
+        return built[built.length - 1].qb;
+      }),
       find: jest.fn(() => Promise.resolve([])),
     });
     const rechecks: ReceiptRecheck[] = [];
@@ -186,7 +188,7 @@ describe('WarehouseService', () => {
       fakeClock(NOW) as never,
       { condition: () => null } as never,
     );
-    return { service, stored, rechecks, chain, sites };
+    return { service, stored, rechecks, chain, sites, built };
   };
 
   describe('sites', () => {
@@ -447,6 +449,39 @@ describe('WarehouseService', () => {
           ledger: { status: 1n, detailsHash: '0x' + '1'.repeat(64) },
         }).service.verify(RECEIPT),
       ).resolves.toMatchObject({ genuine: false, site: null });
+    });
+  });
+  describe('edges', () => {
+    it('drops the re-check when the ledger refuses it', async () => {
+      const { service, chain, rechecks } = build({ receipt: {} });
+      chain.fail(revert('ReceiptWrongStatus'));
+      await expect(
+        service.extend(operator, RECEIPT, {
+          checkedOn: '2026-10-13',
+          newExpiresOn: '2027-03-31',
+        } as never),
+      ).rejects.toThrow();
+      expect(rechecks).toEqual([]);
+    });
+
+    it('puts a site back as it was when the ledger refuses the change', async () => {
+      const { service, chain, sites } = build();
+      chain.fail(revert('SiteClosed'));
+      await expect(
+        service.updateSite(actor(Role.ADMIN), SITE, {
+          name: 'New Hub',
+        } as never),
+      ).rejects.toThrow();
+      expect(sites.update).toHaveBeenLastCalledWith(
+        { id: SITE },
+        expect.objectContaining({ name: 'Hub' }),
+      );
+    });
+
+    it('shows no receipts to a role with nothing stored', async () => {
+      const { service, built } = build();
+      await service.list(actor(Role.INVESTOR), { skip: 0, limit: 20 } as never);
+      expect(built[0].wheres()).toContain('FALSE');
     });
   });
 });

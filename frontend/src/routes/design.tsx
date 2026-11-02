@@ -9,5 +9,5 @@ export const Route = createFileRoute('/design')({
   beforeLoad: () => {
     if (!import.meta.env.DEV) throw notFound();
   },
-  component: import.meta.env.DEV ? DesignPreview : () => null,
+  component: import.meta.env.DEV ? DesignPreview : undefined,
 });

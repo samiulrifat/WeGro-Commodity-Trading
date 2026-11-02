@@ -18,6 +18,7 @@ import {
   matchesWhere,
   revert,
   Role,
+  uniqueViolation,
 } from '../../../test/support/unit';
 import { photoHash } from '../field-records/photos.service';
 import type { Project } from '../projects/entities/project.entity';
@@ -77,6 +78,10 @@ describe('SettlementService', () => {
       photo?: object | null;
       holds?: boolean;
       saveAffected?: number;
+      /** Rows a sheet's pending references reach, or the error saving them. */
+      pending?: number | Error;
+      /** Rows a cost's or round's change reaches (a race when 0). */
+      changed?: number;
     } = {},
   ) => {
     const project = {
@@ -170,6 +175,8 @@ describe('SettlementService', () => {
         return Promise.resolve({ affected: 1 });
       }),
       update: jest.fn((where: Record<string, unknown>, patch: object) => {
+        if (opts.changed !== undefined)
+          return Promise.resolve({ affected: opts.changed });
         const hit = costs.filter((c) => matchesWhere(c as never, where));
         hit.forEach((c) => Object.assign(c, patch));
         return Promise.resolve({ affected: hit.length });
@@ -202,6 +209,8 @@ describe('SettlementService', () => {
       findOneBy: jest.fn(() => Promise.resolve(round)),
       find: jest.fn(() => Promise.resolve([])),
       update: jest.fn((where: Record<string, unknown>, patch: object) => {
+        if (opts.changed !== undefined)
+          return Promise.resolve({ affected: opts.changed });
         if (!matchesWhere(round as never, where))
           return Promise.resolve({ affected: 0 });
         Object.assign(round, patch);
@@ -224,7 +233,13 @@ describe('SettlementService', () => {
     });
     const linesRepo = fakeRepo({
       findOneBy: jest.fn(() => Promise.resolve(line)),
-      find: jest.fn(() => Promise.resolve(opts.sheetLines ?? [])),
+      find: jest.fn(({ where }: { where: Record<string, unknown> }) =>
+        Promise.resolve(
+          (opts.sheetLines ?? []).filter((l) =>
+            matchesWhere(l as never, where),
+          ),
+        ),
+      ),
       createQueryBuilder: jest.fn(() => update.qb),
     });
     const chain = fakeTx((call) =>
@@ -240,6 +255,16 @@ describe('SettlementService', () => {
         : [],
     );
     const dataSource = {
+      // A sheet's pending references, saved in one statement.
+      transaction: jest.fn((work: (m: unknown) => unknown) =>
+        work({
+          query: jest.fn((_sql: string, params: unknown[]) =>
+            opts.pending instanceof Error
+              ? Promise.reject(opts.pending)
+              : Promise.resolve([[], opts.pending ?? (params.length - 2) / 3]),
+          ),
+        }),
+      ),
       // Holdings for previews, and whether an investor holds slots.
       query: jest.fn((sql: string) =>
         Promise.resolve(
@@ -285,7 +310,7 @@ describe('SettlementService', () => {
       } as never,
       fakeClock(NOW) as never,
     );
-    return { service, costs, round, chain, update, roundsRepo };
+    return { service, costs, round, chain, update, roundsRepo, linesRepo };
   };
 
   describe('costs', () => {
@@ -633,6 +658,111 @@ describe('SettlementService', () => {
       await expect(
         build().service.summary(actor(Role.FARMER, { id: FARMER }), PROJECT),
       ).resolves.toBeDefined();
+    });
+  });
+  describe('edges', () => {
+    const approved = { round: { status: RoundStatus.APPROVED } };
+    const P2 = randomUUID();
+    const twoLines = [
+      { roundId: 5, payeeId: PAYEE, verified: true, amount: 1n, paidAt: null },
+      { roundId: 5, payeeId: P2, verified: true, amount: 1n, paidAt: null },
+    ];
+    const sheet = (refs: [string, string]) =>
+      Buffer.from(
+        [
+          'round_id,payee_id,amount_taka,payment_reference',
+          `5,${PAYEE},0.01,${refs[0]}`,
+          `5,${P2},0.01,${refs[1]}`,
+        ].join('\n'),
+      );
+
+    it('records the filled rows of a sheet and counts the blank ones', async () => {
+      const { service, chain } = build({ ...approved, sheetLines: twoLines });
+      const res = await service.uploadPayments(
+        accounts,
+        5,
+        sheet(['npsb 1', '']),
+      );
+      expect(res).toMatchObject({ recorded: 1, blank: 1, alreadyPaid: 0 });
+      expect(chain.sent[0]).toMatchObject({ method: 'recordPayments' });
+    });
+
+    it('refuses a sheet while a different payment is being recorded', async () => {
+      const { service, chain } = build({
+        ...approved,
+        sheetLines: twoLines,
+        pending: 1,
+      });
+      await expect(
+        service.uploadPayments(accounts, 5, sheet(['npsb 1', 'npsb 2'])),
+      ).rejects.toMatchObject({ response: { code: 'PAYMENT_IN_PROGRESS' } });
+      expect(chain.sent).toEqual([]);
+    });
+
+    it('names a reference another line saved meanwhile as already used', async () => {
+      await expect(
+        build({
+          ...approved,
+          sheetLines: twoLines,
+          pending: uniqueViolation(),
+        }).service.uploadPayments(accounts, 5, sheet(['npsb 1', 'npsb 2'])),
+      ).rejects.toMatchObject({
+        response: { code: 'PAYMENT_REF_ALREADY_USED' },
+      });
+    });
+
+    it('clears the references of a batch the ledger refused, and those after it', async () => {
+      const { service, chain, linesRepo } = build({
+        ...approved,
+        sheetLines: twoLines,
+      });
+      chain.fail(revert('PaymentRefAlreadyUsed'));
+      await expect(
+        service.uploadPayments(accounts, 5, sheet(['npsb 1', 'npsb 2'])),
+      ).rejects.toThrow();
+      expect(linesRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ roundId: 5 }),
+        { paymentRefEnc: null, paymentRefHash: null, recordedById: null },
+      );
+    });
+
+    it('keeps them when the failure is not a refusal', async () => {
+      const { service, chain, linesRepo } = build({
+        ...approved,
+        sheetLines: twoLines,
+      });
+      chain.fail(new Error('node unreachable'));
+      await expect(
+        service.uploadPayments(accounts, 5, sheet(['npsb 1', 'npsb 2'])),
+      ).rejects.toThrow('node unreachable');
+      expect(linesRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('clears a single payment’s reference when the ledger refuses it', async () => {
+      const { service, chain, update } = build(approved);
+      chain.fail(revert('PaymentRefAlreadyUsed'));
+      await expect(
+        service.recordPayment(accounts, 5, {
+          payeeId: PAYEE,
+          paymentReference: 'npsb 9',
+        } as never),
+      ).rejects.toThrow();
+      const sets = update.calls.filter(([m]) => m === 'set');
+      expect(sets[sets.length - 1][1]).toEqual({
+        paymentRefEnc: null,
+        paymentRefHash: null,
+        recordedById: null,
+      });
+    });
+
+    it('says when a cost or a round changed meanwhile', async () => {
+      const cost = build({ cost: {}, changed: 0 });
+      await expect(
+        cost.service.voidCost(accounts, cost.costs[0].id),
+      ).rejects.toMatchObject({ response: { code: 'CHANGED_MEANWHILE' } });
+      await expect(
+        build({ changed: 0 }).service.rejectRound(second, 5, 'Wrong costs'),
+      ).rejects.toMatchObject({ response: { code: 'CHANGED_MEANWHILE' } });
     });
   });
 });

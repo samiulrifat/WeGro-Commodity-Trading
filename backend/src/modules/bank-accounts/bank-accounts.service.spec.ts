@@ -10,6 +10,7 @@ import {
   fakeRepo,
   Role,
 } from '../../../test/support/unit';
+import { QueryFailedError } from 'typeorm';
 import { BankAccountsService } from './bank-accounts.service';
 import {
   type BankAccount,
@@ -274,5 +275,42 @@ describe('BankAccountsService', () => {
       service.submit(admin, PAYEE, DETAILS as never),
     ).resolves.toBeDefined();
     expect(rows).toHaveLength(1);
+  });
+  describe('two admins at once', () => {
+    it('says other details were entered meanwhile, and passes other failures on', async () => {
+      const { service, manager } = build();
+      manager.insert.mockRejectedValueOnce(
+        new QueryFailedError(
+          'INSERT ...',
+          [],
+          new Error(
+            'duplicate key value violates unique constraint "uq_bank_accounts_pending"',
+          ),
+        ),
+      );
+      await expect(
+        service.submit(admin, PAYEE, DETAILS as never),
+      ).rejects.toMatchObject({ response: { code: 'CHANGED_MEANWHILE' } });
+      manager.insert.mockRejectedValueOnce(new Error('disk full'));
+      await expect(
+        service.submit(admin, PAYEE, DETAILS as never),
+      ).rejects.toThrow('disk full');
+    });
+
+    it('says the details changed meanwhile when verifying or rejecting loses the race', async () => {
+      const verifying = build();
+      await verifying.service.submit(admin, PAYEE, DETAILS as never);
+      verifying.manager.update.mockResolvedValue({ affected: 0 });
+      await expect(
+        verifying.service.verify(otherAdmin, PAYEE),
+      ).rejects.toMatchObject({ response: { code: 'CHANGED_MEANWHILE' } });
+
+      const rejecting = build();
+      await rejecting.service.submit(admin, PAYEE, DETAILS as never);
+      rejecting.accounts.update.mockResolvedValueOnce({ affected: 0 });
+      await expect(
+        rejecting.service.reject(otherAdmin, PAYEE, 'Wrong name'),
+      ).rejects.toMatchObject({ response: { code: 'CHANGED_MEANWHILE' } });
+    });
   });
 });

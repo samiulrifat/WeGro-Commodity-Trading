@@ -126,6 +126,11 @@ describe('revoking access', () => {
       within(dialog).getByLabelText('Note'),
       'Moved to head office',
     );
+    await userEvent.type(within(dialog).getByRole('searchbox'), 'sumon');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Find' }));
+    await waitFor(() =>
+      expect(sent.at(-1)!.url.searchParams.get('q')).toBe('sumon'),
+    );
     // The leaving officer is not offered as their own replacement.
     expect(
       within(dialog).queryByRole('button', { name: /Imran Hossain/ }),
@@ -142,6 +147,80 @@ describe('revoking access', () => {
         note: 'Moved to head office',
         replacementOfficerId: '22222222-2222-4222-8222-222222222222',
       }),
+    );
+  });
+
+  it('says when nothing is open, keeps the dialog with the reason when refused, and closes on Escape', async () => {
+    await signedInAs('admin');
+    const sent = fakeServer(({ method, url }) => {
+      if (url.pathname.endsWith('/open-work'))
+        return { body: { data: { items: [], farmersToMove: 0 } } };
+      if (method === 'POST')
+        return {
+          status: 409,
+          body: {
+            statusCode: 409,
+            code: 'PARTICIPANT_NOT_VERIFIED',
+            message: 'Not verified',
+          },
+        };
+      return undefined;
+    });
+    await renderPage(
+      <PersonActions
+        person={officer({ role: 'investor', fullName: 'Rahima Begum' })}
+        viewer="admin"
+      />,
+      '/people/x',
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: /Revoke Access/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Nothing open.')).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole('radio', { name: 'Left the Platform' }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Revoke Access' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    expect(sent.find((s) => s.method === 'POST')?.body).toEqual({
+      reason: 'left_platform',
+    });
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('says why open work could not be loaded', async () => {
+    await signedInAs('super_admin');
+    const sent = fakeServer(({ url }) => {
+      if (url.pathname.endsWith('/open-work'))
+        return {
+          status: 500,
+          body: { statusCode: 500, code: 'X', message: 'x' },
+        };
+      if (url.pathname === '/api/participants')
+        return {
+          body: {
+            data: [],
+            meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+          },
+        };
+      return undefined;
+    });
+    await renderPage(
+      <PersonActions person={officer()} viewer="super_admin" />,
+      '/people/x',
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: /Revoke Access/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    expect(within(dialog).queryByRole('searchbox')).toBeNull();
+    expect(sent.some((s) => s.url.pathname === '/api/participants')).toBe(
+      false,
     );
   });
 

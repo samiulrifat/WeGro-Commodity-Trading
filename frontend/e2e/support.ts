@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { expect, type Page, test as base } from '@playwright/test';
 import { AREAS, NAV } from '../src/app/navigation';
@@ -222,7 +223,29 @@ export async function everyPage(
  * A test that fails on any error the page logs or throws, except failed
  * network requests the app already handles (a 401 before a session renews).
  */
-export const test = base.extend<{ errors: string[] }>({
+/**
+ * E2E_COVERAGE=1: each test's browser coverage of the app's own files, for
+ * scripts/coverage-report.mjs to merge with the unit tests'.
+ */
+const coverageDir = 'coverage/e2e-raw';
+export const test = base.extend<{ errors: string[]; coverage: void }>({
+  coverage: [
+    async ({ page, browserName }, use, info) => {
+      const on = !!process.env.E2E_COVERAGE && browserName === 'chromium';
+      if (on) await page.coverage.startJSCoverage({ resetOnNavigation: false });
+      await use();
+      if (!on) return;
+      const entries = (await page.coverage.stopJSCoverage()).filter((e) =>
+        /\/src\//.test(new URL(e.url).pathname),
+      );
+      mkdirSync(coverageDir, { recursive: true });
+      writeFileSync(
+        `${coverageDir}/${info.testId}-${info.repeatEachIndex}.json`,
+        JSON.stringify(entries),
+      );
+    },
+    { auto: true },
+  ],
   errors: async ({ page }, use) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));

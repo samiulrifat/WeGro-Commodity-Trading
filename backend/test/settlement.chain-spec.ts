@@ -1,5 +1,5 @@
 /** Settlement end to end, against the local chain and a throwaway schema. */
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
@@ -362,6 +362,52 @@ describe('Settlement (node + database)', () => {
       ).expect(422);
       expect(bad.body.code).toBe('BANK_LIST_INVALID');
       expect(bad.body.details.problems[0].code).toBe('BANK_LIST_ENTRY_INVALID');
+      // Not JSON at all; no branches file; names missing in either file.
+      const notJson = await upload(
+        t.admin,
+        Buffer.from('bank,branch\n'),
+      ).expect(422);
+      expect(notJson.body.code).toBe('BANK_LIST_INVALID');
+      const noFile = await http
+        .post('/api/bank-list/import')
+        .auth(t.admin, { type: 'bearer' })
+        .attach('districts', Buffer.from('{"districts":[]}'), 'districts.json')
+        .expect(400);
+      expect(noFile.body.code).toBe('BANK_LIST_FILE_MISSING');
+      const unnamed = await http
+        .post('/api/bank-list/import')
+        .auth(t.admin, { type: 'bearer' })
+        .attach(
+          'branches',
+          list([
+            {
+              bank_code: 200,
+              bank_name: 'SONALI BANK PLC',
+              branches: [
+                {
+                  district_code: 610,
+                  district_name: '',
+                  branch_code: 40,
+                  branch_name: 'BOGURA BAZAR',
+                  routing_number: '200100405',
+                },
+              ],
+            },
+          ]),
+          'bank_branches.json',
+        )
+        .attach(
+          'districts',
+          Buffer.from(JSON.stringify({ districts: [{ district_code: 610 }] })),
+          'districts.json',
+        )
+        .expect(422);
+      expect(
+        unnamed.body.details.problems.map(
+          (p: { details: { field: string } }) => p.details.field,
+        ),
+      ).toEqual(expect.arrayContaining(['district_name']));
+      expect(unnamed.body.details.problems.length).toBe(2);
       const sonali = {
         bank_code: 200,
         bank_name: 'SONALI BANK PLC',
@@ -421,6 +467,11 @@ describe('Settlement (node + database)', () => {
         .get(`/settlement/costs/${res.body.data.id}`)
         .expect(200);
       expect(one.body.data).toEqual(res.body.data);
+      const bill = await as(t.accounts)
+        .get(`/settlement/costs/${res.body.data.id}/photo`)
+        .expect(200);
+      expect(bill.headers['content-type']).toMatch(/^image\//);
+      expect(bill.body.length).toBeGreaterThan(0);
     });
 
     it('are voided, not edited, when wrong', async () => {
@@ -683,6 +734,16 @@ describe('Settlement (node + database)', () => {
       expect(byNumber.body.data.map((r: { id: number }) => r.id)).toEqual([
         staged,
       ]);
+      const byTitle = await as(t.auditor)
+        .get(`/settlement/rounds?q=${encodeURIComponent(`staged ${RUN}`)}`)
+        .expect(200);
+      expect(byTitle.body.data.map((r: { id: number }) => r.id)).toEqual([
+        staged,
+      ]);
+      const none = await as(t.auditor)
+        .get('/settlement/rounds?q=Zzyzx')
+        .expect(200);
+      expect(none.body.data).toEqual([]);
       const summary = await as(t.farmer)
         .get(`/settlement/projects/${project}`)
         .expect(200);
@@ -820,6 +881,26 @@ describe('Settlement (node + database)', () => {
         code: 'PAYMENT_SHEET_INVALID',
         details: { problems: [{ problem: 'duplicate_reference' }] },
       });
+      // Each kind of problem is named with its line; nothing is recorded.
+      const problems = async (csv: string) =>
+        (
+          (await send(csv).expect(422)).body.details.problems as {
+            problem: string;
+          }[]
+        ).map((p) => p.problem);
+      expect(await problems('payee_id,payment_reference\n"unclosed\n')).toEqual(
+        ['format'],
+      );
+      expect(await problems('name,amount\nRahim,10\n')).toEqual([
+        'missing_columns',
+      ]);
+      expect(
+        await problems(filled({ [user.investor.id]: 'X'.repeat(129) })),
+      ).toEqual(['invalid_reference']);
+      // Already used for this investor's staged payment, in another round.
+      expect(
+        await problems(filled({ [user.investor.id]: `PAY-1-${RUN}` })),
+      ).toEqual(['reference_used']);
       const unpaid = await as(t.accounts)
         .get(`/settlement/rounds/${final}`)
         .expect(200);
@@ -904,6 +985,16 @@ describe('Settlement (node + database)', () => {
         .expect(200);
       expect(csv.text).toContain(`Staged tomatoes ${RUN}`);
       expect(csv.text).toContain('6601.71');
+      // Accounts downloads anyone's; the farmer's has no amount invested.
+      const theirs = await as(t.accounts)
+        .get(`/settlement/statements/${user.farmer.id}/statement.csv`)
+        .expect(200);
+      expect(theirs.headers['content-type']).toBe('text/csv; charset=utf-8');
+      expect(theirs.text).toContain('15404.00');
+      // Statements are for payees: a buyer has none.
+      await as(t.accounts)
+        .get(`/settlement/statements/${user.buyer.id}/statement.csv`)
+        .expect(404);
     });
 
     it('report a project item by item against the ledger totals', async () => {
@@ -940,6 +1031,66 @@ describe('Settlement (node + database)', () => {
           `/settlement/reports/period.csv?from=${await day()}&to=${await day(-1)}`,
         )
         .expect(422);
+    });
+  });
+
+  describe('not found', () => {
+    it('answers 404 for projects, costs and rounds that do not exist', async () => {
+      const code = async (req: request.Test, status: number) =>
+        (await req.expect(status)).body.code as string;
+      const missing = randomUUID();
+      expect(
+        await code(
+          as(t.accounts).post(`/settlement/projects/${missing}/rounds`, {
+            final: false,
+          }),
+          404,
+        ),
+      ).toBe('PROJECT_NOT_FOUND');
+      expect(
+        await code(
+          as(t.auditor).get(`/settlement/projects/${missing}/report.csv`),
+          404,
+        ),
+      ).toBe('PROJECT_NOT_FOUND');
+      expect(
+        await code(
+          http
+            .post('/api/settlement/rounds/999999/payments/upload')
+            .auth(t.accounts, { type: 'bearer' }),
+          400,
+        ),
+      ).toBe('PAYMENT_SHEET_MISSING');
+      expect(
+        await code(
+          as(t.accounts).post(`/settlement/projects/${missing}/costs`, {
+            category: 'transport',
+            amount: '100',
+            incurredOn: await day(),
+            note: 'Truck hire',
+            photoId: randomUUID(),
+          }),
+          404,
+        ),
+      ).toBe('PROJECT_NOT_FOUND');
+      expect(
+        await code(as(t.accounts).get(`/settlement/costs/${missing}`), 404),
+      ).toBe('COST_NOT_FOUND');
+      expect(
+        await code(
+          as(t.accounts).get(`/settlement/costs/${missing}/photo`),
+          404,
+        ),
+      ).toBe('COST_HAS_NO_PHOTO');
+      expect(
+        await code(as(t.accounts).get('/settlement/rounds/999999'), 404),
+      ).toBe('ROUND_NOT_FOUND');
+      expect(
+        await code(
+          as(t.accounts).post('/settlement/rounds/999999/approve'),
+          404,
+        ),
+      ).toBe('ROUND_NOT_FOUND');
     });
   });
 

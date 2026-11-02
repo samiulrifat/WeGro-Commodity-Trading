@@ -2,7 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { IsNull, Not, type EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { bytes32ToUuid, ZERO_BYTES32 } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull, ZERO_BYTES32 } from '../../blockchain/utils/ids';
 import { bdLastDay } from '../../common/time/bd-dates';
 import { ReceiptRecheck } from './entities/receipt-recheck.entity';
 import { WarehouseOperator } from './entities/warehouse-operator.entity';
@@ -71,7 +71,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
     const when = event.blockTime ?? new Date();
     switch (event.eventName) {
       case 'SiteRegistered': {
-        const id = toUuid(a.siteId);
+        const id = bytes32ToUuidOrNull(a.siteId);
         if (id)
           await m.update(
             WarehouseSite,
@@ -82,7 +82,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
       }
 
       case 'SiteClosedSet': {
-        const id = toUuid(a.siteId);
+        const id = bytes32ToUuidOrNull(a.siteId);
         const closed = Boolean(a.closed);
         if (id) {
           await m.update(
@@ -95,9 +95,10 @@ export class WarehouseLedgerSync implements OnModuleInit {
       }
 
       case 'OperatorAssigned': {
-        const operatorId = toUuid(a.operatorId);
+        const operatorId = bytes32ToUuidOrNull(a.operatorId);
         if (!operatorId) return;
-        const siteId = a.siteId === ZERO_BYTES32 ? null : toUuid(a.siteId);
+        const siteId =
+          a.siteId === ZERO_BYTES32 ? null : bytes32ToUuidOrNull(a.siteId);
         await m.query(
           `INSERT INTO "warehouse_operators" ("operator_id", "site_id", "chain_event_block", "chain_event_log", "updated_at")
            SELECT $1, $2::uuid, $3, $4, now()
@@ -131,7 +132,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
           ...owner(String(a.owner)),
           quantity: Number(a.quantity),
           expiresOn: bdLastDay(Number(a.expiresAt)),
-          issuedById: toUuid(a.issuedBy),
+          issuedById: bytes32ToUuidOrNull(a.issuedBy),
           issuedAt: when,
         });
       }
@@ -184,7 +185,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
         });
 
       case 'ReceiptSplit': {
-        const buyer = toUuid(a.buyerId);
+        const buyer = bytes32ToUuidOrNull(a.buyerId);
         if (!buyer) return;
         const quantity = Number(a.quantity);
         const inserted: unknown[] = await m.query(
@@ -267,13 +268,5 @@ function owner(
 ): Pick<WarehouseReceipt, 'ownerId' | 'ownerIsWegro'> {
   return ledgerOwner === WEGRO_OWNER
     ? { ownerId: null, ownerIsWegro: true }
-    : { ownerId: toUuid(ledgerOwner), ownerIsWegro: false };
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
-  }
+    : { ownerId: bytes32ToUuidOrNull(ledgerOwner), ownerIsWegro: false };
 }

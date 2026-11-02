@@ -28,7 +28,6 @@ import { ProduceRefDto } from '../../projects/dto/project-response.dto';
 import { ListingStatus, OfferStatus } from '../trade.enums';
 
 export { PaymentReferenceDto } from '../../projects/dto/project-request.dto';
-export { ProduceRefDto };
 
 const TAKA = /^(0|[1-9]\d{0,13})(\.\d{1,2})?$/;
 const Taka = () =>

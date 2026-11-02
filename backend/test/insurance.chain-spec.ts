@@ -1,5 +1,5 @@
 /** Crop insurance end to end, against the local chain and a throwaway schema. */
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
@@ -272,6 +272,19 @@ describe('Insurance (node + database)', () => {
       );
       expect(await ids('meteor')).toEqual([]);
     });
+
+    it('are filtered by type, and answer 404 for one that does not exist', async () => {
+      const res = await as(t.field_officer)
+        .get('/insurance/weather-events?limit=100&eventTypeCode=CYCLONE')
+        .expect(200);
+      const ids = res.body.data.map((e: { id: string }) => e.id);
+      expect(ids).toContain(event.cyclone);
+      expect(ids).not.toContain(event.flood);
+      const missing = await as(t.field_officer)
+        .get(`/insurance/weather-events/${randomUUID()}`)
+        .expect(404);
+      expect(missing.body.code).toBe('WEATHER_EVENT_NOT_FOUND');
+    });
   });
 
   describe('cover', () => {
@@ -283,6 +296,10 @@ describe('Insurance (node + database)', () => {
         })
         .expect(409);
       expect(res.body.code).toBe('NOT_INSURED');
+      const read = await as(t.admin)
+        .get(`/insurance/projects/${uninsured}/coverage`)
+        .expect(409);
+      expect(read.body.code).toBe('NOT_INSURED');
     });
 
     it('cannot be claimed against before an insurer covers the project', async () => {
@@ -336,6 +353,14 @@ describe('Insurance (node + database)', () => {
         current: null,
         insurerFixed: false,
         inField: true,
+      });
+      // Assigned, no cover yet: the ledger agrees there is none.
+      const check = await as(t.admin)
+        .get(`/audit/verify/coverage/${insured}`)
+        .expect(200);
+      expect(check.body.data).toMatchObject({
+        onLedger: true,
+        matches: true,
       });
       await as(otherInsurer)
         .put(`/insurance/projects/${insured}/coverage`, {
@@ -409,6 +434,13 @@ describe('Insurance (node + database)', () => {
           coveredEventTypes: ['METEOR'],
         })
         .expect(422);
+      const zero = await as(t.insurer)
+        .put(`/insurance/projects/${insured}/coverage`, {
+          maxAmount: '0',
+          coveredEventTypes: ['FLOOD'],
+        })
+        .expect(422);
+      expect(zero.body.code).toBe('AMOUNT_NOT_POSITIVE');
     });
 
     it('keeps each change as a new version, chained on the ledger', async () => {
@@ -552,6 +584,11 @@ describe('Insurance (node + database)', () => {
         status: 'triggered',
         openedBy: { id: user.admin.id },
       });
+      // Nothing assessed yet, so no assessment photo.
+      const photo = await as(t.admin)
+        .get(`/insurance/claims/${cycloneClaim}/assessment/photo`)
+        .expect(404);
+      expect(photo.body.code).toBe('CLAIM_HAS_NO_PHOTO');
     });
 
     it("are reviewed only by the project's insurer", async () => {
@@ -572,6 +609,13 @@ describe('Insurance (node + database)', () => {
     });
 
     it('are approved within the remaining cover, with an assessment', async () => {
+      const zero = await as(t.insurer)
+        .post(`/insurance/claims/${floodClaim}/approve`, {
+          amount: '0',
+          notes: 'Nothing',
+        })
+        .expect(422);
+      expect(zero.body.code).toBe('AMOUNT_NOT_POSITIVE');
       const over = await as(t.insurer)
         .post(`/insurance/claims/${floodClaim}/approve`, {
           amount: '40000.01',
@@ -714,6 +758,24 @@ describe('Insurance (node + database)', () => {
         })
         .expect(409);
       expect(rejected.body.code).toBe('CLAIM_WRONG_STATUS');
+      const blank = await as(t.accounts)
+        .post(`/insurance/claims/${floodClaim}/payment`, {
+          paymentReference: '   ',
+        })
+        .expect(422);
+      expect(blank.body.code).toBe('PAYMENT_REF_INVALID');
+      const missing = await as(t.accounts)
+        .post(`/insurance/claims/${randomUUID()}/payment`, {
+          paymentReference: `CLM-NONE-${RUN}`,
+        })
+        .expect(404);
+      expect(missing.body.code).toBe('CLAIM_NOT_FOUND');
+      const byType = await as(t.accounts)
+        .get('/insurance/claims?limit=100&q=cyclone')
+        .expect(200);
+      expect(byType.body.data.map((c: { id: string }) => c.id)).toEqual([
+        cycloneClaim,
+      ]);
       await as(t.insurer)
         .post(`/insurance/claims/${floodClaim}/payment`, {
           paymentReference: `CLM-PAY-${RUN}`,

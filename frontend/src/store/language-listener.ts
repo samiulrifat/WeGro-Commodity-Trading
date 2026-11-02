@@ -32,12 +32,13 @@ for (const actionCreator of [languageChosen, languageApplied]) {
   listen({
     actionCreator,
     effect: async ({ payload }, api) => {
+      // Read now: the state before the action can be read only at once.
+      const before = api.getOriginalState().language.current;
       storage.set(LANGUAGE_KEY, payload);
       try {
         await applyLanguage(payload);
       } catch {
         // Its words could not be fetched (offline): stay as before.
-        const before = api.getOriginalState().language.current;
         if (api.getState().language.current === payload) {
           api.dispatch(languageApplied(before));
         }

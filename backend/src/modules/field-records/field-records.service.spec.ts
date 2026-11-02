@@ -227,6 +227,14 @@ describe('FieldRecordsService', () => {
     expect(chain.sent).toEqual([]);
   });
 
+  it('rejects a draft whose photo does not exist', async () => {
+    const { service, chain } = build({ photo: null });
+    const [res] = await service.sync(officer, [draft()] as never);
+    expect(res).toMatchObject({ outcome: 'rejected', code: 'INVALID_RECORD' });
+    expect(res.message).toContain('photoId must be a photo you uploaded');
+    expect(chain.sent).toEqual([]);
+  });
+
   it('needs the photo and location the record type asks for', async () => {
     const { service } = build();
     const [res] = await service.sync(officer, [
@@ -328,6 +336,20 @@ describe('FieldRecordsService', () => {
     expect(staff.location).toMatchObject({
       exact: true,
       latitude: '24.846512',
+    });
+  });
+
+  it('shows a record not yet on the ledger only to staff and officers', async () => {
+    const { service, rows } = build();
+    await service.sync(officer, [draft()] as never);
+    rows[0].status = 'submitted';
+    const id = rows[0].id;
+    await expect(
+      service.findOne(actor(Role.INVESTOR), id),
+    ).rejects.toMatchObject({ response: { code: 'FIELD_RECORD_NOT_FOUND' } });
+    await expect(service.findOne(officer, id)).resolves.toMatchObject({ id });
+    await expect(service.findOne(officer, randomUUID())).rejects.toMatchObject({
+      response: { code: 'FIELD_RECORD_NOT_FOUND' },
     });
   });
 });

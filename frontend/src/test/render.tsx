@@ -25,12 +25,41 @@ export interface Sent {
 }
 
 /**
+ * jsdom's File and Node's FormData do not mix (a Request refuses the form):
+ * FormData is replaced by one that records what the app appends, a file by
+ * its name. Each form is one list of [field, value].
+ */
+export function recordForms(): Array<Array<[string, string]>> {
+  const forms: Array<Array<[string, string]>> = [];
+  vi.stubGlobal(
+    'FormData',
+    class {
+      entries: Array<[string, string]> = [];
+      constructor() {
+        forms.push(this.entries);
+      }
+      append(key: string, value: string | File) {
+        this.entries.push([
+          key,
+          typeof value === 'string' ? value : value.name,
+        ]);
+      }
+    },
+  );
+  return forms;
+}
+
+/** What the fake server answers: a status (200 unless given) and a body. */
+export interface Reply {
+  status?: number;
+  body: unknown;
+}
+
+/**
  * Answers the page's API requests from `answer` (by method and path) and
  * records them. An answer of `undefined` is a 404.
  */
-export function fakeServer(
-  answer: (sent: Sent) => { status?: number; body: unknown } | undefined,
-) {
+export function fakeServer(answer: (sent: Sent) => Reply | undefined) {
   const sent: Sent[] = [];
   vi.stubGlobal(
     'fetch',

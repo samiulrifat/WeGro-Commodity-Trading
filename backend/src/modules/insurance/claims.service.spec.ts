@@ -17,6 +17,7 @@ import {
   matchesWhere,
   revert,
   Role,
+  uniqueViolation,
 } from '../../../test/support/unit';
 import type { Photo } from '../field-records/entities/photo.entity';
 import { photoHash } from '../field-records/photos.service';
@@ -46,6 +47,8 @@ describe('ClaimsService', () => {
       claim?: Partial<InsuranceClaim>;
       ledgerCover?: bigint;
       approved?: bigint;
+      /** What saving the payment reference gives: rows reached, or an error. */
+      save?: { affected: number } | Error;
     } = {},
   ) => {
     const builders: Array<ReturnType<typeof fakeQueryBuilder>> = [];
@@ -95,7 +98,10 @@ describe('ClaimsService', () => {
         return Promise.resolve({ affected: hit.length });
       }),
       createQueryBuilder: jest.fn(() => {
-        const f = fakeQueryBuilder({ getOne: claims[0] ?? null });
+        const f = fakeQueryBuilder({
+          getOne: claims[0] ?? null,
+          ...(opts.save && { execute: opts.save }),
+        });
         builders.push(f);
         return f.qb;
       }),
@@ -424,6 +430,27 @@ describe('ClaimsService', () => {
         method: 'recordClaimPayment',
         args: [uuidToBytes32(id), hash],
       });
+    });
+
+    it('refuses while its payment is being recorded, and a reference used before', async () => {
+      const approved = { status: ClaimStatus.APPROVED };
+      const pay = (save: { affected: number } | Error) => {
+        const b = build({ claim: approved, save });
+        return b.service.recordPayment(accounts, b.claims[0].id, 'TRX 7');
+      };
+      await expect(pay({ affected: 0 })).rejects.toMatchObject({
+        response: { code: 'CLAIM_PAYMENT_RECORDING' },
+      });
+      await expect(pay(uniqueViolation())).rejects.toMatchObject({
+        response: { code: 'PAYMENT_REF_ALREADY_USED' },
+      });
+      await expect(pay(new Error('disk full'))).rejects.toThrow('disk full');
+    });
+
+    it('shows no claims to a role with no part in them', async () => {
+      const { service, builders } = build();
+      await service.list(actor(Role.INVESTOR), { skip: 0, limit: 20 } as never);
+      expect(builders.flatMap((b) => b.wheres())).toContain('FALSE');
     });
 
     it('pays only an approved claim, and clears the reference the ledger refuses', async () => {

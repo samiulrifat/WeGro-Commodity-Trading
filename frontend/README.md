@@ -30,6 +30,7 @@ Signing in: with `DEMO_MODE=true` in `backend/.env`, the sign-in page has a **De
 | `npm test` | Unit and page tests (Vitest) |
 | `npm run e2e` | End-to-end tests in a real browser against the running dev stack (see [Tests](#tests)) |
 | `npm run e2e:speed` | Builds the app, serves it on :4173 and times every role's pages |
+| `npm run test:all:cov` | Unit and end-to-end tests with coverage, merged (see [Coverage](#coverage)) |
 | `npm run api:generate` / `api:check` | Regenerate the API client and code lists from the running backend / fail if they are out of date |
 | `npm run i18n:review` | Rewrite `docs/translations-review.csv`, every string in both languages, for a native speaker |
 
@@ -154,6 +155,10 @@ Notes:
 - Demo accounts remember their language; the tests set the one they expect at each sign-in.
 - A failure leaves a screenshot, the page as text and a trace in `e2e-results/`; the HTML report is in `e2e-report/` (`npx playwright show-report e2e-report`). Both are ignored by git and by the dev server's reload.
 - Run part: `npx playwright test e2e/invest.spec.ts --project=phone`, or `-g "farmer"`.
+
+### Coverage
+
+`npm run test:all:cov` runs the unit tests with coverage (`npm run test:cov`, into `coverage/unit`), then the end-to-end suite with the browser recording which code runs (`npm run e2e:cov`, `E2E_COVERAGE=1`, into `coverage/e2e-raw`), and merges the two with [scripts/coverage-report.mjs](scripts/coverage-report.mjs): the totals, every line no test runs, and the floor. Generated code (the route table, and the API client in `src/api/generated`) is not counted, nor are the shadcn components no page uses yet (`calendar`, `pagination`, `popover`, `scroll-area`, `skeleton` in `src/components/ui`; take one off the list in the script once a page uses it). The browser's coverage is mapped back to the source files with the same converter Vitest uses, onto the code the unit run lists (every file under `src/`); what the dev server adds for itself (hot reload, rewritten imports) is left out. Vitest runs without the router plugin (the route table is generated already): the plugin rewrites each route file, which puts its lines in the wrong place, so each route's code is counted as written. The run needs the dev stack, as `npm run e2e` does, and gives each test 4 minutes instead of 2, since recording slows the browser.
 
 ## Troubleshooting
 

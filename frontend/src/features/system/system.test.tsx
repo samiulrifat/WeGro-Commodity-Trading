@@ -230,4 +230,86 @@ describe('scheduled jobs', () => {
     expect(screen.getByText(/run by Super Admin/)).toBeTruthy();
     expect(screen.getByText('node unreachable')).toBeTruthy();
   });
+
+  it('says when a run fails or is refused, and tries the lists again after an error', async () => {
+    const { toast } = await import('sonner');
+    const failed = vi.spyOn(toast, 'error').mockImplementation(() => 1);
+    await signedInAs('super_admin');
+    let calls = 0;
+    let runs = 0;
+    fakeServer(({ method, url }) => {
+      if (method === 'POST')
+        return ++runs === 1
+          ? {
+              body: {
+                data: { ...job().lastRun, outcome: 'failed', error: 'x' },
+              },
+            }
+          : {
+              status: 409,
+              body: { statusCode: 409, code: 'JOB_RUNNING', message: 'x' },
+            };
+      if (url.pathname === '/api/jobs')
+        return ++calls === 1
+          ? { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+          : { body: { data: [job()] } };
+      return undefined;
+    });
+    await renderPage(<JobsPage />, '/system/jobs');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    const run = await screen.findByRole('button', { name: 'Run Now' });
+    await userEvent.click(run);
+    await waitFor(() => expect(failed).toHaveBeenCalled());
+    await userEvent.click(run);
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    failed.mockRestore();
+    cleanup();
+
+    let tries = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/jobs/reservation-expiry/runs'
+        ? ++tries === 1
+          ? { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+          : {
+              body: {
+                data: [],
+                meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+              },
+            }
+        : url.pathname === '/api/jobs'
+          ? { body: { data: [job()] } }
+          : undefined,
+    );
+    await renderPage(
+      <JobRunsPage name="reservation-expiry" />,
+      '/system/jobs/reservation-expiry',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    await waitFor(() => expect(tries).toBe(2));
+  });
+});
+
+describe('system status, further', () => {
+  it('refreshes on asking, and tries again after an error', async () => {
+    await signedInAs('admin');
+    let calls = 0;
+    const sent = fakeServer(({ url }) =>
+      url.pathname === '/api/system/status'
+        ? ++calls === 1
+          ? { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+          : { body: { data: status() } }
+        : undefined,
+    );
+    await renderPage(<StatusPage />, '/system');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    await screen.findByText('All Well');
+    await userEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    await waitFor(() => expect(sent).toHaveLength(3));
+  });
 });

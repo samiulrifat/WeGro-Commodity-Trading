@@ -9,7 +9,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
-import { TransactionService } from '../../blockchain/tx/transaction.service';
+import {
+  TransactionService,
+  type TxResult,
+} from '../../blockchain/tx/transaction.service';
 import { uuidToBytes32 } from '../../blockchain/utils/ids';
 import { Paginated } from '../../common/dto/pagination.dto';
 import { IdentityCryptoService } from '../../common/crypto/identity-crypto.service';
@@ -325,8 +328,11 @@ export class DetailChangesService {
   }
 
   /**
-   * Records the new fingerprint on the ledger, signed by the approver, then
-   * the new details, fingerprint and sign-in number, in one step.
+   * Stores the new details, fingerprint and sign-in number, then records the
+   * fingerprint on the ledger, signed by the approver, all in one database
+   * transaction: the new number and NID are held first, so one taken
+   * meanwhile is refused before anything reaches the ledger, and a ledger
+   * refusal leaves the database as it was.
    */
   async approve(
     actor: AuthUser,
@@ -355,15 +361,9 @@ export class DetailChangesService {
       await this.assertNidFree(requested.nid, user.id);
     }
     const detailsHash = this.codec.fingerprint(user.id, user.role, requested);
-    const result = await this.tx.send(actor.keyIndex, 'AccessRegistry', (c) =>
-      c.updateDetailsHash.populateTransaction(
-        uuidToBytes32(user.id),
-        detailsHash,
-      ),
-    );
+    let result: TxResult;
     try {
-      await this.dataSource.transaction(async (m) => {
-        await this.receipts.apply(result, m);
+      result = await this.dataSource.transaction(async (m) => {
         await m.update(
           PersonalDetails,
           { userId: user.id },
@@ -379,6 +379,13 @@ export class DetailChangesService {
           { phoneIndex: this.codec.phoneIndex(requested.phone) },
         );
         await this.nameIndex.write(m, user.id, requested.fullName);
+        const sent = await this.tx.send(actor.keyIndex, 'AccessRegistry', (c) =>
+          c.updateDetailsHash.populateTransaction(
+            uuidToBytes32(user.id),
+            detailsHash,
+          ),
+        );
+        await this.receipts.apply(sent, m);
         await m.update(
           DetailChangeRequest,
           { id },
@@ -386,7 +393,7 @@ export class DetailChangesService {
             status: DetailChangeStatus.APPROVED,
             decidedById: actor.id,
             decidedAt: new Date(),
-            txHash: result.hash,
+            txHash: sent.hash,
           },
         );
         await this.notifyDecided(
@@ -395,6 +402,7 @@ export class DetailChangesService {
           NotificationKind.DETAILS_CHANGE_APPROVED,
           {},
         );
+        return sent;
       });
     } catch (error) {
       throw mapUniqueViolation(error);

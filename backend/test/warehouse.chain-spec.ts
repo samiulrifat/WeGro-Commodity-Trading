@@ -1,5 +1,5 @@
 /** Warehouse sites and receipts end to end, against the local chain and a throwaway schema. */
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
@@ -349,6 +349,64 @@ describe('Warehouse (node + database)', () => {
       await as(t.field_officer)
         .post(`/warehouse-receipts/${receiptB}/handover`)
         .expect(409);
+    });
+  });
+
+  describe('refusals', () => {
+    it('names each problem of a re-check, and refuses a receipt no longer held', async () => {
+      const bad = await as(t.warehouse)
+        .post(`/warehouse-receipts/${receiptA}/extend`, {
+          checkedOn: await day(2),
+          newExpiresOn: await day(-2),
+        })
+        .expect(422);
+      expect(
+        bad.body.details.problems.map((p: { code: string }) => p.code),
+      ).toEqual(expect.arrayContaining(['CHECK_IN_FUTURE', 'EXPIRY_IN_PAST']));
+      const collected = await as(t.warehouse)
+        .post(`/warehouse-receipts/${receiptB}/extend`, {
+          checkedOn: await day(),
+          newExpiresOn: await day(400),
+        })
+        .expect(409);
+      expect(collected.body.code).toBe('RECEIPT_WRONG_STATUS');
+    });
+
+    it('answers 404 for sites, receipts and projects that do not exist', async () => {
+      const code = async (req: request.Test) =>
+        (await req.expect(404)).body.code as string;
+      expect(
+        await code(as(t.admin).get(`/warehouse-sites/${randomUUID()}`)),
+      ).toBe('SITE_NOT_FOUND');
+      expect(
+        await code(as(t.admin).get(`/warehouse-receipts/0x${'0'.repeat(64)}`)),
+      ).toBe('RECEIPT_NOT_FOUND');
+      expect(
+        await code(as(t.admin).get('/warehouse-receipts/not-a-receipt-id')),
+      ).toBe('RECEIPT_NOT_FOUND');
+      expect(
+        await code(
+          as(t.admin).patch(`/warehouse-sites/${randomUUID()}`, {
+            name: 'Nowhere',
+          }),
+        ),
+      ).toBe('SITE_NOT_FOUND');
+      expect(
+        await code(
+          as(t.warehouse).post(
+            `/warehouse-receipts/0x${'0'.repeat(64)}/extend`,
+            { checkedOn: await day(), newExpiresOn: await day(30) },
+          ),
+        ),
+      ).toBe('RECEIPT_NOT_FOUND');
+      expect(
+        await code(
+          as(t.warehouse).post(
+            '/warehouse-receipts',
+            await intake({ projectId: randomUUID() }),
+          ),
+        ),
+      ).toBe('PROJECT_NOT_FOUND');
     });
   });
 

@@ -507,12 +507,12 @@ function AssignDialog({
   const [error, setError] = useState<ApiError | null>(null);
 
   async function go() {
-    if (!officerId) return;
     setError(null);
     try {
       await assign({
         id: person.id,
-        assignFieldOfficerDto: { officerId },
+        // The button is disabled until an officer is chosen.
+        assignFieldOfficerDto: { officerId: officerId! },
       }).unwrap();
       toast.success(t('people.actions.assigned'));
       onClose();

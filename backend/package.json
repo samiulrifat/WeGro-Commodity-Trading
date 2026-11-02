@@ -20,6 +20,7 @@
     "test:e2e": "node --experimental-vm-modules --disable-warning=ExperimentalWarning ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "test:chain": "node --experimental-vm-modules --disable-warning=ExperimentalWarning ./node_modules/jest/bin/jest.js --config ./test/jest-chain.json --runInBand",
     "test:chain:cov": "node --experimental-vm-modules --disable-warning=ExperimentalWarning ./node_modules/jest/bin/jest.js --config ./test/jest-chain.json --runInBand --coverage",
+    "test:all:cov": "npm run test:cov -- --coverageReporters=json && npm run test:e2e -- --coverage --coverageReporters=json && npm run test:chain:cov -- --coverageReporters=json && node scripts/coverage-report.mjs",
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
     "migration:generate": "npm run typeorm -- migration:generate src/database/migrations/$npm_config_name",
     "migration:create": "typeorm-ts-node-commonjs migration:create src/database/migrations/$npm_config_name",

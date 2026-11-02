@@ -36,7 +36,7 @@ import { PersonStatus } from './person-status';
 import { useDistrictOptions } from './use-district-options';
 
 const PAGE_SIZE = 20;
-const NON_STAFF: ReadonlyArray<NonNullable<PeopleSearch['role']>> = [
+const ROLES: ReadonlyArray<NonNullable<PeopleSearch['role']>> = [
   'farmer',
   'investor',
   'buyer',
@@ -44,8 +44,6 @@ const NON_STAFF: ReadonlyArray<NonNullable<PeopleSearch['role']>> = [
   'bank',
   'warehouse',
   'insurer',
-];
-const STAFF: ReadonlyArray<NonNullable<PeopleSearch['role']>> = [
   'admin',
   'accounts',
   'operations',
@@ -95,8 +93,6 @@ export function PeopleList({
       ? t('nav.sub.myFarmers')
       : t('nav.people');
   const canRegister = me.role !== 'auditor';
-  const roles: ReadonlyArray<NonNullable<PeopleSearch['role']>> =
-    me.role === 'super_admin' ? STAFF : [...NON_STAFF, ...STAFF];
   const filtered = Boolean(
     search.q || search.role || search.status || search.district,
   );
@@ -120,7 +116,7 @@ export function PeopleList({
       <Filters
         search={search}
         pending={pending}
-        roles={officer ? [] : roles}
+        roles={officer ? [] : ROLES}
         onChange={set}
       />
 

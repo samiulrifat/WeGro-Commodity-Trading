@@ -1,5 +1,5 @@
 /** History, verification and the audit log end to end, against the local chain and a throwaway schema. */
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { EventIndexerService } from '../src/blockchain/indexer/event-indexer.service';
@@ -299,6 +299,11 @@ describe('Audit (node + database)', () => {
         .expect(404);
       await as(t.auditor).get('/audit/history/project/not-a-uuid').expect(404);
       await as(t.auditor).get('/audit/history/offer/12x').expect(404);
+      await as(t.auditor).get('/audit/history/receipt/0x12').expect(404);
+      // Receipt ids are matched in lower case, however they are typed.
+      await as(t.auditor)
+        .get(`/audit/history/receipt/0x${'AB'.repeat(32)}`)
+        .expect(200);
       await as(t.farmer).get(`/audit/history/project/${project}`).expect(403);
       const none = await history('offer', 999999999);
       expect(none.data).toEqual([]);
@@ -370,6 +375,17 @@ describe('Audit (node + database)', () => {
       await db.query('UPDATE reservations SET slots = 3 WHERE id = $1', [
         reservation,
       ]);
+      const missing = await as(t.auditor)
+        .get(`/audit/sweeps/${randomUUID()}`)
+        .expect(404);
+      expect(missing.body.code).toBe('SWEEP_NOT_FOUND');
+    });
+
+    it('says when a project has no insurer to check its cover against', async () => {
+      const res = await as(t.auditor)
+        .get(`/audit/verify/coverage/${project}`)
+        .expect(404);
+      expect(res.body.code).toBe('INSURER_NOT_ASSIGNED');
     });
   });
 
@@ -405,6 +421,22 @@ describe('Audit (node + database)', () => {
         statusCode: 200,
         outcome: 'ok',
       });
+      // Within days: today finds it, a range that ended before does not.
+      const today = new Date(Date.now() + 6 * 3600_000)
+        .toISOString()
+        .slice(0, 10);
+      const inRange = await as(t.auditor)
+        .get(
+          `/audit/log?actorId=${user.admin.id}&route=/api/projects/:id/publish&from=${today}&to=${today}`,
+        )
+        .expect(200);
+      expect(inRange.body.data.length).toBeGreaterThan(0);
+      const before = await as(t.auditor)
+        .get(
+          `/audit/log?actorId=${user.admin.id}&route=/api/projects/:id/publish&to=2020-01-01`,
+        )
+        .expect(200);
+      expect(before.body.data).toEqual([]);
       // A route's start finds every route under it.
       const under = await as(t.auditor)
         .get(

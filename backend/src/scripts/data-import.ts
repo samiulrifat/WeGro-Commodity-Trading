@@ -19,8 +19,12 @@ import { writeCredentials } from '../data/credentials-file';
 import { Importer } from '../data/import/importer';
 import { appContext, fail } from './app-context';
 
-async function main(): Promise<void> {
+/** The command, given its arguments (what follows the script's name). */
+export async function main(
+  argv: string[] = process.argv.slice(2),
+): Promise<void> {
   const { values, positionals } = parseArgs({
+    args: argv,
     allowPositionals: true,
     options: {
       apply: { type: 'boolean', default: false },
@@ -95,4 +99,6 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+// Run as a command; imported (by tests), it waits to be called.
+/* istanbul ignore if -- true only when started by npm run; tests call main() */
+if (require.main === module) void main();

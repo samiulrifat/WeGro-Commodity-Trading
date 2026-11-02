@@ -593,6 +593,40 @@ describe('Track record and bank permission (node + database)', () => {
       expect(
         byFarmer.body.data.map((f: { farmer: { id: string } }) => f.farmer.id),
       ).toContain(user.farmer.id);
+      // An officer sees permissions of their own farmers; none has expired.
+      const officers = await as(t.field_officer)
+        .get('/consents?state=current')
+        .expect(200);
+      expect(
+        officers.body.data.every(
+          (c: { farmer: { id: string } }) => c.farmer.id === user.farmer.id,
+        ),
+      ).toBe(true);
+      expect(officers.body.data.length).toBeGreaterThan(0);
+      const expired = await as(t.admin)
+        .get(`/consents?state=expired&bankId=${bankA}`)
+        .expect(200);
+      expect(expired.body.data).toEqual([]);
+      const code = async (req: request.Test) =>
+        (await req.expect(404)).body.code as string;
+      expect(
+        await code(as(t.admin).get(`${farmerPath()}/track-records/999`)),
+      ).toBe('VERSION_NOT_FOUND');
+      expect(await code(as(t.admin).get(`/banks/${randomUUID()}`))).toBe(
+        'BANK_NOT_FOUND',
+      );
+      expect(
+        await code(as(t.admin).get(`/consents/${randomUUID()}/evidence-photo`)),
+      ).toBe('CONSENT_NOT_FOUND');
+      expect(
+        await code(
+          as(t.field_officer).post(`${farmerPath()}/consents`, {
+            bankId: randomUUID(),
+            evidencePhotoId: randomUUID(),
+            expiresOn: await day(30),
+          }),
+        ),
+      ).toBe('BANK_NOT_FOUND');
     });
 
     it('is renewed by a new grant, keeping the old one as history', async () => {

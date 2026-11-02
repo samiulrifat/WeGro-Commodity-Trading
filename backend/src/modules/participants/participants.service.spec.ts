@@ -6,11 +6,13 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { uuidToBytes32, ZERO_BYTES32 } from '../../blockchain/utils/ids';
+import { QueryFailedError } from 'typeorm';
 import { IdentityCryptoService } from '../../common/crypto/identity-crypto.service';
 import {
   actor,
   ChainState,
   config,
+  fakeQueryBuilder,
   fakeRepo,
   fakeTx,
   matchesWhere,
@@ -22,7 +24,12 @@ import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { User } from '../users/entities/user.entity';
 import { PersonalDetailsCodec } from '../users/personal-details.codec';
 import { CHAIN_ROLE } from '../users/roles';
-import { ParticipantsService } from './participants.service';
+import {
+  assertConfirmed,
+  mapUniqueViolation,
+  maskEmail,
+  ParticipantsService,
+} from './participants.service';
 
 const codec = new PersonalDetailsCodec(
   new IdentityCryptoService(config({ IDENTITY_MASTER_KEY: 'ab'.repeat(32) })),
@@ -92,6 +99,18 @@ function world() {
     find: jest.fn(({ where }: { where: Record<string, unknown> }) =>
       Promise.resolve(users.filter((u) => matchesWhere(u as never, where))),
     ),
+    // Sign-ups still waiting for the ledger, with their details.
+    createQueryBuilder: jest.fn(
+      () =>
+        fakeQueryBuilder({
+          getMany: users
+            .filter((u) => u.chainState === ChainState.SUBMITTED)
+            .map((u) => ({
+              ...u,
+              details: details.find((d) => d.userId === u.id),
+            })),
+        }).qb,
+    ),
   });
   const detailsRepo = fakeRepo({
     exists: jest.fn(({ where }: { where: Record<string, unknown> }) =>
@@ -155,6 +174,11 @@ function world() {
   };
   const tokens = { revokeAllForUser: jest.fn(() => Promise.resolve()) };
   const sms = { send: jest.fn(() => Promise.resolve()) };
+  // Every sign-up code matches.
+  const codes = {
+    check: jest.fn(() => Promise.resolve({ ok: true, row: { id: 1 } })),
+    close: jest.fn(() => Promise.resolve()),
+  };
   const dataSource = {
     transaction: jest.fn((work: (m: unknown) => unknown) => work(manager)),
     // Open-work counts: only a field officer's farmers exist in this world.
@@ -182,7 +206,7 @@ function world() {
     receipts as never,
     tokens as never,
     sms as never,
-    {} as never,
+    codes as never,
     { write: jest.fn(() => Promise.resolve()) } as never,
     { apply: (qb: unknown) => qb } as never,
   );
@@ -192,7 +216,17 @@ function world() {
       'warn',
     )
     .mockImplementation(() => undefined);
-  return { service, users, details, ledger, chain, tokens, usersRepo, sms };
+  return {
+    service,
+    users,
+    details,
+    ledger,
+    chain,
+    tokens,
+    usersRepo,
+    sms,
+    manager,
+  };
 }
 
 describe('ParticipantsService', () => {
@@ -621,5 +655,144 @@ describe('ParticipantsService', () => {
     await expect(w.service.replaceKey(admin, participant.id)).rejects.toThrow(
       ConflictException,
     );
+  });
+  describe('edges', () => {
+    const dbError = (constraint: string, code = '23505') =>
+      new QueryFailedError('INSERT ...', [], {
+        code,
+        constraint,
+      } as unknown as Error);
+
+    it('names a phone or NID taken meanwhile by its constraint, and passes other errors on', () => {
+      expect(mapUniqueViolation(dbError('uq_users_phone_index'))).toMatchObject(
+        { response: { code: 'PHONE_ALREADY_REGISTERED' } },
+      );
+      expect(
+        mapUniqueViolation(dbError('uq_personal_details_nid_index')),
+      ).toMatchObject({ response: { code: 'NID_ALREADY_REGISTERED' } });
+      for (const other of [
+        dbError('uq_something_else'),
+        dbError('uq_users_phone_index', '23503'),
+        new Error('disk full'),
+      ]) {
+        expect(mapUniqueViolation(other)).toBe(other);
+      }
+    });
+
+    it('turns a duplicate found while saving a registration into its own error', async () => {
+      const w = world();
+      w.manager.insert.mockRejectedValueOnce(dbError('uq_users_phone_index'));
+      await expect(
+        w.service.register(admin, { role: Role.FARMER, ...person } as never),
+      ).rejects.toMatchObject({
+        response: { code: 'PHONE_ALREADY_REGISTERED' },
+      });
+    });
+
+    it('turns a duplicate found while saving a sign-up into its own error', async () => {
+      const w = world();
+      w.manager.insert.mockRejectedValueOnce(
+        dbError('uq_personal_details_nid_index'),
+      );
+      await expect(
+        w.service.signUp({
+          role: Role.INVESTOR,
+          ...person,
+          password: 'correct horse battery',
+          phoneCode: '123456',
+        } as never),
+      ).rejects.toMatchObject({
+        response: { code: 'NID_ALREADY_REGISTERED' },
+      });
+    });
+
+    it('reports someone the ledger has never heard of', async () => {
+      const w = world();
+      const { participant } = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      w.ledger.clear();
+      expect(await w.service.integrity(participant.id)).toMatchObject({
+        matches: false,
+        mismatches: ['notOnLedger'],
+      });
+    });
+
+    it('masks an email to its first two letters and the domain', () => {
+      expect(maskEmail('rahim@example.com')).toBe('ra•••@example.com');
+    });
+
+    it('waits for the ledger to confirm a registration before acting on it', () => {
+      expect(() =>
+        assertConfirmed({ chainState: ChainState.SUBMITTED } as User),
+      ).toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            code: 'PARTICIPANT_UNCONFIRMED',
+          }),
+        }),
+      );
+    });
+
+    it('will not reject the same registration twice', async () => {
+      const w = world();
+      const { participant } = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      await w.service.reject(admin, participant.id, {
+        reason: 'Blurred NID',
+      } as never);
+      await expect(
+        w.service.reject(admin, participant.id, { reason: 'Again' } as never),
+      ).rejects.toThrow('Already rejected');
+    });
+
+    it('answers 503 when a sync could not reach the ledger, and keeps the person', async () => {
+      const w = world();
+      const { participant } = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      w.ledger.clear();
+      w.chain.fail(new Error('node unreachable'));
+      const error = await w.service
+        .syncWithLedger(admin, participant.id)
+        .catch(
+          (e: { getStatus: () => number; getResponse: () => object }) => e,
+        );
+      expect((error as { getStatus: () => number }).getStatus()).toBe(503);
+      expect(w.users).toHaveLength(1);
+    });
+
+    it('settles sign-ups the ledger lost, counting those it confirms', async () => {
+      const w = world();
+      const { participant } = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      w.ledger.clear();
+      w.users[0].chainState = ChainState.SUBMITTED;
+      await expect(w.service.retrySignUps(10)).resolves.toBe(1);
+      // Registered again by the platform's own key, as a sign-up is.
+      expect(w.chain.sent.at(-1)).toMatchObject({
+        method: 'selfRegisterParticipant',
+      });
+      expect(w.chain.sent.at(-1)!.args[0]).toBe(uuidToBytes32(participant.id));
+    });
+
+    it('cannot register someone again without their stored fingerprint', async () => {
+      const w = world();
+      const { participant } = await w.service.register(admin, {
+        role: Role.FARMER,
+        ...person,
+      } as never);
+      w.ledger.clear();
+      w.details[0].detailsHash = null as never;
+      await expect(
+        w.service.syncWithLedger(admin, participant.id),
+      ).rejects.toMatchObject({ response: { code: 'NO_FINGERPRINT' } });
+    });
   });
 });

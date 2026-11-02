@@ -96,6 +96,16 @@ describe('BanksService', () => {
     expect(chain.sent).toEqual([]);
   });
 
+  it('passes any other failure to store the branch on unchanged', async () => {
+    const { service, chain } = build({
+      banks: { insert: jest.fn(() => Promise.reject(new Error('disk full'))) },
+    });
+    await expect(service.register(admin, dto as never)).rejects.toThrow(
+      'disk full',
+    );
+    expect(chain.sent).toEqual([]);
+  });
+
   it('removes the stored branch when the ledger refuses it', async () => {
     const { service, banks, chain } = build();
     chain.fail(revert('AlreadyRegistered'));

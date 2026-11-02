@@ -4,10 +4,12 @@ describe('SystemStatusService', () => {
   const build = (
     opts: {
       db?: boolean;
-      block?: { number: number; timestamp: number } | null;
+      /** null: the node refuses; 'silent': it never answers. */
+      block?: { number: number; timestamp: number } | null | 'silent';
       indexed?: number | null;
       failures?: number;
       incident?: { problem: 'indexer-behind'; since: Date } | null;
+      indexerFails?: boolean;
     } = {},
   ) =>
     new SystemStatusService(
@@ -21,22 +23,26 @@ describe('SystemStatusService', () => {
         chainId: 31337,
         provider: {
           getBlock: () =>
-            opts.block === null
-              ? Promise.reject(new Error('unreachable'))
-              : Promise.resolve(
-                  opts.block ?? { number: 500, timestamp: 1_800_000_000 },
-                ),
+            opts.block === 'silent'
+              ? new Promise(() => undefined)
+              : opts.block === null
+                ? Promise.reject(new Error('unreachable'))
+                : Promise.resolve(
+                    opts.block ?? { number: 500, timestamp: 1_800_000_000 },
+                  ),
         },
       } as never,
       {
         status: () =>
-          Promise.resolve({
-            enabled: true,
-            running: true,
-            lastBlock: opts.indexed === undefined ? 499 : opts.indexed,
-            failures: opts.failures ?? 0,
-            lastError: opts.failures ? 'boom' : null,
-          }),
+          opts.indexerFails
+            ? Promise.reject(new Error('state table locked'))
+            : Promise.resolve({
+                enabled: true,
+                running: true,
+                lastBlock: opts.indexed === undefined ? 499 : opts.indexed,
+                failures: opts.failures ?? 0,
+                lastError: opts.failures ? 'boom' : null,
+              }),
       } as never,
       {
         allowedLag: 100,
@@ -83,7 +89,24 @@ describe('SystemStatusService', () => {
     });
   });
 
+  it('counts a node that does not answer within 2 s as down', async () => {
+    jest.useFakeTimers();
+    try {
+      const pending = build({ block: 'silent' }).status();
+      await jest.advanceTimersByTimeAsync(2_000);
+      expect((await pending).chain).toMatchObject({ status: 'down' });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('is down without the database', async () => {
     expect((await build({ db: false }).status()).status).toBe('down');
+  });
+
+  it('still answers when the ledger copy cannot say where it is', async () => {
+    const s = await build({ indexerFails: true }).status();
+    expect(s.indexer).toMatchObject({ indexedBlock: null, behind: null });
+    expect(s.database).toBe('up');
   });
 });

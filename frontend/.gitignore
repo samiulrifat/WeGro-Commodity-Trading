@@ -34,3 +34,6 @@ dist-ssr
 # End-to-end runs (npm run e2e)
 /e2e-report
 /e2e-results
+
+# Coverage runs (npm run test:all:cov)
+/coverage

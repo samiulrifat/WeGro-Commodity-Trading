@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { parseMarketSearch } from '@/features/marketplace/market-utils';
 import { RequestsList } from '@/features/marketplace/requests-list';
+import { onlyChecked } from '@/lib/search';
 
 export const Route = createFileRoute('/_app/requests/')({
   staticData: { area: 'requests' },
-  validateSearch: parseMarketSearch,
+  validateSearch: onlyChecked(parseMarketSearch),
   component: function MyRequests() {
     return <RequestsList search={Route.useSearch()} mine />;
   },

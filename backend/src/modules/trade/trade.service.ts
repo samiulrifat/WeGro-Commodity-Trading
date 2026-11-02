@@ -49,6 +49,7 @@ import { CatalogService } from '../catalog/catalog.service';
 import { ProduceCategory } from '../catalog/catalog.enums';
 import type { Photo } from '../field-records/entities/photo.entity';
 import { photoHash, PhotosService } from '../field-records/photos.service';
+import type { ProduceRefDto } from '../projects/dto/project-response.dto';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
@@ -70,7 +71,6 @@ import type {
   ListReceiptDto,
   MakeOfferDto,
   OfferDto,
-  ProduceRefDto,
   SellerDto,
   SetFeeSlabsDto,
 } from './dto/trade.dto';

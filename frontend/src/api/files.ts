@@ -133,7 +133,7 @@ export async function downloadFile(path: string): Promise<void> {
     /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i
       .exec(res.headers.get('Content-Disposition') ?? '')?.[1]
       ?.trim() ??
-    path.split('/').pop() ??
+    path.split('?')[0]!.split('/').pop() ??
     'download';
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement('a');

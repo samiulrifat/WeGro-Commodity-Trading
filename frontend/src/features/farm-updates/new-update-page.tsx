@@ -256,6 +256,16 @@ function UpdateForm({ initial }: { initial: Initial }) {
     [catalog.data, data.entryTypeCode],
   );
   const type = types.find((x) => x.code === data.entryTypeCode);
+  // The types (and so what an update needs) come with the catalog: until it
+  // is in, nothing can be checked or saved.
+  const catalogState = catalog.data ? null : catalog.error ? (
+    <ErrorState
+      error={toApiError(catalog.error)!}
+      onRetry={() => void catalog.refetch()}
+    />
+  ) : (
+    <LoadingState />
+  );
   const problems = draftProblems(current, type, !!photo || !!data.photoId);
   const index = STEPS.indexOf(step);
   const stepBlocked: Record<Step, boolean> = {
@@ -362,7 +372,7 @@ function UpdateForm({ initial }: { initial: Initial }) {
 
         {step === 'type' && (
           <div className="grid gap-3">
-            {catalog.isLoading && <LoadingState />}
+            {catalogState}
             <div
               role="radiogroup"
               aria-label={t('farmUpdates.step.type')}
@@ -432,15 +442,16 @@ function UpdateForm({ initial }: { initial: Initial }) {
           />
         )}
 
-        {step === 'review' && (
-          <Review
-            data={current}
-            type={type}
-            photo={photo}
-            problems={problems}
-            goTo={setStep}
-          />
-        )}
+        {step === 'review' &&
+          (catalogState ?? (
+            <Review
+              data={current}
+              type={type}
+              photo={photo}
+              problems={problems}
+              goTo={setStep}
+            />
+          ))}
 
         <div className="flex gap-3 pt-2">
           {index > 0 && (
@@ -467,7 +478,7 @@ function UpdateForm({ initial }: { initial: Initial }) {
             <Button
               size="lg"
               className="flex-1"
-              disabled={saving}
+              disabled={saving || !catalog.data}
               onClick={() => void save()}
             >
               <Check />{' '}
@@ -538,7 +549,8 @@ function Choice({
 }: {
   name: string;
   checked: boolean;
-  onSelect: () => void;
+  /** None: shown chosen, fixed. */
+  onSelect?: () => void;
   title: string;
   sub?: ReactNode;
   note?: string;
@@ -555,6 +567,7 @@ function Choice({
         name={name}
         checked={checked}
         onChange={onSelect}
+        readOnly={!onSelect}
         className="sr-only"
       />
       <span className="flex items-center justify-between gap-2 font-semibold">
@@ -589,12 +602,7 @@ function ProjectStep({
   if (locked) {
     return (
       <div className="grid gap-2">
-        <Choice
-          name="project"
-          checked
-          onSelect={() => undefined}
-          title={title}
-        />
+        <Choice name="project" checked title={title} />
         <p className="text-sm text-muted-foreground">
           {t('farmUpdates.projectLocked')}
         </p>

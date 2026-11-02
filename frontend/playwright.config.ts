@@ -10,7 +10,9 @@ import { defineConfig, devices } from '@playwright/test';
 const speed = !!process.env.E2E_SPEED;
 export default defineConfig({
   testDir: './e2e',
-  timeout: 120_000,
+  // Collecting coverage (E2E_COVERAGE) slows the browser: the longest
+  // stories, every page of a role, need more time then.
+  timeout: process.env.E2E_COVERAGE ? 240_000 : 120_000,
   expect: { timeout: 15_000 },
   workers: 1,
   fullyParallel: false,

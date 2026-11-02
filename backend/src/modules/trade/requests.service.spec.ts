@@ -61,6 +61,15 @@ describe('RequestsService', () => {
       createQueryBuilder: jest.fn(
         () => fakeQueryBuilder({ getMany: opts.open ?? [] }).qb,
       ),
+      // Outside sellers' listings take the district from their details.
+      manager: {
+        getRepository: () =>
+          fakeRepo({
+            find: jest.fn(() =>
+              Promise.resolve([{ id: 'd1', districtCode: 'RANGPUR' }]),
+            ),
+          }),
+      },
     });
     const projects = fakeRepo({
       find: jest.fn(() =>
@@ -157,6 +166,21 @@ describe('RequestsService', () => {
       askingUnitPrice: '20.00',
       district: 'Bogura',
     });
+  });
+
+  it("places an outside seller's listing in the seller's own district", async () => {
+    const dto = await build({
+      open: [listing(9, 2000n, { projectId: null, detailsId: 'd1' })],
+    }).service.one(7);
+    expect(dto.matchingListings).toEqual([
+      expect.objectContaining({ id: 9, district: 'Rangpur' }),
+    ]);
+  });
+
+  it('answers 404 for a request that is not there', async () => {
+    await expect(build({ row: null }).service.one(7)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('calls a request past its deadline expired, with no matches', async () => {

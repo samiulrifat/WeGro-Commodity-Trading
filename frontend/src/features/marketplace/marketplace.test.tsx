@@ -8,7 +8,13 @@ import type {
   ListingDto,
   OfferDto,
 } from '@/api/generated/marketplace';
-import { fakeServer, renderPage, signedInAs } from '@/test/render';
+import {
+  fakeServer,
+  recordForms,
+  type Reply,
+  renderPage,
+  signedInAs,
+} from '@/test/render';
 import { DealPage } from './deal-page';
 import { DealsList } from './deals-list';
 import { FeesPage } from './fees-page';
@@ -497,5 +503,982 @@ describe('platform fees', () => {
         ],
       }),
     );
+  });
+});
+
+describe('deals, further', () => {
+  const refused = {
+    status: 409,
+    body: { statusCode: 409, code: 'OFFER_STATUS_INVALID', message: 'Not now' },
+  };
+  async function deal(
+    role: Parameters<typeof signedInAs>[0],
+    o: OfferDto,
+    write: (path: string) => { status?: number; body: unknown } = () => ({
+      body: { data: o },
+    }),
+  ) {
+    await signedInAs(role);
+    const sent = fakeServer(({ method, url }) => {
+      if (method === 'POST' && url.pathname === '/api/photos')
+        return { status: 201, body: { data: { id: 'ph9' } } };
+      if (method === 'POST') return write(url.pathname);
+      if (url.pathname === '/api/offers/12') return { body: { data: o } };
+      return undefined;
+    });
+    await renderPage(<DealPage id={12} />, '/marketplace/deals/12');
+    return sent;
+  }
+
+  it('has the buyer confirm what arrived, with a photo, flagging a different count', async () => {
+    const forms = recordForms();
+    const sent = await deal('buyer', offer({ status: 'paid' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Confirm Delivery' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const qty = within(dialog).getByLabelText(/Quantity Received/);
+    expect((qty as HTMLInputElement).value).toBe('500');
+    await userEvent.clear(qty);
+    await userEvent.type(qty, '0');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Confirm Delivery' }),
+    );
+    expect(
+      within(dialog).getByText('Enter a whole number, at least 1.'),
+    ).toBeTruthy();
+    await userEvent.clear(qty);
+    await userEvent.type(qty, '480');
+    expect(
+      within(dialog).getByText(
+        'This differs from the deal; it will be flagged.',
+      ),
+    ).toBeTruthy();
+    await userEvent.type(
+      within(dialog).getByLabelText('Condition'),
+      ' Two sacks wet ',
+    );
+    await userEvent.upload(
+      dialog.querySelector('input[type=file]') as HTMLInputElement,
+      new File(['jpg'], 'sacks.jpg', { type: 'image/jpeg' }),
+    );
+    expect(
+      await within(dialog).findByRole('button', { name: /Retake Photo/ }),
+    ).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Confirm Delivery' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(forms.at(-1)).toHaveLength(1);
+    expect(
+      sent.find((s) => s.url.pathname === '/api/offers/12/delivery')!.body,
+    ).toEqual({
+      quantity: 480,
+      notes: 'Two sacks wet',
+      photoId: 'ph9',
+    });
+  });
+
+  it('keeps the delivery form with the reason when refused, and closes on Cancel', async () => {
+    await deal('buyer', offer({ status: 'paid' }), () => refused);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Confirm Delivery' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Confirm Delivery' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lets the buyer withdraw a pending offer, and keeps the dialog when refused', async () => {
+    let refuse = true;
+    const sent = await deal('buyer', offer(), () =>
+      refuse ? refused : { body: { data: offer() } },
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Withdraw Offer' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Withdraw Offer' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    refuse = false;
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Withdraw Offer' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(sent.some((s) => s.url.pathname === '/api/offers/12/withdraw')).toBe(
+      true,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Withdraw Offer' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lets an admin cancel an approved deal, and Accounts confirm its payment with a reference', async () => {
+    const approved = offer({
+      status: 'approved',
+      external: false,
+      seller: { kind: 'wegro', id: null, name: 'WeGro' } as never,
+      buyerPays: '15075.00',
+    });
+    let sent = await deal('admin', approved);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Cancel Deal' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Cancel Deal',
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        sent.some((s) => s.url.pathname === '/api/offers/12/cancel-deal'),
+      ).toBe(true),
+    );
+    cleanup();
+
+    let refuse = true;
+    sent = await deal('accounts', approved, () =>
+      refuse ? refused : { body: { data: approved } },
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Confirm Payment' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const send = within(dialog).getByRole('button', {
+      name: 'Confirm Payment',
+    });
+    await userEvent.click(send);
+    expect(
+      within(dialog).getByText('Enter the payment reference.'),
+    ).toBeTruthy();
+    await userEvent.type(
+      within(dialog).getByLabelText('Payment Reference'),
+      'BKASH-1',
+    );
+    await userEvent.click(send);
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    refuse = false;
+    await userEvent.click(send);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      sent.filter((s) => s.url.pathname === '/api/offers/12/payment').at(-1)!
+        .body,
+    ).toEqual({
+      paymentReference: 'BKASH-1',
+    });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Confirm Payment' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('says what went wrong, and tries again', async () => {
+    await signedInAs('buyer');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/offers/12'
+        ? ++calls > 1
+          ? { body: { data: offer() } }
+          : { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+        : undefined,
+    );
+    await renderPage(<DealPage id={12} />, '/marketplace/deals/12');
+    expect(
+      (await screen.findByRole('link', { name: /Offers/ })).getAttribute(
+        'href',
+      ),
+    ).toBe('/offers');
+    await userEvent.click(screen.getByRole('button', { name: /Try Again/ }));
+    expect(
+      await screen.findByRole('button', { name: 'Withdraw Offer' }),
+    ).toBeTruthy();
+  });
+});
+
+describe('listings, further', () => {
+  const refused = {
+    status: 409,
+    body: {
+      statusCode: 409,
+      code: 'LISTING_STATUS_INVALID',
+      message: 'Not now',
+    },
+  };
+  async function view(
+    role: Parameters<typeof signedInAs>[0],
+    l: ListingDto,
+    over: {
+      offers?: OfferDto[];
+      write?: () => { status?: number; body: unknown };
+    } = {},
+  ) {
+    await signedInAs(role);
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn((b: Blob) => `blob:${b.size}`),
+        revokeObjectURL: vi.fn(),
+      }),
+    );
+    const sent = fakeServer(({ method, url }) => {
+      if (method === 'POST') return over.write?.() ?? { body: { data: l } };
+      if (url.pathname === '/api/listings/7') return { body: { data: l } };
+      if (url.pathname === '/api/offers')
+        return { body: page(over.offers ?? []) };
+      if (url.pathname === '/api/marketplace/fees')
+        return { body: { data: { slabs: SLABS } } };
+      if (url.pathname.startsWith('/api/photos/')) return { body: {} };
+      return undefined;
+    });
+    const r = await renderPage(
+      <ListingPage id={7} />,
+      '/marketplace/listings/7',
+    );
+    return { sent, ...r };
+  }
+
+  it('shows the seller’s photos one at a time, and the offers made', async () => {
+    await view(
+      'admin',
+      listing({ photos: ['/api/photos/a', '/api/photos/b'] }),
+      {
+        offers: [
+          offer({ status: 'approved' }),
+          offer({ id: 13, buyer: { id: 'b2', name: 'Green Mills' } }),
+        ],
+      },
+    );
+    const second = await screen.findByRole('button', {
+      name: 'Photo 2 of the produce',
+    });
+    expect(second.getAttribute('aria-pressed')).toBe('false');
+    await userEvent.click(second);
+    expect(second.getAttribute('aria-pressed')).toBe('true');
+    expect(await screen.findByText('2 offers')).toBeTruthy();
+    expect(
+      screen.getAllByText(/Nadia Foods|Green Mills/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('lets an admin approve a pending listing, keeping the dialog when refused', async () => {
+    let refuse = true;
+    const { sent } = await view('admin', listing({ status: 'pending' }), {
+      write: () => (refuse ? refused : { body: { data: listing() } }),
+    });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Approve Listing' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Approve Listing' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    refuse = false;
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Approve Listing' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(sent.some((s) => s.url.pathname === '/api/listings/7/approve')).toBe(
+      true,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Approve Listing' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lets a seller take down their own listing, unless deals wait for payment', async () => {
+    const { sent } = await view(
+      'seller',
+      listing({ seller: { kind: 'seller', id: 'me', name: 'Me' } }),
+    );
+    expect(
+      (await screen.findByRole('link', { name: /My Listings/ })).getAttribute(
+        'href',
+      ),
+    ).toBe('/marketplace/mine');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Take Down Listing' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Take Down Listing',
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        sent.some((s) => s.url.pathname === '/api/listings/7/cancel'),
+      ).toBe(true),
+    );
+    cleanup();
+    await view(
+      'seller',
+      listing({
+        seller: { kind: 'seller', id: 'me', name: 'Me' },
+        unpaidDeals: 1,
+      }),
+    );
+    expect(
+      (
+        await screen.findByRole('button', { name: 'Take Down Listing' })
+      ).hasAttribute('disabled'),
+    ).toBe(true);
+    expect(screen.getByText(/A deal is waiting for payment/)).toBeTruthy();
+  });
+
+  it('keeps the turn-down and offer dialogs open with the reason when refused', async () => {
+    await view('admin', listing({ status: 'pending' }), {
+      write: () => refused,
+    });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Turn Down' }),
+    );
+    let dialog = await screen.findByRole('dialog');
+    await userEvent.type(
+      within(dialog).getByLabelText('Reason'),
+      'Blurry photos',
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Turn Down' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    cleanup();
+
+    const { sent } = await view('buyer', listing(), {
+      write: () => refused,
+    });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Make an Offer' }),
+    );
+    dialog = await screen.findByRole('dialog');
+    const qty = within(dialog).getByLabelText(/Quantity/);
+    await userEvent.clear(qty);
+    await userEvent.type(qty, '10');
+    const price = within(dialog).getByLabelText('Your Price Per Unit');
+    await userEvent.clear(price);
+    await userEvent.type(price, '30');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Send Offer' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    // None at all: not sent; and the dialog closes on Escape.
+    const sends = () => sent.filter((x) => x.method === 'POST').length;
+    const before = sends();
+    await userEvent.clear(qty);
+    await userEvent.type(qty, '0');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Send Offer' }),
+    );
+    expect(sends()).toBe(before);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('says what went wrong, and tries again', async () => {
+    await signedInAs('buyer');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/listings/7'
+        ? ++calls > 1
+          ? { body: { data: listing() } }
+          : { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+        : url.pathname === '/api/offers'
+          ? { body: page([]) }
+          : undefined,
+    );
+    await renderPage(<ListingPage id={7} />, '/marketplace/listings/7');
+    expect(
+      (await screen.findByRole('link', { name: /Listings/ })).getAttribute(
+        'href',
+      ),
+    ).toBe('/marketplace');
+    await userEvent.click(screen.getByRole('button', { name: /Try Again/ }));
+    expect(
+      await screen.findByRole('button', { name: 'Make an Offer' }),
+    ).toBeTruthy();
+  });
+});
+
+describe('buyer requests, further', () => {
+  const open: BuyerRequestDto = {
+    id: 3,
+    buyer: { id: 'me', name: 'Nadia Foods' },
+    produce: MAIZE,
+    quantity: 2000,
+    maxUnitPrice: '33.00',
+    validUntil: '2026-12-31',
+    status: 'open',
+    postedAt: '2026-10-22T05:00:00.000Z',
+    matchingListings: [],
+  };
+  const refused = {
+    status: 409,
+    body: { statusCode: 409, code: 'REQUEST_NOT_OPEN', message: 'Not open' },
+  };
+
+  it('lets a buyer cancel their own open request, keeping it when refused', async () => {
+    await signedInAs('buyer');
+    let refuse = true;
+    const sent = fakeServer(({ method, url }) => {
+      if (method === 'POST')
+        return refuse
+          ? refused
+          : { body: { data: { ...open, status: 'cancelled' } } };
+      if (url.pathname === '/api/buyer-requests')
+        return {
+          body: {
+            ...page([open]),
+            meta: { page: 1, limit: 12, total: 13, totalPages: 2 },
+          },
+        };
+      return undefined;
+    });
+    const { router } = await renderPage(
+      <RequestsList search={{}} mine />,
+      '/requests',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Cancel Request' }),
+    );
+    let dialog = await screen.findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Keep It' }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Cancel Request' }),
+    );
+    dialog = await screen.findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel Request' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    refuse = false;
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel Request' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      sent.some((s) => s.url.pathname === '/api/buyer-requests/3/cancel'),
+    ).toBe(true);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'All' }));
+    expect(router.state.location.search).toEqual({ tab: 'all' });
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(router.state.location.search).toEqual({ page: 2 });
+    await userEvent.type(screen.getByRole('searchbox'), 'maize');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(router.state.location.search).toEqual({ q: 'maize' });
+  });
+
+  it('names what a request needs, and keeps the form with the reason when refused', async () => {
+    await signedInAs('buyer');
+    fakeServer(({ method, url }) => {
+      if (method === 'POST')
+        return {
+          status: 422,
+          body: {
+            statusCode: 422,
+            code: 'INVALID_INPUT',
+            message: ['validUntil must be later'],
+          },
+        };
+      if (url.pathname === '/api/buyer-requests') return { body: page([]) };
+      if (url.pathname === '/api/catalog') return { body: catalog };
+      return undefined;
+    });
+    await renderPage(<RequestsList search={{}} mine />, '/requests');
+    expect(await screen.findByText('No buyer requests here yet.')).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole('button', { name: /Post a Request/ }),
+    );
+    const dialog = screen.getByRole('dialog');
+    const post = within(dialog).getByRole('button', { name: 'Post a Request' });
+    await userEvent.click(post);
+    expect(within(dialog).getByText('Choose the produce.')).toBeTruthy();
+    expect(
+      within(dialog).getByText('Enter a whole number, at least 1.'),
+    ).toBeTruthy();
+    await userEvent.click(within(dialog).getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'Maize' }));
+    await userEvent.type(within(dialog).getByLabelText(/Quantity/), '100');
+    await userEvent.type(
+      within(dialog).getByLabelText('Highest Price Per Unit'),
+      '30',
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText('Open Until'),
+      '2020-01-01',
+    );
+    await userEvent.click(post);
+    expect(
+      within(dialog).getByText('Choose today or a later day.'),
+    ).toBeTruthy();
+    await userEvent.clear(within(dialog).getByLabelText('Open Until'));
+    await userEvent.click(post);
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+  });
+
+  it('says when no request matches, and tries again after an error', async () => {
+    await signedInAs('admin');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/buyer-requests'
+        ? ++calls > 1
+          ? { body: page([]) }
+          : { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+        : undefined,
+    );
+    await renderPage(
+      <RequestsList search={{ q: 'jute' }} />,
+      '/marketplace/requests',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(await screen.findByText('No requests match.')).toBeTruthy();
+  });
+});
+
+describe('the lists, further', () => {
+  const failing = (ok: () => Reply) => {
+    let calls = 0;
+    return (): Reply =>
+      ++calls > 1
+        ? ok()
+        : { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } };
+  };
+
+  it('asks for each deal tab, and moves between tabs, pages and searches', async () => {
+    await signedInAs('accounts');
+    const sent = fakeServer(({ url }) =>
+      url.pathname === '/api/offers'
+        ? {
+            body: {
+              ...page([offer()]),
+              meta: { page: 1, limit: 12, total: 13, totalPages: 2 },
+            },
+          }
+        : undefined,
+    );
+    const asked = () =>
+      Object.fromEntries(
+        sent.filter((s) => s.url.pathname === '/api/offers').at(-1)!.url
+          .searchParams,
+      );
+    for (const [tab, want] of [
+      ['approved', { status: 'approved' }],
+      ['mismatch', { discrepancy: 'true' }],
+    ] as const) {
+      const { unmount } = await renderPage(
+        <DealsList search={{ tab }} mode="deals" />,
+        '/marketplace/deals',
+      );
+      await screen.findByText(/Offer #12/);
+      expect(asked()).toMatchObject(want);
+      unmount();
+    }
+    const { router } = await renderPage(
+      <DealsList search={{}} mode="deliveries" />,
+      '/marketplace/deliveries',
+    );
+    await screen.findByText(/Offer #12/);
+    expect(asked()).toMatchObject({ status: 'paid' });
+    await userEvent.click(screen.getByRole('tab', { name: 'Delivered' }));
+    expect(router.state.location.search).toEqual({ tab: 'delivered' });
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(router.state.location.search).toEqual({ page: 2 });
+    await userEvent.type(screen.getByRole('searchbox'), 'nadia');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(router.state.location.search).toEqual({ q: 'nadia' });
+  });
+
+  it('says when no deal matches, and tries again after an error', async () => {
+    await signedInAs('seller');
+    const answer = failing(() => ({ body: page([]) }));
+    fakeServer(({ url }) =>
+      url.pathname === '/api/offers' ? answer() : undefined,
+    );
+    await renderPage(
+      <DealsList search={{ q: 'x' }} mode="deals" />,
+      '/marketplace/deals',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(await screen.findByText('No offers or deals match.')).toBeTruthy();
+  });
+
+  it('gives staff closed listings too, and asks for each listing tab', async () => {
+    await signedInAs('admin');
+    const sent = fakeServer(({ url }) =>
+      url.pathname === '/api/listings'
+        ? {
+            body: {
+              ...page([listing()]),
+              meta: { page: 1, limit: 12, total: 13, totalPages: 2 },
+            },
+          }
+        : undefined,
+    );
+    const asked = () =>
+      Object.fromEntries(
+        sent.filter((s) => s.url.pathname === '/api/listings').at(-1)!.url
+          .searchParams,
+      );
+    let view = await renderPage(
+      <ListingsList search={{ tab: 'sold_out' }} mode="browse" />,
+      '/marketplace',
+    );
+    expect(await screen.findByRole('tab', { name: 'Cancelled' })).toBeTruthy();
+    expect(asked()).toMatchObject({ status: 'sold_out' });
+    view.unmount();
+    view = await renderPage(
+      <ListingsList search={{ tab: 'rejected' }} mode="approvals" />,
+      '/marketplace/approvals',
+    );
+    await screen.findByRole('tab', { name: 'Not Approved' });
+    expect(asked()).toMatchObject({ source: 'seller', status: 'rejected' });
+    expect(screen.queryByRole('button', { name: /New Listing/ })).toBeNull();
+    await userEvent.click(
+      screen.getByRole('tab', { name: 'Waiting for Approval' }),
+    );
+    expect(view.router.state.location.search).toEqual({});
+    await userEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    // The page's own tab stays in the address.
+    expect(view.router.state.location.search).toEqual({
+      tab: 'rejected',
+      page: 2,
+    });
+    await userEvent.type(screen.getByRole('searchbox'), 'maize');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(view.router.state.location.search).toEqual({
+      tab: 'rejected',
+      q: 'maize',
+    });
+  });
+
+  it('opens the right new-listing form for WeGro’s side and for an outside seller', async () => {
+    await signedInAs('admin');
+    fakeServer(({ url }) =>
+      url.pathname === '/api/catalog' ? { body: catalog } : { body: page([]) },
+    );
+    await renderPage(
+      <ListingsList search={{}} mode="browse" />,
+      '/marketplace',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /New Listing/ }),
+    );
+    expect(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Warehouse Receipt',
+      }),
+    ).toBeTruthy();
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    cleanup();
+    await signedInAs('seller');
+    fakeServer(({ url }) =>
+      url.pathname === '/api/catalog' ? { body: catalog } : { body: page([]) },
+    );
+    await renderPage(
+      <ListingsList search={{}} mode="mine" />,
+      '/marketplace/mine',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /New Listing/ }),
+    );
+    expect(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Send for Approval',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('says when nothing waits for approval, and tries again after an error', async () => {
+    await signedInAs('admin');
+    const answer = failing(() => ({ body: page([]) }));
+    fakeServer(({ url }) =>
+      url.pathname === '/api/listings' ? answer() : undefined,
+    );
+    await renderPage(
+      <ListingsList search={{}} mode="approvals" />,
+      '/marketplace/approvals',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(
+      await screen.findByText('No listings are waiting for approval.'),
+    ).toBeTruthy();
+  });
+
+  it('shows an outside seller’s first photo on the card', async () => {
+    await signedInAs('buyer');
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:thumb'),
+        revokeObjectURL: vi.fn(),
+      }),
+    );
+    fakeServer(({ url }) =>
+      url.pathname === '/api/listings'
+        ? { body: page([listing({ photos: ['/api/photos/a'] })]) }
+        : { body: {} },
+    );
+    await renderPage(
+      <ListingsList search={{}} mode="browse" />,
+      '/marketplace',
+    );
+    expect(
+      (await screen.findByAltText('Photo 1 of the produce')).getAttribute(
+        'src',
+      ),
+    ).toBe('blob:thumb');
+  });
+});
+
+describe('platform fees, further', () => {
+  it('works out the fee for a deal total', async () => {
+    await signedInAs('buyer');
+    fakeServer(() => ({ body: { data: { slabs: SLABS } } }));
+    await renderPage(<FeesPage />, '/marketplace/fees');
+    await userEvent.type(await screen.findByLabelText('Deal Total'), '15000');
+    expect(screen.getByText('Fee per side: ৳ 75')).toBeTruthy();
+  });
+
+  it('adds a slab before the last and removes one, and shows a refusal', async () => {
+    await signedInAs('super_admin');
+    let refuse = true;
+    const sent = fakeServer(({ method }) =>
+      method === 'PUT'
+        ? refuse
+          ? {
+              status: 422,
+              body: {
+                statusCode: 422,
+                code: 'FEE_SLABS_INVALID',
+                message: 'Rising limits only',
+              },
+            }
+          : { body: { data: { slabs: SLABS } } }
+        : { body: { data: { slabs: SLABS.slice(-2) } } },
+    );
+    await renderPage(<FeesPage />, '/marketplace/fees');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Edit Fees/ }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Add Slab/ }));
+    const caps = screen.getAllByLabelText('Deal Total Up To');
+    const fees = screen.getAllByLabelText(/Fee/);
+    await userEvent.type(caps[1]!, '900000');
+    await userEvent.type(fees[1]!, '1000');
+    await userEvent.click(screen.getByRole('button', { name: 'Save Fees' }));
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    refuse = false;
+    await userEvent.click(
+      screen.getAllByRole('button', { name: 'Remove Slab' })[1]!,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save Fees' }));
+    await waitFor(() =>
+      expect(sent.filter((s) => s.method === 'PUT').at(-1)!.body).toEqual({
+        slabs: [
+          { upTo: '500000', fee: '750' },
+          { upTo: null, fee: '1500' },
+        ],
+      }),
+    );
+  });
+
+  it('says what went wrong, and tries again', async () => {
+    await signedInAs('buyer');
+    let calls = 0;
+    fakeServer(() =>
+      ++calls > 1
+        ? { body: { data: { slabs: SLABS } } }
+        : { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } },
+    );
+    await renderPage(<FeesPage />, '/marketplace/fees');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(await screen.findByText('Up to ৳ 5,000')).toBeTruthy();
+  });
+});
+
+describe('the marketplace, last details', () => {
+  const escapeCloses = async (button: string) => {
+    await userEvent.click(await screen.findByRole('button', { name: button }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  };
+  async function deal(role: Parameters<typeof signedInAs>[0], o: OfferDto) {
+    await signedInAs(role);
+    const sent = fakeServer(({ method, url }) => {
+      if (method === 'POST') return { body: { data: o } };
+      if (url.pathname === '/api/offers/12') return { body: { data: o } };
+      return undefined;
+    });
+    await renderPage(<DealPage id={12} />, '/marketplace/deals/12');
+    return sent;
+  }
+
+  it('closes each move on a deal on Escape, and lets WeGro reject an offer', async () => {
+    let sent = await deal('admin', offer({ external: false }));
+    await escapeCloses('Reject Offer');
+    await userEvent.click(screen.getByRole('button', { name: 'Reject Offer' }));
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Reject Offer',
+      }),
+    );
+    await waitFor(() =>
+      expect(sent.some((s) => s.url.pathname === '/api/offers/12/reject')).toBe(
+        true,
+      ),
+    );
+    cleanup();
+    sent = await deal('accounts', offer({ status: 'approved' }));
+    await escapeCloses('Confirm Payment');
+    cleanup();
+    // The handler confirms too, with a photo from the phone's camera.
+    await deal(
+      'field_officer',
+      offer({ status: 'paid', handlerDelivery: null }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Confirm Delivery' }),
+    );
+    const camera = vi
+      .spyOn(HTMLInputElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: /Add Photo/,
+      }),
+    );
+    expect(camera).toHaveBeenCalled();
+    camera.mockRestore();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  async function listingAt(
+    role: Parameters<typeof signedInAs>[0],
+    l: ListingDto,
+  ) {
+    await signedInAs(role);
+    fakeServer(({ url }) => {
+      if (url.pathname === '/api/listings/7') return { body: { data: l } };
+      if (url.pathname === '/api/offers') return { body: page([]) };
+      if (url.pathname === '/api/marketplace/fees')
+        return { body: { data: { slabs: SLABS } } };
+      return undefined;
+    });
+    await renderPage(<ListingPage id={7} />, '/marketplace/listings/7');
+  }
+
+  it('closes a listing’s moves on Escape, and offers nothing once sold out', async () => {
+    await listingAt('admin', listing({ status: 'pending' }));
+    await escapeCloses('Approve Listing');
+    await escapeCloses('Turn Down');
+    cleanup();
+    // A listing no longer open: nothing to do.
+    // Nothing to show of the goods: no photos card.
+    await listingAt('buyer', listing({ description: null, photos: [] }));
+    await screen.findByRole('button', { name: 'Make an Offer' });
+    expect(screen.queryByText('Dry, bagged in 50 kg sacks.')).toBeNull();
+    cleanup();
+    await listingAt('buyer', listing({ status: 'sold_out', available: 0 }));
+    await screen.findByText('Rahim Traders', { exact: false });
+    expect(screen.queryByRole('button', { name: 'Make an Offer' })).toBeNull();
+  });
+
+  it('lets an outside seller start a listing from their list', async () => {
+    await signedInAs('seller');
+    fakeServer(({ url }) =>
+      url.pathname === '/api/listings'
+        ? { body: page([]) }
+        : url.pathname === '/api/catalog'
+          ? { body: catalog }
+          : undefined,
+    );
+    await renderPage(
+      <ListingsList search={{}} mode="mine" />,
+      '/marketplace/mine',
+    );
+    await escapeCloses('New Listing');
+  });
+
+  it('closes a request’s dialogs on Escape, and keeps a request with the reason when refused', async () => {
+    await signedInAs('buyer');
+    const open: BuyerRequestDto = {
+      id: 3,
+      buyer: { id: 'me', name: 'Nadia Foods' },
+      produce: MAIZE,
+      quantity: 2000,
+      maxUnitPrice: '33.00',
+      validUntil: '2026-12-31',
+      status: 'open',
+      postedAt: '2026-10-22T05:00:00.000Z',
+      matchingListings: [],
+    };
+    fakeServer(({ method, url }) => {
+      if (method === 'POST')
+        return {
+          status: 409,
+          body: { statusCode: 409, code: 'REQUEST_LIMIT', message: 'x' },
+        };
+      if (url.pathname === '/api/buyer-requests') return { body: page([open]) };
+      if (url.pathname === '/api/catalog') return { body: catalog };
+      return undefined;
+    });
+    await renderPage(<RequestsList search={{}} mine />, '/requests');
+    await escapeCloses('Cancel Request');
+    await userEvent.click(
+      screen.getByRole('button', { name: /Post a Request/ }),
+    );
+    const dialog = screen.getByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('combobox', { name: /Produce/ }),
+    );
+    await userEvent.click(await screen.findByRole('option', { name: /Maize/ }));
+    await userEvent.type(within(dialog).getByLabelText(/^Quantity/), '100');
+    await userEvent.type(within(dialog).getByLabelText(/Price/), '30');
+    await userEvent.click(within(dialog).getByRole('button', { name: /Post/ }));
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });

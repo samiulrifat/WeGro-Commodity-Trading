@@ -195,11 +195,11 @@ function PlaceDialog({
   const [error, setError] = useState<ApiError | null>(null);
 
   async function go() {
-    if (!officerId) return;
     setError(null);
     try {
       await assign({
-        officerId,
+        // The button is disabled until an officer is chosen.
+        officerId: officerId!,
         assignBankOfficerDto: { bankId: b.id },
       }).unwrap();
       toast.success(t('trackRecords.officerAdded'));

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { NotFoundException } from '@nestjs/common';
-import { uuidToBytes32 } from '../../../blockchain/utils/ids';
+import { codeToBytes32, uuidToBytes32 } from '../../../blockchain/utils/ids';
 import { fakeRepo, matchesWhere, Role } from '../../../../test/support/unit';
+import { readableArgs } from './event-format';
 import { HistoryService } from './history.service';
 
 const PROJECT = randomUUID();
@@ -168,5 +169,51 @@ describe('HistoryService', () => {
         String(sql).includes('CROSS JOIN LATERAL'),
       ),
     ).toBe(false);
+  });
+  it('opens only the records an event really names', async () => {
+    const { service } = build([
+      event({
+        args: {
+          // Not an id this platform made: named nowhere.
+          projectId: `0x${'1'.repeat(64)}`,
+          investorId: uuidToBytes32(INVESTOR),
+          reservationId: '4',
+        },
+      }),
+    ]);
+    const [entry] = (await service.activity({ limit: 20, skip: 0 } as never))
+      .items;
+    expect(entry.records).toEqual(
+      expect.arrayContaining([{ type: 'reservation', id: '4' }]),
+    );
+    expect(
+      entry.records.some((r: { type: string }) => r.type === 'project'),
+    ).toBe(false);
+  });
+
+  it('opens a receipt by its hash id, lower-cased, and never the empty one', async () => {
+    const receipt = `0x${'AB'.repeat(32)}`;
+    const { service } = build([
+      event({
+        contract: 'WarehouseReceipt',
+        event_name: 'ReceiptSplit',
+        args: { parentId: receipt, childId: `0x${'0'.repeat(64)}` },
+      }),
+    ]);
+    const [entry] = (await service.activity({ limit: 20, skip: 0 } as never))
+      .items;
+    expect(entry.records).toEqual([
+      { type: 'receipt', id: receipt.toLowerCase() },
+    ]);
+  });
+
+  it('reads short texts the ledger keeps as words, and leaves hashes as they are', () => {
+    const hash = `0x${'ab'.repeat(32)}`;
+    expect(
+      readableArgs('VoucherRegistry', {
+        bagMark: codeToBytes32('BAG-12'),
+        detailsHash: hash,
+      }),
+    ).toEqual({ bagMark: 'BAG-12', detailsHash: hash });
   });
 });

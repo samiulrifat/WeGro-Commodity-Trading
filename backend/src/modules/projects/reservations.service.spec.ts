@@ -304,6 +304,20 @@ describe('ReservationsService', () => {
       ).rejects.toThrow('Already refunded');
     });
 
+    it('refuses a refund reference used for another refund, passing other errors on', async () => {
+      const { service, refunds } = build(cancelled);
+      refunds.insert.mockRejectedValueOnce(uniqueViolation());
+      await expect(
+        service.recordRefund(accounts, PROJECT, INVESTOR, 'REF-9'),
+      ).rejects.toMatchObject({
+        response: { code: 'PAYMENT_REF_ALREADY_USED' },
+      });
+      refunds.insert.mockRejectedValueOnce(new Error('disk full'));
+      await expect(
+        service.recordRefund(accounts, PROJECT, INVESTOR, 'REF-9'),
+      ).rejects.toThrow('disk full');
+    });
+
     it('deletes the unconfirmed refund when the ledger refuses it', async () => {
       const { service, refunds, chain } = build(cancelled);
       chain.fail(revert('NotAHolder'));

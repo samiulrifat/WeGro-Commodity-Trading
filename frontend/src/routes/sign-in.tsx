@@ -33,12 +33,15 @@ import { latinDigits } from '@/lib/format';
 import { storage } from '@/lib/storage';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { sessionStarted } from '@/store/session-slice';
+import { onlyChecked } from '@/lib/search';
 
 export const Route = createFileRoute('/sign-in')({
-  validateSearch: (search): { redirect?: string } => {
-    const target = internalPath(search.redirect);
-    return target ? { redirect: target } : {};
-  },
+  validateSearch: onlyChecked(
+    (search: Record<string, unknown>): { redirect?: string } => {
+      const target = internalPath(search.redirect);
+      return target ? { redirect: target } : {};
+    },
+  ),
   beforeLoad: async ({ context: { store }, search }) => {
     try {
       await ensureSession(store);

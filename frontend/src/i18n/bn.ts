@@ -257,6 +257,8 @@ export const bn: Translation = {
       PROOF_DATE_FUTURE: 'পাঠানোর তারিখ ভবিষ্যতের হতে পারে না।',
       PROOF_FILE_COUNT: '১ থেকে {{max, number}}টি ফাইল যুক্ত করুন।',
       PROOF_FILE_MISSING: 'ফাইলটি পাওয়া যাচ্ছে না।',
+      PROOF_FILE_ALTERED:
+        'এই ফাইলটি পাঠানো ফাইলের সঙ্গে আর মিলছে না, তাই দেখানো হচ্ছে না। অ্যাডমিনদের জানানো হয়েছে।',
       PROOF_FILE_SIZE: 'প্রতিটি ফাইল সর্বোচ্চ {{maxMb, number}} MB হতে পারে।',
       PROOF_FILE_TYPE: 'প্রমাণ হতে হবে ছবি (JPEG, PNG, WebP) বা PDF।',
       PROOF_NOT_FOUND: 'এই পরিশোধের প্রমাণ পাওয়া যায়নি।',
@@ -901,6 +903,11 @@ export const bn: Translation = {
         title: 'সমাধান হয়েছে: {{problem, word}}',
         body: '{{since, datetime}} থেকে',
       },
+      'proof-file-altered': {
+        title:
+          'বুকিং #{{reservationId}}-এর একটি পেমেন্ট প্রমাণ ফাইল পাঠানো ফাইলের সঙ্গে আর মিলছে না',
+        body: 'ফাইলটি কাউকে দেখানো হচ্ছে না। সংরক্ষিত ফাইলগুলো বদলানো বা নষ্ট হয়েছে কি না দেখুন।',
+      },
     },
   },
   nav: {
@@ -997,8 +1004,6 @@ export const bn: Translation = {
     empty: 'এখনও এখানে কিছু নেই',
     retry: 'আবার চেষ্টা করুন',
     reference: 'রেফারেন্স: {{id}}',
-    comingSoon: 'এই পাতাটি শীঘ্রই আসছে',
-    comingSoonHint: 'এটি তৈরি হচ্ছে; মেনুতে এর জায়গা দেখানো আছে।',
   },
   pages: {
     notFound: 'পাতাটি পাওয়া যায়নি',

@@ -711,7 +711,7 @@ export class VerifyService {
 }
 
 /** Collects what differs between the database and the ledger. */
-class Mismatches {
+export class Mismatches {
   private readonly found: string[] = [];
 
   add(name: string): void {

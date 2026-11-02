@@ -152,6 +152,14 @@ describe('CatalogService', () => {
     ).rejects.toThrow('An entry with this code already exists');
   });
 
+  it('passes any other database failure on unchanged', async () => {
+    const { service, refuse } = await build();
+    refuse(new Error('connection lost'));
+    await expect(
+      service.createUnit({ ...kg, code: 'TON', name: 'Ton' } as never),
+    ).rejects.toThrow('connection lost');
+  });
+
   it('needs an active unit for new produce and inputs, and an active crop for crop inputs', async () => {
     const { service } = await build();
     await expect(

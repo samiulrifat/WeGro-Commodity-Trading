@@ -2,7 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { bytes32ToUuid } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull } from '../../blockchain/utils/ids';
 import { CoverageTerms } from './entities/coverage-terms.entity';
 import { InsuranceClaim } from './entities/insurance-claim.entity';
 import { InsurerAssignment } from './entities/insurer-assignment.entity';
@@ -54,8 +54,8 @@ export class InsuranceLedgerSync implements OnModuleInit {
     const when = event.blockTime ?? new Date();
     switch (event.eventName) {
       case 'InsurerAssigned': {
-        const projectId = toUuid(a.projectId);
-        const insurerId = toUuid(a.insurerId);
+        const projectId = bytes32ToUuidOrNull(a.projectId);
+        const insurerId = bytes32ToUuidOrNull(a.insurerId);
         if (!projectId || !insurerId) return;
         // The oldest assignment still waiting for this pair is the one sent.
         const row = await m.findOne(InsurerAssignment, {
@@ -83,7 +83,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
       }
 
       case 'CoverageSet': {
-        const projectId = toUuid(a.projectId);
+        const projectId = bytes32ToUuidOrNull(a.projectId);
         if (!projectId) return;
         const res = await m
           .createQueryBuilder()
@@ -112,7 +112,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
       }
 
       case 'WeatherEventRecorded': {
-        const id = toUuid(a.eventId);
+        const id = bytes32ToUuidOrNull(a.eventId);
         if (!id) return;
         const row = await m.findOne(WeatherEvent, {
           where: { id },
@@ -133,7 +133,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
       }
 
       case 'ClaimOpened': {
-        const id = toUuid(a.claimId);
+        const id = bytes32ToUuidOrNull(a.claimId);
         if (!id) return;
         const row = await m.findOne(InsuranceClaim, {
           where: { id },
@@ -153,7 +153,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
       }
 
       case 'ClaimStatusChanged': {
-        const id = toUuid(a.claimId);
+        const id = bytes32ToUuidOrNull(a.claimId);
         const status = CLAIM_STATUS_BY_CHAIN[Number(a.status)];
         if (!id || !status) return;
         const decided =
@@ -181,7 +181,7 @@ export class InsuranceLedgerSync implements OnModuleInit {
       }
 
       case 'ClaimPaid': {
-        const id = toUuid(a.claimId);
+        const id = bytes32ToUuidOrNull(a.claimId);
         if (!id) return;
         const row = await m.findOne(InsuranceClaim, {
           where: { id },
@@ -222,13 +222,5 @@ export class InsuranceLedgerSync implements OnModuleInit {
         l: event.logIndex,
       })
       .execute();
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }

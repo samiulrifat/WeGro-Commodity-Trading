@@ -3,6 +3,7 @@ import { canonicalJson, fingerprint } from './fingerprint';
 import {
   bytes32ToCode,
   bytes32ToUuid,
+  bytes32ToUuidOrNull,
   codeToBytes32,
   isBytes32,
   uuidToBytes32,
@@ -25,6 +26,15 @@ describe('ids', () => {
     expect(() => uuidToBytes32('not-a-uuid')).toThrow();
     expect(() => bytes32ToUuid(`0x${'1'.repeat(64)}`)).toThrow(); // not left-padded
     expect(() => bytes32ToUuid('0x1234')).toThrow();
+  });
+
+  it('reads a ledger id as a uuid, or null for anything that is not one', () => {
+    const uuid = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+    expect(bytes32ToUuidOrNull(uuidToBytes32(uuid))).toBe(uuid);
+    expect(bytes32ToUuidOrNull(`0x${'1'.repeat(64)}`)).toBeNull();
+    expect(bytes32ToUuidOrNull('junk')).toBeNull();
+    expect(bytes32ToUuidOrNull(7)).toBeNull();
+    expect(bytes32ToUuidOrNull(undefined)).toBeNull();
   });
 
   it('round-trips readable codes', () => {

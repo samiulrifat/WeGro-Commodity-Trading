@@ -279,32 +279,23 @@ export function validateEnv(
       .join('; ');
     throw new Error(`Invalid environment configuration: ${problems}`);
   }
-  if (env.DEMO_MODE && env.NODE_ENV === NodeEnv.PRODUCTION) {
-    throw new Error(
-      'Invalid environment configuration: DEMO_MODE cannot be on in production',
-    );
-  }
-  // Codes written to a log or kept in memory would never reach anyone:
-  // production needs a real SMS provider (none is added yet).
-  const NOT_SENT: readonly SmsProvider[] = [
-    SmsProvider.LOG,
-    SmsProvider.MEMORY,
-  ];
-  if (
-    env.NODE_ENV === NodeEnv.PRODUCTION &&
-    NOT_SENT.includes(env.SMS_PROVIDER)
-  ) {
-    throw new Error(
-      'Invalid environment configuration: set SMS_PROVIDER to a real SMS provider in production',
-    );
-  }
-  if (
-    env.NODE_ENV === NodeEnv.PRODUCTION &&
-    [EmailProvider.LOG, EmailProvider.MEMORY].includes(env.EMAIL_PROVIDER)
-  ) {
-    throw new Error(
-      'Invalid environment configuration: set EMAIL_PROVIDER to a real email provider in production',
-    );
+  if (env.NODE_ENV === NodeEnv.PRODUCTION) {
+    // Every setting production cannot run with, named together. Codes written
+    // to a log or kept in memory would never reach anyone: production needs
+    // a real SMS and email provider (none is added yet).
+    const NOT_SENT: readonly string[] = [SmsProvider.LOG, EmailProvider.LOG];
+    const unsafe = [
+      env.DEMO_MODE && 'DEMO_MODE cannot be on in production',
+      [...NOT_SENT, SmsProvider.MEMORY].includes(env.SMS_PROVIDER) &&
+        'set SMS_PROVIDER to a real SMS provider in production',
+      [...NOT_SENT, EmailProvider.MEMORY].includes(env.EMAIL_PROVIDER) &&
+        'set EMAIL_PROVIDER to a real email provider in production',
+    ].filter(Boolean);
+    if (unsafe.length > 0) {
+      throw new Error(
+        `Invalid environment configuration: ${unsafe.join('; ')}`,
+      );
+    }
   }
   return env;
 }

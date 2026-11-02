@@ -8,7 +8,20 @@ import { EventIndexerService } from './event-indexer.service';
  */
 type Checkpoint = { lastBlock: number; lastBlockHash: string } | null;
 
-function setup(opts: { batch: number; head: number }) {
+function setup(opts: {
+  batch: number;
+  head: number;
+  /** CHAIN_START_BLOCK; undefined makes the indexer search for it. */
+  start?: number;
+  /** Where the AccessRegistry's code first appears, for that search. */
+  deployedAt?: number;
+  codeFails?: boolean;
+  pollMs?: number;
+  /** Blocks indexed before senders were kept. */
+  unsent?: number[];
+  missingBlock?: number;
+}) {
+  let unsent = opts.unsent ?? [];
   const checkpoint: { current: Checkpoint } = { current: null };
   let inFlight = 0;
   let maxInFlight = 0;
@@ -35,13 +48,18 @@ function setup(opts: { batch: number; head: number }) {
       await new Promise((r) => setImmediate(r));
       inFlight--;
       if (failing) throw new Error('socket hang up');
+      if (n === opts.missingBlock) return null;
       return {
         hash: `0xhash${n}`,
         timestamp: 1,
         prefetchedTransactions: [],
       } as unknown as Block;
     }),
-    getCode: jest.fn(() => Promise.resolve('0x60')),
+    getCode: jest.fn((_address: string, block: number) =>
+      opts.codeFails
+        ? Promise.reject(new Error('method not supported'))
+        : Promise.resolve(block >= (opts.deployedAt ?? 0) ? '0x60' : '0x'),
+    ),
   };
   const manager = {
     save: jest.fn((_entity: unknown, row: Checkpoint) => {
@@ -55,7 +73,14 @@ function setup(opts: { batch: number; head: number }) {
     }),
   };
   const dataSource = {
-    query: jest.fn(() => Promise.resolve([])), // no senders to fill in
+    // Blocks still without senders, once; then nothing to fill in.
+    query: jest.fn((sql: string) => {
+      if (!sql.trimStart().startsWith('SELECT DISTINCT'))
+        return Promise.resolve([]);
+      const rows = unsent.map((n) => ({ block_number: String(n) }));
+      unsent = [];
+      return Promise.resolve(rows);
+    }),
     getRepository: () => ({
       findOneBy: () => Promise.resolve(checkpoint.current),
     }),
@@ -67,10 +92,10 @@ function setup(opts: { batch: number; head: number }) {
     get: (key: string) =>
       ({
         INDEXER_ENABLED: false,
-        INDEXER_POLL_MS: 1000,
+        INDEXER_POLL_MS: opts.pollMs ?? 1000,
         INDEXER_BATCH_BLOCKS: opts.batch,
         INDEXER_CONFIRMATIONS: 0,
-        CHAIN_START_BLOCK: 1,
+        CHAIN_START_BLOCK: 'start' in opts ? opts.start : 1,
       })[key],
   };
   const registry = {
@@ -91,9 +116,19 @@ function setup(opts: { batch: number; head: number }) {
   );
   // Quiet: failures are expected here.
   const { logger } = indexer as unknown as {
-    logger: { error: (message: string) => void };
+    logger: {
+      error: (message: string) => void;
+      warn: (message: string) => void;
+      log: (message: string) => void;
+    };
   };
-  jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+  const errors = jest
+    .spyOn(logger, 'error')
+    .mockImplementation(() => undefined);
+  const warnings = jest
+    .spyOn(logger, 'warn')
+    .mockImplementation(() => undefined);
+  jest.spyOn(logger, 'log').mockImplementation(() => undefined);
   return {
     indexer,
     provider,
@@ -101,6 +136,9 @@ function setup(opts: { batch: number; head: number }) {
     checkpoint,
     maxInFlight: () => maxInFlight,
     failTicks: (n: number) => (failingTicks = n),
+    errors,
+    warnings,
+    dataSource,
   };
 }
 
@@ -153,5 +191,91 @@ describe('EventIndexerService', () => {
     expect(checkpoint.current).toBeNull();
     await indexer.catchUp();
     expect(checkpoint.current?.lastBlock).toBe(50);
+  });
+  it('starts at the block the registry was deployed in, found by halving', async () => {
+    const { indexer, provider } = setup({
+      batch: 100,
+      head: 1000,
+      start: undefined,
+      deployedAt: 637,
+    });
+    await indexer.tick();
+    expect(provider.getLogs.mock.calls[0][0]).toMatchObject({
+      fromBlock: 637,
+    });
+    // log2(1000) probes, not one per block.
+    expect(provider.getCode.mock.calls.length).toBeLessThanOrEqual(11);
+  });
+
+  it('starts at block 0 when the node cannot answer the search, and says so', async () => {
+    const { indexer, provider, warnings } = setup({
+      batch: 100,
+      head: 50,
+      start: undefined,
+      codeFails: true,
+    });
+    await indexer.tick();
+    expect(provider.getLogs.mock.calls[0][0]).toMatchObject({ fromBlock: 0 });
+    expect(warnings).toHaveBeenCalledWith(
+      expect.stringContaining('indexing from block 0'),
+    );
+  });
+
+  it('fills in missing senders before going on', async () => {
+    const { indexer, provider, dataSource } = setup({
+      batch: 100,
+      head: 20,
+      unsent: [3, 4],
+    });
+    await expect(indexer.tick()).resolves.toBe(1);
+    expect(provider.getLogs).not.toHaveBeenCalled();
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE chain_event'),
+      expect.any(Array),
+    );
+    await expect(indexer.tick()).resolves.toBe(20);
+  });
+
+  it('stops when a block to fill in is no longer on the node', async () => {
+    const { indexer } = setup({
+      batch: 100,
+      head: 20,
+      unsent: [7],
+      missingBlock: 7,
+    });
+    await expect(indexer.tick()).rejects.toThrow('Block 7 not available');
+  });
+
+  it('stops cleanly while a run in progress fails', async () => {
+    const { indexer, failTicks } = setup({ batch: 100, head: 250 });
+    failTicks(1);
+    const run = indexer.tick();
+    await expect(indexer.stop()).resolves.toBeUndefined();
+    await expect(run).rejects.toThrow('socket hang up');
+  });
+
+  it('runs on its own, backing off after failures and carrying on once they stop', async () => {
+    const { indexer, checkpoint, failTicks, errors } = setup({
+      batch: 100,
+      head: 250,
+      pollMs: 5,
+    });
+    failTicks(2);
+    indexer.start();
+    indexer.start(); // already running: nothing more
+    for (let i = 0; i < 400 && checkpoint.current?.lastBlock !== 250; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    await indexer.stop();
+    expect(checkpoint.current?.lastBlock).toBe(250);
+    expect(errors.mock.calls.map(([m]) => m)).toEqual([
+      'Indexing failed (retry in 10ms): socket hang up',
+      'Indexing failed (retry in 20ms): socket hang up',
+    ]);
+    await expect(indexer.status()).resolves.toMatchObject({
+      running: false,
+      failures: 0,
+      lastError: null,
+    });
   });
 });

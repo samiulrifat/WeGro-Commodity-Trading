@@ -118,11 +118,13 @@ const NESTED_COUNTS = new Set(
  * Every value passes through here (alwaysFormat); named formats first.
  */
 function localNumbers(): void {
-  const { formatter } = i18n.services;
+  // Both exist once init is done (i18next's types leave them optional).
+  const formatter = i18n.services.formatter!;
   // Not in i18next's types: the interpolator's format function and switch.
-  const interpolator = i18n.services.interpolator as unknown as
-    { format: FormatFunction; alwaysFormat: boolean } | undefined;
-  if (!formatter || !interpolator) return;
+  const interpolator = i18n.services.interpolator as unknown as {
+    format: FormatFunction;
+    alwaysFormat: boolean;
+  };
   const named = formatter.format.bind(formatter);
   const format: FormatFunction = (value, fmt, lng, options) => {
     const key = (options as { interpolationkey?: string } | undefined)

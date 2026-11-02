@@ -105,6 +105,9 @@ describe('catalog helpers', () => {
     expect(decimalsOf(2.5)).toBe(1);
     expect(decimalsOf(100)).toBe(0);
     expect(decimalsOf(0.001)).toBe(3);
+    // Written with an exponent once small enough.
+    expect(decimalsOf(1e-7)).toBe(7);
+    expect(decimalsOf(1.5e-7)).toBe(8);
   });
 
   it('finds what the server would refuse in measurements', () => {

@@ -20,7 +20,7 @@ import { batchFingerprint } from '../../vouchers/batches.service';
 import { InputBatch } from '../../vouchers/entities/input-batch.entity';
 import { WarehouseReceipt } from '../../warehouse/entities/warehouse-receipt.entity';
 import { intakeFingerprint } from '../../warehouse/warehouse.service';
-import { VerifyService } from './verify.service';
+import { Mismatches, VerifyService } from './verify.service';
 
 const PROJECT = randomUUID();
 const INVESTOR = randomUUID();
@@ -445,5 +445,18 @@ describe('VerifyService', () => {
       onLedger: true,
       mismatches: [],
     });
+  });
+});
+
+describe('Mismatches', () => {
+  it('compares text loosely, and numbers and structured values exactly', () => {
+    const m = new Mismatches();
+    m.check('code', ' MAIZE ', 'maize');
+    m.check('slots', 3n, 3);
+    m.check('empty', null, undefined);
+    m.check('terms', { months: 5 }, { months: 5 });
+    m.check('dates', ['2026-01-01'], ['2026-01-02']);
+    m.check('skipped', 1, 2, { onlyIf: false });
+    expect(m.done()).toEqual({ onLedger: true, mismatches: ['dates'] });
   });
 });

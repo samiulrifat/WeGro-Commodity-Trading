@@ -265,6 +265,8 @@ export const en = {
       PROOF_DATE_FUTURE: 'The transfer date cannot be in the future.',
       PROOF_FILE_COUNT: 'Attach 1 to {{max, number}} files.',
       PROOF_FILE_MISSING: 'The file is missing.',
+      PROOF_FILE_ALTERED:
+        'This file no longer matches the one that was sent, so it is not shown. The admins have been told.',
       PROOF_FILE_SIZE: 'Each file must be at most {{maxMb, number}} MB.',
       PROOF_FILE_TYPE: 'Proofs must be photos (JPEG, PNG, WebP) or PDFs.',
       PROOF_NOT_FOUND: 'This payment proof was not found.',
@@ -887,6 +889,11 @@ export const en = {
         title: 'Resolved: {{problem, word}}',
         body: 'Since {{since, datetime}}',
       },
+      'proof-file-altered': {
+        title:
+          'A payment proof file for booking #{{reservationId}} no longer matches the one sent',
+        body: 'It is not shown to anyone. Check the stored files for tampering or damage.',
+      },
     },
   } satisfies NotificationWording<NotificationKind>,
   nav: {
@@ -983,9 +990,6 @@ export const en = {
     empty: 'No Records Yet',
     retry: 'Try Again',
     reference: 'Reference: {{id}}',
-    comingSoon: 'Coming Soon',
-    comingSoonHint:
-      'It is being built; the menu already shows where it will be.',
   },
   pages: {
     notFound: 'Page Not Found',
@@ -2719,7 +2723,7 @@ export const en = {
     slabUpTo: 'Deal Total Up To',
     slabLast: 'Above That',
     noLimit: 'No limit',
-    removeSlab: 'Remove slab',
+    removeSlab: 'Remove Slab',
     addSlab: 'Add Slab',
     slabsInvalid:
       'Each upper limit must be more than the one before, and every slab needs a fee.',

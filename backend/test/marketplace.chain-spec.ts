@@ -1,5 +1,5 @@
 /** The marketplace end to end, against the local chain and a throwaway schema. */
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
@@ -861,6 +861,115 @@ describe('Marketplace (node + database)', () => {
       await as(t.super_admin)
         .put('/marketplace/fees', { slabs: start.slabs })
         .expect(200);
+    });
+
+    describe('edge cases', () => {
+      it('finds deals by number, crop or a party, and nothing for a stray word', async () => {
+        const find = async (q: string) =>
+          ids(
+            await as(t.accounts)
+              .get(`/offers?q=${encodeURIComponent(q)}`)
+              .expect(200),
+          );
+        expect(await find(`#${deal}`)).toEqual([deal]);
+        expect(await find(String(deal))).toEqual([deal]);
+        expect(await find('Maize')).toContain(deal);
+        expect(await find('Potato')).toContain(sellerDeal);
+        expect(await find('Potato')).not.toContain(deal);
+        expect(await find('Buyer')).toEqual(
+          expect.arrayContaining([deal, sellerDeal]),
+        );
+        expect(await find('Zzyzx')).toEqual([]);
+        // By listing: the receipt's deals, not the seller's.
+        const onReceipt = ids(
+          await as(t.accounts)
+            .get(`/offers?listingId=${receiptListing}&limit=100`)
+            .expect(200),
+        );
+        expect(onReceipt).toContain(deal);
+        expect(onReceipt).not.toContain(sellerDeal);
+        // A buyer's own requests only, when asked.
+        const mine = await as(t.buyer)
+          .get('/buyer-requests?mine=true&limit=100')
+          .expect(200);
+        expect(
+          mine.body.data.every(
+            (r: { buyer: { id: string } }) => r.buyer.id === user.buyer.id,
+          ),
+        ).toBe(true);
+        // A number too long to be a deal is still answered, not an error.
+        expect(await find('99999999999999')).toEqual([]);
+      });
+
+      it('filters listings by where the produce comes from', async () => {
+        const of = async (source: string) =>
+          (
+            await as(t.admin)
+              .get(`/listings?source=${source}&status=open&limit=100`)
+              .expect(200)
+          ).body.data as {
+            id: number;
+            source: string;
+          }[];
+        for (const source of ['warehouse', 'fresh', 'seller']) {
+          const rows = await of(source);
+          expect(rows.length).toBeGreaterThan(0);
+          expect(rows.every((l) => l.source === source)).toBe(true);
+        }
+      });
+
+      it('answers 404 for listings, deals and photos that do not exist', async () => {
+        const notFound = async (path: string, code: string) =>
+          expect((await as(t.admin).get(path).expect(404)).body.code).toBe(
+            code,
+          );
+        await notFound('/listings/999999', 'LISTING_NOT_FOUND');
+        await notFound('/offers/999999', 'OFFER_NOT_FOUND');
+        // A receipt's listing has no photos; a seller's has fewer than ten.
+        await notFound(
+          `/listings/${receiptListing}/photos/0`,
+          'LISTING_NOT_FOUND',
+        );
+        await notFound(
+          `/listings/${sellerListing}/photos/9`,
+          'LISTING_NOT_FOUND',
+        );
+        await notFound(
+          `/offers/${sellerDeal}/deliveries/buyer/photo`,
+          'DELIVERY_HAS_NO_PHOTO',
+        );
+        const approveNone = await as(t.admin)
+          .post('/offers/999999/approve')
+          .expect(404);
+        expect(approveNone.body.code).toBe('OFFER_NOT_FOUND');
+        const decide = await as(t.admin)
+          .post('/listings/999999/approve')
+          .expect(404);
+        expect(decide.body.code).toBe('LISTING_NOT_FOUND');
+      });
+
+      it('refuses a blank payment reference', async () => {
+        for (const path of [
+          `/offers/${deal}/payment`,
+          `/offers/${sellerDeal}/seller-payout`,
+        ]) {
+          const res = await as(t.accounts)
+            .post(path, { paymentReference: '   ' })
+            .expect(422);
+          expect(res.body.code).toBe('PAYMENT_REF_INVALID');
+        }
+      });
+
+      it('will not list produce of a project that does not exist', async () => {
+        const res = await as(t.admin)
+          .post('/listings/produce', {
+            projectId: randomUUID(),
+            quantity: 10,
+            askingUnitPrice: '20',
+          })
+          .expect(404);
+        expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+      });
     });
   });
 

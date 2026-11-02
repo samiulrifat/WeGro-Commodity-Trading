@@ -18,8 +18,13 @@ export default defineConfig(({ mode }) => {
   };
   return {
     plugins: [
-      // One file per page under src/routes; each page loads on its own.
-      tanstackRouter({ target: 'react', autoCodeSplitting: true }),
+      // One file per page under src/routes; each page loads on its own. Left
+      // out under Vitest: the route tree is generated already, and the
+      // plugin's rewrite of each route file maps its lines wrongly, so
+      // coverage would miss the pages' code.
+      ...(mode === 'test'
+        ? []
+        : [tanstackRouter({ target: 'react', autoCodeSplitting: true })]),
       react(),
       tailwindcss(),
       // Installable, and opens without internet: the app's own files are
@@ -86,6 +91,13 @@ export default defineConfig(({ mode }) => {
       // Page tests type and click through whole flows: more than 5 s when
       // every file runs at once on a busy machine.
       testTimeout: 15_000,
+      // npm run test:cov: every source file, for scripts/coverage-report.mjs.
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}'],
+        reporter: ['json'],
+        reportsDirectory: 'coverage/unit',
+      },
     },
     server: {
       port: 5173,

@@ -22,7 +22,8 @@ import { useAuditWords } from './words';
 export function VerifyPanel({ type, id }: { type: HistoryType; id: string }) {
   const { t } = useTranslation();
   const [check, result] = useLazyAuditVerifyQuery();
-  const data = result.data?.data;
+  // The latest check's answer only: a failed recheck shows its error alone.
+  const data = result.isError ? undefined : result.data?.data;
   return (
     <div className="grid gap-3">
       <Button

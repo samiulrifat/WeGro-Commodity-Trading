@@ -19,6 +19,7 @@ import {
   matchesWhere,
   revert,
   Role,
+  uniqueViolation,
 } from '../../../test/support/unit';
 import { photoHash } from '../field-records/photos.service';
 import type { Project } from '../projects/entities/project.entity';
@@ -52,6 +53,7 @@ describe('TradeService', () => {
       officerOf?: boolean;
       operatorSite?: string | null;
       saveAffected?: number;
+      saveError?: Error;
     } = {},
   ) => {
     const project = {
@@ -104,14 +106,17 @@ describe('TradeService', () => {
     } as Offer;
     const deliveries: Delivery[] = [];
     const update = fakeQueryBuilder({
-      execute: { affected: opts.saveAffected ?? 1 },
+      execute: opts.saveError ?? { affected: opts.saveAffected ?? 1 },
     });
+    const reads: ReturnType<typeof fakeQueryBuilder>[] = [];
     const offers = fakeRepo({
       findOneBy: jest.fn(() => Promise.resolve(offer)),
       // No alias: the update that saves a payment reference; 'o': a scoped read.
-      createQueryBuilder: jest.fn((alias?: string) =>
-        alias ? fakeQueryBuilder({ getOne: offer }).qb : update.qb,
-      ),
+      createQueryBuilder: jest.fn((alias?: string) => {
+        if (!alias) return update.qb;
+        reads.push(fakeQueryBuilder({ getOne: offer }));
+        return reads[reads.length - 1].qb;
+      }),
     });
     const deliveriesRepo = fakeRepo({
       create: jest.fn((d: Delivery) => ({ ...d })),
@@ -155,14 +160,17 @@ describe('TradeService', () => {
     );
     const photos = {
       find: jest.fn((id: string) =>
-        Promise.resolve({
-          id,
-          sha256: 'cd'.repeat(32),
-          uploadedById: id === 'buyer-photo' ? buyer.id : 'x',
-        }),
+        id === 'missing'
+          ? Promise.reject(new Error('Photo not found'))
+          : Promise.resolve({
+              id,
+              sha256: 'cd'.repeat(32),
+              uploadedById: id === 'buyer-photo' ? buyer.id : 'x',
+            }),
       ),
     };
     const crypto = fakeCrypto();
+    const details = fakeRepo({ findBy: jest.fn(() => Promise.resolve([])) });
     const service = new TradeService(
       config({ PAYMENT_REF_SECRET: SECRET }),
       fakeRepo({
@@ -170,7 +178,7 @@ describe('TradeService', () => {
         findOneByOrFail: jest.fn(() => Promise.resolve(listing)),
         find: jest.fn(() => Promise.resolve([listing])),
       }) as never,
-      fakeRepo({ findBy: jest.fn(() => Promise.resolve([])) }) as never,
+      details as never,
       offers as never,
       deliveriesRepo as never,
       fakeRepo({
@@ -207,6 +215,9 @@ describe('TradeService', () => {
       service,
       chain,
       update,
+      reads,
+      details,
+      offers,
       offer,
       listing,
       deliveries,
@@ -397,6 +408,15 @@ describe('TradeService', () => {
   describe('delivery', () => {
     const paid = { offer: { status: OfferStatus.PAID } };
 
+    it('refuses a delivery photo that does not exist', async () => {
+      await expect(
+        build(paid).service.confirmDelivery(buyer, 9, {
+          quantity: 190,
+          photoId: 'missing',
+        } as never),
+      ).rejects.toMatchObject({ response: { code: 'PHOTO_NOT_YOURS' } });
+    });
+
     it('records the buyer’s side with a fingerprint of what they confirmed', async () => {
       const { service, deliveries, chain } = build(paid);
       await service.confirmDelivery(buyer, 9, {
@@ -466,6 +486,168 @@ describe('TradeService', () => {
       await expect(service.offerOne(admin, 9)).resolves.toMatchObject({
         discrepancy: true,
       });
+    });
+  });
+  describe('edges', () => {
+    const seller = actor(Role.SELLER, { id: buyer.id });
+    const external = { projectId: null, farmerId: null, sellerId: seller.id };
+
+    it('lets a seller cancel their own listing, not another seller’s', async () => {
+      const { service, chain } = build({ listing: external });
+      await service.cancelListing(seller, 3);
+      expect(chain.sent[0].method).toBe('cancelListing');
+      await expect(
+        build({ listing: external }).service.cancelListing(
+          actor(Role.SELLER),
+          3,
+        ),
+      ).rejects.toMatchObject({
+        response: { code: 'LISTING_CANCEL_NOT_ALLOWED' },
+      });
+    });
+
+    it('lists only photos the seller uploaded', async () => {
+      const { service } = build();
+      await expect(
+        service.listExternal(seller, {
+          produceCode: 'POTATO',
+          quantity: 100,
+          askingUnitPrice: '25',
+          districtCode: 'BOGURA',
+          photoIds: ['someone-elses'],
+        } as never),
+      ).rejects.toMatchObject({ response: { code: 'PHOTO_NOT_YOURS' } });
+      await expect(
+        service.listExternal(seller, {
+          produceCode: 'POTATO',
+          quantity: 100,
+          askingUnitPrice: '25',
+          districtCode: 'BOGURA',
+          photoIds: ['missing'],
+        } as never),
+      ).rejects.toMatchObject({ response: { code: 'PHOTO_NOT_YOURS' } });
+    });
+
+    it('drops the saved details when the ledger refuses the listing', async () => {
+      const { service, chain, details } = build();
+      chain.fail(revert('ZeroValue'));
+      await expect(
+        service.listExternal(seller, {
+          produceCode: 'POTATO',
+          quantity: 100,
+          askingUnitPrice: '25',
+          districtCode: 'BOGURA',
+          photoIds: ['buyer-photo'],
+        } as never),
+      ).rejects.toThrow();
+      expect(details.insert).toHaveBeenCalledTimes(1);
+      expect(details.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the details when the failure is not a refusal', async () => {
+      const { service, chain, details } = build();
+      chain.fail(new Error('node unreachable'));
+      await expect(
+        service.listExternal(seller, {
+          produceCode: 'POTATO',
+          quantity: 100,
+          askingUnitPrice: '25',
+          districtCode: 'BOGURA',
+          photoIds: [],
+        } as never),
+      ).rejects.toThrow('node unreachable');
+      expect(details.delete).not.toHaveBeenCalled();
+    });
+
+    it('clears the saved payment reference when the ledger refuses it', async () => {
+      const { service, chain, offers } = build({
+        offer: { status: OfferStatus.APPROVED },
+      });
+      chain.fail(revert('PaymentRefAlreadyUsed'));
+      await expect(
+        service.confirmPayment(accounts, 9, 'BANK-1'),
+      ).rejects.toThrow();
+      expect(offers.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 9, status: OfferStatus.APPROVED }),
+        { paymentRefEnc: null, paymentRefHash: null, paidConfirmedById: null },
+      );
+    });
+
+    describe('seller payout', () => {
+      const delivered = (o: Parameters<typeof build>[0] = {}) =>
+        build({
+          listing: external,
+          offer: { status: OfferStatus.DELIVERED },
+          ...o,
+        });
+
+      it('refuses a blank reference before anything else', async () => {
+        await expect(
+          delivered().service.recordSellerPayout(accounts, 9, '  '),
+        ).rejects.toMatchObject({ response: { code: 'PAYMENT_REF_INVALID' } });
+      });
+
+      it('refuses a reference another payout already used', async () => {
+        await expect(
+          delivered({
+            saveError: uniqueViolation(),
+          }).service.recordSellerPayout(accounts, 9, 'BANK-2'),
+        ).rejects.toMatchObject({
+          response: { code: 'PAYMENT_REF_ALREADY_USED' },
+        });
+      });
+
+      it('passes other database failures on unchanged', async () => {
+        await expect(
+          delivered({
+            saveError: new Error('disk full'),
+          }).service.recordSellerPayout(accounts, 9, 'BANK-2'),
+        ).rejects.toThrow('disk full');
+      });
+
+      it('refuses while another payout of the deal is being recorded', async () => {
+        await expect(
+          delivered({ saveAffected: 0 }).service.recordSellerPayout(
+            accounts,
+            9,
+            'BANK-2',
+          ),
+        ).rejects.toMatchObject({ response: { code: 'DEAL_CONFIRMING' } });
+      });
+
+      it('clears the saved reference when the ledger refuses it', async () => {
+        const { service, chain, offers } = delivered();
+        chain.fail(revert('PaymentRefAlreadyUsed'));
+        await expect(
+          service.recordSellerPayout(accounts, 9, 'BANK-2'),
+        ).rejects.toThrow();
+        expect(offers.update).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 9, status: OfferStatus.DELIVERED }),
+          {
+            sellerPayoutRefEnc: null,
+            sellerPayoutRefHash: null,
+            sellerPaidById: null,
+          },
+        );
+      });
+
+      it('keeps it when the failure is not a refusal', async () => {
+        const { service, chain, offers } = delivered();
+        chain.fail(new Error('node unreachable'));
+        await expect(
+          service.recordSellerPayout(accounts, 9, 'BANK-2'),
+        ).rejects.toThrow('node unreachable');
+        expect(offers.update).not.toHaveBeenCalled();
+      });
+    });
+
+    it('shows no deals to a role with no side in them', async () => {
+      const { service, reads } = build();
+      await service.listOffers(actor(Role.INVESTOR), {
+        skip: 0,
+        limit: 20,
+      } as never);
+      expect(reads[0].wheres()).toContain('FALSE');
     });
   });
 });

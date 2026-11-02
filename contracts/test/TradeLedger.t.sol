@@ -326,6 +326,69 @@ contract TradeLedgerTest is Test {
         trade.recordSellerPayout(o, keccak256("BANK-REF-2"));
     }
 
+    function test_SellerPayoutNeedsAFreshReference() public {
+        uint256 id = _externalListing();
+        vm.prank(admin);
+        trade.approveListing(id);
+        uint256 o = _offer(sabbir, id, 1_200, 25 * TK);
+        vm.prank(karim);
+        trade.approveOffer(o);
+        _pay(o); // the buyer's payment used reference 1
+        _deliver(o, karim, sabbir, 1_200);
+
+        vm.startPrank(accounts);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        trade.recordSellerPayout(o, bytes32(0));
+        bytes32 used = bytes32(refCount);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.PaymentRefAlreadyUsed.selector, used));
+        trade.recordSellerPayout(o, used);
+        vm.stopPrank();
+    }
+
+    function test_ExternalListingNeedsEveryValue() public {
+        bytes32 d = keccak256("details");
+        vm.startPrank(karim);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        trade.listExternal(bytes32(0), 1, 1, d);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        trade.listExternal(POTATO, 0, 1, d);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        trade.listExternal(POTATO, 1, 0, d);
+        vm.expectRevert(TradeLedger.ZeroValue.selector);
+        trade.listExternal(POTATO, 1, 1, bytes32(0));
+        vm.stopPrank();
+    }
+
+    function test_UnknownListingsAreNotFound() public {
+        vm.prank(karim);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.ListingNotFound.selector, 42));
+        trade.cancelListing(42);
+        vm.startPrank(admin);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.ListingNotFound.selector, 42));
+        trade.approveListing(42);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.ListingNotFound.selector, 42));
+        trade.rejectListing(42);
+        vm.stopPrank();
+    }
+
+    function test_FeeSlabsAreReadBackAndStartAboveZero() public {
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 10_000 * TK;
+        uint256[] memory fees = new uint256[](2);
+        fees[0] = 50 * TK;
+        fees[1] = 100 * TK;
+        vm.startPrank(superAdmin);
+        trade.setFeeSlabs(caps, fees);
+        (uint256[] memory gotCaps, uint256[] memory gotFees) = trade.getFeeSlabs();
+        assertEq(gotCaps, caps);
+        assertEq(gotFees, fees);
+
+        caps[0] = 0; // a first slab up to nothing would never apply
+        vm.expectRevert(TradeLedger.BadFeeSlabs.selector);
+        trade.setFeeSlabs(caps, fees);
+        vm.stopPrank();
+    }
+
     function test_SellerDecidesOnlyTheirOwnListing() public {
         uint256 id = _externalListing();
         vm.prank(admin);

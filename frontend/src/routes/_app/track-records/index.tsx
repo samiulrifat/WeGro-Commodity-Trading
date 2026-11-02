@@ -3,10 +3,11 @@ import { parseMarketSearch } from '@/features/marketplace/market-utils';
 import { FarmerRecordPage } from '@/features/track-records/farmer-record-page';
 import { FarmersList } from '@/features/track-records/farmers-list';
 import { useAppSelector } from '@/store/hooks';
+import { onlyChecked } from '@/lib/search';
 
 export const Route = createFileRoute('/_app/track-records/')({
   staticData: { area: 'track-records' },
-  validateSearch: parseMarketSearch,
+  validateSearch: onlyChecked(parseMarketSearch),
   component: function TrackRecords() {
     const user = useAppSelector((s) => s.session.user!);
     const search = Route.useSearch();

@@ -95,6 +95,15 @@ describe('parseBankList', () => {
       districts,
     );
     expect(codes(r)).toEqual(['BANK_LIST_DISTRICT_UNKNOWN']);
+    const twice = {
+      districts: [
+        { district_code: 610, district_name: 'BOGRA' },
+        { district_code: 610, district_name: 'BOGURA' },
+      ],
+    };
+    expect(codes(parseBankList({ banks: [bank()] }, twice))).toContain(
+      'BANK_LIST_DUPLICATE',
+    );
     expect(codes(parseBankList({ banks: [bank()] }, { nope: [] }))).toEqual([
       'BANK_LIST_UNREADABLE',
     ]);

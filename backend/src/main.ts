@@ -5,7 +5,8 @@ import { AppModule } from './app.module';
 import { API_PREFIX, configureApp, DOCS_PATH } from './app.setup';
 import type { EnvironmentVariables } from './config/env.validation';
 
-async function bootstrap() {
+/** Starts the API: the whole app, its HTTP pipeline, on PORT. */
+export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   configureApp(app);
 
@@ -19,4 +20,6 @@ async function bootstrap() {
     logger.log(`Docs on http://localhost:${port}/${DOCS_PATH}`);
   }
 }
-void bootstrap();
+// Started as the program; imported (by tests), it waits to be called.
+/* istanbul ignore if -- true only when started by npm run; tests call bootstrap() */
+if (require.main === module) void bootstrap();

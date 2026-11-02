@@ -77,7 +77,10 @@ describe('expiry jobs', () => {
 
 // --- Scheduler ---------------------------------------------------------------
 
-function scheduler(jobs: Array<{ name: string; run: () => Promise<number> }>) {
+function scheduler(
+  jobs: Array<{ name: string; run: () => Promise<number> }>,
+  opts: { recordFails?: boolean } = {},
+) {
   const inserted: unknown[] = [];
   const providers = jobs.map((j) => {
     class Job {}
@@ -96,7 +99,12 @@ function scheduler(jobs: Array<{ name: string; run: () => Promise<number> }>) {
     {
       get: (key: string, target: object) => Reflect.getMetadata(key, target),
     } as never,
-    { insert: async (row: unknown) => void inserted.push(row) } as never,
+    {
+      insert: async (row: unknown) => {
+        if (opts.recordFails) throw new Error('job_runs is full');
+        inserted.push(row);
+      },
+    } as never,
     { names: async () => new Map() } as never,
   );
   return { s, inserted };
@@ -127,6 +135,49 @@ describe('job scheduler', () => {
     await jest.advanceTimersByTimeAsync(1_000); // next run, one interval later
     expect(calls).toBe(2);
     finish(0);
+    await s.onApplicationShutdown();
+  });
+
+  it('skips a scheduled run while someone runs the job by hand', async () => {
+    let calls = 0;
+    let finish: (n: number) => void = () => undefined;
+    const { s } = scheduler([
+      {
+        name: 'slow',
+        run: () => {
+          calls++;
+          return new Promise<number>((r) => (finish = r));
+        },
+      },
+    ]);
+    s.onApplicationBootstrap();
+    const manual = s.runNow('slow', { id: 'admin' } as never);
+    expect(calls).toBe(1);
+    await jest.advanceTimersByTimeAsync(1_000); // the tick finds it running
+    expect(calls).toBe(1);
+    finish(1);
+    await manual;
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(calls).toBe(2);
+    finish(0);
+    await s.onApplicationShutdown();
+  });
+
+  it('logs a run it could not record, and carries on', async () => {
+    const { s } = scheduler([{ name: 'work', run: () => Promise.resolve(3) }], {
+      recordFails: true,
+    });
+    const errors = jest
+      .spyOn(
+        (s as unknown as { logger: { error: (m: string) => void } }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+    s.onApplicationBootstrap();
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(errors).toHaveBeenCalledWith(
+      'Could not record a work run: Error: job_runs is full',
+    );
     await s.onApplicationShutdown();
   });
 

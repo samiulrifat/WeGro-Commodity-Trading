@@ -33,9 +33,12 @@ function withSeedSize(args: string[]): string[] {
   return [...args.slice(0, i + 1), 'showcase', ...args.slice(i + 1)];
 }
 
-async function main(): Promise<void> {
+/** The command, given its arguments (what follows the script's name). */
+export async function main(
+  argv: string[] = process.argv.slice(2),
+): Promise<void> {
   const { values } = parseArgs({
-    args: withSeedSize(process.argv.slice(2)),
+    args: withSeedSize(argv),
     options: {
       yes: { type: 'boolean', default: false },
       name: { type: 'string' },
@@ -81,4 +84,6 @@ async function main(): Promise<void> {
   }).catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));
 }
 
-void main();
+// Run as a command; imported (by tests), it waits to be called.
+/* istanbul ignore if -- true only when started by npm run; tests call main() */
+if (require.main === module) void main();

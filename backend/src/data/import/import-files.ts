@@ -37,6 +37,12 @@ export interface ImportFile {
   kind: string;
   /** The column holding WeGro's id for the row. */
   idColumn: string;
+  /**
+   * The id is one of the record's own fields (a catalog entry's code), so it
+   * is validated with the rest; otherwise it is WeGro's id, kept only to
+   * match rows across files and imports.
+   */
+  idIsField?: boolean;
   /** CSV column -> [DTO field, cell type]. */
   columns: Record<string, [string, Cell]>;
   /** Columns that must be present and non-empty. */
@@ -153,6 +159,7 @@ export const IMPORT_FILES: ImportFile[] = [
     file: 'units.csv',
     kind: 'unit',
     idColumn: 'code',
+    idIsField: true,
     columns: {
       ...entry,
       kind: ['kind', 'text'],
@@ -166,6 +173,7 @@ export const IMPORT_FILES: ImportFile[] = [
     file: 'produce-types.csv',
     kind: 'produce-type',
     idColumn: 'code',
+    idIsField: true,
     columns: {
       ...entry,
       category: ['category', 'text'],
@@ -181,6 +189,7 @@ export const IMPORT_FILES: ImportFile[] = [
     file: 'input-types.csv',
     kind: 'input-type',
     idColumn: 'code',
+    idIsField: true,
     columns: {
       ...entry,
       kind: ['kind', 'text'],
@@ -195,6 +204,7 @@ export const IMPORT_FILES: ImportFile[] = [
     file: 'field-record-types.csv',
     kind: 'record-type',
     idColumn: 'code',
+    idIsField: true,
     columns: {
       ...entry,
       requires_photo: ['requiresPhoto', 'bool'],
@@ -208,6 +218,7 @@ export const IMPORT_FILES: ImportFile[] = [
     file: 'weather-event-types.csv',
     kind: 'weather-type',
     idColumn: 'code',
+    idIsField: true,
     columns: { ...entry, description: ['description', 'text'] },
     required: ['code', 'name', 'name_bn'],
     dto: CreateWeatherEventTypeDto,

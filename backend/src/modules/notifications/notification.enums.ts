@@ -143,4 +143,6 @@ export enum NotificationKind {
   SYSTEM_INDEXER_BEHIND = 'system.indexer-behind',
   SYSTEM_INDEXER_FAILING = 'system.indexer-failing',
   SYSTEM_RESOLVED = 'system.resolved',
+  /** A stored payment proof file no longer matches its hash: not served. */
+  SYSTEM_PROOF_FILE_ALTERED = 'system.proof-file-altered',
 }

@@ -266,6 +266,26 @@ describe('Catalog (database)', () => {
         requiresLocation: true,
       });
       expect(ok.body.data.measurements[0]).toEqual({ ...ph, unit: null });
+      // Measurements are replaced whole, each checked again.
+      const moisture = {
+        key: 'moisture',
+        label: 'Moisture',
+        labelBn: 'আর্দ্রতা',
+        unit: '%',
+        min: 0,
+        max: 100,
+        decimals: 0,
+        required: false,
+      };
+      const changed = await patch(admin, 'field-record-types/SOIL_TEST', {
+        measurements: [ph, moisture],
+      }).expect(200);
+      expect(
+        changed.body.data.measurements.map((m: { key: string }) => m.key),
+      ).toEqual(['ph', 'moisture']);
+      await patch(admin, 'field-record-types/SOIL_TEST', {
+        measurements: [{ ...moisture, min: 200 }],
+      }).expect(422);
     });
 
     it('never shows in the cache what the database refused', async () => {

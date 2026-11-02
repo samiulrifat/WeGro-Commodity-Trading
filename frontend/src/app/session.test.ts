@@ -197,4 +197,46 @@ describe('session', () => {
     expect(next.store.getState().session.status).toBe('signedOut');
     expect(saved.has('wegro.signOutPending')).toBe(false);
   });
+
+  it('takes a garbled remembered person for nobody', async () => {
+    saved.set('wegro.lastUser', '{not json');
+    answer = offline;
+    const { store, ensureSession, SessionUnknownError } = await start();
+    await expect(ensureSession(store)).rejects.toBeInstanceOf(
+      SessionUnknownError,
+    );
+  });
+
+  it('waits while still offline, and on coming back first finishes a sign-out made offline', async () => {
+    const { store, watchConnection } = await start();
+    const listeners: Record<string, () => void> = {};
+    const page = { visibilityState: 'hidden' };
+    const connection = { onLine: false };
+    vi.stubGlobal('window', {
+      addEventListener: (name: string, fn: () => void) =>
+        (listeners[name] = fn),
+    });
+    vi.stubGlobal('document', {
+      get visibilityState() {
+        return page.visibilityState;
+      },
+      addEventListener: (name: string, fn: () => void) =>
+        (listeners[name] = fn),
+    });
+    vi.stubGlobal('navigator', connection);
+    watchConnection(store);
+    saved.set('wegro.signOutPending', '1');
+    answer = async () => new Response(null, { status: 204 });
+
+    listeners.online!();
+    listeners.visibilitychange!();
+    expect(calls).toEqual([]);
+    connection.onLine = true;
+    // Still in the background: nothing yet.
+    listeners.visibilitychange!();
+    expect(calls).toEqual([]);
+    page.visibilityState = 'visible';
+    listeners.visibilitychange!();
+    await vi.waitFor(() => expect(calls).toEqual(['/api/auth/logout']));
+  });
 });

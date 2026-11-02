@@ -443,6 +443,8 @@ export enum ErrorCode {
   PROOF_BANK_REQUIRED = 'PROOF_BANK_REQUIRED',
   /** The transfer date cannot be in the future */
   PROOF_DATE_FUTURE = 'PROOF_DATE_FUTURE',
+  /** The file no longer matches the one that was sent, so it is not shown */
+  PROOF_FILE_ALTERED = 'PROOF_FILE_ALTERED',
   /** Attach 1 to {max} files */
   PROOF_FILE_COUNT = 'PROOF_FILE_COUNT',
   /** The file is missing */

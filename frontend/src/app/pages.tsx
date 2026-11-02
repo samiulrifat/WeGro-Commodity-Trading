@@ -3,34 +3,14 @@ import {
   Link,
   useRouter,
 } from '@tanstack/react-router';
-import { Construction, SearchX, ShieldX } from 'lucide-react';
+import { SearchX, ShieldX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ApiError } from '@/api/errors';
-import { PageHeader } from '@/components/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { buttonVariants } from '@/components/ui/button';
-import { useAppSelector } from '@/store/hooks';
-import { type Area, navFor } from './navigation';
 import { SessionUnknownError } from './session';
 
 const homeLink = buttonVariants({ variant: 'outline' });
-
-/** An area's page before its screens are built: its name, and a plain note. */
-export function ComingSoon({ area }: { area: Area }) {
-  const { t } = useTranslation();
-  const user = useAppSelector((s) => s.session.user);
-  const label = user && navFor(user).find((n) => n.area === area)?.label;
-  return (
-    <>
-      <PageHeader title={label ? t(`nav.${label}`) : t('states.comingSoon')} />
-      <EmptyState
-        icon={Construction}
-        title={t('states.comingSoon')}
-        description={t('states.comingSoonHint')}
-      />
-    </>
-  );
-}
 
 export function NotFoundPage() {
   const { t } = useTranslation();

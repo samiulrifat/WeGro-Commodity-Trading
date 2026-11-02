@@ -6,7 +6,7 @@ import type {
   ConsentDto,
   TrackRecordSummaryDto,
 } from '@/api/generated/track-record';
-import { fakeServer, renderPage, signedInAs } from '@/test/render';
+import { fakeServer, recordForms, renderPage, signedInAs } from '@/test/render';
 import { BankFarmersList } from './bank-farmers-list';
 import { BankViewPage } from './bank-view-page';
 import { BanksPage } from './banks-page';
@@ -105,27 +105,6 @@ const consent = (over: Partial<ConsentDto> = {}): ConsentDto => ({
   lastViewedAt: null,
   ...over,
 });
-
-/** jsdom's File and Node's FormData do not mix: record what the app appends. */
-function recordForms(): Array<Array<[string, string]>> {
-  const forms: Array<Array<[string, string]>> = [];
-  vi.stubGlobal(
-    'FormData',
-    class {
-      entries: Array<[string, string]> = [];
-      constructor() {
-        forms.push(this.entries);
-      }
-      append(key: string, value: string | File) {
-        this.entries.push([
-          key,
-          typeof value === 'string' ? value : value.name,
-        ]);
-      }
-    },
-  );
-  return forms;
-}
 
 function farmerServer(
   over: {
@@ -533,5 +512,518 @@ describe('permissions and banks', () => {
     );
     expect(await screen.findByText('Maize in Bogura #1')).toBeTruthy();
     expect(screen.getByText('Checked Against the Ledger')).toBeTruthy();
+  });
+});
+
+const failure = (status: number, code: string) => ({
+  status,
+  body: { statusCode: status, code, message: code },
+});
+const pages = <T,>(data: T[], totalPages: number) => ({
+  data,
+  meta: { page: 1, limit: 12, total: data.length, totalPages },
+});
+
+describe('track record lists', () => {
+  it('moves the farmers list between tabs and pages, and tries again', async () => {
+    await signedInAs('field_officer');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/track-records/farmers'
+        ? ++calls > 1
+          ? {
+              body: pages(
+                [
+                  {
+                    farmer: { id: FARMER, name: 'Rahim Uddin' },
+                    district: 'BOGURA',
+                    officer: null,
+                    finishedProjects: 1,
+                    latestVersion: null,
+                    publishedAt: null,
+                    pendingProjects: 0,
+                    activeConsents: 0,
+                  },
+                ],
+                2,
+              ),
+            }
+          : failure(500, 'X')
+        : undefined,
+    );
+    const { router } = await renderPage(
+      <FarmersList search={{}} />,
+      '/track-records',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    await screen.findByText(/Rahim Uddin/);
+    await userEvent.click(screen.getByRole('tab', { name: 'Published' }));
+    expect(router.state.location.search).toEqual({ tab: 'published' });
+    await userEvent.click(screen.getByRole('tab', { name: 'All' }));
+    expect(router.state.location.search).toEqual({});
+    await userEvent.type(screen.getByRole('searchbox'), 'rahim');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(router.state.location.search).toEqual({ q: 'rahim' });
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(router.state.location.search).toEqual({ page: 2 });
+  });
+
+  it('moves the permissions list between tabs and pages, and tries again', async () => {
+    await signedInAs('admin');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/consents'
+        ? ++calls > 1
+          ? { body: pages([consent()], 2) }
+          : failure(500, 'X')
+        : undefined,
+    );
+    const { router } = await renderPage(
+      <PermissionsList search={{}} />,
+      '/track-records/permissions',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    await screen.findByText(/Rahim Uddin/);
+    await userEvent.click(screen.getByRole('tab', { name: 'Withdrawn' }));
+    expect(router.state.location.search).toEqual({ tab: 'revoked' });
+    await userEvent.click(screen.getByRole('tab', { name: 'Current' }));
+    expect(router.state.location.search).toEqual({});
+    await userEvent.type(screen.getByRole('searchbox'), 'krishi');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(router.state.location.search).toEqual({ q: 'krishi' });
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(router.state.location.search).toEqual({ page: 2 });
+  });
+
+  it('searches and pages a bank officer’s farmers, and tries again', async () => {
+    await signedInAs('bank');
+    let calls = 0;
+    fakeServer(({ url }) => {
+      if (url.pathname === '/api/bank/me')
+        return {
+          body: {
+            data: {
+              bank: { id: BANK, name: 'Krishi Bank', branchName: 'Bogura' },
+            },
+          },
+        };
+      if (url.pathname === '/api/bank/farmers')
+        return ++calls > 1
+          ? {
+              body: pages(
+                [
+                  {
+                    farmer: { id: FARMER, name: 'Rahim Uddin' },
+                    district: 'BOGURA',
+                    expiresOn: '2027-04-30',
+                    latestVersion: 1,
+                  },
+                ],
+                2,
+              ),
+            }
+          : failure(500, 'X');
+      return undefined;
+    });
+    const { router } = await renderPage(
+      <BankFarmersList search={{}} />,
+      '/bank/farmers',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    await screen.findByText('Rahim Uddin');
+    await userEvent.type(screen.getByRole('searchbox'), 'rahim');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(router.state.location.search).toEqual({ q: 'rahim' });
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(router.state.location.search).toEqual({ page: 2 });
+  });
+
+  it('says why a bank officer cannot open a record', async () => {
+    await signedInAs('bank');
+    fakeServer(() => failure(403, 'CONSENT_REQUIRED'));
+    await renderPage(
+      <BankViewPage farmerId={FARMER} />,
+      `/bank/farmers/${FARMER}`,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: /Open Track Record/ }),
+    );
+    expect(await screen.findByRole('alert')).toBeTruthy();
+  });
+});
+
+describe('a farmer’s record, further', () => {
+  it('says why it cannot be opened, and asks both again', async () => {
+    await signedInAs('admin');
+    let calls = 0;
+    fakeServer(({ url }) => {
+      if (url.pathname.endsWith('/track-record/preview'))
+        return ++calls > 1
+          ? {
+              body: {
+                data: {
+                  summary,
+                  officer: null,
+                  latestVersion: null,
+                  pendingProjects: 0,
+                },
+              },
+            }
+          : failure(500, 'X');
+      if (url.pathname.endsWith('/track-records'))
+        return { body: { data: [] } };
+      // Nothing else (the catalog among them): names stay as codes.
+      return undefined;
+    });
+    await renderPage(
+      <FarmerRecordPage farmerId={FARMER} />,
+      `/track-records/farmers/${FARMER}`,
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(await screen.findByText('Maize in Bogura #1')).toBeTruthy();
+  });
+
+  it('moves between a version and the preview, and keeps publishing with the reason when refused', async () => {
+    await signedInAs('field_officer');
+    const sent = farmerServer();
+    // Refuse the publish this time.
+    const fetchFn = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const req = input instanceof Request ? input : new Request(input, init);
+        if (
+          req.method === 'POST' &&
+          new URL(req.url).pathname.endsWith('/track-records')
+        )
+          return Response.json(failure(409, 'NOTHING_NEW').body, {
+            status: 409,
+          });
+        return fetchFn(input, init);
+      }),
+    );
+    await renderPage(
+      <FarmerRecordPage farmerId={FARMER} />,
+      `/track-records/farmers/${FARMER}`,
+    );
+    await screen.findByText('Maize in Bogura #1');
+    await userEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    expect(
+      await screen.findByText(/A preview of the next version/),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole('tab', { name: 'Version 1' }));
+    expect(
+      await screen.findByText(/Version 1 published by Imran Officer/),
+    ).toBeTruthy();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Publish New Version' }),
+    );
+    const dialog = screen.getByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Publish New Version' }),
+    );
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel' }),
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Publish New Version' }),
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    void sent;
+  });
+
+  it('shows the signed form, and withdraws a permission after asking', async () => {
+    await signedInAs('field_officer');
+    const sent = farmerServer();
+    await renderPage(
+      <FarmerRecordPage farmerId={FARMER} />,
+      `/track-records/farmers/${FARMER}`,
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Signed Form' }),
+    );
+    expect(
+      await screen.findByRole('img', {
+        name: 'The farmer’s signed consent form',
+      }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Hide Form' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    let dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText(
+        'Krishi Bank can no longer see the track record, from now on.',
+      ),
+    ).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    dialog = screen.getByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Withdraw' }),
+    );
+    // The fake server has no answer for it: the reason is shown.
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    const fetchFn = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const req = input instanceof Request ? input : new Request(input, init);
+        if (new URL(req.url).pathname.endsWith('/revoke'))
+          return Response.json({ data: consent({ status: 'revoked' }) });
+        return fetchFn(input, init);
+      }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Withdraw' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      sent.some(
+        (s) =>
+          s.method === 'POST' &&
+          s.url.pathname.endsWith(`/consents/${BANK}/revoke`),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps a permission with the reason when refused, and its last day as chosen', async () => {
+    recordForms();
+    await signedInAs('field_officer');
+    const sent = farmerServer();
+    const fetchFn = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const req = input instanceof Request ? input : new Request(input, init);
+        if (
+          req.method === 'POST' &&
+          new URL(req.url).pathname === `/api/farmers/${FARMER}/consents`
+        )
+          return Response.json(failure(409, 'CONSENT_EXISTS').body, {
+            status: 409,
+          });
+        return fetchFn(input, init);
+      }),
+    );
+    await renderPage(
+      <FarmerRecordPage farmerId={FARMER} />,
+      `/track-records/farmers/${FARMER}`,
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Give a Bank Permission' }),
+    );
+    const dialog = screen.getByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('combobox'));
+    await userEvent.click(
+      await screen.findByRole('option', { name: /Krishi Bank/ }),
+    );
+    const lastDay = within(dialog).getByLabelText('Last Day the Bank May Look');
+    await userEvent.clear(lastDay);
+    await userEvent.type(lastDay, '2027-01-31');
+    await userEvent.upload(
+      dialog.querySelector('input[type=file]') as HTMLInputElement,
+      new File(['jpeg'], 'form.jpg', { type: 'image/jpeg' }),
+    );
+    const give = within(dialog).getByRole('button', {
+      name: 'Give a Bank Permission',
+    });
+    await waitFor(() => expect(give.hasAttribute('disabled')).toBe(false));
+    await userEvent.click(give);
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    void sent;
+  });
+
+  it('shows what came before the platform', async () => {
+    await signedInAs('admin');
+    // Nothing published yet: the preview, with the history brought in.
+    farmerServer({
+      versions: [],
+      summary: {
+        ...summary,
+        importedHistory: [
+          {
+            title: 'Rice before WeGro',
+            produce: { code: 'RICE', name: 'Rice', unit: 'kg' },
+            district: { code: 'BOGURA', name: 'Bogura' },
+            startedOn: '2024-01-01',
+            finishedOn: '2024-05-01',
+            net: '50000.00',
+            farmerReceived: '20000.00',
+          },
+        ] as never,
+      },
+    });
+    await renderPage(
+      <FarmerRecordPage farmerId={FARMER} own />,
+      '/track-records',
+    );
+    expect(await screen.findByText('Before the Platform')).toBeTruthy();
+    expect(screen.getByText('Rice before WeGro')).toBeTruthy();
+  });
+});
+
+describe('banks, further', () => {
+  const bankRow = (over = {}) => ({
+    id: BANK,
+    name: 'Krishi Bank',
+    branchName: 'Bogura',
+    district: { code: 'BOGURA', name: 'Bogura' },
+    address: 'Satmatha',
+    status: 'registered',
+    detailsHash: '0x',
+    officers: [{ id: 'bo1', name: 'Bank Officer' }],
+    ...over,
+  });
+
+  it('places and removes bank officers, saying why not when refused', async () => {
+    const { toast } = await import('sonner');
+    const ok = vi.spyOn(toast, 'success').mockImplementation(() => 1);
+    const failed = vi.spyOn(toast, 'error').mockImplementation(() => 1);
+    await signedInAs('admin');
+    let refuse = true;
+    const sent = fakeServer(({ method, url }) => {
+      if (method === 'PUT')
+        return refuse
+          ? failure(409, 'OFFICER_NOT_VERIFIED')
+          : { body: { data: {} } };
+      if (url.pathname === '/api/banks') return { body: { data: [bankRow()] } };
+      if (url.pathname === '/api/participants')
+        return {
+          body: page([
+            { id: 'bo2', fullName: 'New Officer', district: 'BOGURA' },
+          ]),
+        };
+      return undefined;
+    });
+    await renderPage(<BanksPage search={{}} />, '/track-records/banks');
+    const remove = await screen.findByRole('button', {
+      name: 'Remove Bank Officer',
+    });
+    await userEvent.click(remove);
+    await waitFor(() => expect(failed).toHaveBeenCalled());
+    refuse = false;
+    await userEvent.click(remove);
+    await waitFor(() => expect(ok).toHaveBeenCalledWith('Officer removed.'));
+
+    await userEvent.click(screen.getByRole('button', { name: /Add Officer/ }));
+    const dialog = screen.getByRole('dialog');
+    const add = within(dialog).getByRole('button', { name: 'Add Officer' });
+    expect(add.hasAttribute('disabled')).toBe(true);
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: /New Officer/ }),
+    );
+    refuse = true;
+    await userEvent.click(add);
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    refuse = false;
+    await userEvent.click(add);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(sent.filter((s) => s.method === 'PUT').at(-1)!.body).toEqual({
+      bankId: BANK,
+    });
+    await userEvent.click(screen.getByRole('button', { name: /Add Officer/ }));
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Add Officer/ }));
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('checks a new bank’s details, and keeps the form when refused', async () => {
+    await signedInAs('admin');
+    fakeServer(({ method, url }) =>
+      method === 'POST'
+        ? failure(409, 'BANK_EXISTS')
+        : url.pathname === '/api/banks'
+          ? { body: { data: [] } }
+          : undefined,
+    );
+    await renderPage(<BanksPage search={{}} />, '/track-records/banks');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Register Bank/ }),
+    );
+    const dialog = screen.getByRole('dialog');
+    const save = within(dialog).getByRole('button', { name: 'Register Bank' });
+    await userEvent.click(save);
+    for (const m of [
+      'Enter the bank’s name.',
+      'Enter the branch.',
+      'Enter the address.',
+    ])
+      expect(within(dialog).getByText(m)).toBeTruthy();
+    await userEvent.type(
+      within(dialog).getByLabelText('Bank Name'),
+      'Krishi Bank',
+    );
+    await userEvent.type(within(dialog).getByLabelText('Branch'), 'Bogura');
+    await userEvent.type(within(dialog).getByLabelText('District'), 'Bogura');
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Bogura' }),
+    );
+    await userEvent.type(within(dialog).getByLabelText('Address'), 'Satmatha');
+    await userEvent.click(save);
+    expect(await within(dialog).findByRole('alert')).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(
+      screen.getByRole('button', { name: /Register Bank/ }),
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('searches banks, says when none match, and tries again', async () => {
+    await signedInAs('auditor');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/banks'
+        ? ++calls > 1
+          ? { body: { data: [bankRow({ officers: [] })] } }
+          : failure(500, 'X')
+        : undefined,
+    );
+    const { router } = await renderPage(
+      <BanksPage search={{}} />,
+      '/track-records/banks',
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(await screen.findByText('No officers yet.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Add Officer/ })).toBeNull();
+    await userEvent.type(screen.getByRole('searchbox'), 'krishi');
+    await userEvent.click(screen.getByRole('button', { name: 'Find' }));
+    expect(router.state.location.search).toEqual({ q: 'krishi' });
+    cleanup();
+    fakeServer(() => ({ body: { data: [] } }));
+    await renderPage(
+      <BanksPage search={{ q: 'zz' }} />,
+      '/track-records/banks',
+    );
+    expect(await screen.findByText('No banks match.')).toBeTruthy();
   });
 });

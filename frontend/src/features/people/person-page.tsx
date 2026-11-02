@@ -271,7 +271,8 @@ function RegistrationCard({ person }: { person: ParticipantDetailDto }) {
 function LedgerCard({ person }: { person: ParticipantDetailDto }) {
   const { t } = useTranslation();
   const [check, integrity] = useLazyParticipantsIntegrityQuery();
-  const report = integrity.data?.data;
+  // The latest check's answer only: a failed recheck shows its error alone.
+  const report = integrity.isError ? undefined : integrity.data?.data;
   return (
     <Card>
       <CardHeader>

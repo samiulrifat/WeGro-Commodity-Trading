@@ -29,6 +29,7 @@ function setup(over: { fundingWei?: string } = {}) {
   const broadcast: Array<{ from: string; nonce: number; to?: string }> = [];
   const chainNonce = new Map<string, number>();
   const sendFailures: Error[] = [];
+  const waitFailures: Error[] = [];
   const provider = {
     estimateGas: jest.fn(() => Promise.resolve(100_000n)),
     getFeeData: jest.fn(() =>
@@ -57,15 +58,18 @@ function setup(over: { fundingWei?: string } = {}) {
           chainNonce.set(address, req.nonce + 1);
           return {
             hash: `0xtx${broadcast.length}`,
-            wait: () =>
-              Promise.resolve({
+            wait: () => {
+              const failure = waitFailures.shift();
+              if (failure) return Promise.reject(failure);
+              return Promise.resolve({
                 hash: `0xtx${broadcast.length}`,
                 blockNumber: broadcast.length,
                 blockHash: '0xblock',
                 status: 1,
                 gasUsed: 21_000n,
                 logs: [],
-              }),
+              });
+            },
           };
         },
       ),
@@ -111,7 +115,15 @@ function setup(over: { fundingWei?: string } = {}) {
         }
       ).call.populateTransaction(),
     );
-  return { service, provider, broadcast, send, sendFailures, keys };
+  return {
+    service,
+    provider,
+    broadcast,
+    send,
+    sendFailures,
+    waitFailures,
+    keys,
+  };
 }
 
 describe('TransactionService', () => {
@@ -204,5 +216,76 @@ describe('TransactionService', () => {
     const { send, provider } = setup();
     await Promise.all([send(1), send(2), send(3)]);
     expect(provider.getFeeData).toHaveBeenCalledTimes(1);
+  });
+  it('prices with a gas price where the node has no EIP-1559 fees', async () => {
+    const { send, provider, keys } = setup();
+    provider.getFeeData.mockResolvedValueOnce({
+      maxFeePerGas: null,
+      maxPriorityFeePerGas: null,
+      gasPrice: 5n,
+    } as never);
+    await send(4);
+    const request = keys.signerFor(4).sendTransaction.mock
+      .calls[0][0] as unknown as {
+      gasPrice?: bigint;
+      maxFeePerGas?: bigint;
+    };
+    expect(request.gasPrice).toBe(5n);
+    expect(request.maxFeePerGas).toBeUndefined();
+  });
+
+  it('prices at zero on a free-gas network that names no price', async () => {
+    const { send, provider, keys } = setup();
+    provider.getFeeData.mockResolvedValueOnce({
+      maxFeePerGas: null,
+      maxPriorityFeePerGas: null,
+      gasPrice: null,
+    } as never);
+    await send(4);
+    expect(
+      (
+        keys.signerFor(4).sendTransaction.mock.calls[0][0] as unknown as {
+          gasPrice: bigint;
+        }
+      ).gasPrice,
+    ).toBe(0n);
+  });
+
+  it('re-reads the nonce after waiting for a transaction timed out', async () => {
+    const { send, provider, waitFailures } = setup();
+    await send(7);
+    waitFailures.push(new Error('timeout'));
+    await expect(send(7)).rejects.toThrow('Blockchain transaction failed');
+    await send(7);
+    expect(provider.getTransactionCount).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not keep fee data the node failed to give', async () => {
+    const { send, provider } = setup();
+    provider.getFeeData.mockRejectedValueOnce(new Error('rate limited'));
+    await expect(send(3)).rejects.toThrow();
+    await send(3);
+    expect(provider.getFeeData).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers 503 when a key cannot be funded because the node is down', async () => {
+    const { service, provider } = setup();
+    provider.estimateGas.mockRejectedValueOnce(
+      Object.assign(new Error('connect ECONNREFUSED'), {
+        code: 'ECONNREFUSED',
+      }),
+    );
+    await expect(
+      service.ensureFunded(`0x${'9'.repeat(40)}`),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+  it('says so when a mined transaction failed on chain', async () => {
+    const { send, keys } = setup();
+    keys.signerFor(6).sendTransaction.mockImplementationOnce((() =>
+      Promise.resolve({
+        hash: '0xbad',
+        wait: () => Promise.resolve({ status: 0 }),
+      })) as never);
+    await expect(send(6)).rejects.toThrow();
   });
 });

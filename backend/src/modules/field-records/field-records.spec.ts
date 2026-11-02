@@ -140,6 +140,49 @@ describe('stripMetadata', () => {
       stripMetadata(Buffer.concat([PNG_SIG, chunk('IHDR', 'h')]), 'image/png'),
     ).toThrow(MalformedImageError);
   });
+
+  it('refuses images with no picture in them', () => {
+    // A JPEG that ends before any image data.
+    expect(() =>
+      stripMetadata(
+        Buffer.concat([
+          Buffer.from([0xff, 0xd8]),
+          seg(0xe0, 'JFIF\0'),
+          Buffer.from([0xff, 0xd9]),
+        ]),
+        'image/jpeg',
+      ),
+    ).toThrow('JPEG ended without image data');
+    // A PNG that ends with no image data chunk.
+    expect(() =>
+      stripMetadata(
+        Buffer.concat([PNG_SIG, chunk('IHDR', 'header'), chunk('IEND', '')]),
+        'image/png',
+      ),
+    ).toThrow('PNG ended without image data');
+    // A WebP with only its extended header.
+    expect(() =>
+      stripMetadata(webp(riffChunk('VP8X', Buffer.alloc(10))), 'image/webp'),
+    ).toThrow('WebP has no image data');
+  });
+
+  it('refuses a PNG chunk that runs past the end of the file', () => {
+    const long = chunk('IDAT', 'pixels');
+    long.writeUInt32BE(1000, 0);
+    expect(() =>
+      stripMetadata(Buffer.concat([PNG_SIG, long]), 'image/png'),
+    ).toThrow('Bad PNG chunk length');
+    expect(() =>
+      stripMetadata(
+        Buffer.concat([
+          PNG_SIG,
+          chunk('IHDR', 'header'),
+          Buffer.from([0, 0, 0]),
+        ]),
+        'image/png',
+      ),
+    ).toThrow('Truncated PNG chunk');
+  });
 });
 
 describe('measurements', () => {

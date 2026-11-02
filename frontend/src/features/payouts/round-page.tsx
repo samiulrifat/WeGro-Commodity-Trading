@@ -636,10 +636,10 @@ function UploadDialog({
     (error?.details?.problems as SheetProblem[] | undefined) ?? [];
 
   async function go() {
-    if (!file) return;
     setError(null);
     try {
-      const res = await upload({ id: r.id, body: { file } }).unwrap();
+      // The button is disabled until a file is chosen.
+      const res = await upload({ id: r.id, body: { file: file! } }).unwrap();
       toast.success(
         t('payouts.sheetRecorded', {
           count: res.data.recorded,

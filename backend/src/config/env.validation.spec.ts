@@ -101,4 +101,19 @@ describe('validateEnv', () => {
       /SMS_PROVIDER/,
     );
   });
+
+  it('names every setting production cannot run with, together', () => {
+    const error = (() => {
+      try {
+        validateEnv({ ...base, NODE_ENV: 'production', DEMO_MODE: 'true' });
+      } catch (e) {
+        return (e as Error).message;
+      }
+    })();
+    expect(error).toBe(
+      'Invalid environment configuration: DEMO_MODE cannot be on in production; ' +
+        'set SMS_PROVIDER to a real SMS provider in production; ' +
+        'set EMAIL_PROVIDER to a real email provider in production',
+    );
+  });
 });

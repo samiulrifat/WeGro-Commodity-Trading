@@ -169,7 +169,7 @@ export class ListParticipantsQueryDto extends PaginationQueryDto {
   nid?: string;
   @ApiPropertyOptional({
     description:
-      'Only people the caller manages: staff for the super admin, everyone else for an admin',
+      'Only people the caller manages: everyone for the super admin, all but staff for an admin',
   })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

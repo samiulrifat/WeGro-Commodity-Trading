@@ -4,7 +4,7 @@
   "roots": ["<rootDir>/test"],
   "testEnvironment": "node",
   "testRegex": ".chain-spec.ts$",
-  "testTimeout": 60000,
+  "testTimeout": 120000,
   "maxWorkers": 1,
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"

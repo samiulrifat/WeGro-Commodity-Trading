@@ -1,5 +1,5 @@
 /** Vouchers, batches and sales end to end, against the local chain and a throwaway schema. */
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ChainClock } from '../src/blockchain/chain-clock';
@@ -489,6 +489,71 @@ describe('Vouchers (node + database)', () => {
       expect(res.body.data.map((s: { id: number }) => s.id)).toEqual([
         sale.body.data.id,
       ]);
+    });
+  });
+
+  describe('finding and refusing', () => {
+    it('filters by input, and shows a supplier only their own sales', async () => {
+      const urea = await as(t.admin)
+        .get(`/vouchers?projectId=${projectId}&inputTypeCode=UREA&limit=100`)
+        .expect(200);
+      expect(urea.body.data.length).toBeGreaterThan(0);
+      expect(
+        urea.body.data.every(
+          (v: { input: { code: string } }) => v.input.code === 'UREA',
+        ),
+      ).toBe(true);
+      const ureaBatches = await as(t.supplier)
+        .get('/batches?inputTypeCode=UREA&limit=100')
+        .expect(200);
+      expect(ureaBatches.body.data.length).toBeGreaterThan(0);
+      expect(
+        ureaBatches.body.data.every(
+          (b: { input: { code: string } }) => b.input.code === 'UREA',
+        ),
+      ).toBe(true);
+      const mine = await as(t.supplier).get('/voucher-sales').expect(200);
+      expect(mine.body.data.length).toBeGreaterThan(0);
+      const theirs = await as(otherSupplier.token)
+        .get('/voucher-sales')
+        .expect(200);
+      expect(theirs.body.data).toEqual([]);
+      const farmers = await as(t.farmer).get('/voucher-sales').expect(200);
+      expect(farmers.body.data.map((x: { id: number }) => x.id).sort()).toEqual(
+        mine.body.data.map((x: { id: number }) => x.id).sort(),
+      );
+    });
+
+    it('answers 404 for projects, vouchers and sales that do not exist', async () => {
+      const code = async (req: request.Test) =>
+        (await req.expect(404)).body.code as string;
+      const missing = randomUUID();
+      expect(
+        await code(
+          as(t.operations).post(`/projects/${missing}/vouchers`, {
+            inputTypeCode: 'UREA',
+            quantity: 1,
+            unitPrice: '1',
+            supplierIds: [id.supplier],
+          }),
+        ),
+      ).toBe('PROJECT_NOT_FOUND');
+      expect(
+        await code(as(t.admin).get(`/projects/${missing}/voucher-summary`)),
+      ).toBe('PROJECT_NOT_FOUND');
+      expect(await code(as(t.admin).get(`/vouchers/${missing}`))).toBe(
+        'VOUCHER_NOT_FOUND',
+      );
+      expect(
+        await code(
+          http
+            .delete(`/api/vouchers/${missing}`)
+            .auth(t.admin, { type: 'bearer' }),
+        ),
+      ).toBe('VOUCHER_NOT_FOUND');
+      expect(
+        await code(as(t.field_officer).post('/voucher-sales/999999/confirm')),
+      ).toBe('SALE_NOT_FOUND');
     });
   });
 

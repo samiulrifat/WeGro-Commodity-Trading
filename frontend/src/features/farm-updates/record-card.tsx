@@ -202,7 +202,8 @@ function LedgerCheck({ id }: { id: string }) {
   const { t } = useTranslation();
   const words = useAuditWords();
   const [check, result] = useLazyFieldRecordsVerifyQuery();
-  const data = result.data?.data;
+  // The latest check's answer only: a failed recheck shows its error alone.
+  const data = result.isError ? undefined : result.data?.data;
   return (
     <div className="grid w-full gap-2">
       <Button

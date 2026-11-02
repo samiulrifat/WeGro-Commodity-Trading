@@ -100,7 +100,14 @@ export class ProofFiles {
     };
   }
 
-  async read(file: { id: string; storagePath: string }): Promise<Buffer> {
+  /**
+   * The file as sent, or null when it will not open: changed on disk, or
+   * moved from another row (sealed for its own id).
+   */
+  async read(file: {
+    id: string;
+    storagePath: string;
+  }): Promise<Buffer | null> {
     let sealed: Buffer;
     try {
       sealed = await readFile(join(this.root, file.storagePath));
@@ -110,7 +117,11 @@ export class ProofFiles {
         code: ErrorCode.PROOF_FILE_MISSING,
       });
     }
-    return this.crypto.decryptBytes(sealed, context(file.id));
+    try {
+      return this.crypto.decryptBytes(sealed, context(file.id));
+    } catch {
+      return null;
+    }
   }
 
   /** Best effort: for files of a proof that was not saved. */

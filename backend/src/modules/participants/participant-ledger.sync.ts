@@ -3,7 +3,7 @@ import { getAddress } from 'ethers';
 import { type EntityManager } from 'typeorm';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
 import { KeyService } from '../../blockchain/keys/key.service';
-import { bytes32ToUuid } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull } from '../../blockchain/utils/ids';
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { ChainState, User } from '../users/entities/user.entity';
 import {
@@ -80,7 +80,7 @@ export class ParticipantLedgerSync implements OnModuleInit {
       event.eventName === 'FieldOfficerAssigned'
         ? event.args.farmerId
         : event.args.participantId;
-    const userId = toUuid(subject);
+    const userId = bytes32ToUuidOrNull(subject);
     if (!userId) {
       this.logger.warn(`${event.eventName} for a non-platform id; ignored`);
       return;
@@ -138,7 +138,7 @@ export class ParticipantLedgerSync implements OnModuleInit {
         return { status, statusChangedAt: event.blockTime ?? new Date() };
       }
       case 'FieldOfficerAssigned':
-        return { fieldOfficerId: toUuid(a.officerId) };
+        return { fieldOfficerId: bytes32ToUuidOrNull(a.officerId) };
       case 'ParticipantAccountChanged': {
         const account = getAddress(String(a.newAccount));
         const row = await manager.findOne(User, {
@@ -189,13 +189,5 @@ export class ParticipantLedgerSync implements OnModuleInit {
         `Ledger registration of ${userId} does not match the database (role or details fingerprint)`,
       );
     }
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }

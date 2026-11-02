@@ -17,10 +17,11 @@ test('a buyer offers, WeGro approves and Accounts confirms payment', async ({
   errors,
 }) => {
   void errors;
-  await signInAs(page, 'buyer');
+  // A buyer lands on the listings: their first load may already be the one.
   const listed = page.waitForResponse(
     (r) => new URL(r.url()).pathname === '/api/listings' && r.ok(),
   );
+  await signInAs(page, 'buyer');
   await go(page, '/marketplace');
   const { data } = (await (await listed).json()) as { data: Listing[] };
   const listing = data.find(

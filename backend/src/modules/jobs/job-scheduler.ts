@@ -190,10 +190,9 @@ export class JobScheduler
     e.nextRunAt = new Date(Date.now() + delayMs);
     e.timer = setTimeout(() => {
       e.nextRunAt = null;
-      // A manual run in progress: this tick is skipped, not stacked.
-      const done = e.running
-        ? e.running.catch(() => undefined)
-        : this.execute(e, 'schedule', null);
+      // A manual run in progress: this tick is skipped, not stacked. Runs
+      // never reject (a failure is recorded as the outcome).
+      const done = e.running ?? this.execute(e, 'schedule', null);
       void done.finally(() => this.schedule(e, e.everyMs));
     }, delayMs);
     e.timer.unref();

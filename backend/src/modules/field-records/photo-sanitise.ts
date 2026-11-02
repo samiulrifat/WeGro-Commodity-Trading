@@ -67,10 +67,8 @@ function stripJpeg(data: Buffer): Buffer {
     const marker = data[i];
     const start = i - 1;
     i++;
-    if (marker === 0xd9) {
-      parts.push(data.subarray(start, i));
-      return Buffer.concat(parts);
-    }
+    // End of image before any scan: there is no picture in it.
+    if (marker === 0xd9) break;
     if (i + 2 > data.length)
       throw new MalformedImageError('Truncated JPEG segment');
     const length = data.readUInt16BE(i);
@@ -95,6 +93,7 @@ const PNG_DROP = new Set(['eXIf', 'tEXt', 'zTXt', 'iTXt', 'tIME']);
 
 function stripPng(data: Buffer): Buffer {
   const parts: Buffer[] = [data.subarray(0, 8)];
+  let pixels = false;
   let i = 8;
   while (i < data.length) {
     if (i + 12 > data.length)
@@ -105,8 +104,13 @@ function stripPng(data: Buffer): Buffer {
     if (end > data.length)
       throw new MalformedImageError('Bad PNG chunk length');
     if (!PNG_DROP.has(type)) parts.push(data.subarray(i, end));
+    if (type === 'IDAT') pixels = true;
     i = end;
-    if (type === 'IEND') return Buffer.concat(parts);
+    if (type === 'IEND') {
+      if (!pixels)
+        throw new MalformedImageError('PNG ended without image data');
+      return Buffer.concat(parts);
+    }
   }
   throw new MalformedImageError('PNG ended without IEND');
 }
@@ -114,6 +118,8 @@ function stripPng(data: Buffer): Buffer {
 // --- WebP: RIFF chunks; EXIF and XMP chunks are metadata ---
 
 const WEBP_DROP = new Set(['EXIF', 'XMP ']);
+/** Lossy, lossless and animated: one of them holds the picture. */
+const WEBP_IMAGE = new Set(['VP8 ', 'VP8L', 'ANMF']);
 const VP8X_EXIF = 0x08;
 const VP8X_XMP = 0x04;
 
@@ -121,6 +127,7 @@ function stripWebp(data: Buffer): Buffer {
   const riffEnd = 8 + data.readUInt32LE(4);
   if (riffEnd > data.length) throw new MalformedImageError('Bad WebP size');
   const chunks: Buffer[] = [];
+  let pixels = false;
   let i = 12;
   while (i < riffEnd) {
     if (i + 8 > riffEnd) throw new MalformedImageError('Truncated WebP chunk');
@@ -128,6 +135,7 @@ function stripWebp(data: Buffer): Buffer {
     const size = data.readUInt32LE(i + 4);
     const end = i + 8 + size + (size % 2); // chunks are padded to even sizes
     if (end > riffEnd) throw new MalformedImageError('Bad WebP chunk size');
+    if (WEBP_IMAGE.has(type)) pixels = true;
     if (!WEBP_DROP.has(type)) {
       const chunk = Buffer.from(data.subarray(i, end));
       if (type === 'VP8X') chunk[8] &= ~(VP8X_EXIF | VP8X_XMP); // flags no longer true
@@ -135,6 +143,7 @@ function stripWebp(data: Buffer): Buffer {
     }
     i = end;
   }
+  if (!pixels) throw new MalformedImageError('WebP has no image data');
   const body = Buffer.concat(chunks);
   const header = Buffer.alloc(12);
   header.write('RIFF', 0, 'ascii');

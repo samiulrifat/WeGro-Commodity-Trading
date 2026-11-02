@@ -209,3 +209,25 @@ describe('bell', () => {
     expect(screen.getByText('99+')).toBeTruthy();
   });
 });
+
+describe('the inbox, further', () => {
+  it('says why it cannot be read, and tries again', async () => {
+    await signedInAs('accounts');
+    let calls = 0;
+    fakeServer(({ url }) =>
+      url.pathname === '/api/notifications'
+        ? ++calls === 1
+          ? { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
+          : { body: { data: { items: [], nextBefore: null } } }
+        : url.pathname === '/api/notifications/unread-count'
+          ? { body: { data: { unread: 0 } } }
+          : undefined,
+    );
+    await renderPage(<InboxPage />, '/notifications');
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Try Again/ }),
+    );
+    expect(await screen.findByText('No notifications yet.')).toBeTruthy();
+    expect(calls).toBe(2);
+  });
+});

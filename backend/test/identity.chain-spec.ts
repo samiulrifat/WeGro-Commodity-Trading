@@ -3,7 +3,7 @@
  * AccessRegistry action, through HTTP, against the local chain and a
  * throwaway database schema.
  */
-import { randomInt } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ContractsRegistry } from '../src/blockchain/contracts.registry';
@@ -511,6 +511,32 @@ describe('Identity (node + database)', () => {
         .expect(404);
     });
 
+    it('filters by ledger state and district, and keeps management lists to admins', async () => {
+      const ids = async (query: string, token = admin.token) =>
+        (
+          await http
+            .get(`/api/participants?${query}&limit=100`)
+            .auth(token, { type: 'bearer' })
+            .expect(200)
+        ).body.data.map((p: { id: string }) => p.id) as string[];
+      expect(await ids('chainState=confirmed&district=BOGURA')).toContain(
+        farmer.id,
+      );
+      expect(await ids('district=RANGPUR')).not.toContain(farmer.id);
+      expect(await ids('chainState=submitted')).not.toContain(farmer.id);
+      // The auditor reads people but manages nobody.
+      expect(await ids('manageable=true', auditorToken)).toEqual([]);
+    });
+
+    it('will not assign a farmer to the officer they already have', async () => {
+      const res = await http
+        .put(`/api/participants/${farmer.id}/field-officer`)
+        .auth(admin.token, { type: 'bearer' })
+        .send({ officerId: officer.id })
+        .expect(409);
+      expect(res.body.code).toBe('ALREADY_ASSIGNED');
+    });
+
     it('finds people by exact phone or NID without decrypting the table', async () => {
       const byPhone = await http
         .get(
@@ -549,6 +575,51 @@ describe('Identity (node + database)', () => {
         .get('/api/auth/me')
         .auth(rotated.body.data.accessToken, { type: 'bearer' })
         .expect(401);
+    });
+
+    it('signs out here or everywhere, and renews only with a readable cookie', async () => {
+      const none = await http.post('/api/auth/refresh').expect(401);
+      expect(none.body.code).toBe('SIGN_IN_REQUIRED');
+      // A cookie that cannot be decoded counts as none.
+      const garbled = await http
+        .post('/api/auth/refresh')
+        .set('Cookie', 'wegro_rt=%E0%A4%A')
+        .expect(401);
+      expect(garbled.body.code).toBe('SIGN_IN_REQUIRED');
+      // Other cookies, none of ours.
+      await http
+        .post('/api/auth/refresh')
+        .set('Cookie', 'theme=dark; lang=bn')
+        .expect(401);
+
+      const password = `${officer.phone}-real-pass`;
+      const here = await login(officer.phone, password);
+      const out = await http
+        .post('/api/auth/logout')
+        .set('Cookie', here.cookie)
+        .expect(204);
+      expect(String(out.headers['set-cookie'])).toMatch(/wegro_rt=;/);
+      await http
+        .post('/api/auth/refresh')
+        .set('Cookie', here.cookie)
+        .expect(401);
+
+      const phone = await login(officer.phone, password);
+      const laptop = await login(officer.phone, password);
+      await http
+        .post('/api/auth/logout-all')
+        .auth(phone.token, { type: 'bearer' })
+        .expect(204);
+      await http
+        .post('/api/auth/refresh')
+        .set('Cookie', laptop.cookie)
+        .expect(401);
+      await http
+        .get('/api/auth/me')
+        .auth(laptop.token, { type: 'bearer' })
+        .expect(401);
+      // Signed in again for the tests after this one.
+      officer.token = (await login(officer.phone, password)).token;
     });
 
     it('locks an account after repeated wrong passwords', async () => {
@@ -1276,6 +1347,18 @@ describe('Identity (node + database)', () => {
       ).toBe('CHANGE_NOT_FOUND');
     });
 
+    it('runs the ID check on what is asked for, and answers 404 for an unknown request', async () => {
+      const child = await as(me.token)
+        .post('/me/details/change', details({ dateOfBirth: '2016-05-05' }))
+        .expect(422);
+      expect(child.body.code).toBe('ID_CHECK_FAILED');
+      expect(child.body.details.checks.length).toBeGreaterThan(0);
+      const missing = await as(admin.token)
+        .post(`/detail-changes/${randomUUID()}/approve`)
+        .expect(404);
+      expect(missing.body.code).toBe('CHANGE_NOT_FOUND');
+    });
+
     it('refuses an NID someone else already has', async () => {
       const res = await as(me.token)
         .post('/me/details/change', details({ nid: farmer.nid }))
@@ -1468,9 +1551,10 @@ describe('Identity (node + database)', () => {
       const byAdmin = await waiting(admin.token);
       expect(byAdmin).toContain(other.body.data.participant.id);
       expect(byAdmin).not.toContain(staff.body.data.participant.id);
+      // The super admin may verify anyone: staff and the rest alike.
       const bySuper = await waiting(superToken);
       expect(bySuper).toContain(staff.body.data.participant.id);
-      expect(bySuper).not.toContain(other.body.data.participant.id);
+      expect(bySuper).toContain(other.body.data.participant.id);
     });
 
     it('finds details-change requests by whose they are', async () => {

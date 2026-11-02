@@ -1,5 +1,5 @@
 /** Paying for bookings end to end: payment accounts, proofs, the stopped clock, confirmation, refunds. */
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ContractsRegistry } from '../src/blockchain/contracts.registry';
@@ -139,6 +139,20 @@ describe('Payments (node + database)', () => {
       expect(all.body.data.map((a: { id: string }) => a.id)).toContain(
         made.body.data.id,
       );
+      // Moved to another branch: its bank, branch and district follow.
+      const moved = await as(accounts)
+        .patch(`/payment-accounts/${made.body.data.id}`, {
+          routingNumber: '200010074',
+        })
+        .expect(200);
+      expect(moved.body.data).toMatchObject({
+        routingNumber: '200010074',
+        branchName: 'BAGERHAT',
+      });
+      const missing = await as(accounts)
+        .patch(`/payment-accounts/${randomUUID()}`, { active: true })
+        .expect(404);
+      expect(missing.body.code).toBe('PAYMENT_ACCOUNT_NOT_FOUND');
     });
   });
 
@@ -439,6 +453,73 @@ describe('Payments (node + database)', () => {
       // The investor never sees Accounts' references.
       expect(proofs.body.data[0]).not.toHaveProperty('verifiedReference');
       await as(investor).post(`/reservations/${id}/cancel`).expect(200);
+    });
+
+    it('refuse what cannot be a payment, and answer 404 for what does not exist', async () => {
+      const reserved = await as(investor)
+        .post(`/projects/${projectId}/reservations`, { slots: 1 })
+        .expect(201);
+      const id = reserved.body.data.id;
+      const tomorrow = new Date(Date.now() + 30 * 3600_000)
+        .toISOString()
+        .slice(0, 10);
+      const future = await sendProof(id, {
+        amount: '5000',
+        transferredOn: tomorrow,
+        method: 'cash',
+      }).expect(422);
+      expect(future.body.code).toBe('PROOF_DATE_FUTURE');
+      const noFile = await sendProof(
+        id,
+        { amount: '5000', transferredOn: today(), method: 'cash' },
+        [],
+      ).expect(400);
+      expect(noFile.body.code).toBe('PROOF_FILE_COUNT');
+      // The first booking is confirmed: nothing more is sent for it.
+      const confirmed = await sendProof(booking, {
+        amount: '1',
+        transferredOn: today(),
+        method: 'cash',
+      }).expect(409);
+      expect(confirmed.body.code).toBe('RESERVATION_WRONG_STATUS');
+      // Accepted money of a booking that stands is not refunded.
+      const refund = await as(accounts)
+        .post(`/payment-proofs/${first}/refund`, {
+          paymentReference: ref('REFUND NOT DUE'),
+        })
+        .expect(409);
+      expect(refund.body.code).toBe('PROOF_NOT_REFUNDABLE');
+      const sent = await sendProof(id, {
+        amount: '5000',
+        transferredOn: today(),
+        method: 'cash',
+      }).expect(201);
+      const blank = await as(accounts)
+        .post(`/payment-proofs/${sent.body.data.id}/accept`, {
+          paymentReference: '   ',
+        })
+        .expect(422);
+      expect(blank.body.code).toBe('PAYMENT_REF_INVALID');
+      expect(
+        (await as(investor).get('/reservations/999999/proofs').expect(404)).body
+          .code,
+      ).toBe('RESERVATION_NOT_FOUND');
+      expect(
+        (
+          await as(accounts)
+            .post(`/payment-proofs/${randomUUID()}/accept`, {
+              paymentReference: ref('NO PROOF'),
+            })
+            .expect(404)
+        ).body.code,
+      ).toBe('PROOF_NOT_FOUND');
+      expect(
+        (
+          await as(accounts)
+            .get(`/payment-proofs/files/${randomUUID()}`)
+            .expect(404)
+        ).body.code,
+      ).toBe('PROOF_FILE_MISSING');
     });
 
     it('leave a refund due when an admin cancels a booking already part paid', async () => {

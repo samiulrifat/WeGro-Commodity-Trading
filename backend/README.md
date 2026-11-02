@@ -311,6 +311,9 @@ Answers are gzip-compressed (JSON shrinks 5 to 10 times, which matters on phones
 | `npm run test:e2e` | nothing | The HTTP pipeline: validation, errors, security headers, rate limits |
 | `npm run test:chain` | the database from `.env` (the tests start their own chain) | Every module end to end through HTTP, the real contracts and the database |
 | `npm run test:chain:cov` | as above | The same, with coverage in `coverage/chain` |
+| `npm run test:all:cov` | as above | All three with coverage, merged by [scripts/coverage-report.mjs](scripts/coverage-report.mjs): prints the totals and every line no test runs, and fails below the floor (100% lines and functions, 99% statements, 90% branches) |
+
+The merged report leaves out code generated from the contracts, the migrations, and the branches TypeScript invents for decorator metadata (`typeof X === "function" ? X : Object` for each imported parameter type). Last measured (31 Oct 2026): 1,097 tests; 100% of lines and functions, 99% of statements, 91% of branches. Every function (and with it every command-line script) runs under some test.
 
 Chain tests run one file at a time. Each run starts its own Hardhat node on port 8546, deploys the contracts there (deployment id `chain-tests`) and stops the node at the end, so the tests never move your local chain's clock or compete with your running backend for its keys. Each file works in its own throwaway database schema, which it drops at the end, and indexes only the blocks it creates. Your own data is never touched. The full chain suite takes about ten minutes. Port 8546 must be free; a node left by a killed run is stopped at the next start.
 

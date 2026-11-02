@@ -439,7 +439,12 @@ export class PaymentProofsService {
     return this.one(actor, id);
   }
 
-  /** A proof's file, decrypted: for the investor who sent it and payment staff. */
+  /**
+   * A proof's file, decrypted: for the investor who sent it and payment
+   * staff. A file that will not open or no longer matches the hash taken
+   * when it was sent is refused, and the super admin and admins are told
+   * once.
+   */
   async file(
     actor: AuthUser,
     fileId: string,
@@ -458,8 +463,31 @@ export class PaymentProofsService {
       });
     }
     const data = await this.store.read(file);
-    if (createHash('sha256').update(data).digest('hex') !== file.sha256) {
-      this.logger.error(`Proof file ${fileId} does not match its hash`);
+    if (
+      !data ||
+      createHash('sha256').update(data).digest('hex') !== file.sha256
+    ) {
+      this.logger.error(
+        `Proof file ${fileId} will not open or does not match its hash`,
+      );
+      const m = this.dataSource.manager;
+      const reservationId = file.proof!.reservationId;
+      await this.notify(
+        await this.writer.withRole(m, [Role.SUPER_ADMIN, Role.ADMIN]),
+        {
+          category: NotificationCategory.ACTION,
+          kind: NotificationKind.SYSTEM_PROOF_FILE_ALTERED,
+          title: `A payment proof file for booking #${reservationId} no longer matches the one sent`,
+          params: { reservationId: String(reservationId) },
+          subject: { type: 'reservation', id: reservationId },
+          key: `proof-file:${fileId}:altered`,
+        },
+      );
+      throw new ConflictException({
+        message:
+          'The file no longer matches the one that was sent, so it is not shown',
+        code: ErrorCode.PROOF_FILE_ALTERED,
+      });
     }
     return { data, mimeType: file.mimeType };
   }

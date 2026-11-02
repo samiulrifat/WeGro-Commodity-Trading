@@ -354,6 +354,21 @@ describe('TrackRecordsService', () => {
       });
     });
 
+    it('removes the permission the ledger refuses, and keeps it if the node failed', async () => {
+      const refused = build();
+      refused.chain.fail(revert('BankNotRegistered'));
+      await expect(
+        refused.service.grant(officer, FARMER, until('2027-04-30') as never),
+      ).rejects.toThrow();
+      expect(refused.consents).toEqual([]);
+      const down = build();
+      down.chain.fail(new Error('node unreachable'));
+      await expect(
+        down.service.grant(officer, FARMER, until('2027-04-30') as never),
+      ).rejects.toThrow('node unreachable');
+      expect(down.consents).toHaveLength(1);
+    });
+
     it('lasts at most a year, ends today at the earliest, and needs the officer’s own photo', async () => {
       const late = await build()
         .service.grant(officer, FARMER, until('2027-10-15') as never)

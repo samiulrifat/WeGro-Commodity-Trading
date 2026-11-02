@@ -34,8 +34,12 @@ import { ensureSuperAdmin, readPassword } from './super-admin';
 })
 class ScriptModule {}
 
-async function main(): Promise<void> {
+/** The command, given its arguments (what follows the script's name). */
+export async function main(
+  argv: string[] = process.argv.slice(2),
+): Promise<void> {
   const { values } = parseArgs({
+    args: argv,
     options: { name: { type: 'string' }, phone: { type: 'string' } },
   });
   const fullName = normaliseText(values.name ?? '');
@@ -71,7 +75,11 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-void main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+// Run as a command; imported (by tests), it waits to be called.
+/* istanbul ignore if -- true only when started by npm run; tests call main() */
+if (require.main === module) {
+  void main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}

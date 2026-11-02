@@ -112,4 +112,19 @@ describe('PhotosService', () => {
       NotFoundException,
     );
   });
+  it('answers 404 when the photo’s file is gone from disk', async () => {
+    const { service } = build();
+    const res = { setHeader: jest.fn() };
+    await expect(
+      service.send(
+        {
+          storagePath: 'photos/ab/missing.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: 3,
+        } as Photo,
+        res as never,
+      ),
+    ).rejects.toMatchObject({ response: { code: 'PHOTO_FILE_MISSING' } });
+    expect(res.setHeader).not.toHaveBeenCalled();
+  });
 });

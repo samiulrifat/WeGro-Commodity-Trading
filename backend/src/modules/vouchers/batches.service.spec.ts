@@ -122,6 +122,16 @@ describe('BatchesService', () => {
     expect(chain.sent).toEqual([]);
   });
 
+  it('passes any other failure to store the batch on unchanged', async () => {
+    const { service, chain } = build({
+      insert: jest.fn(() => Promise.reject(new Error('disk full'))),
+    });
+    await expect(service.register(supplier, dto as never)).rejects.toThrow(
+      'disk full',
+    );
+    expect(chain.sent).toEqual([]);
+  });
+
   it('removes the batch when the ledger refuses it', async () => {
     const { service, batches, chain } = build();
     chain.fail(revert('BatchExists'));

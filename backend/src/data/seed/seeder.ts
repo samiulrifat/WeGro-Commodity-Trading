@@ -31,7 +31,6 @@ import { buildDataset, type Dataset, type DatasetProject } from './dataset';
 /** Sample sizes: how many times the showcase is repeated. */
 export const SEED_SIZES = { showcase: 1, large: 5 } as const;
 
-const LOCAL_CHAIN_ID = 31337n;
 const DAY_MS = 86_400_000;
 const MARKER = { kind: 'seed', externalId: 'sample-data' } as const;
 
@@ -39,7 +38,6 @@ export interface SeedSummary {
   people: number;
   projects: number;
   stories: Record<string, number>;
-  skipped: string[];
   /** Every sample person's one-time password: the only way to sign in as them. */
   credentials: Credential[];
 }
@@ -131,7 +129,6 @@ export class Seeder {
       people: Object.values(data.people).flat().length,
       projects: data.projects.length,
       stories: {},
-      skipped: [],
       credentials,
     };
     const order: Array<DatasetProject['story']> = [
@@ -146,9 +143,8 @@ export class Seeder {
     for (const story of order) {
       for (const p of data.projects.filter((x) => x.story === story)) {
         this.opts.log(`Story ${story}: ${p.id}`);
-        const done = await this.story(data, p);
-        if (done) summary.stories[story] = (summary.stories[story] ?? 0) + 1;
-        else summary.skipped.push(`${p.id} (${story})`);
+        await this.story(data, p);
+        summary.stories[story] = (summary.stories[story] ?? 0) + 1;
       }
     }
     await this.buyerRequest(data);
@@ -161,7 +157,7 @@ export class Seeder {
 
   // --- Stories -------------------------------------------------------------------
 
-  private async story(data: Dataset, p: DatasetProject): Promise<boolean> {
+  private async story(data: Dataset, p: DatasetProject): Promise<void> {
     const project = this.id(p.id);
     const officer = await this.as(data.officerOf.get(p.farmerId)!);
     switch (p.story) {
@@ -169,12 +165,12 @@ export class Seeder {
         await this.inputs(data, project, officer);
         await this.farmRecords(project, officer);
         await this.claim(data, p, project, officer);
-        return true;
+        return;
       case 'stored-and-paid-out': {
         await this.storeAndSell(data, project, officer, 3000, '31');
         await this.finalPayout(data, p, project);
         await this.trackRecord(data, p, officer);
-        return true;
+        return;
       }
       case 'buy-back': {
         const receipt = await this.receipt(data, project, 2000);
@@ -183,14 +179,11 @@ export class Seeder {
           await this.admin(data),
           receipt,
         );
-        return true;
+        return;
       }
       case 'staged-payout': {
         await this.storeAndSell(data, project, officer, 1500, '28');
-        const chainId = (
-          await this.get(ContractsRegistry).provider.getNetwork()
-        ).chainId;
-        if (chainId !== LOCAL_CHAIN_ID) return false; // needs a 90-day time jump
+        // The local chain only (the reset and data:seed check): its clock jumps.
         await this.travel(90 * DAY_MS + 60_000);
         const round = await this.get(SettlementService).prepareRound(
           await this.accounts(data, 0),
@@ -198,7 +191,7 @@ export class Seeder {
           false,
         );
         await this.approveAndPay(data, round.id, round.lines);
-        return true;
+        return;
       }
       case 'cancelled': {
         const admin = await this.admin(data);
@@ -219,7 +212,7 @@ export class Seeder {
             this.ref('REFUND'),
           );
         }
-        return true;
+        return;
       }
       case 'fresh-deals': {
         const trade = this.get(TradeService);
@@ -238,17 +231,15 @@ export class Seeder {
           quantity: 200,
           unitPrice: '41',
         }); // awaits approval
-        return true;
+        return;
       }
       case 'open': {
         // One more investor holds a slot but has not paid yet.
         const investors = data.people.investor;
         const investor = await this.as(investors[investors.length - 1]);
         await this.get(ReservationsService).reserve(investor, project, 1);
-        return true;
+        return;
       }
-      default:
-        return true;
     }
   }
 

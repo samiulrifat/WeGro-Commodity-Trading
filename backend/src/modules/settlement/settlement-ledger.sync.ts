@@ -3,7 +3,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
-import { bytes32ToUuid, uuidToBytes32 } from '../../blockchain/utils/ids';
+import { bytes32ToUuidOrNull, uuidToBytes32 } from '../../blockchain/utils/ids';
 import { Project } from '../projects/entities/project.entity';
 import {
   type Holding,
@@ -76,7 +76,7 @@ export class SettlementLedgerSync implements OnModuleInit {
     const roundId = a.roundId === undefined ? 0 : Number(a.roundId);
     switch (event.eventName) {
       case 'CostAdded': {
-        const projectId = toUuid(a.projectId);
+        const projectId = bytes32ToUuidOrNull(a.projectId);
         if (!projectId) return;
         const res = await m.query(
           `UPDATE "project_costs" SET "cost_id" = $1, "status" = 'recorded', "recorded_at" = $4
@@ -101,7 +101,7 @@ export class SettlementLedgerSync implements OnModuleInit {
 
       // Emitted before RoundPrepared, which then works out and checks the amounts.
       case 'PayoutLine': {
-        const payeeId = toUuid(a.payeeId);
+        const payeeId = bytes32ToUuidOrNull(a.payeeId);
         if (!payeeId) return;
         await m.query(
           `INSERT INTO "payout_lines" ("round_id", "payee_id", "line_hash", "verified")
@@ -150,7 +150,7 @@ export class SettlementLedgerSync implements OnModuleInit {
       }
 
       case 'PaymentRecorded': {
-        const payeeId = toUuid(a.payeeId);
+        const payeeId = bytes32ToUuidOrNull(a.payeeId);
         if (!payeeId) return;
         const hash = String(a.paymentRefHash);
         // A saved reference that is not the one the ledger took is dropped, never shown as paid.
@@ -186,7 +186,7 @@ export class SettlementLedgerSync implements OnModuleInit {
    */
   private async prepared(event: ChainEvent, m: EntityManager, roundId: number) {
     const a = event.args;
-    const projectId = toUuid(a.projectId);
+    const projectId = bytes32ToUuidOrNull(a.projectId);
     const preparedBy = await personId(m, a.preparedBy);
     if (!projectId || !preparedBy) return;
     const project = await m.findOne(Project, {
@@ -278,14 +278,6 @@ export class SettlementLedgerSync implements OnModuleInit {
         Number(count),
       ],
     );
-  }
-}
-
-function toUuid(value: unknown): string | null {
-  try {
-    return typeof value === 'string' ? bytes32ToUuid(value) : null;
-  } catch {
-    return null;
   }
 }
 

@@ -174,7 +174,8 @@ export type NotificationKind =
   | 'system.node-unreachable'
   | 'system.indexer-behind'
   | 'system.indexer-failing'
-  | 'system.resolved';
+  | 'system.resolved'
+  | 'system.proof-file-altered';
 export type RecordLinkDto = {
   type: string;
   id: string;

@@ -50,7 +50,6 @@ export function useInstall(): Install {
       return () => listeners.delete(onChange);
     },
     () => offer,
-    () => null,
   );
   return {
     canPrompt: current !== null,

@@ -165,6 +165,15 @@ describe('SweepService', () => {
     await expect(service.start(auditor)).resolves.toBeDefined();
   });
 
+  it('still shuts down when the database is gone too', async () => {
+    const { service, runsRepo } = build({
+      projects: Array.from({ length: 600 }, (_, i) => uuid(i + 1)),
+    });
+    await service.start(auditor);
+    runsRepo.update.mockRejectedValue(new Error('connection terminated'));
+    await expect(service.onApplicationShutdown()).resolves.toBeUndefined();
+  });
+
   it('stops at shutdown, and marks a run a stopped server left behind', async () => {
     const { service, runs, runsRepo } = build({
       projects: Array.from({ length: 600 }, (_, i) => uuid(i + 1)),

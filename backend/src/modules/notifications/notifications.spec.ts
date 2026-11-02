@@ -108,4 +108,111 @@ describe('notification rules', () => {
       { to: ['officer', 'investor'], kind: 'project.fully-funded' },
     ]);
   });
+  /**
+   * Runs one event through its rule against scripted database answers and
+   * returns who was told what. The doer is nobody here.
+   */
+  async function notify(
+    contract: string,
+    name: string,
+    args: Record<string, unknown>,
+    answers: Array<[RegExp, unknown[]]> = [],
+  ) {
+    const m = {
+      query: jest.fn((sql: string) =>
+        Promise.resolve(answers.find(([re]) => re.test(sql))?.[1] ?? []),
+      ),
+    };
+    const sent: Array<{
+      to: string[];
+      kind: string;
+      body?: string;
+      params?: object;
+    }> = [];
+    const writer = {
+      send: jest.fn(
+        (
+          _m: unknown,
+          to: Iterable<string | null>,
+          note: { kind: string; body?: string; params?: object },
+        ) => {
+          sent.push({
+            to: [...to].filter((t): t is string => !!t),
+            kind: note.kind,
+            body: note.body,
+            params: note.params,
+          });
+          return Promise.resolve(0);
+        },
+      ),
+      withRole: jest.fn(() => Promise.resolve(['admin'])),
+    } as unknown as NotificationWriter;
+    const handlers = new Map<
+      string,
+      (e: ChainEvent, m: unknown) => Promise<void>
+    >();
+    new NotificationRules(
+      {
+        onLive: (
+          c: string,
+          n: string,
+          h: (e: ChainEvent, m: unknown) => Promise<void>,
+        ) => handlers.set(`${c}.${n}`, h),
+      } as never,
+      writer,
+    ).onModuleInit();
+    await handlers.get(`${contract}.${name}`)!(
+      {
+        blockNumber: 1,
+        logIndex: 0,
+        txFrom: '0xnobody',
+        blockTime: new Date('2026-10-14T00:00:00Z'),
+        args,
+      } as unknown as ChainEvent,
+      m,
+    );
+    return sent;
+  }
+
+  it("tells the farmer's officer when a buy-back offer is withdrawn or declined", async () => {
+    const sent = await notify(
+      'WarehouseReceipt',
+      'HandoverCancelled',
+      { receiptId: `0x${'ab'.repeat(32)}` },
+      [
+        [/FROM warehouse_receipts/, [{ owner_id: 'farmer' }]],
+        [
+          /SELECT field_officer_id FROM users/,
+          [{ field_officer_id: 'officer' }],
+        ],
+      ],
+    );
+    expect(sent).toEqual([
+      expect.objectContaining({ to: ['officer'], kind: 'handover.cancelled' }),
+    ]);
+  });
+
+  it('tells the officers of banks with current permission about a new track record version', async () => {
+    const FARMER = '33333333-3333-4333-8333-333333333333';
+    const sent = await notify(
+      'ConsentRegistry',
+      'TrackRecordPublished',
+      { farmerId: uuidToBytes32(FARMER), version: 2n },
+      [[/FROM bank_consents/, [{ officer_id: 'bank-officer' }]]],
+    );
+    expect(sent.map((x) => [x.to, x.kind])).toEqual([
+      [[FARMER], 'track-record.published'],
+      [['bank-officer'], 'track-record.updated'],
+    ]);
+  });
+
+  it('names a crop it cannot read by nothing rather than failing', async () => {
+    const sent = await notify('WarehouseReceipt', 'ReceiptIssued', {
+      receiptId: `0x${'ab'.repeat(32)}`,
+      owner: uuidToBytes32('44444444-4444-4444-8444-444444444444'),
+      produceCode: 'not-a-code',
+      quantity: 500n,
+    });
+    expect(sent[0].body).toBe('500  in storage');
+  });
 });
