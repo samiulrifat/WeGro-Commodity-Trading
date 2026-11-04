@@ -1,0 +1,8 @@
+{
+  "name": "wegro-platform",
+  "private": true,
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "dev:stop": "bash scripts/dev.sh stop"
+  }
+}

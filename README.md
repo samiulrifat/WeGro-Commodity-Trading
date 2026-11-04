@@ -42,6 +42,12 @@ cd backend && npm run start:dev      # API on http://localhost:3000/api, docs on
 cd frontend && npm run dev           # http://localhost:5173
 ```
 
+After the first setup, one command starts whatever is down: `npm run dev` here at the root (`npm run dev:stop` stops it all). Logs are in `~/.local/state/wegro-dev`. Hardhat keeps nothing when it stops, so if the chain comes back empty the script resets the dev data with the sample data, **wiping anything you added**. It needs the super admin's password in a git-ignored `.env.local` at the root:
+
+```
+SUPER_ADMIN_PASSWORD=...
+```
+
 Signing in: the super admin uses the phone and password from step 5. Step 5 also writes every sample person's one-time password to `backend/sample-credentials-<time>.csv` (readable only by you, ignored by git). For demos, set `DEMO_MODE=true` in `backend/.env` as well: the sign-in page then has a Demo tab with one ready-made account per role and no password. The end-to-end tests need it.
 
 ## Tests
