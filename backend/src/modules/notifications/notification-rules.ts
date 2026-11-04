@@ -547,10 +547,14 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         subject: { type: 'listing', id: String(e.args.listingId) },
       });
     },
-    ListingApproved: listingOutcome(
-      NotificationKind.LISTING_APPROVED,
-      'Your listing is live',
-    ),
+    ListingCreated: listingOpened,
+    ListingApproved: async (e, m, x) => {
+      await listingOutcome(
+        NotificationKind.LISTING_APPROVED,
+        'Your listing is live',
+      )(e, m, x);
+      await listingOpened(e, m, x);
+    },
     ListingRejected: listingOutcome(
       NotificationKind.LISTING_REJECTED,
       'Your listing was turned down',
@@ -1102,6 +1106,53 @@ function saleClosed(kind: NotificationKind, status: string): Rule {
 }
 
 /** To an outside seller about their listing. */
+/**
+ * A listing buyers can now see: tells each buyer with an open request it can
+ * fill (the same produce, enough available: as on the requests page). An
+ * outside seller's waits for an admin, so that one counts from its approval.
+ */
+async function listingOpened(
+  e: ChainEvent,
+  _m: EntityManager,
+  x: Context,
+): Promise<void> {
+  const id = String(e.args.listingId);
+  const l = await x.one<{
+    status: string;
+    produce_code: string;
+    available: string;
+    asking_unit_price: string;
+  }>(
+    'SELECT status, produce_code, available, asking_unit_price FROM listings WHERE id = $1',
+    [Number(id)],
+  );
+  if (l?.status !== 'open') return;
+  const buyers = await x.many<{ buyer_id: string }>(
+    `SELECT DISTINCT buyer_id FROM buyer_requests
+      WHERE status = 'open' AND produce_code = $1 AND quantity <= $2
+        AND posted_at <= $3 AND valid_until > $3`,
+    [l.produce_code, l.available, e.blockTime],
+  );
+  if (buyers.length === 0) return;
+  const produce = await x.named('produce_types', l.produce_code);
+  await x.send(
+    buyers.map((b) => b.buyer_id),
+    {
+      category: OUTCOME,
+      kind: NotificationKind.REQUEST_LISTING_ADDED,
+      title: `A new listing can fill your request: ${l.available} ${produce.name}`,
+      params: {
+        listingId: id,
+        quantity: l.available,
+        produce: produce.name,
+        produceBn: produce.nameBn,
+        askingUnitPrice: taka(l.asking_unit_price),
+      },
+      subject: { type: 'listing', id },
+    },
+  );
+}
+
 function listingOutcome(kind: NotificationKind, title: string): Rule {
   return async (e, _m, x) => {
     const l = await x.one<{ seller_id: string | null }>(

@@ -78,6 +78,24 @@ export class Offer {
   @Column({ type: 'timestamptz', nullable: true })
   paymentDueAt: Date | null;
 
+  /**
+   * Seconds left to pay when the clock stopped for a payment proof under
+   * review; null while it runs. A deal on hold does not lapse.
+   */
+  @Column({ type: 'int', nullable: true })
+  pausedRemaining: number | null;
+
+  /** Position of the last pause or resume applied; older ones are ignored. */
+  @Column({
+    type: 'bigint',
+    default: -1,
+    transformer: numericBigintTransformer,
+  })
+  holdEventBlock: number;
+
+  @Column({ type: 'int', default: -1 })
+  holdEventLog: number;
+
   @Column({ type: 'timestamptz', nullable: true })
   decidedAt: Date | null;
 

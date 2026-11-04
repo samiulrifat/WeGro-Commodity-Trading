@@ -3,7 +3,7 @@ import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type ApiError, toApiError } from '@/api/errors';
-import type { ReservationDto } from '@/api/generated/projects';
+import type { PaymentProofsSubmitApiArg } from '@/api/generated/payment-proofs';
 import { FormError } from '@/app/auth/form-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +28,6 @@ import {
 } from '@/features/bank-details/branch-picker';
 import { todayBd } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { usePaymentProofsSubmitMutation } from './api';
 import { toPoisha, typedTaka } from './project-math';
 
 const METHODS = ['bank_deposit', 'cash', 'cheque'] as const;
@@ -45,20 +44,23 @@ const TYPES = new Set([
 /**
  * Sending proof of a transfer: how much (at most what is left), when, how,
  * from which bank branch (bank, then district, then branch, its routing
- * number shown as the list has it), and 1 to 3 photos or PDFs. The booking's clock stops
- * while Accounts checks it.
+ * number shown as the list has it), and 1 to 3 photos or PDFs. The clock of
+ * the booking or deal it pays for stops while Accounts checks it.
  */
 export function ProofDialog({
-  reservation: r,
+  remaining,
+  onSubmit,
   onClose,
 }: {
-  reservation: ReservationDto;
+  /** What is left to pay. */
+  remaining: string;
+  onSubmit: (body: PaymentProofsSubmitApiArg['body']) => Promise<unknown>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const fmt = useFormat();
-  const [submit, submitting] = usePaymentProofsSubmitMutation();
-  const [amount, setAmount] = useState(r.remaining.replace(/\.00$/, ''));
+  const [busy, setBusy] = useState(false);
+  const [amount, setAmount] = useState(remaining.replace(/\.00$/, ''));
   const [date, setDate] = useState(todayBd());
   const [method, setMethod] = useState<Method>('bank_deposit');
   const [paidFrom, setPaidFrom] = useState<Choice>({
@@ -71,7 +73,7 @@ export function ProofDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const left = toPoisha(r.remaining);
+  const left = toPoisha(remaining);
   const typed = typedTaka(amount);
   const value = typed ? toPoisha(typed) : null;
   const banked = method !== 'cash';
@@ -100,26 +102,26 @@ export function ProofDialog({
     setTried(true);
     if (Object.values(problems).some(Boolean)) return;
     setError(null);
+    setBusy(true);
     try {
-      await submit({
-        id: r.id,
-        body: {
-          files,
-          amount: typed!,
-          transferredOn: date,
-          method,
-          ...(banked &&
-            paidFrom.routingNumber !== null && {
-              routingNumber: paidFrom.routingNumber,
-            }),
-          ...(reference.trim() && { reference: reference.trim() }),
-          ...(note.trim() && { note: note.trim() }),
-        },
-      }).unwrap();
+      await onSubmit({
+        files,
+        amount: typed!,
+        transferredOn: date,
+        method,
+        ...(banked &&
+          paidFrom.routingNumber !== null && {
+            routingNumber: paidFrom.routingNumber,
+          }),
+        ...(reference.trim() && { reference: reference.trim() }),
+        ...(note.trim() && { note: note.trim() }),
+      });
       toast.success(t('booking.sent'));
       onClose();
     } catch (e) {
       setError(toApiError(e as never));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -152,11 +154,11 @@ export function ProofDialog({
             </div>
             {show('amount') ? (
               <FieldError>
-                {t('booking.amountRule', { left: fmt.taka(r.remaining) })}
+                {t('booking.amountRule', { left: fmt.taka(remaining) })}
               </FieldError>
             ) : (
               <FieldDescription>
-                {t('booking.leftToPay', { left: fmt.taka(r.remaining) })}
+                {t('booking.leftToPay', { left: fmt.taka(remaining) })}
               </FieldDescription>
             )}
           </Field>
@@ -290,13 +292,9 @@ export function ProofDialog({
           </Field>
 
           <FormError error={error} />
-          <Button
-            type="submit"
-            className="min-h-12"
-            disabled={submitting.isLoading}
-          >
+          <Button type="submit" className="min-h-12" disabled={busy}>
             <Upload />
-            {submitting.isLoading ? t('bank.submitting') : t('booking.submit')}
+            {busy ? t('bank.submitting') : t('booking.submit')}
           </Button>
         </form>
       </DialogContent>

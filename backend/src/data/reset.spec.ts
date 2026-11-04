@@ -30,11 +30,13 @@ jest.mock('typeorm', () => ({
 }));
 
 const close = jest.fn(() => Promise.resolve());
+const bringClockToNow = jest.fn(() => Promise.resolve());
 jest.mock('../scripts/app-context', () => ({
   appContext: jest.fn(() => Promise.resolve({ close })),
 }));
 jest.mock('../scripts/local-only', () => ({
   assertLocal: jest.fn(() => Promise.resolve()),
+  bringClockToNow,
 }));
 jest.mock('../scripts/super-admin', () => ({
   ensureSuperAdmin: jest.fn(() => Promise.resolve({ id: 'sa-1' })),
@@ -100,6 +102,8 @@ describe('resetLocal', () => {
       ]),
     );
     expect(readdirSync(uploads)).toEqual([]);
+    // No sample data: everything is entered as of today.
+    expect(bringClockToNow).toHaveBeenCalledTimes(1);
     expect(logs).toEqual([
       'Redeploying the contracts...',
       'Rebuilding the database...',
@@ -176,6 +180,11 @@ describe('resetLocal', () => {
           /^Sample data loaded: 46 people, 9 projects\. Sign-in details: /,
         ),
       ]),
+    );
+    // Sample data runs from the chain's start; only then is it brought to now.
+    expect(bringClockToNow).toHaveBeenCalledTimes(1);
+    expect(bringClockToNow.mock.invocationCallOrder[0]).toBeGreaterThan(
+      seederRun.mock.invocationCallOrder[0]!,
     );
   });
 });

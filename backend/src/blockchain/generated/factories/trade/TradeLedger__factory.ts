@@ -56,6 +56,17 @@ import type { NonPayableOverrides } from "../../common.js"
         "internalType": "uint256",
         "name": "offerId",
         "type": "uint256"
+      }
+    ],
+    "name": "DealNotOnHold",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
       },
       {
         "internalType": "uint64",
@@ -64,6 +75,17 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "DealNotYetDue",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      }
+    ],
+    "name": "DealOnHold",
     "type": "error"
   },
   {
@@ -384,6 +406,56 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "DealExpired",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "remaining",
+        "type": "uint64"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "pausedBy",
+        "type": "address"
+      }
+    ],
+    "name": "DealPaused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "paymentDueAt",
+        "type": "uint64"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "resumedBy",
+        "type": "address"
+      }
+    ],
+    "name": "DealResumed",
     "type": "event"
   },
   {
@@ -1480,6 +1552,38 @@ import type { NonPayableOverrides } from "../../common.js"
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      }
+    ],
+    "name": "pauseDeal",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      }
+    ],
+    "name": "pausedRemaining",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "paymentRefHash",
         "type": "bytes32"
@@ -1609,6 +1713,19 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "rejectOffer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offerId",
+        "type": "uint256"
+      }
+    ],
+    "name": "resumeDeal",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

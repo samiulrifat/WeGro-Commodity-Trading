@@ -101,6 +101,7 @@ describe('TradeService', () => {
       unitPrice: 2400n,
       status: OfferStatus.PENDING,
       paymentDueAt: null,
+      pausedRemaining: null,
       paymentRefEnc: null,
       ...opts.offer,
     } as Offer;
@@ -370,6 +371,17 @@ describe('TradeService', () => {
         method: 'confirmBuyerPayment',
         args: [9, hash],
       });
+    });
+
+    it('takes a payment past the deadline while the clock is stopped for a proof', async () => {
+      const held = await build({
+        offer: {
+          status: OfferStatus.APPROVED,
+          paymentDueAt: NOW,
+          pausedRemaining: 600,
+        },
+      }).service.confirmWith(accounts, 9, 'R');
+      expect(held).toMatchObject({ onHold: true, overdue: false });
     });
 
     it('refuses after the deadline, and while another confirmation is in flight', async () => {

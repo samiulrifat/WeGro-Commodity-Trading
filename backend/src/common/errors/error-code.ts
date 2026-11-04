@@ -153,6 +153,12 @@ export enum ErrorCode {
   DEALS_PENDING = 'DEALS_PENDING',
   /** This deal is already being confirmed */
   DEAL_CONFIRMING = 'DEAL_CONFIRMING',
+  /** This deal has payment proofs: review them instead */
+  DEAL_PROOFS_TO_REVIEW = 'DEAL_PROOFS_TO_REVIEW',
+  /** This payment is already refunded */
+  DEAL_PROOF_ALREADY_REFUNDED = 'DEAL_PROOF_ALREADY_REFUNDED',
+  /** Only money accepted for a deal that ended unpaid is refunded */
+  DEAL_PROOF_NOT_REFUNDABLE = 'DEAL_PROOF_NOT_REFUNDABLE',
   /** The {side} has already confirmed this delivery */
   DELIVERY_ALREADY_CONFIRMED = 'DELIVERY_ALREADY_CONFIRMED',
   /** Only the buyer or the handler confirms delivery */

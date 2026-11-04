@@ -49,7 +49,7 @@ fi
 
 if ! up 8545; then
   echo "Starting the chain…"
-  start chain "$ROOT/contracts" npx hardhat node
+  start chain "$ROOT/contracts" npx hardhat node --network devChain
   wait_port 8545
 fi
 

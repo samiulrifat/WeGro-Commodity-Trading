@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { BadgeCheck, FileText, Receipt, X } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type ApiError, toApiError } from '@/api/errors';
@@ -188,8 +188,91 @@ const TONE = {
   rejected: 'danger',
 } as const;
 
-/** One proof: whose, for what, how sent, the files, and the decision. */
-export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
+/** One proof of a booking: whose, for what, and Accounts' decision on it. */
+function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
+  const { t } = useTranslation();
+  const fmt = useFormat();
+  const [accept] = usePaymentProofsAcceptMutation();
+  const [reject] = usePaymentProofsRejectMutation();
+  return (
+    <ReviewCard
+      proof={p}
+      total={p.reservationAmount}
+      heading={
+        <>
+          <Link
+            to="/people/$personId"
+            params={{ personId: p.investor.id }}
+            className="inline-flex min-h-11 items-center font-semibold hover:underline"
+          >
+            {p.investor.fullName}
+          </Link>
+          <Link
+            to="/projects/$projectId"
+            params={{ projectId: p.projectId }}
+            className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:underline"
+          >
+            {t('holdings.bookingNo', { id: fmt.number(p.reservationId) })} ·{' '}
+            {p.projectTitle}
+          </Link>
+        </>
+      }
+      text={{
+        accept: t('payments.acceptText'),
+        reject: t('payments.rejectText'),
+        rejected: t('payments.rejected'),
+      }}
+      onAccept={(paymentReference) =>
+        accept({ id: p.id, acceptProofDto: { paymentReference } }).unwrap()
+      }
+      onReject={(reason) =>
+        reject({ id: p.id, rejectProofDto: { reason } }).unwrap()
+      }
+    />
+  );
+}
+
+/** What Accounts checks on a proof, of a booking or of a deal. */
+export type ReviewedProof = Pick<
+  PaymentProofDto,
+  | 'id'
+  | 'amount'
+  | 'status'
+  | 'method'
+  | 'bankName'
+  | 'branchName'
+  | 'districtName'
+  | 'routingNumber'
+  | 'transferredOn'
+  | 'reference'
+  | 'note'
+  | 'files'
+  | 'submittedAt'
+  | 'decided'
+  | 'verifiedReference'
+  | 'rejectionReason'
+>;
+
+interface ReviewActions {
+  /** The words that differ between what the proof pays for. */
+  text: { accept: string; reject: string; rejected: string };
+  onAccept: (paymentReference: string) => Promise<unknown>;
+  onReject: (reason: string) => Promise<unknown>;
+}
+
+/** One proof: how it was sent, the files, the decision and the moves on it. */
+export function ReviewCard({
+  proof: p,
+  heading,
+  total,
+  ...actions
+}: {
+  proof: ReviewedProof;
+  /** Whose it is and what it pays for. */
+  heading: ReactNode;
+  /** What the booking or deal costs in all. */
+  total: string;
+} & ReviewActions) {
   const { t } = useTranslation();
   const fmt = useFormat();
   const role = useAppSelector((s) => s.session.user!.role);
@@ -198,23 +281,7 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
   return (
     <article className="grid gap-3 rounded-2xl border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="grid gap-0.5">
-          <Link
-            to="/people/$personId"
-            params={{ personId: p.investor.id }}
-            className="font-semibold hover:underline"
-          >
-            {p.investor.fullName}
-          </Link>
-          <Link
-            to="/projects/$projectId"
-            params={{ projectId: p.projectId }}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            {t('holdings.bookingNo', { id: fmt.number(p.reservationId) })} ·{' '}
-            {p.projectTitle}
-          </Link>
-        </div>
+        <div className="grid gap-0.5">{heading}</div>
         <StatusPill tone={TONE[p.status]} appearance="soft">
           {t(`booking.proofStatus.${p.status}`)}
         </StatusPill>
@@ -230,7 +297,7 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
           <dt className="text-sm text-muted-foreground">
             {t('booking.total')}
           </dt>
-          <dd className="font-medium">{fmt.taka(p.reservationAmount)}</dd>
+          <dd className="font-medium">{fmt.taka(total)}</dd>
         </div>
         <div className="grid gap-0.5">
           <dt className="text-sm text-muted-foreground">
@@ -305,10 +372,10 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
         </div>
       )}
       {open === 'accept' && (
-        <AcceptDialog proof={p} onClose={() => setOpen(null)} />
+        <AcceptDialog proof={p} {...actions} onClose={() => setOpen(null)} />
       )}
       {open === 'reject' && (
-        <RejectDialog proof={p} onClose={() => setOpen(null)} />
+        <RejectDialog {...actions} onClose={() => setOpen(null)} />
       )}
     </article>
   );
@@ -316,14 +383,16 @@ export function ProofCard({ proof: p }: { proof: PaymentProofDto }) {
 
 function AcceptDialog({
   proof: p,
+  text,
+  onAccept,
   onClose,
 }: {
-  proof: PaymentProofDto;
+  proof: ReviewedProof;
   onClose: () => void;
-}) {
+} & Pick<ReviewActions, 'text' | 'onAccept'>) {
   const { t } = useTranslation();
   const fmt = useFormat();
-  const [accept, accepting] = usePaymentProofsAcceptMutation();
+  const [busy, setBusy] = useState(false);
   const [ref, setRef] = useState(p.reference ?? '');
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -333,15 +402,15 @@ function AcceptDialog({
     setTried(true);
     if (empty) return;
     setError(null);
+    setBusy(true);
     try {
-      await accept({
-        id: p.id,
-        acceptProofDto: { paymentReference: ref.trim() },
-      }).unwrap();
+      await onAccept(ref.trim());
       toast.success(t('payments.accepted', { amount: fmt.taka(p.amount) }));
       onClose();
     } catch (err) {
       setError(toApiError(err as never));
+    } finally {
+      setBusy(false);
     }
   }
   return (
@@ -351,7 +420,7 @@ function AcceptDialog({
           <DialogTitle>
             {t('payments.acceptTitle', { amount: fmt.taka(p.amount) })}
           </DialogTitle>
-          <DialogDescription>{t('payments.acceptText')}</DialogDescription>
+          <DialogDescription>{text.accept}</DialogDescription>
         </DialogHeader>
         <form
           noValidate
@@ -380,10 +449,8 @@ function AcceptDialog({
             <Button type="button" variant="ghost" onClick={onClose}>
               {t('catalog.cancel')}
             </Button>
-            <Button type="submit" disabled={accepting.isLoading}>
-              {accepting.isLoading
-                ? t('people.actions.working')
-                : t('payments.accept')}
+            <Button type="submit" disabled={busy}>
+              {busy ? t('people.actions.working') : t('payments.accept')}
             </Button>
           </DialogFooter>
         </form>
@@ -393,14 +460,14 @@ function AcceptDialog({
 }
 
 function RejectDialog({
-  proof: p,
+  text,
+  onReject,
   onClose,
 }: {
-  proof: PaymentProofDto;
   onClose: () => void;
-}) {
+} & Pick<ReviewActions, 'text' | 'onReject'>) {
   const { t } = useTranslation();
-  const [reject, rejecting] = usePaymentProofsRejectMutation();
+  const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState('');
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -410,15 +477,15 @@ function RejectDialog({
     setTried(true);
     if (short) return;
     setError(null);
+    setBusy(true);
     try {
-      await reject({
-        id: p.id,
-        rejectProofDto: { reason: reason.trim() },
-      }).unwrap();
-      toast.success(t('payments.rejected'));
+      await onReject(reason.trim());
+      toast.success(text.rejected);
       onClose();
     } catch (err) {
       setError(toApiError(err as never));
+    } finally {
+      setBusy(false);
     }
   }
   return (
@@ -426,7 +493,7 @@ function RejectDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('payments.rejectTitle')}</DialogTitle>
-          <DialogDescription>{t('payments.rejectText')}</DialogDescription>
+          <DialogDescription>{text.reject}</DialogDescription>
         </DialogHeader>
         <form
           noValidate
@@ -455,14 +522,8 @@ function RejectDialog({
             <Button type="button" variant="ghost" onClick={onClose}>
               {t('catalog.cancel')}
             </Button>
-            <Button
-              type="submit"
-              variant="destructive"
-              disabled={rejecting.isLoading}
-            >
-              {rejecting.isLoading
-                ? t('people.actions.working')
-                : t('bank.rejectConfirm')}
+            <Button type="submit" variant="destructive" disabled={busy}>
+              {busy ? t('people.actions.working') : t('bank.rejectConfirm')}
             </Button>
           </DialogFooter>
         </form>

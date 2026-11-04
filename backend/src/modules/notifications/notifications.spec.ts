@@ -206,6 +206,69 @@ describe('notification rules', () => {
     ]);
   });
 
+  describe('a listing that opens', () => {
+    const listing = (status: string): [RegExp, unknown[]] => [
+      /FROM listings/,
+      [
+        {
+          status,
+          seller_id: 'seller',
+          produce_code: 'MAIZE',
+          available: '500',
+          asking_unit_price: '2500',
+        },
+      ],
+    ];
+    const wanting: [RegExp, unknown[]] = [
+      /FROM buyer_requests/,
+      [{ buyer_id: 'buyer-1' }, { buyer_id: 'buyer-2' }],
+    ];
+
+    it('tells the buyers whose open requests it can fill, when created open', async () => {
+      const sent = await notify(
+        'TradeLedger',
+        'ListingCreated',
+        { listingId: 9n },
+        [listing('open'), wanting],
+      );
+      expect(sent.map((x) => [x.to, x.kind])).toEqual([
+        [['buyer-1', 'buyer-2'], 'request.listing-added'],
+      ]);
+      expect(sent[0].params).toMatchObject({
+        listingId: '9',
+        quantity: '500',
+        askingUnitPrice: '25.00',
+      });
+    });
+
+    it('tells nobody while it waits for an admin, or when no request fits', async () => {
+      expect(
+        await notify('TradeLedger', 'ListingCreated', { listingId: 9n }, [
+          listing('pending'),
+          wanting,
+        ]),
+      ).toEqual([]);
+      expect(
+        await notify('TradeLedger', 'ListingCreated', { listingId: 9n }, [
+          listing('open'),
+        ]),
+      ).toEqual([]);
+    });
+
+    it('tells them on approval, beside the seller', async () => {
+      const sent = await notify(
+        'TradeLedger',
+        'ListingApproved',
+        { listingId: 9n },
+        [listing('open'), wanting],
+      );
+      expect(sent.map((x) => x.kind)).toEqual([
+        'listing.approved',
+        'request.listing-added',
+      ]);
+    });
+  });
+
   it('names a crop it cannot read by nothing rather than failing', async () => {
     const sent = await notify('WarehouseReceipt', 'ReceiptIssued', {
       receiptId: `0x${'ab'.repeat(32)}`,

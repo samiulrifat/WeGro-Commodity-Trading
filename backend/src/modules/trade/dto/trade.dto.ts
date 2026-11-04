@@ -502,6 +502,40 @@ export class OfferDto {
   })
   overdue: boolean;
 
+  @ApiProperty({
+    description:
+      'A payment proof is under review: the clock is stopped and the deal does not lapse',
+  })
+  onHold: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Number,
+    description: 'Seconds left to pay when the clock stopped',
+  })
+  pausedRemainingSeconds: number | null;
+
+  @ApiPropertyOptional({
+    example: '50000.00',
+    description: 'Accepted so far (the buyer and payment staff)',
+  })
+  paid?: string;
+
+  @ApiPropertyOptional({
+    example: '0.00',
+    description: 'Sent and waiting for Accounts (the buyer and payment staff)',
+  })
+  underReview?: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    example: '50250.00',
+    description:
+      'What the buyer still has to send; null before the deal is approved (the buyer and payment staff)',
+  })
+  remaining?: string | null;
+
   @ApiPropertyOptional({ nullable: true, type: Date })
   paidAt: Date | null;
 

@@ -183,7 +183,7 @@ const QUEUES: QueueDef[] = [
              WHERE o.status = 'approved' ORDER BY o.payment_due_at LIMIT 5`,
     urgent: {
       overdue: `SELECT COUNT(*) AS n FROM offers
-                 WHERE status = 'approved' AND payment_due_at <= $1::timestamptz`,
+                 WHERE status = 'approved' AND paused_remaining IS NULL AND payment_due_at <= $1::timestamptz`,
     },
   },
   {

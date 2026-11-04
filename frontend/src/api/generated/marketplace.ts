@@ -248,6 +248,82 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Marketplace'],
       }),
+      dealProofsSubmit: build.mutation<
+        DealProofsSubmitApiResponse,
+        DealProofsSubmitApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/offers/${queryArg.id}/proofs`,
+          method: 'POST',
+          body: queryArg.body,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      dealProofsForOffer: build.query<
+        DealProofsForOfferApiResponse,
+        DealProofsForOfferApiArg
+      >({
+        query: (queryArg) => ({ url: `/api/offers/${queryArg.id}/proofs` }),
+        providesTags: ['Marketplace'],
+      }),
+      dealProofsList: build.query<
+        DealProofsListApiResponse,
+        DealProofsListApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/deal-proofs`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            status: queryArg.status,
+            refund: queryArg.refund,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Marketplace'],
+      }),
+      dealProofsAccept: build.mutation<
+        DealProofsAcceptApiResponse,
+        DealProofsAcceptApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/deal-proofs/${queryArg.id}/accept`,
+          method: 'POST',
+          body: queryArg.acceptProofDto,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      dealProofsReject: build.mutation<
+        DealProofsRejectApiResponse,
+        DealProofsRejectApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/deal-proofs/${queryArg.id}/reject`,
+          method: 'POST',
+          body: queryArg.rejectProofDto,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      dealProofsRefund: build.mutation<
+        DealProofsRefundApiResponse,
+        DealProofsRefundApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/deal-proofs/${queryArg.id}/refund`,
+          method: 'POST',
+          body: queryArg.proofRefundDto,
+        }),
+        invalidatesTags: ['Marketplace'],
+      }),
+      dealProofsFile: build.query<
+        DealProofsFileApiResponse,
+        DealProofsFileApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/deal-proofs/files/${queryArg.fileId}`,
+        }),
+        providesTags: ['Marketplace'],
+      }),
     }),
     overrideExisting: false,
   });
@@ -447,6 +523,71 @@ export type TradeCancelRequestApiResponse = /** status 200  */ {
 export type TradeCancelRequestApiArg = {
   id: number;
 };
+export type DealProofsSubmitApiResponse =
+  /** status 201 Under review; the deal’s clock stops until Accounts decides */ {
+    data: DealProofDto;
+  };
+export type DealProofsSubmitApiArg = {
+  id: number;
+  body: {
+    /** 1 to 3 photos or PDFs, up to 10 MB each */
+    files: Blob[];
+    amount: string;
+    transferredOn: string;
+    method: 'bank_deposit' | 'cash' | 'cheque';
+    /** The branch paid from (deposit or cheque) */
+    routingNumber?: string;
+    reference?: string;
+    note?: string;
+  };
+};
+export type DealProofsForOfferApiResponse = /** status 200 Newest first */ {
+  data: DealProofDto[];
+};
+export type DealProofsForOfferApiArg = {
+  id: number;
+};
+export type DealProofsListApiResponse =
+  /** status 200 Waiting ones oldest first; or refunds due */ {
+    data: DealProofDto[];
+    meta: PageMetaDto;
+  };
+export type DealProofsListApiArg = {
+  page?: number;
+  limit?: number;
+  status?: ProofStatus;
+  /** Money accepted for bookings that ended unconfirmed */
+  refund?: 'due' | 'refunded';
+  /** Whose: a mobile number, an NID, or whole words of their name */
+  q?: string;
+};
+export type DealProofsAcceptApiResponse =
+  /** status 200 When accepted proofs cover what the buyer pays, the deal is confirmed on the ledger */ {
+    data: DealProofDto;
+  };
+export type DealProofsAcceptApiArg = {
+  id: string;
+  acceptProofDto: AcceptProofDto;
+};
+export type DealProofsRejectApiResponse = /** status 200  */ {
+  data: DealProofDto;
+};
+export type DealProofsRejectApiArg = {
+  id: string;
+  rejectProofDto: RejectProofDto;
+};
+export type DealProofsRefundApiResponse =
+  /** status 200 Money accepted for a deal that ended unpaid, paid back */ {
+    data: DealProofDto;
+  };
+export type DealProofsRefundApiArg = {
+  id: string;
+  proofRefundDto: ProofRefundDto;
+};
+export type DealProofsFileApiResponse = unknown;
+export type DealProofsFileApiArg = {
+  fileId: string;
+};
 export type TradePartyDto = {
   id: string;
   name: string;
@@ -636,6 +777,16 @@ export type OfferDto = {
   paymentDueAt?: string | null;
   /** An approved deal past its payment deadline (ledger clock) */
   overdue: boolean;
+  /** A payment proof is under review: the clock is stopped and the deal does not lapse */
+  onHold: boolean;
+  /** Seconds left to pay when the clock stopped */
+  pausedRemainingSeconds?: number | null;
+  /** Accepted so far (the buyer and payment staff) */
+  paid?: string;
+  /** Sent and waiting for Accounts (the buyer and payment staff) */
+  underReview?: string;
+  /** What the buyer still has to send; null before the deal is approved (the buyer and payment staff) */
+  remaining?: string | null;
   paidAt?: string | null;
   /** The buyer's warehouse receipt */
   receiptPartId?: string | null;
@@ -704,6 +855,74 @@ export type PostRequestDto = {
   /** Open through this day */
   validUntil: string;
 };
+export type PersonRefDto = {
+  id: string;
+  fullName: string;
+};
+export type PaymentMethod = 'bank_deposit' | 'cash' | 'cheque';
+export type ProofFileDto = {
+  id: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+};
+export type ProofStatus = 'pending' | 'accepted' | 'rejected';
+export type ProofDecisionDto = {
+  by?: PersonRefDto | null;
+  at?: string | null;
+};
+export type DealProofDto = {
+  id: string;
+  offerId: number;
+  produce: ProduceRefDto;
+  quantity: number;
+  buyer: PersonRefDto;
+  amount: string;
+  /** What the buyer pays in all: the deal amount and the fee */
+  dealTotal: string;
+  dealStatus:
+    | 'pending'
+    | 'withdrawn'
+    | 'rejected'
+    | 'approved'
+    | 'cancelled'
+    | 'expired'
+    | 'paid'
+    | 'delivered'
+    | 'seller_paid';
+  transferredOn: string;
+  method: PaymentMethod;
+  bankName?: string | null;
+  branchName?: string | null;
+  districtName?: string | null;
+  routingNumber?: string | null;
+  /** As the buyer typed it */
+  reference?: string | null;
+  note?: string | null;
+  files: ProofFileDto[];
+  status: ProofStatus;
+  submittedAt: string;
+  decided: ProofDecisionDto;
+  rejectionReason?: string | null;
+  /** The statement reference Accounts verified (Accounts, admin and auditor only) */
+  verifiedReference?: string | null;
+  /** Accepted money for a deal that ended unpaid is refunded */
+  refund: 'none' | 'due' | 'refunded';
+  refundReference?: string | null;
+  refundedAt?: string | null;
+};
+export type AcceptProofDto = {
+  /** The reference on the bank statement; used once */
+  paymentReference: string;
+};
+export type RejectProofDto = {
+  /** The investor reads this */
+  reason: string;
+};
+export type ProofRefundDto = {
+  /** The reference of the transfer back */
+  paymentReference: string;
+};
 export const {
   useTradeListListingsQuery,
   useLazyTradeListListingsQuery,
@@ -734,4 +953,14 @@ export const {
   useLazyTradeListRequestsQuery,
   useTradePostRequestMutation,
   useTradeCancelRequestMutation,
+  useDealProofsSubmitMutation,
+  useDealProofsForOfferQuery,
+  useLazyDealProofsForOfferQuery,
+  useDealProofsListQuery,
+  useLazyDealProofsListQuery,
+  useDealProofsAcceptMutation,
+  useDealProofsRejectMutation,
+  useDealProofsRefundMutation,
+  useDealProofsFileQuery,
+  useLazyDealProofsFileQuery,
 } = injectedRtkApi;

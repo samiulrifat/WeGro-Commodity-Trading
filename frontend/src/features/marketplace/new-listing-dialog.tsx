@@ -61,7 +61,14 @@ import { useDistrictName } from '@/features/insurance/use-names';
  * its unit, the price per unit, where it is, a few words and one to three
  * photos. An admin approves it before buyers see it.
  */
-export function SellerListingDialog({ onClose }: { onClose: () => void }) {
+export function SellerListingDialog({
+  onClose,
+  initial,
+}: {
+  onClose: () => void;
+  /** Filled in to start with: answering a buyer's request. */
+  initial?: { produce: string; quantity: number };
+}) {
   const unitWord = useUnit();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -69,8 +76,12 @@ export function SellerListingDialog({ onClose }: { onClose: () => void }) {
   const catalog = useCatalogGetQuery({});
   const districts = useDistrictOptions();
   const [list, listing] = useTradeListExternalMutation();
-  const [produce, setProduce] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState('');
+  const [produce, setProduce] = useState<string | null>(
+    initial?.produce ?? null,
+  );
+  const [quantity, setQuantity] = useState(
+    initial ? String(initial.quantity) : '',
+  );
   const [price, setPrice] = useState('');
   const [district, setDistrict] = useState<District | null>(null);
   const [description, setDescription] = useState('');

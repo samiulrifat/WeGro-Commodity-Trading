@@ -15,6 +15,8 @@ import {
   renderPage,
   signedInAs,
 } from '@/test/render';
+import { applyLanguage, i18n } from '@/i18n';
+import { notificationText } from '@/i18n/text';
 import { DealPage } from './deal-page';
 import { DealsList } from './deals-list';
 import { FeesPage } from './fees-page';
@@ -88,6 +90,8 @@ const offer = (over: Partial<OfferDto> = {}): OfferDto => ({
   madeAt: '2026-10-21T05:00:00.000Z',
   paymentDueAt: null,
   overdue: false,
+  onHold: false,
+  pausedRemainingSeconds: null,
   paidAt: null,
   receiptPartId: null,
   buyerDelivery: null,
@@ -939,6 +943,94 @@ describe('buyer requests, further', () => {
     status: 409,
     body: { statusCode: 409, code: 'REQUEST_NOT_OPEN', message: 'Not open' },
   };
+
+  describe('for a seller', () => {
+    const server = (request: BuyerRequestDto) =>
+      fakeServer(({ url }) =>
+        url.pathname === '/api/buyer-requests'
+          ? { body: page([request]) }
+          : url.pathname === '/api/catalog'
+            ? { body: catalog }
+            : undefined,
+      );
+
+    it('says how to answer, and opens a listing with the produce and quantity filled in', async () => {
+      await signedInAs('seller');
+      server(open);
+      await renderPage(<RequestsList search={{}} />, '/marketplace/requests');
+      expect(await screen.findByText(/post it as a new listing/)).toBeTruthy();
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'List This Produce' }),
+      );
+      const dialog = await screen.findByRole('dialog');
+      expect(
+        within(dialog).getByRole('heading', { name: 'New Listing' }),
+      ).toBeTruthy();
+      expect(
+        (within(dialog).getByLabelText(/Quantity/) as HTMLInputElement).value,
+      ).toBe('2000');
+      await waitFor(() =>
+        expect(
+          (within(dialog).getAllByRole('combobox')[0] as HTMLInputElement)
+            .value,
+        ).toBe('Maize'),
+      );
+      // Nothing to the buyer directly: only a listing can answer.
+      expect(
+        screen.queryByRole('button', { name: /Make an Offer/ }),
+      ).toBeNull();
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: 'Cancel' }),
+      );
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+
+    it('offers nothing on a closed request, nor to anyone but a seller', async () => {
+      await signedInAs('seller');
+      server({ ...open, status: 'cancelled' });
+      await renderPage(
+        <RequestsList search={{ tab: 'all' }} />,
+        '/marketplace/requests',
+      );
+      await screen.findByText(/Nadia Foods/);
+      expect(
+        screen.queryByRole('button', { name: 'List This Produce' }),
+      ).toBeNull();
+      cleanup();
+
+      await signedInAs('admin');
+      server(open);
+      await renderPage(<RequestsList search={{}} />, '/marketplace/requests');
+      await screen.findByText(/Nadia Foods/);
+      expect(
+        screen.queryByRole('button', { name: 'List This Produce' }),
+      ).toBeNull();
+    });
+  });
+
+  it('words the notice of a new listing in both languages', async () => {
+    await signedInAs('buyer');
+    const note = {
+      kind: 'request.listing-added' as const,
+      title: 'Server words',
+      body: null,
+      params: {
+        listingId: '9',
+        quantity: '500',
+        produce: 'Maize',
+        produceBn: 'ভুট্টা',
+        askingUnitPrice: '25.00',
+      },
+    };
+    const english = notificationText(note, i18n);
+    expect(english.title).toBe('A new listing can fill your request: Maize');
+    expect(english.body?.replace(/\s/g, ' ')).toBe(
+      '500 available at ৳ 25 each',
+    );
+    await applyLanguage('bn');
+    expect(notificationText(note, i18n).title).toContain('ভুট্টা');
+    await applyLanguage('en');
+  });
 
   it('lets a buyer cancel their own open request, keeping it when refused', async () => {
     await signedInAs('buyer');

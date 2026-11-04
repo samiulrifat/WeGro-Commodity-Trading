@@ -116,7 +116,7 @@ export class ReminderJob implements ScheduledJobRunner {
       payment_due_at: Date;
     }> = await m.query(
       `SELECT id, buyer_id, (unit_price * quantity)::text AS amount, payment_due_at FROM offers
-        WHERE status = 'approved' AND payment_due_at > $1
+        WHERE status = 'approved' AND paused_remaining IS NULL AND payment_due_at > $1
           AND payment_due_at <= $1::timestamptz + interval '${DEADLINE_LEAD}'`,
       [now],
     );

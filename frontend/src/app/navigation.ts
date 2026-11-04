@@ -140,6 +140,7 @@ export type SubLabel =
   | 'listingApprovals'
   | 'deals'
   | 'deliveries'
+  | 'dealPayments'
   | 'sellerPayouts'
   | 'buyerRequests'
   | 'platformFees'
@@ -191,6 +192,7 @@ export type SubPath =
   | '/marketplace/approvals'
   | '/marketplace/deals'
   | '/marketplace/deliveries'
+  | '/marketplace/payments'
   | '/marketplace/payouts'
   | '/marketplace/requests'
   | '/marketplace/fees'
@@ -274,6 +276,7 @@ const MY_LISTINGS = sub('/marketplace/mine', 'myListings');
 const APPROVALS = sub('/marketplace/approvals', 'listingApprovals');
 const DEALS = sub('/marketplace/deals', 'deals');
 const DELIVERIES = sub('/marketplace/deliveries', 'deliveries');
+const DEAL_PAYMENTS = sub('/marketplace/payments', 'dealPayments');
 const SELLER_PAYOUTS = sub('/marketplace/payouts', 'sellerPayouts');
 const BUYER_REQUESTS = sub('/marketplace/requests', 'buyerRequests');
 const FEES = sub('/marketplace/fees', 'platformFees');
@@ -283,6 +286,7 @@ const WHOLE_MARKETPLACE = [
   LISTINGS,
   APPROVALS,
   DEALS,
+  DEAL_PAYMENTS,
   DELIVERIES,
   SELLER_PAYOUTS,
   BUYER_REQUESTS,
@@ -375,7 +379,14 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     projects(ALL_PROJECTS, PAYMENTS, REFUNDS, PAYMENT_ACCOUNTS),
     OFFICE_VOUCHERS,
     PAYOUTS,
-    marketplace(LISTINGS, DEALS, SELLER_PAYOUTS, BUYER_REQUESTS, FEES),
+    marketplace(
+      LISTINGS,
+      DEALS,
+      DEAL_PAYMENTS,
+      SELLER_PAYOUTS,
+      BUYER_REQUESTS,
+      FEES,
+    ),
     WAREHOUSE,
     insurance(CLAIMS, INSURED_PROJECTS, RECORDED_EVENTS),
     catalog(PRODUCE, INPUTS),

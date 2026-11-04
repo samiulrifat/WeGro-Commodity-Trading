@@ -15,7 +15,7 @@ The ledger behind the WeGro platform: nine Solidity contracts that hold every bu
 | `VoucherRegistry` | Input vouchers, suppliers' input batches, and sales against vouchers |
 | `FieldRecordLog` | Append-only farm records (fingerprints of the data and photo) |
 | `WarehouseReceipt` | Warehouse sites and their operators, and one-of-a-kind receipts for stored produce |
-| `TradeLedger` | Marketplace listings, offers, deals, buyer payment and delivery, buyer requests |
+| `TradeLedger` | Marketplace listings, offers, deals (whose clock stops while a payment proof is reviewed: `pauseDeal` by the buyer or Accounts, `resumeDeal` by Accounts), buyer payment and delivery, buyer requests |
 | `InsuranceRegistry` | Cover on insured projects, weather events, and claims |
 | `SettlementLedger` | Project costs, staged and final payout rounds, and payment of each line |
 | `ConsentRegistry` | Banks and their officers, farmers' track records, and bank permissions with every view logged |
@@ -49,7 +49,7 @@ Three timeouts can be changed as Ignition parameters:
 |---|---|---|
 | `reservationTtl` | 7 days | How long an unpaid reservation holds slots (its clock stops while a payment proof is under review) |
 | `saleTtl` | 7 days | How long an unconfirmed voucher sale holds its quantity |
-| `dealTtl` | 7 days | How long an approved deal waits for the buyer's payment |
+| `dealTtl` | 7 days | How long an approved deal waits for the buyer's payment (its clock stops while a payment proof is under review) |
 
 The addresses land in `ignition/deployments/chain-31337/`, where the backend reads them (`CONTRACTS_DEPLOYMENT_DIR`). At startup the backend checks that each contract is there and linked, and refuses to run against a mismatched deployment.
 

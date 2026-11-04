@@ -216,7 +216,7 @@ describe('the payment accounts page', () => {
     );
     expect(await screen.findByText('No payment accounts yet')).toBeTruthy();
     expect(
-      screen.getByText('Add one so investors know where to pay.'),
+      screen.getByText('Add one so investors and buyers know where to pay.'),
     ).toBeTruthy();
   });
 

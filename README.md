@@ -31,7 +31,7 @@ sudo -u postgres psql -c "CREATE DATABASE commodity_db OWNER commodity_user;"
 cp backend/.env.example backend/.env
 
 # 4. Local chain (own terminal; leave it running)
-cd contracts && npx hardhat node
+cd contracts && npx hardhat node --network devChain
 
 # 5. Deploy, build the database, create the super admin (you type the
 #    password twice), load sample data
@@ -42,7 +42,7 @@ cd backend && npm run start:dev      # API on http://localhost:3000/api, docs on
 cd frontend && npm run dev           # http://localhost:5173
 ```
 
-After the first setup, one command starts whatever is down: `npm run dev` here at the root (`npm run dev:stop` stops it all). Logs are in `~/.local/state/wegro-dev`. Hardhat keeps nothing when it stops, so if the chain comes back empty the script resets the dev data with the sample data, **wiping anything you added**. It needs the super admin's password in a git-ignored `.env.local` at the root:
+After the first setup, one command starts whatever is down: `npm run dev` here at the root (`npm run dev:stop` stops it all). Logs are in `~/.local/state/wegro-dev`. Hardhat keeps nothing when it stops, so if the chain comes back empty the script resets the dev data with the sample data, **wiping anything you added**. The chain's clock follows real time; it starts 90 days back so the sample data's stories can finish, and the reset brings it up to now (load sample data again on a running chain and it ends up 90 days ahead, which only a new chain fixes). It needs the super admin's password in a git-ignored `.env.local` at the root:
 
 ```
 SUPER_ADMIN_PASSWORD=...

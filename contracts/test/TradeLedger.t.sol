@@ -462,6 +462,111 @@ contract TradeLedgerTest is Test {
         trade.expireDeal(o);
     }
 
+    // --- payment under review: the clock stops ------------------------------
+
+    function test_ProofStopsTheDealClockUntilReviewed() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+        _approve(o);
+        uint64 due = trade.getOffer(o).paymentDueAt;
+        vm.warp(due - 1 hours);
+
+        vm.expectEmit(address(trade));
+        emit TradeLedger.DealPaused(o, 1 hours, sabbir);
+        vm.prank(sabbir);
+        trade.pauseDeal(o);
+        assertEq(trade.pausedRemaining(o), 1 hours);
+
+        // Days later it still cannot expire, and Accounts can still confirm.
+        vm.warp(due + 3 days);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.DealOnHold.selector, o));
+        trade.expireDeal(o);
+        _pay(o);
+        assertEq(trade.pausedRemaining(o), 0);
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Paid));
+    }
+
+    function test_ResumedDealClockRunsOnFromWhereItStopped() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+        _approve(o);
+        uint64 due = trade.getOffer(o).paymentDueAt;
+        vm.warp(due - 2 hours);
+        vm.prank(accounts);
+        trade.pauseDeal(o);
+
+        vm.warp(due + 1 days);
+        vm.expectEmit(address(trade));
+        emit TradeLedger.DealResumed(o, uint64(block.timestamp) + 2 hours, accounts);
+        vm.prank(accounts);
+        trade.resumeDeal(o);
+        assertEq(trade.getOffer(o).paymentDueAt, uint64(block.timestamp) + 2 hours);
+        assertEq(trade.pausedRemaining(o), 0);
+
+        vm.warp(block.timestamp + 2 hours);
+        trade.expireDeal(o);
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Expired));
+    }
+
+    function test_DealPauseGuards() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+
+        // Only an approved deal has a clock.
+        vm.prank(sabbir);
+        vm.expectRevert(_wrongOffer(o, TradeLedger.OfferStatus.Pending));
+        trade.pauseDeal(o);
+        vm.prank(accounts);
+        vm.expectRevert(_wrongOffer(o, TradeLedger.OfferStatus.Pending));
+        trade.resumeDeal(o);
+        _approve(o);
+
+        // Only the buyer who made it, or Accounts.
+        vm.prank(mitu);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, mitu));
+        trade.pauseDeal(o);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotAuthorized.selector, admin));
+        trade.pauseDeal(o);
+
+        vm.prank(accounts);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.DealNotOnHold.selector, o));
+        trade.resumeDeal(o);
+
+        vm.prank(sabbir);
+        trade.pauseDeal(o);
+        vm.prank(sabbir);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.DealOnHold.selector, o));
+        trade.pauseDeal(o);
+        // Only Accounts restarts the clock.
+        vm.prank(sabbir);
+        vm.expectRevert(abi.encodeWithSelector(AccessGuarded.MissingRole.selector, sabbir, ACCOUNTS_ROLE));
+        trade.resumeDeal(o);
+
+        // Too late to stop a clock that has run out.
+        uint256 late = _offer(mitu, id, 100, ASK);
+        _approve(late);
+        uint64 due = trade.getOffer(late).paymentDueAt;
+        vm.warp(due);
+        vm.prank(mitu);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.PaymentOverdue.selector, late, due));
+        trade.pauseDeal(late);
+    }
+
+    function test_AnAdminCancelsADealOnHold() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 2_000, ASK);
+        _approve(o);
+        vm.prank(sabbir);
+        trade.pauseDeal(o);
+
+        vm.prank(admin);
+        trade.cancelDeal(o);
+        assertEq(trade.pausedRemaining(o), 0);
+        assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Cancelled));
+        assertEq(trade.getListing(id).available, 5_000);
+    }
+
     function test_DealTtlChangesOnlyNewDeals() public {
         uint256 id = _weGroListing();
         uint256 first = _offer(sabbir, id, 1_000, ASK);

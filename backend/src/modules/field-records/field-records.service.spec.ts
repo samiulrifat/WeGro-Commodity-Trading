@@ -111,6 +111,7 @@ describe('FieldRecordsService', () => {
         },
       ],
     });
+    const clock = fakeClock(NOW);
     const service = new FieldRecordsService(
       records as never,
       users as never,
@@ -125,10 +126,10 @@ describe('FieldRecordsService', () => {
       chain.tx as never,
       receipts as never,
       { get: () => ledger } as never,
-      fakeClock(NOW) as never,
+      clock as never,
       { condition: () => null } as never,
     );
-    return { service, rows, records, chain, ledger, photos };
+    return { service, rows, records, chain, ledger, photos, clock };
   };
 
   const draft = (
@@ -225,6 +226,58 @@ describe('FieldRecordsService', () => {
       "observedAt is in the future: check the phone's clock",
     );
     expect(chain.sent).toEqual([]);
+  });
+
+  describe('a time just ahead of the ledger’s clock', () => {
+    const at = (ms: number) => new Date(NOW.getTime() + ms);
+
+    it('is recorded as the ledger’s now: its clock lags, and phones run a little fast', async () => {
+      const { service, rows, chain } = build();
+      const [res] = await service.sync(officer, [
+        draft({ observedAt: at(60_000).toISOString() }),
+      ] as never);
+      expect(res).toMatchObject({ outcome: 'recorded' });
+      expect(rows[0].observedAt).toEqual(NOW);
+      expect(rows[0].dataHash).toBe(recordFingerprint(rows[0]));
+      expect(chain.sent).toHaveLength(1);
+    });
+
+    it('is refused when further ahead than the form allows', async () => {
+      const { service, chain } = build();
+      const [res] = await service.sync(officer, [
+        draft({ observedAt: at(61_000).toISOString() }),
+      ] as never);
+      expect(res).toMatchObject({ outcome: 'rejected' });
+      expect(res.message).toContain('observedAt is in the future');
+      expect(chain.sent).toEqual([]);
+    });
+
+    it('keeps the time of the first try when sent again later, not a new record', async () => {
+      const { service, rows, chain, clock } = build();
+      chain.fail(new Error('node unreachable'));
+      const d = draft({ observedAt: at(30_000).toISOString() });
+      const [first] = await service.sync(officer, [d] as never);
+      expect(first).toMatchObject({ outcome: 'pending' });
+      // The ledger's clock has passed the time on the draft by now.
+      clock.now = jest.fn(() => Promise.resolve(at(120_000)));
+      const [again] = await service.sync(officer, [d] as never);
+      expect(again).toMatchObject({ outcome: 'recorded' });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].observedAt).toEqual(NOW);
+      expect(rows[0].dataHash).toBe(recordFingerprint(rows[0]));
+    });
+
+    it('still refuses the same id with a time well apart, as a different record', async () => {
+      const { service, chain, clock } = build();
+      chain.fail(new Error('node unreachable'));
+      const d = draft({ observedAt: at(-3_600_000).toISOString() });
+      await service.sync(officer, [d] as never);
+      clock.now = jest.fn(() => Promise.resolve(at(120_000)));
+      const [again] = await service.sync(officer, [
+        { ...d, observedAt: at(0).toISOString() },
+      ] as never);
+      expect(again).toMatchObject({ code: 'ENTRY_ID_REUSED' });
+    });
   });
 
   it('rejects a draft whose photo does not exist', async () => {

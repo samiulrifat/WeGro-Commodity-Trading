@@ -463,6 +463,11 @@ export const en = {
       OFFER_WRONG_STATUS: 'This offer is {{status, word}}.',
       PAYMENT_OVERDUE: 'The payment deadline for this deal has passed.',
       DEAL_CONFIRMING: 'This deal is already being confirmed.',
+      DEAL_PROOFS_TO_REVIEW:
+        'This deal has payment proofs: review them instead.',
+      DEAL_PROOF_ALREADY_REFUNDED: 'This payment is already refunded.',
+      DEAL_PROOF_NOT_REFUNDABLE:
+        'Only money accepted for a deal that ended unpaid is refunded.',
       DELIVERY_CONFIRM_NOT_ALLOWED:
         'Only the buyer or the one handing over confirms delivery.',
       DELIVERY_ALREADY_CONFIRMED:
@@ -597,6 +602,22 @@ export const en = {
   },
   /** By notification kind: reservation.made -> reservation.made.title. */
   notifications: {
+    'deal-proof': {
+      submitted: {
+        title:
+          'Payment proof of {{amount, taka}} for deal #{{offerId}} awaiting review',
+      },
+      accepted: {
+        title:
+          'Your payment of {{amount, taka}} for deal #{{offerId}} is accepted',
+      },
+      rejected: {
+        title: 'Your payment proof for deal #{{offerId}} was not accepted',
+      },
+      refunded: {
+        title: '{{amount, taka}} sent for deal #{{offerId}} was refunded',
+      },
+    },
     'payment-proof': {
       submitted: {
         title:
@@ -778,6 +799,10 @@ export const en = {
         title: 'A buyer wants {{quantity, number}} {{produce}}',
         body: 'At most {{maxUnitPrice, taka}} each',
       },
+      'listing-added': {
+        title: 'A new listing can fill your request: {{produce}}',
+        body: '{{quantity, number}} available at {{askingUnitPrice, taka}} each',
+      },
     },
     listing: {
       'awaiting-approval': {
@@ -889,6 +914,11 @@ export const en = {
         title: 'Resolved: {{problem, word}}',
         body: 'Since {{since, datetime}}',
       },
+      'deal-proof-file-altered': {
+        title:
+          'A payment proof file for deal #{{offerId}} no longer matches the one sent',
+        body: 'It is not shown to anyone. Check the stored files for tampering or damage.',
+      },
       'proof-file-altered': {
         title:
           'A payment proof file for booking #{{reservationId}} no longer matches the one sent',
@@ -954,6 +984,7 @@ export const en = {
       listingApprovals: 'Listing Approvals',
       deals: 'Offers & Deals',
       deliveries: 'Deliveries',
+      dealPayments: 'Buyer Payments',
       sellerPayouts: 'Seller Payouts',
       buyerRequests: 'Buyer Requests',
       platformFees: 'Platform Fees',
@@ -1810,16 +1841,16 @@ export const en = {
   },
   paymentAccounts: {
     intro:
-      'The WeGro accounts investors pay into. Investors see those in use, with the exact amount to send.',
+      'The WeGro accounts investors and buyers pay into. They see those in use, with the exact amount to send.',
     add: 'Add Payment Account',
     edit: 'Edit Payment Account',
     search: 'Bank, branch, account name or number',
     none: 'No payment accounts yet',
-    noneHint: 'Add one so investors know where to pay.',
+    noneHint: 'Add one so investors and buyers know where to pay.',
     formText:
       'Pick the branch from the bank list; its routing number comes with it.',
     orderHint: 'Lower numbers are shown first.',
-    activeHint: 'Turned off, investors no longer see it.',
+    activeHint: 'Turned off, investors and buyers no longer see it.',
     saved: 'Payment account saved.',
   },
   catalog: {
@@ -2383,6 +2414,8 @@ export const en = {
         'Outside sellers’ delivered deals: pay each seller the deal amount less their fee.',
       requests:
         'What buyers want to buy, with the open listings that already match.',
+      sellerRequests:
+        'What buyers want to buy. If you have it, post it as a new listing; once approved, the buyers it suits are told.',
       myRequests:
         'Tell sellers what you want to buy. Matching listings show on each request.',
     },
@@ -2574,6 +2607,36 @@ export const en = {
     noDealMatch: 'No offers or deals match.',
     payBy: 'Pay by {{date}}',
     overdueText: 'The payment deadline has passed; the deal lapses.',
+    payWithinText:
+      'Transfer the exact amount by {{at, datetime}} to secure your deal.',
+    payManageText:
+      'Transfer what is left to WeGro’s account, then upload the proof. The clock stops while Accounts checks it.',
+    stillToPay: 'You still need to pay {{amount}} to secure this deal.',
+    dealProofs: 'Payments Sent',
+    payments: {
+      intro:
+        'Payment proofs buyers sent, oldest first. Check each against the bank statement; accepting it records the statement reference.',
+      tab: {
+        pending: 'Waiting',
+        accepted: 'Accepted',
+        rejected: 'Rejected',
+        deals: 'Deals Awaiting Payment',
+        refunds: 'Refunds Due',
+      },
+      search: 'Name, mobile number or NID of the buyer',
+      none: {
+        pending: 'No proofs are waiting.',
+        accepted: 'No accepted proofs yet.',
+        rejected: 'No rejected proofs.',
+        deals: 'No deals are awaiting payment.',
+        refunds: 'No deal refunds are due.',
+      },
+      acceptText:
+        'Only when this money is on the bank statement. When accepted payments cover what the buyer pays, the deal is confirmed on the ledger.',
+      rejectText:
+        'The buyer is told why. If nothing else is under review, their deal clock runs again.',
+      rejected: 'Rejected: the buyer is told why.',
+    },
     buyerLabel: 'Buyer',
     sellerLabel: 'Seller',
     money: 'Money',
@@ -2621,6 +2684,7 @@ export const en = {
       delivered: 'Pay the outside seller the deal amount less their fee.',
     },
     dealMove: {
+      pay: 'Upload Payment Proof',
       withdraw: 'Withdraw Offer',
       approve: 'Approve Offer',
       reject: 'Reject Offer',
@@ -2685,8 +2749,9 @@ export const en = {
     matches_one: '{{count, number}} matching listing',
     matches_other: '{{count, number}} matching listings',
     postRequest: 'Post a Request',
+    listThisProduce: 'List This Produce',
     postRequestText:
-      'Sellers and WeGro see what you want. Listings of this produce at or below your price show on it.',
+      'Sellers and WeGro see what you want. Listings of this produce with at least this quantity available show on it.',
     maxPrice: 'Highest Price Per Unit',
     validUntil: 'Open Until',
     validUntilHint: 'The request closes after this day.',
@@ -3347,6 +3412,8 @@ export const en = {
       OfferApproved: 'Offer Approved, Deal Made',
       DealCancelled: 'Deal Cancelled',
       DealExpired: 'Deal Lapsed Unpaid',
+      DealPaused: 'Payment Proof Received, Clock Stopped',
+      DealResumed: 'Deal Clock Running Again',
       DealTtlUpdated: 'Deal Payment Time Limit Changed',
       BuyerPaymentConfirmed: 'Buyer’s Payment Confirmed',
       DeliveryConfirmed: 'Delivery Confirmed',

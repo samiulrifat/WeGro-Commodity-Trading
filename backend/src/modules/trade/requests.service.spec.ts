@@ -27,7 +27,7 @@ const request = (over: Partial<BuyerRequest> = {}) =>
     id: 7,
     buyerId: 'b1',
     produceCode: 'MAIZE',
-    quantity: 500,
+    quantity: 50,
     maxUnitPrice: 3000n,
     validUntil: LATER,
     status: RequestStatus.OPEN,
@@ -148,15 +148,14 @@ describe('RequestsService', () => {
     expect(chain.sent).toEqual([]);
   });
 
-  it('shows matching open listings within the price, cheapest first, at most five', async () => {
+  it('shows open listings of the produce at any price, cheapest first, at most five', async () => {
     const open = [
       listing(1, 2000n),
       listing(2, 2500n),
       listing(3, 2600n),
       listing(4, 2700n),
-      listing(5, 2800n),
-      listing(6, 2900n),
-      listing(7, 3100n), // over the buyer's price
+      listing(5, 1_000_000n), // far above the buyer's highest price: still shown
+      listing(6, 1_000_100n),
     ];
     const dto = await build({ open }).service.one(7);
     expect(dto.matchingListings.map((m) => m.id)).toEqual([1, 2, 3, 4, 5]);
@@ -166,6 +165,16 @@ describe('RequestsService', () => {
       askingUnitPrice: '20.00',
       district: 'Bogura',
     });
+  });
+
+  it('shows a listing with enough for the request, however much more, and none with less', async () => {
+    const open = [
+      listing(1, 2000n, { available: 500 }),
+      listing(2, 2100n, { available: 50 }), // exactly what is wanted
+      listing(3, 2200n, { available: 49 }),
+    ];
+    const dto = await build({ open }).service.one(7);
+    expect(dto.matchingListings.map((m) => m.id)).toEqual([1, 2]);
   });
 
   it("places an outside seller's listing in the seller's own district", async () => {

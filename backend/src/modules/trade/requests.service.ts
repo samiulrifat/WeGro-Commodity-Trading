@@ -158,7 +158,7 @@ export class RequestsService {
 
   /**
    * Matches for a whole page in one query: open listings of the page's
-   * produce, cheapest first; each request then takes those within its price.
+   * produce, cheapest first; each request then takes those with enough available.
    */
   private async dtos(
     rows: BuyerRequest[],
@@ -220,7 +220,7 @@ export class RequestsService {
       const matches =
         status === 'open'
           ? (byProduce.get(r.produceCode) ?? [])
-              .filter((l) => l.askingUnitPrice <= r.maxUnitPrice)
+              .filter((l) => l.available >= r.quantity)
               .slice(0, MATCHES)
           : [];
       return {

@@ -32,7 +32,15 @@ jest.mock('./app-context', () => ({
 }));
 
 const assertLocal = jest.fn(() => Promise.resolve());
-jest.mock('./local-only', () => ({ loadEnv: jest.fn(), assertLocal }));
+const bringClockToNow = jest.fn((log: (m: string) => void) => {
+  log('Clock moved to now');
+  return Promise.resolve();
+});
+jest.mock('./local-only', () => ({
+  loadEnv: jest.fn(),
+  assertLocal,
+  bringClockToNow,
+}));
 
 const ensureSuperAdmin = jest.fn(() =>
   Promise.resolve({ id: 'sa-1', account: '0xabc' }),
@@ -221,7 +229,9 @@ describe('command-line tools', () => {
       });
       const r = await run('data-seed');
       expect(r.logs[0]).toBe('Story open: S-PROJECT-002');
-      expect(r.logs[1]).toBe('Sample data loaded: 46 people, 9 projects.');
+      expect(bringClockToNow).toHaveBeenCalled();
+      expect(r.logs[1]).toBe('Clock moved to now');
+      expect(r.logs[2]).toBe('Sample data loaded: 46 people, 9 projects.');
       expect(r.logs).toEqual(expect.arrayContaining(['  open: S-PROJECT-002']));
       expect(
         readdirSync(dir).some((f) => f.startsWith('sample-credentials')),

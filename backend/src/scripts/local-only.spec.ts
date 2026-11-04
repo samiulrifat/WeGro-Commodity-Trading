@@ -1,17 +1,60 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { assertLocal, loadEnv } from './local-only';
+import { assertLocal, bringClockToNow, loadEnv } from './local-only';
 
 // The node's answer, as each test sets it.
 let network: Promise<{ chainId: bigint }>;
+let latest: { timestamp: number };
+const send = jest.fn(() => Promise.resolve(null));
 jest.mock('ethers', () => ({
   ...jest.requireActual<object>('ethers'),
   JsonRpcProvider: jest.fn(() => ({
     getNetwork: () => network,
+    getBlock: () => Promise.resolve(latest),
+    send,
     destroy: jest.fn(),
   })),
 }));
+
+describe('bringClockToNow', () => {
+  const NOW = 1_800_000_000;
+  const clock = (behindSeconds: number) => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW * 1000);
+    latest = { timestamp: NOW - behindSeconds };
+    send.mockClear();
+  };
+  afterEach(() => jest.restoreAllMocks());
+
+  it('moves a clock that is behind up to now', async () => {
+    clock(600);
+    const log = jest.fn();
+    await bringClockToNow(log);
+    expect(send.mock.calls).toEqual([
+      ['evm_setNextBlockTimestamp', [NOW]],
+      ['evm_mine', []],
+    ]);
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('leaves a clock that is about right alone', async () => {
+    clock(5);
+    const log = jest.fn();
+    await bringClockToNow(log);
+    expect(send).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('says so when the clock is ahead, since it cannot go back', async () => {
+    clock(-90 * 86_400);
+    const log = jest.fn();
+    await bringClockToNow(log);
+    expect(send).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('about 90 day(s) ahead'),
+    );
+  });
+});
 
 /** Resets and sample data never reach a real ledger or a production database. */
 describe('assertLocal', () => {

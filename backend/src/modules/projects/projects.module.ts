@@ -60,6 +60,6 @@ import { ReservationsService } from './reservations.service';
     ProofFiles,
     PhotosService,
   ],
-  exports: [ProjectsService, ProjectViews],
+  exports: [ProjectsService, ProjectViews, ProofFiles],
 })
 export class ProjectsModule {}

@@ -557,7 +557,7 @@ describe('Marketplace (node + database)', () => {
       const res = await as(t.buyer)
         .post('/buyer-requests', {
           produceCode: 'MAIZE',
-          quantity: 20000,
+          quantity: 3000,
           maxUnitPrice: '32',
           validUntil: await day(30),
         })
@@ -585,6 +585,7 @@ describe('Marketplace (node + database)', () => {
       );
       await as(t.field_officer).get('/buyer-requests').expect(200);
       await as(t.investor).get('/buyer-requests').expect(403);
+      // The buyer's highest price does not decide: under the asking price, it still shows.
       const cheap = await as(t.buyer)
         .post('/buyer-requests', {
           produceCode: 'MAIZE',
@@ -595,6 +596,18 @@ describe('Marketplace (node + database)', () => {
         .expect(201);
       expect(
         cheap.body.data.matchingListings.map((l: { id: number }) => l.id),
+      ).toContain(receiptListing);
+      // More than the listing has left: it does not show.
+      const tooMuch = await as(t.buyer)
+        .post('/buyer-requests', {
+          produceCode: 'MAIZE',
+          quantity: 3001,
+          maxUnitPrice: '32',
+          validUntil: await day(5),
+        })
+        .expect(201);
+      expect(
+        tooMuch.body.data.matchingListings.map((l: { id: number }) => l.id),
       ).not.toContain(receiptListing);
     });
 
@@ -713,6 +726,75 @@ describe('Marketplace (node + database)', () => {
       ).toContain(sellerListing);
     });
 
+    it('tells a buyer when a listing that can fill their request goes live, and only then', async () => {
+      const told = async (token: string, listing: number) => {
+        // Notices are written right after the action commits.
+        await new Promise((r) => setTimeout(r, 50));
+        return (
+          await as(token).get('/notifications?limit=100').expect(200)
+        ).body.data.items.filter(
+          (n: { kind: string; params: { listingId?: string } }) =>
+            n.kind === 'request.listing-added' &&
+            n.params.listingId === String(listing),
+        );
+      };
+      const want = async (token: string, quantity: number) =>
+        (
+          await as(token)
+            .post('/buyer-requests', {
+              produceCode: 'ONION',
+              quantity,
+              maxUnitPrice: '1.00',
+              validUntil: await day(30),
+            })
+            .expect(201)
+        ).body.data.id as number;
+      const fits = await want(t.buyer, 50);
+      const sameBuyerAgain = await want(t.buyer, 60);
+      const tooMuch = await want(secondBuyer.token, 501);
+      const photo = await http
+        .post('/api/photos')
+        .auth(t.seller, { type: 'bearer' })
+        .attach('file', jpeg(`onion-${RUN}`), 'onion.jpg')
+        .expect(201);
+      const listed = await as(t.seller)
+        .post('/listings/external', {
+          produceCode: 'ONION',
+          quantity: 500,
+          askingUnitPrice: '40.00',
+          districtCode: 'MUNSHIGANJ',
+          description: 'Dry and sorted',
+          photoIds: [photo.body.data.id],
+        })
+        .expect(201);
+      const listing = listed.body.data.id as number;
+      // Waiting for an admin: nobody can buy it yet.
+      expect(await told(t.buyer, listing)).toEqual([]);
+      await as(t.admin).post(`/listings/${listing}/approve`).expect(200);
+      // Once, though two of their requests fit; its price is no bar.
+      const notices = await told(t.buyer, listing);
+      expect(notices).toHaveLength(1);
+      expect(notices[0]).toMatchObject({
+        params: { listingId: String(listing), quantity: '500' },
+        subject: { type: 'listing', id: String(listing) },
+      });
+      // Wanting more than it holds, there is nothing to tell.
+      expect(await told(secondBuyer.token, listing)).toEqual([]);
+      // A seller answers with a listing; they cannot offer to a buyer.
+      await as(t.seller)
+        .post(`/listings/${listing}/offers`, {
+          quantity: 1,
+          unitPrice: '1.00',
+        })
+        .expect(403);
+      await as(t.buyer).post(`/buyer-requests/${fits}/cancel`).expect(200);
+      await as(t.buyer)
+        .post(`/buyer-requests/${sameBuyerAgain}/cancel`)
+        .expect(200);
+      await as(secondBuyer.token)
+        .post(`/buyer-requests/${tooMuch}/cancel`)
+        .expect(200);
+    });
     it('turns a listing down with a reason the seller sees', async () => {
       const photo = await http
         .post('/api/photos')

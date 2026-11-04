@@ -52,6 +52,9 @@ import {
 import { ErrorCode } from '../../common/errors/error-code';
 import { type Problem, problem } from '../../common/errors/problem';
 
+/** How far ahead of the ledger a time may be: the same as the farm update form. */
+const OBSERVED_SLACK_MS = 60_000;
+
 /** Stages in which the ledger accepts farm updates. */
 const OPEN_STAGES: readonly ProjectStage[] = [
   ProjectStage.FUNDED,
@@ -182,15 +185,20 @@ export class FieldRecordsService {
     draft: FieldRecordDraftDto,
     chainNow: Date,
   ): Promise<SyncResultDto> {
+    const existing = await this.records.findOneBy({ id: draft.id });
     let prepared: Prepared;
     try {
-      prepared = await this.prepare(actor, draft, chainNow);
+      prepared = await this.prepare(
+        actor,
+        draft,
+        chainNow,
+        existing?.observedAt,
+      );
     } catch (error) {
       return fromHttpError(draft.id, error);
     }
     const r = prepared.record;
 
-    const existing = await this.records.findOneBy({ id: r.id });
     if (existing) {
       if (
         existing.dataHash !== r.dataHash ||
@@ -272,6 +280,7 @@ export class FieldRecordsService {
     actor: AuthUser,
     d: FieldRecordDraftDto,
     chainNow: Date,
+    firstTry?: Date,
   ): Promise<Prepared> {
     const project = await this.projectFor(d.projectId);
     if (!OPEN_STAGES.includes(project.stage)) {
@@ -364,8 +373,10 @@ export class FieldRecordsService {
     }
 
     // The ledger keeps whole seconds and refuses times ahead of its own clock.
-    const observedAt = new Date(
-      Math.floor(new Date(d.observedAt).getTime() / 1000) * 1000,
+    const observedAt = settledTime(
+      new Date(Math.floor(new Date(d.observedAt).getTime() / 1000) * 1000),
+      chainNow,
+      firstTry,
     );
     if (observedAt.getTime() <= 0) {
       problems.push(
@@ -801,4 +812,17 @@ function fromHttpError(id: string, error: unknown): SyncResultDto {
       : message,
     body.details,
   );
+}
+
+/**
+ * The time to record for a draft. Up to OBSERVED_SLACK_MS ahead of the ledger
+ * counts as its now: its clock lags real time by a block or so, and a phone's
+ * may run a little fast (the form allows as much). A draft sent again keeps
+ * the time of its first try, or it would no longer match what was recorded.
+ */
+function settledTime(sent: Date, chainNow: Date, firstTry?: Date): Date {
+  const justAhead = (of: Date) =>
+    sent >= of && sent.getTime() - of.getTime() <= OBSERVED_SLACK_MS;
+  if (firstTry && justAhead(firstTry)) return firstTry;
+  return sent > chainNow && justAhead(chainNow) ? chainNow : sent;
 }

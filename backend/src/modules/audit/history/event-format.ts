@@ -72,6 +72,8 @@ const TITLES: Readonly<Record<string, string>> = {
   OfferApproved: 'Offer approved: deal made',
   DealCancelled: 'Deal cancelled',
   DealExpired: 'Deal expired unpaid',
+  DealPaused: 'Payment proof received; deal clock stopped',
+  DealResumed: 'Deal clock running again',
   DealTtlUpdated: 'Deal payment time limit changed',
   BuyerPaymentConfirmed: 'Buyer payment confirmed',
   DeliveryConfirmed: 'Delivery confirmed',

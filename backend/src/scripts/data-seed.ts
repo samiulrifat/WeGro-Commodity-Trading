@@ -11,7 +11,7 @@ import { parseArgs } from 'node:util';
 import { writeCredentials } from '../data/credentials-file';
 import { SEED_SIZES as SIZES, Seeder } from '../data/seed/seeder';
 import { appContext, fail } from './app-context';
-import { assertLocal, loadEnv } from './local-only';
+import { assertLocal, bringClockToNow, loadEnv } from './local-only';
 
 /** The command, given its arguments (what follows the script's name). */
 export async function main(
@@ -31,6 +31,7 @@ export async function main(
       scale,
       log: (m) => console.log(m),
     }).run();
+    await bringClockToNow((m) => console.log(m));
     const file = writeCredentials(
       process.cwd(),
       'sample-credentials',

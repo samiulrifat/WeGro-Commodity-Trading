@@ -91,6 +91,12 @@ export enum NotificationKind {
   DEAL_CANCELLED = 'deal.cancelled',
   DEAL_EXPIRED = 'deal.expired',
   DEAL_PAID = 'deal.paid',
+  /** A buyer sent a payment proof: Accounts to review. */
+  DEAL_PROOF_SUBMITTED = 'deal-proof.submitted',
+  DEAL_PROOF_ACCEPTED = 'deal-proof.accepted',
+  DEAL_PROOF_REJECTED = 'deal-proof.rejected',
+  /** Money for a deal that ended unpaid was paid back. */
+  DEAL_PROOF_REFUNDED = 'deal-proof.refunded',
   /** To the farmer and their officer: the buyer's payment is confirmed. */
   DEAL_BUYER_PAID = 'deal.buyer-paid',
   DEAL_DELIVER = 'deal.deliver',
@@ -99,6 +105,8 @@ export enum NotificationKind {
   DELIVERY_MISMATCH = 'delivery.mismatch',
   /** To admins and Operations: a buyer posted what they want to buy. */
   REQUEST_POSTED = 'request.posted',
+  /** To a buyer: a listing that can fill their open request has opened. */
+  REQUEST_LISTING_ADDED = 'request.listing-added',
   LISTING_AWAITING_APPROVAL = 'listing.awaiting-approval',
   LISTING_APPROVED = 'listing.approved',
   LISTING_REJECTED = 'listing.rejected',
@@ -145,4 +153,6 @@ export enum NotificationKind {
   SYSTEM_RESOLVED = 'system.resolved',
   /** A stored payment proof file no longer matches its hash: not served. */
   SYSTEM_PROOF_FILE_ALTERED = 'system.proof-file-altered',
+  /** The same, for a deal's payment proof. */
+  SYSTEM_DEAL_PROOF_FILE_ALTERED = 'system.deal-proof-file-altered',
 }

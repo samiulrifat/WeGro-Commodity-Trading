@@ -14,8 +14,9 @@ import {WarehouseReceipt} from "../warehouse/WarehouseReceipt.sol";
 /// Buyers offer their own quantity and unit price; a WeGro admin approves or rejects
 /// each offer. An approved offer is a deal that reserves its quantity until a payment
 /// deadline (`dealTtl` after approval); an unpaid deal past it can be expired by anyone,
-/// returning its quantity. Per deal, Accounts confirms the buyer paid before the
-/// deadline (hash only; a receipt splits off to the buyer),
+/// returning its quantity. A deal's clock stops while a payment proof is reviewed
+/// (`pauseDeal`, `resumeDeal`). Per deal, Accounts confirms the buyer paid before the
+/// deadline or on hold (hash only; a receipt splits off to the buyer),
 /// then the buyer and the handler (issuing warehouse site, or the farmer's field
 /// officer) each confirm delivery. Delivered deals add to the project's sale income.
 /// A listing whose whole quantity is paid for closes as SoldOut. The final payout waits
@@ -112,6 +113,9 @@ contract TradeLedger is AccessGuarded {
     mapping(uint256 offerId => Delivery) private _deliveries;
     mapping(uint256 requestId => BuyerRequest) private _requests;
     mapping(bytes32 paymentRefHash => bool) public paymentRefUsed;
+    /// @notice Seconds left to pay when a deal's clock was stopped for a payment
+    /// under review; 0 while the clock runs.
+    mapping(uint256 offerId => uint64) public pausedRemaining;
     /// @notice Sum of delivered deal amounts per project, for settlement.
     mapping(bytes32 projectId => uint256) public saleIncome;
     /// @notice Open listings plus approved-but-undelivered deals per project.
@@ -159,6 +163,8 @@ contract TradeLedger is AccessGuarded {
     );
     event DealCancelled(uint256 indexed offerId, address indexed cancelledBy);
     event DealExpired(uint256 indexed offerId);
+    event DealPaused(uint256 indexed offerId, uint64 remaining, address indexed pausedBy);
+    event DealResumed(uint256 indexed offerId, uint64 paymentDueAt, address indexed resumedBy);
     event DealTtlUpdated(uint64 previousTtl, uint64 newTtl);
     event BuyerPaymentConfirmed(uint256 indexed offerId, bytes32 paymentRefHash, bytes32 receiptPartId, address confirmedBy);
     event DeliveryConfirmed(
@@ -192,6 +198,8 @@ contract TradeLedger is AccessGuarded {
     error AlreadyConfirmed(uint256 offerId);
     error PaymentOverdue(uint256 offerId, uint64 paymentDueAt);
     error DealNotYetDue(uint256 offerId, uint64 paymentDueAt);
+    error DealOnHold(uint256 offerId);
+    error DealNotOnHold(uint256 offerId);
     error NotAuthorized(address account);
     error NotExternal(uint256 listingId);
     error NotPendingListing(uint256 listingId);
@@ -423,26 +431,57 @@ contract TradeLedger is AccessGuarded {
     }
 
     /// @notice An admin cancels an approved deal the buyer never paid; its
-    /// quantity returns to the listing.
+    /// quantity returns to the listing, even while a payment is under review.
     function cancelDeal(uint256 offerId) external onlyRole(Roles.ADMIN) {
         Offer storage o = _offerIn(offerId, OfferStatus.Approved);
+        delete pausedRemaining[offerId];
         _releaseDeal(o, OfferStatus.Cancelled);
         emit DealCancelled(offerId, msg.sender);
     }
 
-    /// @notice Release a deal left unpaid past its deadline. Callable by anyone.
+    /// @notice Stops a deal's clock while a payment proof is reviewed: the buyer
+    /// who made it (sending the proof) or Accounts, before its deadline.
+    function pauseDeal(uint256 offerId) external {
+        Offer storage o = _offerIn(offerId, OfferStatus.Approved);
+        bool ownDeal = _hasRole(Roles.BUYER) && o.buyerId == _callerId();
+        if (!ownDeal && !_hasRole(Roles.ACCOUNTS)) revert NotAuthorized(msg.sender);
+        if (pausedRemaining[offerId] != 0) revert DealOnHold(offerId);
+        if (block.timestamp >= o.paymentDueAt) revert PaymentOverdue(offerId, o.paymentDueAt);
+        uint64 remaining = o.paymentDueAt - uint64(block.timestamp);
+        pausedRemaining[offerId] = remaining;
+        emit DealPaused(offerId, remaining, msg.sender);
+    }
+
+    /// @notice Accounts restarts the clock once no proof is under review: the
+    /// deadline moves on by the time it was stopped.
+    function resumeDeal(uint256 offerId) external onlyRole(Roles.ACCOUNTS) {
+        Offer storage o = _offerIn(offerId, OfferStatus.Approved);
+        uint64 remaining = pausedRemaining[offerId];
+        if (remaining == 0) revert DealNotOnHold(offerId);
+        delete pausedRemaining[offerId];
+        o.paymentDueAt = uint64(block.timestamp) + remaining;
+        emit DealResumed(offerId, o.paymentDueAt, msg.sender);
+    }
+
+    /// @notice Release a deal left unpaid past its deadline. Callable by anyone;
+    /// not one on hold.
     function expireDeal(uint256 offerId) external {
         Offer storage o = _offerIn(offerId, OfferStatus.Approved);
+        if (pausedRemaining[offerId] != 0) revert DealOnHold(offerId);
         if (block.timestamp < o.paymentDueAt) revert DealNotYetDue(offerId, o.paymentDueAt);
         _releaseDeal(o, OfferStatus.Expired);
         emit DealExpired(offerId);
     }
 
     /// @notice Accounts saw the buyer pay for a deal. For a receipt, the sold
-    /// quantity splits off into a receipt owned by the buyer.
+    /// quantity splits off into a receipt owned by the buyer. A deal on hold
+    /// (payment under review) is confirmed whatever the time.
     function confirmBuyerPayment(uint256 offerId, bytes32 paymentRefHash) external onlyRole(Roles.ACCOUNTS) {
         Offer storage o = _offerIn(offerId, OfferStatus.Approved);
-        if (block.timestamp >= o.paymentDueAt) revert PaymentOverdue(offerId, o.paymentDueAt);
+        if (pausedRemaining[offerId] == 0 && block.timestamp >= o.paymentDueAt) {
+            revert PaymentOverdue(offerId, o.paymentDueAt);
+        }
+        delete pausedRemaining[offerId];
         if (paymentRefHash == bytes32(0)) revert ZeroValue();
         if (paymentRefUsed[paymentRefHash]) revert PaymentRefAlreadyUsed(paymentRefHash);
         paymentRefUsed[paymentRefHash] = true;

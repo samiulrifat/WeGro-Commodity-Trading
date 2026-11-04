@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, Repository } from 'typeorm';
+import { IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { ChainClock } from '../../blockchain/chain-clock';
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
 import { KeyService } from '../../blockchain/keys/key.service';
@@ -13,7 +13,7 @@ import { ScheduledJob } from '../../common/jobs/scheduled-job';
 import { Offer } from './entities/offer.entity';
 import { OfferStatus } from './trade.enums';
 
-/** Releases deals left unpaid past their deadline, returning the quantity to the listing. */
+/** Releases deals left unpaid past their deadline (not those on hold), returning the quantity to the listing. */
 @Injectable()
 @ScheduledJob({
   name: 'deal-expiry',
@@ -35,6 +35,8 @@ export class DealExpiryJob extends ExpiryJob<number> {
       where: {
         status: OfferStatus.APPROVED,
         paymentDueAt: LessThanOrEqual(chainNow),
+        // On hold while a payment proof is reviewed: the clock is stopped.
+        pausedRemaining: IsNull(),
       },
       select: { id: true },
       order: { paymentDueAt: 'ASC' },

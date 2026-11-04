@@ -233,10 +233,18 @@ export function DealCard({ offer: o }: { offer: OfferDto }) {
         {o.paymentDueAt && o.status === 'approved' && (
           <span className="text-muted-foreground">
             {' · '}
-            {t('market.payBy', { date: fmt.dateTime(o.paymentDueAt) })}
+            {o.onHold
+              ? t('booking.onHold')
+              : t('market.payBy', { date: fmt.dateTime(o.paymentDueAt) })}
           </span>
         )}
       </p>
+      {o.status === 'approved' && o.paid != null && o.underReview != null && (
+        <p className="text-sm text-muted-foreground">
+          {t('booking.paid')}: {fmt.taka(o.paid)} · {t('booking.underReview')}:{' '}
+          {fmt.taka(o.underReview)}
+        </p>
+      )}
       <OfferStatus offer={o} />
     </article>
   );

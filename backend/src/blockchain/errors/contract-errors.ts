@@ -81,6 +81,8 @@ export const CONTRACT_ERROR_STATUS: Record<string, HttpStatus> = {
   ParticipantAlreadyRegistered: HttpStatus.CONFLICT,
   PaymentOverdue: HttpStatus.CONFLICT,
   DealNotYetDue: HttpStatus.CONFLICT,
+  DealOnHold: HttpStatus.CONFLICT,
+  DealNotOnHold: HttpStatus.CONFLICT,
   PaymentRefAlreadyUsed: HttpStatus.CONFLICT,
   PaymentRefUsed: HttpStatus.CONFLICT,
   ProjectExists: HttpStatus.CONFLICT,

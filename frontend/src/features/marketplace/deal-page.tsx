@@ -47,11 +47,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useObjectUrl } from '@/features/farm-updates/hooks';
+import { PayTo } from '@/features/projects/booking-page';
+import { toPoisha } from '@/features/projects/project-math';
+import { ProofDialog } from '@/features/projects/proof-dialog';
 import { shrinkPhoto } from '@/features/farm-updates/photo';
 import { receiptNumber } from '@/features/warehouse/receipt-utils';
 import { useFormat } from '@/i18n/use-format';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
+import { useDealProofsSubmitMutation } from './api';
+import { DealClock, DealPayment } from './deal-payment';
 import {
   DEAL_STEPS,
   FRESH,
@@ -68,6 +73,7 @@ type Move =
   | 'approve'
   | 'reject'
   | 'cancelDeal'
+  | 'pay'
   | 'payment'
   | 'deliver'
   | 'payout';
@@ -118,14 +124,17 @@ export function DealPage({ id }: { id: number }) {
     <div className="grid gap-6">
       {back}
       <Header offer={o} />
+      {role === 'buyer' && <DealClock offer={o} />}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="grid gap-6">
           <Money offer={o} />
+          <DealPayment offer={o} />
           <Deliveries offer={o} />
         </div>
         {/* On phones the moves come first, before the details. */}
         <div className="grid gap-6 max-lg:order-first">
           <Moves offer={o} />
+          {canPay(o, role) && <PayTo amount={o.remaining!} />}
           <Progress offer={o} />
         </div>
       </div>
@@ -133,9 +142,21 @@ export function DealPage({ id }: { id: number }) {
   );
 }
 
+/** The buyer has money still to send on a deal whose clock has not run out. */
+function canPay(o: OfferDto, role: Role): boolean {
+  return (
+    role === 'buyer' &&
+    o.status === 'approved' &&
+    !o.overdue &&
+    !!o.remaining &&
+    toPoisha(o.remaining) > 0n
+  );
+}
+
 function Header({ offer: o }: { offer: OfferDto }) {
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
+  const role = useAppSelector((s) => s.session.user!.role);
   return (
     <section className="grid gap-4 rounded-2xl bg-ink p-5 text-white sm:p-8">
       <OfferStatus offer={o} />
@@ -167,18 +188,23 @@ function Header({ offer: o }: { offer: OfferDto }) {
           {o.seller.kind === 'wegro' ? t('market.wegro') : o.seller.name}
         </span>
       </p>
-      {o.status === 'approved' && o.paymentDueAt && (
-        <p
-          className={cn(
-            'w-fit rounded-lg px-3 py-1.5 text-sm font-semibold text-white',
-            o.overdue ? 'bg-danger' : 'bg-warning',
-          )}
-        >
-          {o.overdue
-            ? t('market.overdueText')
-            : t('market.payBy', { date: fmt.dateTime(o.paymentDueAt) })}
-        </p>
-      )}
+      {/* The buyer's time to pay has its own banner below. */}
+      {o.status === 'approved' &&
+        o.paymentDueAt &&
+        (role !== 'buyer' || o.overdue) && (
+          <p
+            className={cn(
+              'w-fit rounded-lg px-3 py-1.5 text-sm font-semibold text-white',
+              o.overdue ? 'bg-danger' : 'bg-warning',
+            )}
+          >
+            {o.overdue
+              ? t('market.overdueText')
+              : o.onHold
+                ? t('booking.onHold')
+                : t('market.payBy', { date: fmt.dateTime(o.paymentDueAt) })}
+          </p>
+        )}
     </section>
   );
 }
@@ -422,6 +448,7 @@ function Moves({ offer: o }: { offer: OfferDto }) {
   const { t } = useTranslation();
   const role = useAppSelector((s) => s.session.user!.role);
   const [open, setOpen] = useState<Move | null>(null);
+  const [submitProof] = useDealProofsSubmitMutation();
   // Offers on WeGro's listings are WeGro's to decide; an outside seller decides their own.
   const decider = o.external ? role === 'seller' : actsAs(role, 'admin');
   const moves: Move[] = [];
@@ -430,7 +457,13 @@ function Moves({ offer: o }: { offer: OfferDto }) {
     if (decider) moves.push('approve', 'reject');
   }
   if (o.status === 'approved') {
-    if (actsAs(role, 'accounts') && !o.overdue) moves.push('payment');
+    if (canPay(o, role)) moves.push('pay');
+    // Paid without a proof in the app; once there are proofs, they decide it.
+    const nothingSent =
+      toPoisha(o.paid ?? '0') === 0n && toPoisha(o.underReview ?? '0') === 0n;
+    if (actsAs(role, 'accounts') && !o.overdue && nothingSent) {
+      moves.push('payment');
+    }
     if (actsAs(role, 'admin')) moves.push('cancelDeal');
   }
   if (o.status === 'paid') {
@@ -445,7 +478,9 @@ function Moves({ offer: o }: { offer: OfferDto }) {
       <CardHeader>
         <CardTitle className="text-lg">{t('market.manage')}</CardTitle>
         <CardDescription>
-          {t(`market.dealManageText.${o.status as 'pending'}`)}
+          {role === 'buyer' && o.status === 'approved'
+            ? t('market.payManageText')
+            : t(`market.dealManageText.${o.status as 'pending'}`)}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
@@ -470,10 +505,18 @@ function Moves({ offer: o }: { offer: OfferDto }) {
           onClose={() => setOpen(null)}
         />
       )}
+      {open === 'pay' && (
+        <ProofDialog
+          remaining={o.remaining!}
+          onSubmit={(body) => submitProof({ id: o.id, body }).unwrap()}
+          onClose={() => setOpen(null)}
+        />
+      )}
       {(open === 'payment' || open === 'payout') && (
         <ReferenceDialog offer={o} move={open} onClose={() => setOpen(null)} />
       )}
       {open &&
+        open !== 'pay' &&
         open !== 'deliver' &&
         open !== 'payment' &&
         open !== 'payout' && (

@@ -42,7 +42,7 @@ The [technical report](../Technical_Report.pdf) explains the internals module by
 4. **Local chain.** In a separate terminal, start the node and leave it running:
 
    ```bash
-   cd ../contracts && npx hardhat node
+   cd ../contracts && npx hardhat node --network devChain
    ```
 
 5. **Contracts, database and super admin in one step:**
@@ -149,6 +149,8 @@ Three kinds of listing are for sale: a warehouse receipt (`POST /api/listings/re
 `GET /api/listings` gives open listings by default, filtered by `source` (warehouse, fresh, seller), `status` (pending and rejected for staff only), produce, district or project, and searched by words of the produce or project or by the seller (`q`); `mine=true` gives a seller every listing of their own. A buyer offers on all or part of what is left at their own price (`POST /api/listings/:id/offers`). Offers on WeGro's listings are decided by an admin; on an outside seller's listing by that seller (`…/offers/:id/approve`, `…/reject`). An approved offer is a deal: its quantity is held until Accounts confirms the buyer's payment before the deadline (`…/offers/:id/payment`, the reference encrypted with only its hash on the ledger) or an admin cancels it. Once paid, the buyer and the one handing over (the site's operator, the farmer's officer or the outside seller) each confirm what changed hands (`…/offers/:id/delivery`, with an optional photo); counts that differ from the deal are flagged (`GET /api/offers?discrepancy=true`). Accounts then pays an outside seller the deal amount less their fee (`GET /api/offers?payoutDue=true`, `POST /api/offers/:id/seller-payout`, the reference again kept as a hash on the ledger), and the deal ends `seller_paid`. Offers are searched by number (`#12`), produce, buyer or seller (`q`). Buyers post what they want (`POST /api/buyer-requests`), each shown with the open listings that match it.
 
 The platform fee is a fixed amount per side, chosen by the deal total from slabs kept on the ledger (`TradeLedger.feeFor`, like a marketplace closing fee): up to ৳5,000 → ৳20, to ৳25,000 → ৳75, to ৳1,00,000 → ৳250, to ৳5,00,000 → ৳750, above → ৳1,500 to start. The buyer pays it on top of every deal; an outside seller also has it taken from their payout, while on WeGro's own listings the seller side pays none, so project income is not reduced. It is fixed when the offer is approved (`buyerFee`, `sellerFee`, `buyerPays`, `sellerReceives` on each offer). `GET /api/marketplace/fees` shows the slabs to everyone; the super admin changes them (`PUT /api/marketplace/fees`: rising limits, the last without one, at most 20), for offers approved from then on.
+
+A buyer pays for a deal as an investor pays for a booking: to WeGro's accounts (`GET /api/payment-accounts`), in one or more transfers adding up to what the deal shows as `buyerPays`, sending proof of each (`POST /api/offers/:id/proofs`, multipart: 1 to 3 photos or PDFs, the amount, the date, the method and, for a deposit or cheque, the branch by its routing number on the bank list). The first proof stops the deal's clock on the ledger (`pauseDeal`, signed by the buyer), so it cannot lapse while Accounts checks. Accounts reviews them on the buyer payments queue (`GET /api/deal-proofs`, searched by the buyer) and accepts each with the reference on the bank statement, used once (`POST /api/deal-proofs/:id/accept`), or rejects it with a reason (`.../reject`). With nothing left under review the clock runs on (`resumeDeal`) with the time it had left; when accepted proofs cover `buyerPays` the deal is confirmed on the ledger with their references. `POST /api/offers/:id/payment` stays for a deal paid without any proof in the app. Money accepted for a deal that then ended unpaid is refunded and recorded (`GET /api/deal-proofs?refund=due`, `POST /api/deal-proofs/:id/refund`). The files are encrypted at rest, opened only for the buyer and payment staff. Only the buyer and payment staff get a deal's `paid`, `underReview` and `remaining`.
 
 ### Insurance
 
@@ -325,7 +327,7 @@ The chain suite fails if code sends a second query on a database connection that
 |---|---|
 | `Invalid environment configuration: …` at startup | A setting is missing or malformed; the message names it. Compare with `.env.example`. |
 | `Contract deployment does not match the chain` at startup | The node was restarted without redeploying, so the contracts are gone. Run `npm run data:reset -- --yes …` (or redeploy, then reset the database). |
-| `Blockchain node … is not reachable yet` in the log | Start it: `cd ../contracts && npx hardhat node`. The API starts anyway; ledger calls answer 503 until the node is up. |
+| `Blockchain node … is not reachable yet` in the log | Start it: `cd ../contracts && npx hardhat node --network devChain`. The API starts anyway; ledger calls answer 503 until the node is up. |
 | Health shows a growing `indexerLag` | Check the log for indexer errors. On a remote node, lower `INDEXER_BATCH_BLOCKS`. |
 | Chain tests slow down over weeks of use | The local node keeps every block from every run. Stop it, start it again, then redeploy. |
 | A registration answers 503 `REGISTRATION_UNCONFIRMED` | The ledger did not confirm in time. It is confirmed automatically when the transaction lands, or use the participant's sync action. |

@@ -42,6 +42,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useFormat } from '@/i18n/use-format';
 import { useSecondsUntil } from '@/lib/use-seconds-until';
+import { usePaymentProofsSubmitMutation } from './api';
 import { ProofFileLink } from './proof-file-link';
 import { ProjectPhoto } from './project-card';
 import { toPoisha } from './project-math';
@@ -90,6 +91,7 @@ function Booking({ reservation: r }: { reservation: ReservationDto }) {
   const fmt = useFormat();
   const project = useProjectsFindOneQuery({ id: r.projectId }).data?.data;
   const proofs = usePaymentProofsForReservationQuery({ id: r.id });
+  const [submitProof] = usePaymentProofsSubmitMutation();
   const [uploading, setUploading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const pending = r.status === 'pending';
@@ -200,7 +202,11 @@ function Booking({ reservation: r }: { reservation: ReservationDto }) {
         </div>
       )}
       {uploading && (
-        <ProofDialog reservation={r} onClose={() => setUploading(false)} />
+        <ProofDialog
+          remaining={r.remaining}
+          onSubmit={(body) => submitProof({ id: r.id, body }).unwrap()}
+          onClose={() => setUploading(false)}
+        />
       )}
       {cancelling && (
         <CancelDialog reservation={r} onClose={() => setCancelling(false)} />
@@ -209,7 +215,7 @@ function Booking({ reservation: r }: { reservation: ReservationDto }) {
   );
 }
 
-function Amount({
+export function Amount({
   label,
   value,
   tone,
@@ -285,7 +291,7 @@ function Clock({ reservation: r }: { reservation: ReservationDto }) {
   );
 }
 
-function Banner({
+export function Banner({
   tone,
   icon,
   title,
@@ -315,7 +321,7 @@ function Banner({
 }
 
 /** WeGro's accounts with copy buttons, and the exact amount to send. */
-function PayTo({ amount }: { amount: string }) {
+export function PayTo({ amount }: { amount: string }) {
   const { t } = useTranslation();
   const fmt = useFormat();
   const accounts = usePaymentAccountsInUseQuery().data?.data ?? [];
@@ -394,13 +400,26 @@ const PROOF_TONE = {
   rejected: 'danger',
 } as const;
 
-/** What the investor sent, and what Accounts decided. */
-function Proofs({
+/** What the payer sent, and what Accounts decided. */
+export function Proofs({
   loading,
   proofs,
 }: {
   loading: boolean;
-  proofs: PaymentProofDto[];
+  proofs: Pick<
+    PaymentProofDto,
+    | 'id'
+    | 'amount'
+    | 'status'
+    | 'method'
+    | 'bankName'
+    | 'branchName'
+    | 'transferredOn'
+    | 'reference'
+    | 'rejectionReason'
+    | 'refund'
+    | 'files'
+  >[];
 }) {
   const { t } = useTranslation();
   const fmt = useFormat();

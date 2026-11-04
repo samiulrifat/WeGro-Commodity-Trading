@@ -506,10 +506,8 @@ export class TradeService {
   }
 
   /**
-   * Accounts confirms the buyer paid, before the deadline. The reference is
-   * saved encrypted first (only one confirmation in flight per deal); the
-   * ledger gets its keyed hash and refuses to accept it twice. For a
-   * receipt, the bought quantity splits off to the buyer.
+   * Accounts confirms a deal paid without proofs in the app (proofs are
+   * accepted one by one instead, which confirms the deal when they add up).
    */
   async confirmPayment(
     actor: AuthUser,
@@ -525,9 +523,35 @@ export class TradeService {
         code: ErrorCode.PAYMENT_REF_INVALID,
       });
     }
+    const { paid, underReview } = (await this.payments([id])).get(id) ?? NONE;
+    if (paid > 0n || underReview > 0n) {
+      throw new ConflictException({
+        message: 'This deal has payment proofs: review them instead',
+        code: ErrorCode.DEAL_PROOFS_TO_REVIEW,
+      });
+    }
+    return this.confirmWith(actor, id, ref);
+  }
+
+  /**
+   * The buyer paid, before the deadline or with the clock stopped. The
+   * reference (already normalised; several proofs' are combined by the
+   * caller) is saved encrypted first, with only one confirmation in flight
+   * per deal; the ledger gets its keyed hash and refuses to accept it twice.
+   * For a receipt, the bought quantity splits off to the buyer.
+   */
+  async confirmWith(
+    actor: AuthUser,
+    id: number,
+    ref: string,
+  ): Promise<OfferDto> {
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const offer = await this.offerIn(id, [OfferStatus.APPROVED]);
-    if (offer.paymentDueAt && offer.paymentDueAt <= (await this.clock.now())) {
+    if (
+      offer.pausedRemaining === null &&
+      offer.paymentDueAt &&
+      offer.paymentDueAt <= (await this.clock.now())
+    ) {
       throw new ConflictException({
         message: 'The payment deadline for this deal has passed',
         code: ErrorCode.PAYMENT_OVERDUE,
@@ -582,6 +606,42 @@ export class TradeService {
       throw error;
     }
     return this.offerOne(actor, id);
+  }
+
+  /** Accepted and under-review money per deal, in one query. */
+  async payments(
+    ids: number[],
+  ): Promise<Map<number, { paid: bigint; underReview: bigint }>> {
+    if (ids.length === 0) return new Map();
+    const rows: Array<{
+      offer_id: string;
+      paid: string;
+      review: string;
+    }> = await this.offers.query(
+      `SELECT offer_id,
+                COALESCE(SUM(amount) FILTER (WHERE status = 'accepted'), 0) AS paid,
+                COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0) AS review
+           FROM deal_proofs
+          WHERE offer_id = ANY($1::bigint[])
+          GROUP BY offer_id`,
+      [ids],
+    );
+    return new Map(
+      rows.map((r) => [
+        Number(r.offer_id),
+        { paid: BigInt(r.paid), underReview: BigInt(r.review) },
+      ]),
+    );
+  }
+
+  /** Stops the clock with the buyer's own key, as their proof arrives. */
+  async pauseOnLedger(actor: AuthUser, id: number): Promise<void> {
+    await this.send(actor, (c) => c.pauseDeal.populateTransaction(id));
+  }
+
+  /** Accounts restarts the clock once no proof is under review. */
+  async resumeOnLedger(actor: AuthUser, id: number): Promise<void> {
+    await this.send(actor, (c) => c.resumeDeal.populateTransaction(id));
   }
 
   /**
@@ -1172,6 +1232,9 @@ export class TradeService {
       deliveries.map((d) => [`${d.offerId}:${d.side}`, d]),
     );
     const seesPayments = SEES_PAYMENTS.has(actor.role);
+    // What was sent is between the buyer and those who check payments.
+    const seesMoney = seesPayments || actor.role === Role.BUYER;
+    const money = seesMoney ? await this.payments(ids) : new Map();
     const view = (o: Offer, side: DeliverySide): DeliveryViewDto | null => {
       const d = bySide.get(`${o.id}:${side}`);
       return d
@@ -1192,6 +1255,8 @@ export class TradeService {
       const listing = listingOf.get(o.listingId);
       const external = !!listing && listing.projectId === null;
       const amount = o.unitPrice * BigInt(o.quantity);
+      const { paid, underReview } = money.get(o.id) ?? NONE;
+      const onHold = o.pausedRemaining !== null;
       return {
         id: o.id,
         listingId: o.listingId,
@@ -1205,8 +1270,19 @@ export class TradeService {
         paymentDueAt: o.paymentDueAt,
         overdue:
           o.status === OfferStatus.APPROVED &&
+          !onHold &&
           !!o.paymentDueAt &&
           o.paymentDueAt <= now,
+        onHold,
+        pausedRemainingSeconds: o.pausedRemaining,
+        ...(seesMoney && {
+          paid: poishaToTaka(paid),
+          underReview: poishaToTaka(underReview),
+          remaining:
+            o.buyerFee == null
+              ? null
+              : poishaToTaka(leftToPay(amount + o.buyerFee, paid, underReview)),
+        }),
         paidAt: o.paidAt,
         receiptPartId: o.receiptPartId,
         buyerDelivery,
@@ -1239,6 +1315,14 @@ export class TradeService {
       };
     });
   }
+}
+
+const NONE = { paid: 0n, underReview: 0n };
+
+/** What the buyer still has to send; never below nothing. */
+function leftToPay(total: bigint, paid: bigint, underReview: bigint): bigint {
+  const left = total - paid - underReview;
+  return left > 0n ? left : 0n;
 }
 
 const offerContext = (id: number) => `offers.payment_ref:${id}`;

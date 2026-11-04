@@ -43,8 +43,8 @@ export const QUEUE_LIST: Record<QueueKey, Target> = {
   'vouchers.inactive': { to: '/vouchers', search: { tab: 'inactive' } },
   'offers.pending': { to: '/marketplace/deals', search: { tab: 'pending' } },
   'deals.awaiting-payment': {
-    to: '/marketplace/deals',
-    search: { tab: 'approved' },
+    to: '/marketplace/payments',
+    search: { tab: 'deals' },
   },
   'deliveries.discrepancy': {
     to: '/marketplace/deliveries',

@@ -85,6 +85,7 @@ function BookingRefunds({
     limit: 20,
   });
   const [recording, setRecording] = useState<PaymentProofDto | null>(null);
+  const [refund] = usePaymentProofsRefundMutation();
   const rows = due.data?.data ?? [];
   return (
     <Card>
@@ -151,14 +152,12 @@ function BookingRefunds({
             amount={recording.amount}
             name={recording.investor.fullName}
             onClose={() => setRecording(null)}
-            onRecord={async (ref, record) => {
-              await record
-                .proof({
-                  id: recording.id,
-                  proofRefundDto: { paymentReference: ref },
-                })
-                .unwrap();
-            }}
+            onRecord={(ref) =>
+              refund({
+                id: recording.id,
+                proofRefundDto: { paymentReference: ref },
+              }).unwrap()
+            }
           />
         )}
       </CardContent>
@@ -202,6 +201,7 @@ function ProjectRefunds({ project: p }: { project: ProjectDto }) {
   const role = useAppSelector((s) => s.session.user!.role);
   const lines = useProjectsRefundsQuery({ id: p.id });
   const [recording, setRecording] = useState<RefundLineDto | null>(null);
+  const [refund] = useProjectsRecordRefundMutation();
   return (
     <section className="grid gap-2 rounded-xl border p-4" aria-label={p.title}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -252,17 +252,15 @@ function ProjectRefunds({ project: p }: { project: ProjectDto }) {
           amount={recording.amount}
           name={recording.investor.fullName}
           onClose={() => setRecording(null)}
-          onRecord={async (ref, record) => {
-            await record
-              .project({
-                id: p.id,
-                recordRefundDto: {
-                  investorId: recording.investor.id,
-                  paymentReference: ref,
-                },
-              })
-              .unwrap();
-          }}
+          onRecord={(ref) =>
+            refund({
+              id: p.id,
+              recordRefundDto: {
+                investorId: recording.investor.id,
+                paymentReference: ref,
+              },
+            }).unwrap()
+          }
         />
       )}
     </section>
@@ -270,7 +268,7 @@ function ProjectRefunds({ project: p }: { project: ProjectDto }) {
 }
 
 /** The reference of the transfer back; recorded once. */
-function RefundDialog({
+export function RefundDialog({
   amount,
   name,
   onClose,
@@ -279,34 +277,29 @@ function RefundDialog({
   amount: string;
   name: string;
   onClose: () => void;
-  onRecord: (
-    ref: string,
-    record: {
-      proof: ReturnType<typeof usePaymentProofsRefundMutation>[0];
-      project: ReturnType<typeof useProjectsRecordRefundMutation>[0];
-    },
-  ) => Promise<void>;
+  onRecord: (ref: string) => Promise<unknown>;
 }) {
   const { t } = useTranslation();
   const fmt = useFormat();
-  const [proof, proofState] = usePaymentProofsRefundMutation();
-  const [project, projectState] = useProjectsRecordRefundMutation();
+  const [busy, setBusy] = useState(false);
   const [ref, setRef] = useState('');
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const empty = ref.trim() === '';
-  const busy = proofState.isLoading || projectState.isLoading;
   async function submit(e: FormEvent) {
     e.preventDefault();
     setTried(true);
     if (empty) return;
     setError(null);
+    setBusy(true);
     try {
-      await onRecord(ref.trim(), { proof, project });
+      await onRecord(ref.trim());
       toast.success(t('refunds.recorded'));
       onClose();
     } catch (err) {
       setError(toApiError(err as never));
+    } finally {
+      setBusy(false);
     }
   }
   return (

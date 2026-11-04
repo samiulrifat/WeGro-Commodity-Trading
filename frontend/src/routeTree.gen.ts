@@ -36,6 +36,7 @@ import { Route as AppMarketplaceApprovalsRouteImport } from './routes/_app/marke
 import { Route as AppMarketplaceDeliveriesRouteImport } from './routes/_app/marketplace/deliveries'
 import { Route as AppMarketplaceFeesRouteImport } from './routes/_app/marketplace/fees'
 import { Route as AppMarketplaceMineRouteImport } from './routes/_app/marketplace/mine'
+import { Route as AppMarketplacePaymentsRouteImport } from './routes/_app/marketplace/payments'
 import { Route as AppMarketplacePayoutsRouteImport } from './routes/_app/marketplace/payouts'
 import { Route as AppMarketplaceRequestsRouteImport } from './routes/_app/marketplace/requests'
 import { Route as AppOffersIndexRouteImport } from './routes/_app/offers/index'
@@ -238,6 +239,11 @@ const AppMarketplaceFeesRoute = AppMarketplaceFeesRouteImport.update({
 const AppMarketplaceMineRoute = AppMarketplaceMineRouteImport.update({
   id: '/marketplace/mine',
   path: '/marketplace/mine',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMarketplacePaymentsRoute = AppMarketplacePaymentsRouteImport.update({
+  id: '/marketplace/payments',
+  path: '/marketplace/payments',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMarketplacePayoutsRoute = AppMarketplacePayoutsRouteImport.update({
@@ -614,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
   '/marketplace/fees': typeof AppMarketplaceFeesRoute
   '/marketplace/mine': typeof AppMarketplaceMineRoute
+  '/marketplace/payments': typeof AppMarketplacePaymentsRoute
   '/marketplace/payouts': typeof AppMarketplacePayoutsRoute
   '/marketplace/requests': typeof AppMarketplaceRequestsRoute
   '/payouts/costs': typeof AppPayoutsCostsRoute
@@ -709,6 +716,7 @@ export interface FileRoutesByTo {
   '/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
   '/marketplace/fees': typeof AppMarketplaceFeesRoute
   '/marketplace/mine': typeof AppMarketplaceMineRoute
+  '/marketplace/payments': typeof AppMarketplacePaymentsRoute
   '/marketplace/payouts': typeof AppMarketplacePayoutsRoute
   '/marketplace/requests': typeof AppMarketplaceRequestsRoute
   '/payouts/costs': typeof AppPayoutsCostsRoute
@@ -806,6 +814,7 @@ export interface FileRoutesById {
   '/_app/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
   '/_app/marketplace/fees': typeof AppMarketplaceFeesRoute
   '/_app/marketplace/mine': typeof AppMarketplaceMineRoute
+  '/_app/marketplace/payments': typeof AppMarketplacePaymentsRoute
   '/_app/marketplace/payouts': typeof AppMarketplacePayoutsRoute
   '/_app/marketplace/requests': typeof AppMarketplaceRequestsRoute
   '/_app/payouts/costs': typeof AppPayoutsCostsRoute
@@ -903,6 +912,7 @@ export interface FileRouteTypes {
     | '/marketplace/deliveries'
     | '/marketplace/fees'
     | '/marketplace/mine'
+    | '/marketplace/payments'
     | '/marketplace/payouts'
     | '/marketplace/requests'
     | '/payouts/costs'
@@ -998,6 +1008,7 @@ export interface FileRouteTypes {
     | '/marketplace/deliveries'
     | '/marketplace/fees'
     | '/marketplace/mine'
+    | '/marketplace/payments'
     | '/marketplace/payouts'
     | '/marketplace/requests'
     | '/payouts/costs'
@@ -1094,6 +1105,7 @@ export interface FileRouteTypes {
     | '/_app/marketplace/deliveries'
     | '/_app/marketplace/fees'
     | '/_app/marketplace/mine'
+    | '/_app/marketplace/payments'
     | '/_app/marketplace/payouts'
     | '/_app/marketplace/requests'
     | '/_app/payouts/costs'
@@ -1371,6 +1383,13 @@ declare module '@tanstack/react-router' {
       path: '/marketplace/mine'
       fullPath: '/marketplace/mine'
       preLoaderRoute: typeof AppMarketplaceMineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/marketplace/payments': {
+      id: '/_app/marketplace/payments'
+      path: '/marketplace/payments'
+      fullPath: '/marketplace/payments'
+      preLoaderRoute: typeof AppMarketplacePaymentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/marketplace/payouts': {
@@ -1859,6 +1878,7 @@ interface AppRouteChildren {
   AppMarketplaceDeliveriesRoute: typeof AppMarketplaceDeliveriesRoute
   AppMarketplaceFeesRoute: typeof AppMarketplaceFeesRoute
   AppMarketplaceMineRoute: typeof AppMarketplaceMineRoute
+  AppMarketplacePaymentsRoute: typeof AppMarketplacePaymentsRoute
   AppMarketplacePayoutsRoute: typeof AppMarketplacePayoutsRoute
   AppMarketplaceRequestsRoute: typeof AppMarketplaceRequestsRoute
   AppPayoutsCostsRoute: typeof AppPayoutsCostsRoute
@@ -1948,6 +1968,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMarketplaceDeliveriesRoute: AppMarketplaceDeliveriesRoute,
   AppMarketplaceFeesRoute: AppMarketplaceFeesRoute,
   AppMarketplaceMineRoute: AppMarketplaceMineRoute,
+  AppMarketplacePaymentsRoute: AppMarketplacePaymentsRoute,
   AppMarketplacePayoutsRoute: AppMarketplacePayoutsRoute,
   AppMarketplaceRequestsRoute: AppMarketplaceRequestsRoute,
   AppPayoutsCostsRoute: AppPayoutsCostsRoute,

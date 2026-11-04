@@ -132,11 +132,16 @@ export type NotificationKind =
   | 'deal.cancelled'
   | 'deal.expired'
   | 'deal.paid'
+  | 'deal-proof.submitted'
+  | 'deal-proof.accepted'
+  | 'deal-proof.rejected'
+  | 'deal-proof.refunded'
   | 'deal.buyer-paid'
   | 'deal.deliver'
   | 'deal.delivered'
   | 'delivery.mismatch'
   | 'request.posted'
+  | 'request.listing-added'
   | 'listing.awaiting-approval'
   | 'listing.approved'
   | 'listing.rejected'
@@ -175,7 +180,8 @@ export type NotificationKind =
   | 'system.indexer-behind'
   | 'system.indexer-failing'
   | 'system.resolved'
-  | 'system.proof-file-altered';
+  | 'system.proof-file-altered'
+  | 'system.deal-proof-file-altered';
 export type RecordLinkDto = {
   type: string;
   id: string;

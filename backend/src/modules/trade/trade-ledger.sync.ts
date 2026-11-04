@@ -20,6 +20,8 @@ const EVENTS = [
   'OfferApproved',
   'DealCancelled',
   'DealExpired',
+  'DealPaused',
+  'DealResumed',
   'BuyerPaymentConfirmed',
   'DeliveryConfirmed',
   'DealDelivered',
@@ -50,7 +52,9 @@ export class TradeLedgerSync implements OnModuleInit {
       await m.query(
         `UPDATE "listings" SET "status" = NULL, "available" = "quantity", "unpaid_deals" = 0, "closed_at" = NULL`,
       );
-      await m.query(`UPDATE "offers" SET "status" = NULL`);
+      await m.query(
+        `UPDATE "offers" SET "status" = NULL, "paused_remaining" = NULL, "hold_event_block" = -1, "hold_event_log" = -1`,
+      );
       await m.query(
         `UPDATE "deliveries" SET "status" = 'submitted', "recorded_at" = NULL`,
       );
@@ -222,6 +226,7 @@ export class TradeLedgerSync implements OnModuleInit {
           'approved',
           event.eventName === 'DealExpired' ? 'expired' : 'cancelled',
           when,
+          { sql: `, "paused_remaining" = NULL`, params: [] },
         );
         if (moved) {
           await m.query(
@@ -232,11 +237,32 @@ export class TradeLedgerSync implements OnModuleInit {
         return;
       }
 
+      case 'DealPaused':
+      case 'DealResumed': {
+        // Only the latest pause or resume counts, however often each is applied.
+        await m.query(
+          event.eventName === 'DealPaused'
+            ? `UPDATE "offers" SET "paused_remaining" = $4, "hold_event_block" = $2, "hold_event_log" = $3
+                WHERE "id" = $1 AND "status" = 'approved' AND ("hold_event_block", "hold_event_log") < ($2, $3)`
+            : `UPDATE "offers" SET "paused_remaining" = NULL, "payment_due_at" = to_timestamp($4), "hold_event_block" = $2, "hold_event_log" = $3
+                WHERE "id" = $1 AND "status" = 'approved' AND ("hold_event_block", "hold_event_log") < ($2, $3)`,
+          [
+            offerId,
+            event.blockNumber,
+            event.logIndex,
+            Number(
+              event.eventName === 'DealPaused' ? a.remaining : a.paymentDueAt,
+            ),
+          ],
+        );
+        return;
+      }
+
       case 'BuyerPaymentConfirmed': {
         const part =
           a.receiptPartId === ZERO_BYTES32 ? null : String(a.receiptPartId);
         const moved = await this.move(m, offerId, 'approved', 'paid', when, {
-          sql: `, "payment_ref_hash" = $5, "receipt_part_id" = $6, "paid_at" = $4`,
+          sql: `, "payment_ref_hash" = $5, "receipt_part_id" = $6, "paid_at" = $4, "paused_remaining" = NULL`,
           params: [String(a.paymentRefHash), part],
         });
         if (moved) {

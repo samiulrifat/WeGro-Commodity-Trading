@@ -7,7 +7,7 @@ import { KEY_INDEX_SEQUENCE } from '../blockchain/keys/key.service';
 import { SnakeNamingStrategy } from '../database/snake-naming.strategy';
 import { appContext } from '../scripts/app-context';
 import { writeCredentials } from './credentials-file';
-import { assertLocal } from '../scripts/local-only';
+import { assertLocal, bringClockToNow } from '../scripts/local-only';
 import { ensureSuperAdmin } from '../scripts/super-admin';
 import { Importer } from './import/importer';
 import { Seeder } from './seed/seeder';
@@ -108,6 +108,10 @@ export async function resetLocal(opts: ResetOptions): Promise<void> {
       rmSync(join(uploads, entry), { recursive: true, force: true });
   }
 
+  // Sample data runs from the chain's start and is brought up to now after;
+  // anything else is entered as of today.
+  if (!opts.seedScale) await bringClockToNow(log);
+
   // 5 and 6. Through the app.
   const app = await appContext();
   try {
@@ -147,6 +151,7 @@ export async function resetLocal(opts: ResetOptions): Promise<void> {
       log(
         `Sample data loaded: ${summary.people} people, ${summary.projects} projects. Sign-in details: ${file}`,
       );
+      await bringClockToNow(log);
     }
   } finally {
     await app.close();

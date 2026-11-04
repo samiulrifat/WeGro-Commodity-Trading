@@ -47,6 +47,7 @@ import {
   validQuantity,
   wholeNumber,
 } from './market-utils';
+import { SellerListingDialog } from './new-listing-dialog';
 import { useUnit } from '@/i18n/use-unit';
 import { useDistrictName } from '@/features/insurance/use-names';
 
@@ -61,7 +62,8 @@ const TONE = {
 /**
  * What buyers want to buy: produce, how much, the most they would pay and
  * until when, each with the open listings that already match. Buyers see
- * and manage their own (`mine`); sellers and WeGro see everyone's.
+ * and manage their own (`mine`); sellers and WeGro see everyone's. A seller
+ * answers with a listing of their own, never with an offer to the buyer.
  */
 export function RequestsList({
   search,
@@ -72,6 +74,7 @@ export function RequestsList({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const role = useAppSelector((s) => s.session.user!.role);
   const [posting, setPosting] = useState(false);
   const tab = search.tab === 'all' ? 'all' : 'open';
   const page = search.page ?? 1;
@@ -98,7 +101,11 @@ export function RequestsList({
       <PageHeader
         title={mine ? t('nav.requests') : t('nav.sub.buyerRequests')}
         description={
-          mine ? t('market.intro.myRequests') : t('market.intro.requests')
+          mine
+            ? t('market.intro.myRequests')
+            : role === 'seller'
+              ? t('market.intro.sellerRequests')
+              : t('market.intro.requests')
         }
         actions={
           mine && (
@@ -185,6 +192,7 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
   const fmt = useFormat();
   const user = useAppSelector((s) => s.session.user!);
   const [cancelling, setCancelling] = useState(false);
+  const [listing, setListing] = useState(false);
   const own = user.role === 'buyer' && r.buyer.id === user.id;
   return (
     <article className="grid gap-3 rounded-2xl border bg-card p-4 shadow-xs">
@@ -253,6 +261,21 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
         >
           {t('market.cancelRequest')}
         </Button>
+      )}
+      {user.role === 'seller' && r.status === 'open' && (
+        <Button
+          variant="outline"
+          className="justify-self-start"
+          onClick={() => setListing(true)}
+        >
+          <Plus /> {t('market.listThisProduce')}
+        </Button>
+      )}
+      {listing && (
+        <SellerListingDialog
+          initial={{ produce: r.produce.code, quantity: r.quantity }}
+          onClose={() => setListing(false)}
+        />
       )}
       {cancelling && (
         <CancelRequestDialog request={r} onClose={() => setCancelling(false)} />
