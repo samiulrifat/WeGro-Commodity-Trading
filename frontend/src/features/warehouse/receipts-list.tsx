@@ -25,6 +25,7 @@ import {
   type ReceiptTab,
 } from './receipt-utils';
 import { ReceiptStatus } from './status';
+import { holdsRole } from '@/app/navigation';
 
 const PAGE_SIZE = 12;
 const TABS: ReceiptTab[] = [
@@ -52,7 +53,8 @@ export function ReceiptsList({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
+  const role = user.role;
   const [issuing, setIssuing] = useState(false);
   const page = search.page ?? 1;
   const tab: ReceiptTab = handovers
@@ -80,7 +82,7 @@ export function ReceiptsList({
     ? t(
         `warehouse.handoversIntro.${role === 'field_officer' ? 'officer' : 'office'}`,
       )
-    : t(`warehouse.intro.${introKey(role)}`);
+    : t(`warehouse.intro.${introKey(user)}`);
 
   return (
     <div className="grid gap-6">
@@ -173,14 +175,14 @@ export function ReceiptsList({
   );
 }
 
-const introKey = (role: string) =>
-  role === 'warehouse'
+const introKey = (user: Parameters<typeof holdsRole>[0]) =>
+  user.role === 'warehouse'
     ? 'operator'
-    : role === 'farmer'
+    : user.role === 'farmer'
       ? 'farmer'
-      : role === 'buyer'
+      : holdsRole(user, 'buyer')
         ? 'buyer'
-        : role === 'field_officer'
+        : user.role === 'field_officer'
           ? 'officer'
           : 'office';
 
@@ -214,7 +216,9 @@ export function ReceiptCard({ receipt: r }: { receipt: ReceiptDto }) {
       </div>
       <p className="truncate text-sm">
         <span className="font-medium">{r.owner.name}</span>
-        <span className="text-muted-foreground"> · {r.project.name}</span>
+        {r.project.name && (
+          <span className="text-muted-foreground"> · {r.project.name}</span>
+        )}
       </p>
       <p className="text-sm text-muted-foreground">
         {r.site.name} ·{' '}

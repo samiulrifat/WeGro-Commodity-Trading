@@ -56,6 +56,16 @@ export function useItemText() {
         return p.change
           ? t('dashboard.item.bankChange')
           : t('dashboard.item.bankNew');
+      case 'payment-proofs.pending':
+        return t('dashboard.item.paymentProof', {
+          id: str(p, 'id'),
+          amount: fmt.taka(str(p, 'amount')),
+        });
+      case 'deal-proofs.pending':
+        return t('dashboard.item.dealProof', {
+          id: str(p, 'id'),
+          amount: fmt.taka(str(p, 'amount')),
+        });
       case 'reservations.pending':
         return t('dashboard.item.reservation', {
           id: str(p, 'id'),

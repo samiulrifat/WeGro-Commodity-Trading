@@ -4,11 +4,13 @@ import type { QueueDto, QueueItemDto } from '@/api/generated/dashboard';
 export const QUEUE_KEYS = [
   'participants.pending',
   'bank-accounts.pending',
+  'payment-proofs.pending',
   'reservations.pending',
   'vouchers.proposed',
   'voucher-sales.pending',
   'vouchers.inactive',
   'offers.pending',
+  'deal-proofs.pending',
   'deals.awaiting-payment',
   'deliveries.discrepancy',
   'handovers.pending',
@@ -37,11 +39,16 @@ export interface Target {
 export const QUEUE_LIST: Record<QueueKey, Target> = {
   'participants.pending': { to: '/people/pending' },
   'bank-accounts.pending': { to: '/people/bank-details' },
-  'reservations.pending': { to: '/projects/payments' },
+  'payment-proofs.pending': { to: '/projects/payments' },
+  'reservations.pending': {
+    to: '/projects/payments',
+    search: { tab: 'bookings' },
+  },
   'vouchers.proposed': { to: '/vouchers/pending' },
   'voucher-sales.pending': { to: '/vouchers/sales' },
   'vouchers.inactive': { to: '/vouchers', search: { tab: 'inactive' } },
   'offers.pending': { to: '/marketplace/deals', search: { tab: 'pending' } },
+  'deal-proofs.pending': { to: '/marketplace/payments' },
   'deals.awaiting-payment': {
     to: '/marketplace/payments',
     search: { tab: 'deals' },
@@ -71,6 +78,10 @@ export function itemPath(key: QueueKey, item: QueueItemDto): string | null {
     case 'participants.pending':
     case 'bank-accounts.pending':
       return item.person ? `/people/${item.person.id}` : null;
+    case 'payment-proofs.pending':
+      return '/projects/payments';
+    case 'deal-proofs.pending':
+      return '/marketplace/payments';
     case 'reservations.pending':
     case 'voucher-sales.pending':
       return project;

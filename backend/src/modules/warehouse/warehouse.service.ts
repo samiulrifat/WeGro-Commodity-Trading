@@ -50,7 +50,7 @@ import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { ChainState, User } from '../users/entities/user.entity';
 import { PersonSearch } from '../users/person-search';
-import { actsAs, ParticipantStatus, Role } from '../users/roles';
+import { actsAs, holdsRole, ParticipantStatus, Role } from '../users/roles';
 import type {
   CreateSiteDto,
   IssueReceiptDto,
@@ -557,7 +557,14 @@ export class WarehouseService {
       .createQueryBuilder('r')
       .where("r.status <> 'submitted'");
     await this.scope(actor, qb);
-    if (q.projectId) qb.andWhere('r.project_id = :pid', { pid: q.projectId });
+    if (q.projectId) {
+      // A buyer who can also invest must not learn which project their goods
+      // came from by asking for each in turn.
+      qb.andWhere(
+        holdsRole(actor, Role.BUYER) ? 'FALSE' : 'r.project_id = :pid',
+        { pid: q.projectId },
+      );
+    }
     if (q.siteId) qb.andWhere('r.site_id = :sid', { sid: q.siteId });
     if (q.status) qb.andWhere('r.status = :st', { st: q.status });
     if (q.expiresBy) {
@@ -576,7 +583,7 @@ export class WarehouseService {
       .skip(q.skip)
       .take(q.limit)
       .getManyAndCount();
-    return new Paginated(await this.dtos(rows), total, q);
+    return new Paginated(await this.dtos(actor, rows), total, q);
   }
 
   async findOne(actor: AuthUser, id: string): Promise<ReceiptDetailDto> {
@@ -591,7 +598,7 @@ export class WarehouseService {
         code: ErrorCode.RECEIPT_NOT_FOUND,
       });
     const [[dto], rechecks, children] = await Promise.all([
-      this.dtos([receipt]),
+      this.dtos(actor, [receipt]),
       this.rechecks.find({
         where: { receiptId: id },
         order: { createdAt: 'ASC' },
@@ -817,6 +824,10 @@ export class WarehouseService {
     qb: SelectQueryBuilder<WarehouseReceipt>,
   ): Promise<void> {
     if (STAFF.has(actor.role)) return;
+    if (holdsRole(actor, Role.BUYER)) {
+      qb.andWhere('r.owner_id = :me', { me: actor.id });
+      return;
+    }
     switch (actor.role) {
       case Role.WAREHOUSE:
         qb.andWhere('r.site_id = :site', {
@@ -837,9 +848,6 @@ export class WarehouseService {
                     WHERE p.id = r.project_id AND f.field_officer_id = :me)`,
           { me: actor.id },
         );
-        return;
-      case Role.BUYER:
-        qb.andWhere('r.owner_id = :me', { me: actor.id });
         return;
       default:
         qb.andWhere('FALSE');
@@ -890,7 +898,10 @@ export class WarehouseService {
   }
 
   /** One query each for projects, sites and names, whatever the page size. */
-  private async dtos(rows: WarehouseReceipt[]): Promise<ReceiptDto[]> {
+  private async dtos(
+    actor: AuthUser,
+    rows: WarehouseReceipt[],
+  ): Promise<ReceiptDto[]> {
     if (rows.length === 0) return [];
     const [projects, sites, now] = await Promise.all([
       this.projects.find({
@@ -916,7 +927,10 @@ export class WarehouseService {
         : undefined;
       return {
         id: r.id,
-        project: { id: r.projectId, name: project?.title ?? '' },
+        // A buyer never learns which farmer's project their goods came from.
+        project: holdsRole(actor, Role.BUYER)
+          ? { id: '', name: '' }
+          : { id: r.projectId, name: project?.title ?? '' },
         site: { id: r.siteId, name: siteName.get(r.siteId) ?? '' },
         owner: r.ownerIsWegro
           ? { kind: 'wegro' as const, id: null, name: 'WeGro' }

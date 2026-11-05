@@ -102,8 +102,8 @@ export function fakeServer(answer: (sent: Sent) => Reply | undefined) {
   return sent;
 }
 
-/** Signs `role` in (verified), in English, with nothing cached. */
-export async function signedInAs(role: Role) {
+/** Signs `role` in (verified), in English, with nothing cached; `extraRoles` if they chose several. */
+export async function signedInAs(role: Role, extraRoles?: Role[]) {
   await initI18n('en');
   await applyLanguage('en');
   store.dispatch(baseApi.util.resetApiState());
@@ -112,7 +112,7 @@ export async function signedInAs(role: Role) {
     tokenType: 'Bearer',
     expiresIn: 900,
     mustChangePassword: false,
-    user: { id: 'me', role, status: 'verified', language: 'en' },
+    user: { id: 'me', role, extraRoles, status: 'verified', language: 'en' },
   };
   store.dispatch(sessionStarted(tokens));
 }

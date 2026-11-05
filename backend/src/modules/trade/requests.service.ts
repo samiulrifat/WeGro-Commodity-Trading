@@ -23,7 +23,7 @@ import type { AuthUser } from '../auth/auth-user';
 import { CatalogService } from '../catalog/catalog.service';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectViews } from '../projects/project-views';
-import { Role } from '../users/roles';
+import { holdsRole, Role } from '../users/roles';
 import type {
   BuyerRequestDto,
   ListRequestsQueryDto,
@@ -38,6 +38,15 @@ import { ErrorCode } from '../../common/errors/error-code';
 
 /** Matches shown per request. */
 const MATCHES = 5;
+
+/** WeGro's office knows who is asking; nobody else in the marketplace does. */
+const STAFF: ReadonlySet<Role> = new Set([
+  Role.SUPER_ADMIN,
+  Role.ADMIN,
+  Role.OPERATIONS,
+  Role.ACCOUNTS,
+  Role.AUDITOR,
+]);
 
 /** Buyers' standing requests for produce (FR-19), each with the open listings that match. */
 @Injectable()
@@ -74,6 +83,7 @@ export class RequestsService {
     );
     await this.applier.apply(result);
     return this.one(
+      actor,
       Number(
         result.events.find((e) => e.name === 'RequestPosted')!.args.requestId,
       ),
@@ -97,7 +107,7 @@ export class RequestsService {
       c.cancelRequest.populateTransaction(id),
     );
     await this.applier.apply(result);
-    return this.one(id);
+    return this.one(actor, id);
   }
 
   async list(
@@ -113,7 +123,7 @@ export class RequestsService {
     }
     if (q.produceCode)
       qb.andWhere('r.produce_code = :pc', { pc: q.produceCode });
-    if (q.mine && actor.role === Role.BUYER)
+    if (q.mine && holdsRole(actor, Role.BUYER))
       qb.andWhere('r.buyer_id = :me', { me: actor.id });
     const text = (q.q ?? '').trim();
     if (text) {
@@ -126,7 +136,10 @@ export class RequestsService {
           ),
         )
         .map((p) => p.code);
-      const buyer = this.search.condition('r.buyer_id', text, 'Buyer');
+      // A match would tell a seller who a buyer is: only the office finds by person.
+      const buyer = STAFF.has(actor.role)
+        ? this.search.condition('r.buyer_id', text, 'Buyer')
+        : null;
       qb.andWhere(
         new Brackets((b) => {
           b.where('1 = 0');
@@ -143,17 +156,17 @@ export class RequestsService {
       .skip(q.skip)
       .take(q.limit)
       .getManyAndCount();
-    return new Paginated(await this.dtos(rows, now), total, q);
+    return new Paginated(await this.dtos(actor, rows, now), total, q);
   }
 
-  async one(id: number): Promise<BuyerRequestDto> {
+  async one(actor: AuthUser, id: number): Promise<BuyerRequestDto> {
     const request = await this.requests.findOneBy({ id });
     if (!request || request.status === null)
       throw new NotFoundException({
         message: 'Request not found',
         code: ErrorCode.REQUEST_NOT_FOUND,
       });
-    return (await this.dtos([request], await this.clock.now()))[0];
+    return (await this.dtos(actor, [request], await this.clock.now()))[0];
   }
 
   /**
@@ -161,6 +174,7 @@ export class RequestsService {
    * produce, cheapest first; each request then takes those with enough available.
    */
   private async dtos(
+    actor: AuthUser,
     rows: BuyerRequest[],
     now: Date,
   ): Promise<BuyerRequestDto[]> {
@@ -209,7 +223,10 @@ export class RequestsService {
       list.push(l);
       byProduce.set(l.produceCode, list);
     }
-    const names = await this.views.names(rows.map((r) => r.buyerId));
+    const knows = (id: string) => STAFF.has(actor.role) || id === actor.id;
+    const names = await this.views.names(
+      rows.flatMap((r) => (knows(r.buyerId) ? [r.buyerId] : [])),
+    );
     return rows.map((r) => {
       const status =
         r.status === RequestStatus.CANCELLED
@@ -220,12 +237,18 @@ export class RequestsService {
       const matches =
         status === 'open'
           ? (byProduce.get(r.produceCode) ?? [])
-              .filter((l) => l.available >= r.quantity)
+              // Someone who also sells has no use for their own listing here.
+              .filter(
+                (l) => l.available >= r.quantity && l.sellerId !== r.buyerId,
+              )
               .slice(0, MATCHES)
           : [];
       return {
         id: r.id,
-        buyer: { id: r.buyerId, name: names.get(r.buyerId) ?? '' },
+        // Other buyers, sellers and officers never learn who is asking.
+        buyer: knows(r.buyerId)
+          ? { id: r.buyerId, name: names.get(r.buyerId) ?? '' }
+          : { id: null, name: null },
         produce: this.trade.produceRef(r.produceCode),
         quantity: r.quantity,
         maxUnitPrice: poishaToTaka(r.maxUnitPrice),

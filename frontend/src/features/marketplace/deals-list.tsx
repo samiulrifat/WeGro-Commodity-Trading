@@ -14,8 +14,16 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useFormat } from '@/i18n/use-format';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
-import { FRESH, type MarketSearch, produceName } from './market-utils';
+import {
+  buyerName,
+  findsOnDeals,
+  FRESH,
+  type MarketSearch,
+  produceName,
+  sellerName,
+} from './market-utils';
 import { OfferStatus } from './status';
+import { holdsRole } from '@/app/navigation';
 
 const PAGE_SIZE = 12;
 
@@ -89,12 +97,19 @@ export function DealsList({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
+  const role = user.role;
   const tabs = TABS[mode];
   const tab = tabs.find((x) => x === search.tab) ?? tabs[0]!;
   const page = search.page ?? 1;
   const query = useTradeListOffersQuery(
-    { page, limit: PAGE_SIZE, q: search.q, ...filter(tab) },
+    {
+      page,
+      limit: PAGE_SIZE,
+      q: search.q,
+      ...filter(tab),
+      ...sideOf(user, mode),
+    },
     FRESH,
   );
   const path = PATH[mode];
@@ -106,7 +121,7 @@ export function DealsList({
   const meta = query.data?.meta;
   const intro =
     mode === 'deals'
-      ? t(`market.dealsIntro.${introKey(role)}`)
+      ? t(`market.dealsIntro.${introKey(user)}`)
       : t(`market.intro.${mode}`);
 
   return (
@@ -139,7 +154,11 @@ export function DealsList({
         className="lg:max-w-xl"
         value={search.q}
         onSearch={(q) => set({ q })}
-        placeholder={t('market.searchDeals')}
+        placeholder={
+          findsOnDeals(role)
+            ? t('market.searchDeals')
+            : t('market.searchOwnDeals')
+        }
       />
       {query.isLoading && <LoadingState />}
       {query.error && (
@@ -180,14 +199,26 @@ export function DealsList({
   );
 }
 
-const introKey = (role: string) =>
-  role === 'seller'
+/**
+ * Someone who both buys and sells: My Offers is what they are buying, and
+ * the deals pages what they are selling.
+ */
+const sideOf = (
+  user: Parameters<typeof holdsRole>[0],
+  mode: DealsMode,
+): Partial<TradeListOffersApiArg> =>
+  holdsRole(user, 'buyer') && holdsRole(user, 'seller')
+    ? { side: mode === 'mine' ? 'buying' : 'selling' }
+    : {};
+
+const introKey = (user: Parameters<typeof holdsRole>[0]) =>
+  holdsRole(user, 'seller')
     ? 'seller'
-    : role === 'farmer'
+    : user.role === 'farmer'
       ? 'farmer'
-      : role === 'field_officer'
+      : user.role === 'field_officer'
         ? 'officer'
-        : role === 'warehouse'
+        : user.role === 'warehouse'
           ? 'operator'
           : 'office';
 
@@ -220,11 +251,8 @@ export function DealCard({ offer: o }: { offer: OfferDto }) {
         </p>
       </div>
       <p className="truncate text-sm">
-        <span className="font-medium">{o.buyer.name}</span>
-        <span className="text-muted-foreground">
-          {' '}
-          ← {o.seller.kind === 'wegro' ? t('market.wegro') : o.seller.name}
-        </span>
+        <span className="font-medium">{buyerName(o, t)}</span>
+        <span className="text-muted-foreground"> ← {sellerName(o, t)}</span>
       </p>
       <p className="text-sm">
         <span className="font-semibold">
@@ -262,7 +290,7 @@ export function OfferRow({ offer: o }: { offer: OfferDto }) {
     >
       <span className="grid min-w-0 gap-0.5">
         <span className="font-medium">
-          {t('market.offerNumber', { id: o.id })} · {o.buyer.name}
+          {t('market.offerNumber', { id: o.id })} · {buyerName(o, t)}
         </span>
         <span className="text-sm text-muted-foreground">
           {t('warehouse.quantityOf', {

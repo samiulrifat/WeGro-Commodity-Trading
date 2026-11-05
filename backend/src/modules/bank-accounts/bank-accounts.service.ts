@@ -22,7 +22,7 @@ import {
   type Note,
   NotificationWriter,
 } from '../notifications/notification-writer';
-import { Role } from '../users/roles';
+import { allRoles, Role } from '../users/roles';
 import type {
   BankAccountDto,
   BankAccountsDto,
@@ -273,7 +273,7 @@ export class BankAccountsService {
       userIds.length
         ? this.users.find({
             where: { id: In(userIds) },
-            select: { id: true, role: true },
+            select: { id: true, role: true, extraRoles: true },
           })
         : [],
       userIds.length
@@ -284,7 +284,13 @@ export class BankAccountsService {
         : [],
       this.views.names(userIds),
     ]);
-    const roleOf = new Map(owners.map((u) => [u.id, u.role]));
+    // Of someone with several roles: the one they are paid in.
+    const roleOf = new Map(
+      owners.map((u) => [
+        u.id,
+        allRoles(u).find((r) => PAYEE_ROLES.has(r)) ?? u.role,
+      ]),
+    );
     const hasVerified = new Set(changes.map((c) => c.userId));
     const items = rows.map((r, i) => ({
       ...views[i],
@@ -344,14 +350,14 @@ export class BankAccountsService {
   private async requirePayee(userId: string): Promise<void> {
     const user = await this.users.findOne({
       where: { id: userId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, extraRoles: true },
     });
     if (!user)
       throw new NotFoundException({
         message: 'Participant not found',
         code: ErrorCode.PARTICIPANT_NOT_FOUND,
       });
-    if (!PAYEE_ROLES.has(user.role)) {
+    if (!allRoles(user).some((r) => PAYEE_ROLES.has(r))) {
       throw new UnprocessableEntityException({
         message: 'Only farmers and investors receive payouts',
         code: ErrorCode.NOT_A_PAYEE,

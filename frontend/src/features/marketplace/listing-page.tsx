@@ -16,7 +16,7 @@ import {
   useTradeRejectListingMutation,
 } from '@/api/generated/marketplace';
 import { FormError } from '@/app/auth/form-error';
-import { actsAs } from '@/app/navigation';
+import { actsAs, holdsRole } from '@/app/navigation';
 import { ErrorState, LoadingState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,6 +56,7 @@ import {
   knownDistrict,
   produceName,
   sellerName,
+  sellsThis,
   validQuantity,
   wholeNumber,
 } from './market-utils';
@@ -72,9 +73,14 @@ type Move = 'offer' | 'approve' | 'reject' | 'cancel';
  */
 export function ListingPage({ id }: { id: number }) {
   const { t } = useTranslation();
-  // Sellers come here from their own listings.
-  const seller = useAppSelector((s) => s.session.user!.role) === 'seller';
+  const user = useAppSelector((s) => s.session.user!);
   const query = useTradeListingQuery({ id }, FRESH);
+  // Sellers come here from their own listings; someone who also buys, from
+  // browsing unless it is theirs.
+  const seller =
+    holdsRole(user, 'seller') &&
+    (!holdsRole(user, 'buyer') ||
+      (!!query.data && sellsThis(query.data.data, user)));
   const back = (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
@@ -141,9 +147,7 @@ function Header({ listing: l }: { listing: ListingDto }) {
         </p>
       </div>
       <p className="text-white/85">
-        <span className="font-semibold text-white">
-          {sellerName(l, t('market.wegro'))}
-        </span>
+        <span className="font-semibold text-white">{sellerName(l, t)}</span>
         {l.project && (
           <>
             {' · '}
@@ -318,7 +322,7 @@ function Details({ listing: l }: { listing: ListingDto }) {
 /** The offers made on this listing (a buyer sees only their own). */
 function Offers({ listing: l }: { listing: ListingDto }) {
   const { t } = useTranslation();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
   const query = useTradeListOffersQuery({ listingId: l.id, limit: 50 }, FRESH);
   const offers = query.data?.data ?? [];
   if (l.status === 'pending' || l.status === 'rejected') return null;
@@ -326,7 +330,9 @@ function Offers({ listing: l }: { listing: ListingDto }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">
-          {role === 'buyer' ? t('market.yourOffers') : t('market.offers')}
+          {holdsRole(user, 'buyer') && !sellsThis(l, user)
+            ? t('market.yourOffers')
+            : t('market.offers')}
         </CardTitle>
         {query.data && (
           <CardDescription>
@@ -358,10 +364,10 @@ function Moves({ listing: l }: { listing: ListingDto }) {
   const [open, setOpen] = useState<Move | null>(null);
   const role = user.role;
   const live = l.status === 'open' || l.status === 'pending';
-  const ownSeller = role === 'seller' && l.seller.id === user.id;
+  const ownSeller = sellsThis(l, user);
+  const mayOffer = holdsRole(user, 'buyer') && !ownSeller;
   const moves: Move[] = [];
-  if (role === 'buyer' && l.status === 'open' && l.available > 0)
-    moves.push('offer');
+  if (mayOffer && l.status === 'open' && l.available > 0) moves.push('offer');
   if (actsAs(role, 'admin') && l.status === 'pending')
     moves.push('approve', 'reject');
   if (
@@ -377,7 +383,7 @@ function Moves({ listing: l }: { listing: ListingDto }) {
       <CardHeader>
         <CardTitle className="text-lg">{t('market.manage')}</CardTitle>
         <CardDescription>
-          {t(`market.manageText.${moveText(l, role, ownSeller)}`)}
+          {t(`market.manageText.${moveText(l, mayOffer, ownSeller)}`)}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
@@ -410,8 +416,8 @@ function Moves({ listing: l }: { listing: ListingDto }) {
   );
 }
 
-const moveText = (l: ListingDto, role: string, ownSeller: boolean) =>
-  role === 'buyer'
+const moveText = (l: ListingDto, mayOffer: boolean, ownSeller: boolean) =>
+  mayOffer
     ? 'buyer'
     : l.status === 'pending'
       ? ownSeller
@@ -459,7 +465,7 @@ function ConfirmDialog({
               produce: produceName(l.produce, i18n.resolvedLanguage === 'bn'),
               quantity: fmt.number(l.available),
               unit: l.produce.unit,
-              seller: sellerName(l, t('market.wegro')),
+              seller: sellerName(l, t),
             })}
           </DialogDescription>
         </DialogHeader>

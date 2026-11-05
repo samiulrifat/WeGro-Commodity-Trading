@@ -228,6 +228,17 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "listingId",
+        "type": "uint256"
+      }
+    ],
+    "name": "OwnListing",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "offerId",
         "type": "uint256"
       },

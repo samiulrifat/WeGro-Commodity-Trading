@@ -442,6 +442,7 @@ export const bn: Translation = {
       DEALS_PENDING:
         '{{unpaidDeals, number}}টি অনুমোদিত চুক্তি এখনও পেমেন্টের অপেক্ষায়।',
       EXCEEDS_AVAILABLE: 'মাত্র {{available, number}} পাওয়া যাচ্ছে।',
+      OWN_LISTING: 'এটি আপনার নিজের তালিকা।',
       OFFER_NOT_FOUND: 'এই প্রস্তাবটি খুঁজে পাওয়া যায়নি।',
       OFFER_DECIDE_NOT_ALLOWED:
         'প্রস্তাবের সিদ্ধান্ত নেন WeGro-এর অ্যাডমিন, অথবা নিজের তালিকায় বিক্রেতা নিজে।',
@@ -452,6 +453,8 @@ export const bn: Translation = {
       OFFER_WRONG_STATUS: 'এই প্রস্তাবটি {{status, word}}।',
       PAYMENT_OVERDUE: 'এই চুক্তির পেমেন্টের সময়সীমা পার হয়ে গেছে।',
       DEAL_CONFIRMING: 'এই চুক্তিটি নিশ্চিত করা হচ্ছে।',
+      CONTACT_DETAILS_NOT_ALLOWED:
+        'ফোন নম্বর, ইমেইল ঠিকানা ও লিংক সরিয়ে দিন: প্রতিটি হস্তান্তরের ব্যবস্থা WeGro করে।',
       DEAL_PROOFS_TO_REVIEW:
         'এই চুক্তিতে পরিশোধের প্রমাণ আছে: বরং সেগুলো যাচাই করুন।',
       DEAL_PROOF_ALREADY_REFUNDED: 'এই পরিশোধের অর্থ আগেই ফেরত দেওয়া হয়েছে।',
@@ -798,6 +801,9 @@ export const bn: Translation = {
       'buyer-paid': {
         title: 'ক্রেতা চুক্তি #{{offerId}}-এর দাম পরিশোধ করেছেন',
       },
+      'arrange-handover': {
+        title: 'চুক্তি #{{offerId}} পরিশোধিত: হস্তান্তরের ব্যবস্থা করুন',
+      },
       'awaiting-payment': {
         title: 'চুক্তি #{{offerId}}: ক্রেতার পেমেন্ট এলে নিশ্চিত করুন',
       },
@@ -1075,12 +1081,14 @@ export const bn: Translation = {
   signUp: {
     title: 'আপনার অ্যাকাউন্ট তৈরি করুন',
     step: 'ধাপ {{n, number}} / {{of, number}}',
-    roleTitle: 'আমি চাই',
+    roleTitle: 'আমি চাই (এক বা একাধিক বেছে নিন)',
     roleHint: {
       investor: 'খামার প্রকল্পে বিনিয়োগ করতে ও তার অগ্রগতি দেখতে।',
       buyer: 'WeGro মার্কেটপ্লেস থেকে পণ্য কিনতে।',
       seller: 'WeGro মার্কেটপ্লেসে ক্রেতাদের কাছে নিজের পণ্য বিক্রি করতে।',
     },
+    severalRoles:
+      'যতগুলো খুশি বেছে নিন: একটি অ্যাকাউন্টেই প্রতিটির সব কাজ করা যাবে।',
     otherRoles:
       'কৃষকদের নিবন্ধন করেন তাঁদের মাঠ কর্মকর্তা, আর প্রতিষ্ঠানগুলোর (সরবরাহকারী, ব্যাংক, বীমাকারী, গুদাম) নিবন্ধন করে WeGro।',
     phoneNeeded:
@@ -2600,6 +2608,13 @@ export const bn: Translation = {
     noDeals: 'এখানে এখনও কোনো প্রস্তাব বা চুক্তি নেই।',
     noDealMatch: 'কোনো প্রস্তাব বা চুক্তি মেলেনি।',
     payBy: '{{date}}-এর মধ্যে পরিশোধ করুন',
+    searchByProduce: 'পণ্য',
+    searchOwnDeals: 'প্রস্তাব নম্বর বা পণ্য',
+    hiddenSeller: 'যাচাইকৃত বিক্রেতা',
+    hiddenBuyer: 'যাচাইকৃত ক্রেতা',
+    noContactHint: 'ফোন নম্বর, ইমেইল ঠিকানা বা লিংক দেবেন না।',
+    handoverText:
+      'হস্তান্তরের ব্যবস্থা WeGro করে; ক্রেতা ও বিক্রেতা একে অপরের পরিচয় জানেন না। যা হস্তান্তর হয়েছে তা নিশ্চিত করুন।',
     overdueText: 'পেমেন্টের সময় পেরিয়ে গেছে; চুক্তিটি বাতিল হবে।',
     payWithinText:
       'আপনার চুক্তি নিশ্চিত করতে {{at, datetime}}-এর মধ্যে সঠিক অঙ্ক পাঠান।',
@@ -3353,6 +3368,7 @@ export const bn: Translation = {
     event: {
       ParticipantRegistered: 'নিবন্ধিত',
       ParticipantSelfRegistered: 'নিজে নিবন্ধন করেছেন',
+      ParticipantExtraRole: 'আরও একটি ভূমিকা বেছে নিয়েছেন',
       ParticipantStatusChanged: 'অবস্থা বদলেছে',
       ParticipantDetailsUpdated: 'তথ্য হালনাগাদ',
       FieldOfficerAssigned: 'মাঠ কর্মকর্তা নিযুক্ত',
@@ -3616,13 +3632,19 @@ export const bn: Translation = {
     queue: {
       participants: { pending: 'যাচাইয়ের অপেক্ষায় নিবন্ধন' },
       'bank-accounts': { pending: 'যাচাইয়ের অপেক্ষায় ব্যাংক তথ্য' },
-      reservations: { pending: 'পেমেন্ট নিশ্চিতকরণের অপেক্ষায় বুকিং' },
+      'payment-proofs': {
+        pending: 'যাচাইয়ের অপেক্ষায় বিনিয়োগকারীর পেমেন্টের প্রমাণ',
+      },
+      reservations: { pending: 'পরিশোধের অপেক্ষায় বুকিং' },
       vouchers: {
         proposed: 'অনুমোদনের অপেক্ষায় ভাউচার',
         inactive: 'নিষ্ক্রিয়তার সীমা পেরোনো ভাউচার',
       },
       'voucher-sales': { pending: 'মাঠ কর্মকর্তার অপেক্ষায় উপকরণ বিক্রি' },
       offers: { pending: 'অনুমোদনের অপেক্ষায় প্রস্তাব' },
+      'deal-proofs': {
+        pending: 'যাচাইয়ের অপেক্ষায় ক্রেতার পেমেন্টের প্রমাণ',
+      },
       deals: { 'awaiting-payment': 'ক্রেতার পেমেন্টের অপেক্ষায় চুক্তি' },
       deliveries: { discrepancy: 'যে সরবরাহ মেলেনি' },
       handovers: { pending: 'অ্যাডমিনের অপেক্ষায় বাই-ব্যাক হস্তান্তর' },
@@ -3651,6 +3673,8 @@ export const bn: Translation = {
       registration: '{{role}} হিসেবে নিবন্ধন',
       bankNew: 'নতুন ব্যাংক তথ্য',
       bankChange: 'পরিবর্তিত ব্যাংক তথ্য',
+      paymentProof: 'বুকিং #{{id}}: {{amount}} পাঠানো হয়েছে',
+      dealProof: 'চুক্তি #{{id}}: {{amount}} পাঠানো হয়েছে',
       reservation_one: 'বুকিং #{{id}}: {{n}} ইউনিট',
       reservation_other: 'বুকিং #{{id}}: {{n}} ইউনিট',
       voucherProposed: '{{quantity}} {{input}}-এর ভাউচার, মূল্য {{value}}',
@@ -3687,8 +3711,8 @@ export const bn: Translation = {
     reserved_other: '{{n}}টি বুকিংয়ে আটকে',
     daysOpen_one: '{{n}} দিন খোলা',
     daysOpen_other: '{{n}} দিন খোলা',
-    pendingPayments_one: '{{n}}টি পেমেন্ট নিশ্চিত করা বাকি',
-    pendingPayments_other: '{{n}}টি পেমেন্ট নিশ্চিত করা বাকি',
+    pendingPayments_one: 'পরিশোধের অপেক্ষায় {{n}}টি বুকিং',
+    pendingPayments_other: 'পরিশোধের অপেক্ষায় {{n}}টি বুকিং',
     activeTitle: 'চলমান প্রকল্প',
     activeText_one: 'মাঠে {{n}}টি প্রকল্প, সবচেয়ে পুরোনোটি আগে।',
     activeText_other: 'মাঠে {{n}}টি প্রকল্প, সবচেয়ে পুরোনোটি আগে।',

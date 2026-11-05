@@ -23,7 +23,7 @@ import { IdentityCryptoService } from '../../common/crypto/identity-crypto.servi
 import type { EnvironmentVariables } from '../../config/env.validation';
 import type { AuthUser } from '../auth/auth-user';
 import { PersonSearch } from '../users/person-search';
-import { Role } from '../users/roles';
+import { holdsRole, Role } from '../users/roles';
 import type { ListReservationsQueryDto } from './dto/project-request.dto';
 import type {
   HoldingDto,
@@ -116,13 +116,16 @@ export class ReservationsService {
    */
   async cancel(actor: AuthUser, id: number): Promise<ReservationDto> {
     const reservation = await this.load(id);
-    if (actor.role === Role.INVESTOR && reservation.investorId !== actor.id) {
+    if (
+      holdsRole(actor, Role.INVESTOR) &&
+      reservation.investorId !== actor.id
+    ) {
       throw new NotFoundException({
         message: 'Reservation not found',
         code: ErrorCode.RESERVATION_NOT_FOUND,
       });
     }
-    if (actor.role === Role.INVESTOR) {
+    if (holdsRole(actor, Role.INVESTOR)) {
       const { paid, underReview } = (await this.payments([id])).get(id) ?? NONE;
       if (paid > 0n || underReview > 0n) {
         throw new ConflictException({
@@ -346,11 +349,11 @@ export class ReservationsService {
       .createQueryBuilder('r')
       .innerJoinAndSelect('r.project', 'p')
       .where('r.status IS NOT NULL');
-    if (actor.role === Role.INVESTOR)
+    if (holdsRole(actor, Role.INVESTOR))
       qb.andWhere('r.investor_id = :me', { me: actor.id });
     if (q.status) qb.andWhere('r.status = :status', { status: q.status });
     if (q.projectId) qb.andWhere('r.project_id = :pid', { pid: q.projectId });
-    if (actor.role !== Role.INVESTOR)
+    if (!holdsRole(actor, Role.INVESTOR))
       this.search.apply(qb, 'r.investor_id', q.q);
     const [rows, total] = await qb
       .orderBy('r.id', 'DESC')
@@ -368,7 +371,7 @@ export class ReservationsService {
     if (
       !row ||
       row.status === null ||
-      (actor.role === Role.INVESTOR && row.investorId !== actor.id)
+      (holdsRole(actor, Role.INVESTOR) && row.investorId !== actor.id)
     ) {
       throw new NotFoundException({
         message: 'Reservation not found',

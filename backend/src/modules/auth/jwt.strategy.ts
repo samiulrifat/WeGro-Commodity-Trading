@@ -45,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       select: {
         id: true,
         role: true,
+        extraRoles: true,
         status: true,
         chainState: true,
         keyIndex: true,
@@ -66,6 +67,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: user.id,
       role: user.role,
+      extraRoles: user.extraRoles,
       status: user.status,
       chainState: user.chainState,
       keyIndex: user.keyIndex,

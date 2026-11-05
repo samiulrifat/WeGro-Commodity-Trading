@@ -16,6 +16,13 @@ export class SessionUserDto {
   @ApiProperty({ enum: Role })
   role: Role;
 
+  @ApiPropertyOptional({
+    enum: Role,
+    isArray: true,
+    description: 'Further roles of someone who signed up with several',
+  })
+  extraRoles?: Role[];
+
   @ApiProperty({ enum: ParticipantStatus })
   status: ParticipantStatus;
 
@@ -53,6 +60,13 @@ export class MeResponseDto {
 
   @ApiProperty({ enum: Role })
   role: Role;
+
+  @ApiPropertyOptional({
+    enum: Role,
+    isArray: true,
+    description: 'Further roles of someone who signed up with several',
+  })
+  extraRoles?: Role[];
 
   @ApiProperty({ enum: ParticipantStatus })
   status: ParticipantStatus;

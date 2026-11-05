@@ -313,8 +313,10 @@ export class DashboardService {
              (SELECT COALESCE(SUM(amount), 0) FROM payout_lines WHERE paid_at IS NOT NULL)::text AS payouts`,
         ),
         this.dataSource.query<Array<{ role: string; n: string }>>(
-          `SELECT role, COUNT(*) AS n FROM users
-            WHERE status = 'verified' AND role <> 'super_admin' GROUP BY role`,
+          // Someone with several roles counts once in each.
+          `SELECT r.role, COUNT(*) AS n
+             FROM users u, unnest(ARRAY[u.role::text] || u.extra_roles) AS r(role)
+            WHERE u.status = 'verified' AND u.role <> 'super_admin' GROUP BY r.role`,
         ),
         series(
           `SELECT ${month('r.closed_at')} AS m, SUM(r.slots * p.slot_price)::text AS v

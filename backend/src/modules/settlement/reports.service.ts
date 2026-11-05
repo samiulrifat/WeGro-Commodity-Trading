@@ -16,7 +16,7 @@ import { Project } from '../projects/entities/project.entity';
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { User } from '../users/entities/user.entity';
 import { PersonalDetailsCodec } from '../users/personal-details.codec';
-import { Role } from '../users/roles';
+import { holdsRole, Role } from '../users/roles';
 import type {
   StatementDto,
   StatementProjectDto,
@@ -426,9 +426,12 @@ export class SettlementReportsService {
   ): Promise<StatementDto> {
     const user = await this.users.findOne({
       where: { id: payeeId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, extraRoles: true },
     });
-    if (!user || (user.role !== Role.INVESTOR && user.role !== Role.FARMER)) {
+    if (
+      !user ||
+      (!holdsRole(user, Role.INVESTOR) && !holdsRole(user, Role.FARMER))
+    ) {
       throw new NotFoundException({
         message: 'No statement for this participant',
         code: ErrorCode.NO_STATEMENT,
@@ -441,7 +444,7 @@ export class SettlementReportsService {
         message: 'to must not be before from',
         code: ErrorCode.PERIOD_REVERSED,
       });
-    const investor = user.role === Role.INVESTOR;
+    const investor = holdsRole(user, Role.INVESTOR);
 
     const [payouts, stakes, people] = await Promise.all([
       this.dataSource.query<

@@ -248,8 +248,11 @@ describe('Projects (node + database)', () => {
       ]);
     });
 
-    it('is visible to investors, buyers and its farmer now, and filterable', async () => {
-      await as(buyer).get(`/projects/${projectId}`).expect(200);
+    it('is visible to investors and its farmer now, not buyers, and filterable', async () => {
+      // A project names its farmer: buyers must not reach them around the platform.
+      await as(buyer).get(`/projects/${projectId}`).expect(403);
+      await as(buyer).get('/projects').expect(403);
+      await as(investor).get(`/projects/${projectId}`).expect(200);
       await as(farmerToken).get(`/projects/${projectId}`).expect(200);
       const filtered = await as(investor)
         .get(

@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsEnum,
   IsIn,
   IsOptional,
@@ -42,13 +45,22 @@ export class SignUpCodeRequestDto {
 }
 
 /**
- * Signing up as an investor or buyer: the same details as any registration,
- * the code sent to the number, and their own password.
+ * Signing up as one or more of investor, buyer and seller: the same details
+ * as any registration, the code sent to the number, and their own password.
+ * Someone choosing several holds all of them, their permissions merged.
  */
 export class SignUpDto extends OmitType(RegisterParticipantDto, ['role']) {
-  @ApiProperty({ enum: SELF_REGISTRABLE_ROLES })
-  @IsIn(SELF_REGISTRABLE_ROLES)
-  role: SelfRegistrableRole;
+  @ApiProperty({
+    enum: SELF_REGISTRABLE_ROLES,
+    isArray: true,
+    minItems: 1,
+    maxItems: SELF_REGISTRABLE_ROLES.length,
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(SELF_REGISTRABLE_ROLES, { each: true })
+  roles: SelfRegistrableRole[];
 
   @ApiProperty({ example: '482913', description: 'The 6 digits from the SMS' })
   @Matches(/^\d{6}$/)

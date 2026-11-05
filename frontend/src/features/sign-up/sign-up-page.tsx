@@ -53,7 +53,7 @@ import { cn } from '@/lib/utils';
 import { useAppDispatch } from '@/store/hooks';
 import { sessionStarted } from '@/store/session-slice';
 
-type Role = SignUpDto['role'];
+type Role = SignUpDto['roles'][number];
 type Step = 'role' | 'phone' | 'details' | 'password' | 'email' | 'created';
 const STEPS: readonly Step[] = ['role', 'phone', 'details', 'password'];
 const DETAILS: readonly DetailField[] = [
@@ -70,7 +70,8 @@ const ROLES: ReadonlyArray<{ role: Role; icon: typeof HandCoins }> = [
 ];
 
 /**
- * Signing up as an investor, buyer or seller, in steps: who they are, their number
+ * Signing up as one or more of investor, buyer and seller, in steps: what they
+ * want to do (with several, everything each allows, on one account), their number
  * (confirmed by an SMS code), their details, their password and, if they
  * like, an email address. They are registered and verified at once and
  * signed in; an email given is then confirmed by a code (or later, in My
@@ -85,7 +86,11 @@ export function SignUpPage() {
     : 'en';
 
   const [step, setStep] = useState<Step>('role');
-  const [role, setRole] = useState<Role | null>(null);
+  const [roles, setRoles] = useState<readonly Role[]>([]);
+  const toggle = (r: Role) =>
+    setRoles((now) =>
+      now.includes(r) ? now.filter((x) => x !== r) : [...now, r],
+    );
   const [person, setPerson] = useState<PersonDraft>(EMPTY_PERSON);
   const [password, setPassword] = useState<NewPassword>({
     value: '',
@@ -141,7 +146,7 @@ export function SignUpPage() {
       const { data } = await create({
         signUpDto: {
           ...personRequest(person),
-          role: role!,
+          roles: [...roles],
           phoneCode: phoneCode.digits,
           password: password.value,
           language,
@@ -210,16 +215,16 @@ export function SignUpPage() {
                 <button
                   key={r}
                   type="button"
-                  aria-pressed={role === r}
-                  onClick={() => setRole(r)}
+                  aria-pressed={roles.includes(r)}
+                  onClick={() => toggle(r)}
                   className={cn(
                     'relative grid gap-1 rounded-lg border p-4 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-                    role === r
+                    roles.includes(r)
                       ? 'border-ink bg-nav-active/40 ring-1 ring-ink'
                       : 'hover:bg-muted',
                   )}
                 >
-                  {role === r && (
+                  {roles.includes(r) && (
                     <CircleCheck
                       aria-hidden
                       className="absolute top-3 right-3 size-5 text-ink"
@@ -233,11 +238,12 @@ export function SignUpPage() {
                 </button>
               ))}
             </div>
+            <FieldDescription>{t('signUp.severalRoles')}</FieldDescription>
             <FieldDescription>{t('signUp.otherRoles')}</FieldDescription>
           </fieldset>
           <Nav
-            onNext={() => role && go('phone')}
-            nextDisabled={!role}
+            onNext={() => roles.length > 0 && go('phone')}
+            nextDisabled={roles.length === 0}
             back={<BackToSignIn />}
           />
         </div>

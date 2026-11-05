@@ -31,10 +31,18 @@ describe('Jobs on schedule (node + database)', () => {
       ).body.data.status;
     }
     expect(status).toBe('expired');
-    const history = await app
+    // The run is recorded just after its work is done.
+    let history = await app
       .as(app.t.admin)
       .get('/jobs/reservation-expiry/runs')
       .expect(200);
+    for (let i = 0; i < 40 && history.body.data.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      history = await app
+        .as(app.t.admin)
+        .get('/jobs/reservation-expiry/runs')
+        .expect(200);
+    }
     expect(history.body.data[0]).toMatchObject({
       trigger: 'schedule',
       outcome: 'ok',

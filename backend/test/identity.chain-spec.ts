@@ -1618,14 +1618,14 @@ describe('Identity (node + database)', () => {
         const base = { ...details, password };
         await http
           .post('/api/auth/sign-up')
-          .send({ ...base, role: 'farmer', phoneCode: '123456' })
+          .send({ ...base, roles: ['farmer'], phoneCode: '123456' })
           .expect(400);
         const code = codeIn(smsTo(me.phone));
         const wrong = await http
           .post('/api/auth/sign-up')
           .send({
             ...base,
-            role: 'investor',
+            roles: ['investor'],
             phoneCode: code === '000000' ? '111111' : '000000',
           })
           .expect(422);
@@ -1635,7 +1635,7 @@ describe('Identity (node + database)', () => {
         });
         const failed = await http
           .post('/api/auth/sign-up')
-          .send({ ...base, role: 'investor', phoneCode: code, address: 'x' })
+          .send({ ...base, roles: ['investor'], phoneCode: code, address: 'x' })
           .expect(422);
         expect(failed.body.code).toBe('ID_CHECK_FAILED');
       });
@@ -1646,7 +1646,7 @@ describe('Identity (node + database)', () => {
           .post('/api/auth/sign-up')
           .send({
             ...details,
-            role: 'investor',
+            roles: ['investor'],
             password,
             language: 'bn',
             phoneCode: codeIn(smsTo(me.phone)),
@@ -1692,7 +1692,7 @@ describe('Identity (node + database)', () => {
           .post('/api/auth/sign-up')
           .send({
             ...details,
-            role: 'seller',
+            roles: ['seller'],
             password,
             phoneCode: codeIn(smsTo(seller.phone)),
           })

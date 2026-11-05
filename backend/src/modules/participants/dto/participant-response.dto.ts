@@ -50,6 +50,13 @@ export class ParticipantSummaryDto {
   @ApiProperty({ enum: Role })
   role: Role;
 
+  @ApiProperty({
+    enum: Role,
+    isArray: true,
+    description: 'Further roles of someone who signed up with several',
+  })
+  extraRoles: Role[];
+
   @ApiProperty({ enum: ParticipantStatus })
   status: ParticipantStatus;
 
@@ -242,6 +249,9 @@ export class LedgerParticipantDto {
 
   @ApiPropertyOptional({ nullable: true, enum: Role })
   role: Role | null;
+
+  @ApiProperty({ enum: Role, isArray: true })
+  extraRoles: Role[];
 
   @ApiPropertyOptional({ nullable: true, type: String })
   account: string | null;

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import type {
   FeeSlabDto,
   ListingDto,
@@ -6,6 +7,7 @@ import type {
 } from '@/api/generated/marketplace';
 import { toPoisha, toTaka } from '@/features/projects/project-math';
 import { DISTRICTS, type District } from '@/api/generated/codes';
+import { holdsRole, type Role } from '@/app/navigation';
 import { latinDigits } from '@/lib/format';
 
 export type ListingStatus = ListingDto['status'];
@@ -54,8 +56,44 @@ export const addTaka = (a: string, b: string) =>
   toTaka(toPoisha(a) + toPoisha(b));
 
 /** WeGro, the farmer or the outside seller, as buyers see them. */
-export const sellerName = (l: Pick<ListingDto, 'seller'>, wegro: string) =>
-  l.seller.kind === 'wegro' ? wegro : l.seller.name;
+/**
+ * Who sells: WeGro by name; anyone else only for those the API tells, as
+ * buyers and sellers never learn who the other is.
+ */
+export const sellerName = (l: Pick<ListingDto, 'seller'>, t: TFunction) =>
+  l.seller.kind === 'wegro'
+    ? t('market.wegro')
+    : (l.seller.name ?? t('market.hiddenSeller'));
+
+/** Who buys, for those the API tells. */
+export const buyerName = (
+  o: { buyer: { name?: string | null } },
+  t: TFunction,
+) => o.buyer.name ?? t('market.hiddenBuyer');
+
+type Viewer = { id: string; role: Role; extraRoles?: readonly Role[] };
+
+/** This is the viewer's own offer: someone who also sells may be on the other side of another. */
+export const buysThis = (o: Pick<OfferDto, 'buyer'>, user: Viewer) =>
+  holdsRole(user, 'buyer') && o.buyer.id === user.id;
+
+/** The listing behind this is the viewer's own. */
+export const sellsThis = (l: Pick<ListingDto, 'seller'>, user: Viewer) =>
+  holdsRole(user, 'seller') && l.seller.id === user.id;
+
+/** Only these may find someone by name, number or NID: a match says who they are. */
+const OFFICE: ReadonlySet<Role> = new Set<Role>([
+  'super_admin',
+  'admin',
+  'operations',
+  'accounts',
+  'auditor',
+]);
+export const findsBuyers = (role: Role) => OFFICE.has(role);
+export const findsSellers = (role: Role) =>
+  OFFICE.has(role) || role === 'field_officer';
+export const findsOnDeals = (role: Role) =>
+  findsSellers(role) || role === 'warehouse';
 
 /** A district code the app has words for (the API also sends its English name). */
 export const knownDistrict = (code: string): code is District =>

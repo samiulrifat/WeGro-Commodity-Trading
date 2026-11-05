@@ -42,6 +42,7 @@ import {
   BD_DISTRICTS,
   isDistrictCode,
 } from '../../common/reference/bd-districts';
+import { hasContactDetails } from '../../common/text/contact-details';
 import { isPastDay } from '../../common/time/bd-dates';
 import type { EnvironmentVariables } from '../../config/env.validation';
 import type { AuthUser } from '../auth/auth-user';
@@ -55,7 +56,7 @@ import { ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { User } from '../users/entities/user.entity';
 import { PersonSearch } from '../users/person-search';
-import { actsAs, Role } from '../users/roles';
+import { actsAs, holdsRole, Role } from '../users/roles';
 import { WarehouseOperator } from '../warehouse/entities/warehouse-operator.entity';
 import { WarehouseReceipt } from '../warehouse/entities/warehouse-receipt.entity';
 import { ReceiptStatus } from '../warehouse/warehouse.enums';
@@ -81,7 +82,12 @@ import {
   type ListingPhoto,
 } from './entities/listing-details.entity';
 import { Offer } from './entities/offer.entity';
-import { DeliverySide, ListingStatus, OfferStatus } from './trade.enums';
+import {
+  DeliverySide,
+  ListingStatus,
+  OfferSide,
+  OfferStatus,
+} from './trade.enums';
 import { ErrorCode } from '../../common/errors/error-code';
 
 const STAFF: ReadonlySet<Role> = new Set([
@@ -95,6 +101,15 @@ const STAFF: ReadonlySet<Role> = new Set([
 const HIDDEN: ReadonlySet<ListingStatus> = new Set([
   ListingStatus.PENDING,
   ListingStatus.REJECTED,
+]);
+/**
+ * WeGro's people handing goods over know every buyer; a buyer knows only
+ * themselves, and the seller's side never does.
+ */
+const SEES_BUYERS: ReadonlySet<Role> = new Set([
+  ...STAFF,
+  Role.FIELD_OFFICER,
+  Role.WAREHOUSE,
 ]);
 const SEES_PAYMENTS: ReadonlySet<Role> = new Set([
   Role.SUPER_ADMIN,
@@ -232,6 +247,7 @@ export class TradeService {
     dto: ListExternalDto,
   ): Promise<ListingDto> {
     this.catalog.produceTypes.requireActive(dto.produceCode);
+    if (dto.description) refuseContactDetails(dto.description);
     const photos: ListingPhoto[] = [];
     for (const id of dto.photoIds) {
       const photo = await this.photos.find(id).catch(() => null);
@@ -350,7 +366,16 @@ export class TradeService {
     }
     if (q.produceCode)
       qb.andWhere('l.produce_code = :pc', { pc: q.produceCode });
-    if (q.projectId) qb.andWhere('l.project_id = :pid', { pid: q.projectId });
+    if (q.projectId) {
+      // Someone who can also invest sees projects: asking by project would
+      // tell them which farmer a listing is from.
+      qb.andWhere(
+        holdsRole(actor, Role.BUYER) || holdsRole(actor, Role.SELLER)
+          ? 'FALSE'
+          : 'l.project_id = :pid',
+        { pid: q.projectId },
+      );
+    }
     if (q.source === 'warehouse') qb.andWhere('l.receipt_id IS NOT NULL');
     if (q.source === 'fresh') {
       qb.andWhere('l.receipt_id IS NULL AND l.project_id IS NOT NULL');
@@ -363,19 +388,21 @@ export class TradeService {
         { dc: q.districtCode },
       );
     }
-    this.searchListings(qb, q.q);
+    this.searchListings(actor, qb, q.q);
     const [rows, total] = await qb
       .orderBy('l.created_at', 'DESC')
       .addOrderBy('l.id', 'DESC')
       .skip(q.skip)
       .take(q.limit)
       .getManyAndCount();
-    return new Paginated(await this.listingDtos(rows), total, q);
+    return new Paginated(await this.listingDtos(actor, rows), total, q);
   }
 
   /** A listing; one waiting for approval or turned down only for staff and its seller. */
   async listingOne(id: number, actor: AuthUser): Promise<ListingDto> {
-    return (await this.listingDtos([await this.visibleListing(id, actor)]))[0];
+    return (
+      await this.listingDtos(actor, [await this.visibleListing(id, actor)])
+    )[0];
   }
 
   /** A photo of an external listing, for whoever may see the listing. */
@@ -442,6 +469,12 @@ export class TradeService {
     dto: MakeOfferDto,
   ): Promise<OfferDto> {
     const listing = await this.openListing(listingId);
+    if (listing.sellerId === actor.id) {
+      throw new ConflictException({
+        message: 'This is your own listing',
+        code: ErrorCode.OWN_LISTING,
+      });
+    }
     if (dto.quantity > listing.available) {
       throw new ConflictException({
         message: `Only ${listing.available} available`,
@@ -737,12 +770,13 @@ export class TradeService {
     id: number,
     dto: ConfirmDeliveryDto,
   ): Promise<OfferDto> {
+    if (dto.notes) refuseContactDetails(dto.notes);
     const offer = await this.offerIn(id, [OfferStatus.PAID]);
     const listing = await this.listings.findOneByOrFail({
       id: offer.listingId,
     });
     const side =
-      actor.role === Role.BUYER && offer.buyerId === actor.id
+      holdsRole(actor, Role.BUYER) && offer.buyerId === actor.id
         ? DeliverySide.BUYER
         : (await this.isHandler(actor, listing))
           ? DeliverySide.HANDLER
@@ -818,7 +852,7 @@ export class TradeService {
       .createQueryBuilder('o')
       .innerJoin(Listing, 'l', 'l.id = o.listing_id')
       .where('o.status IS NOT NULL');
-    await this.scopeOffers(actor, qb);
+    await this.scopeOffers(actor, qb, q.side);
     if (q.listingId) qb.andWhere('o.listing_id = :lid', { lid: q.listingId });
     if (q.status) qb.andWhere('o.status = :st', { st: q.status });
     if (q.discrepancy) {
@@ -830,7 +864,7 @@ export class TradeService {
     if (q.payoutDue) {
       qb.andWhere("o.status = 'delivered' AND l.project_id IS NULL");
     }
-    this.searchOffers(qb, q.q);
+    this.searchOffers(actor, qb, q.q);
     const [rows, total] = await qb
       .orderBy('o.id', 'DESC')
       .skip(q.skip)
@@ -936,7 +970,7 @@ export class TradeService {
   private requireDecider(actor: AuthUser, l: Listing): void {
     const allowed =
       l.projectId === null
-        ? actor.role === Role.SELLER && l.sellerId === actor.id
+        ? holdsRole(actor, Role.SELLER) && l.sellerId === actor.id
         : actsAs(actor.role, Role.ADMIN);
     if (!allowed)
       throw new ForbiddenException({
@@ -946,10 +980,18 @@ export class TradeService {
       });
   }
 
-  /** Produce or project words, or the seller as a person. */
-  private searchListings(qb: SelectQueryBuilder<Listing>, q?: string): void {
+  /**
+   * Produce words for everyone; project words or the seller as a person only
+   * for WeGro's side (a match would tell a buyer who a seller is).
+   */
+  private searchListings(
+    actor: AuthUser,
+    qb: SelectQueryBuilder<Listing>,
+    q?: string,
+  ): void {
     const text = (q ?? '').trim();
     if (!text) return;
+    const office = STAFF.has(actor.role) || actor.role === Role.FIELD_OFFICER;
     const words = searchWords(text);
     const codes = this.catalog.produceTypes
       .list(true)
@@ -957,14 +999,16 @@ export class TradeService {
         words.every((w) => matchesWord(p.name, w) || matchesWord(p.nameBn, w)),
       )
       .map((p) => p.code);
-    const seller = this.search.condition('l.seller_id', text, 'Seller');
+    const seller = office
+      ? this.search.condition('l.seller_id', text, 'Seller')
+      : null;
     qb.andWhere(
       new Brackets((b) => {
         b.where('1 = 0');
         if (words.length > 0 && codes.length > 0) {
           b.orWhere('l.produce_code IN (:...qcodes)', { qcodes: codes });
         }
-        if (words.length > 0) {
+        if (office && words.length > 0) {
           b.orWhere(
             `l.project_id IN (SELECT p.id FROM projects p WHERE ${words
               .map((_, i) => `p.title ~* :lw${i}`)
@@ -977,8 +1021,16 @@ export class TradeService {
     );
   }
 
-  /** The offer number (#12), produce words, or the buyer or seller as a person. */
-  private searchOffers(qb: SelectQueryBuilder<Offer>, q?: string): void {
+  /**
+   * The offer number (#12) and produce words for everyone; the buyer or
+   * seller as a person only for those who may know them (a match would
+   * otherwise confirm who the other side is).
+   */
+  private searchOffers(
+    actor: AuthUser,
+    qb: SelectQueryBuilder<Offer>,
+    q?: string,
+  ): void {
     const text = (q ?? '').trim();
     if (!text) return;
     const number = /^#?(\d{1,12})$/.exec(text);
@@ -989,8 +1041,13 @@ export class TradeService {
         words.every((w) => matchesWord(p.name, w) || matchesWord(p.nameBn, w)),
       )
       .map((p) => p.code);
-    const buyer = this.search.condition('o.buyer_id', text, 'Buyer');
-    const seller = this.search.condition('l.seller_id', text, 'Seller');
+    const buyer = SEES_BUYERS.has(actor.role)
+      ? this.search.condition('o.buyer_id', text, 'Buyer')
+      : null;
+    const seller =
+      STAFF.has(actor.role) || actor.role === Role.FIELD_OFFICER
+        ? this.search.condition('l.seller_id', text, 'Seller')
+        : null;
     qb.andWhere(
       new Brackets((b) => {
         b.where('1 = 0');
@@ -1032,7 +1089,7 @@ export class TradeService {
 
   private async isSellerSide(actor: AuthUser, l: Listing): Promise<boolean> {
     if (l.projectId === null) {
-      return actor.role === Role.SELLER && l.sellerId === actor.id;
+      return holdsRole(actor, Role.SELLER) && l.sellerId === actor.id;
     }
     return l.sellerIsWegro
       ? actsAs(actor.role, Role.ADMIN)
@@ -1045,7 +1102,7 @@ export class TradeService {
    */
   private async isHandler(actor: AuthUser, l: Listing): Promise<boolean> {
     if (l.projectId === null) {
-      return actor.role === Role.SELLER && l.sellerId === actor.id;
+      return holdsRole(actor, Role.SELLER) && l.sellerId === actor.id;
     }
     if (!l.receiptId) return this.isOfficerOf(actor, l.farmerId!);
     if (actor.role !== Role.WAREHOUSE) return false;
@@ -1063,22 +1120,30 @@ export class TradeService {
 
   /**
    * Staff see every offer; buyers their own; sellers' sides and handlers the
-   * offers on listings they sell or hand over.
+   * offers on listings they sell or hand over. Someone who both buys and sells
+   * sees both, or the one `side` asked for.
    */
   private async scopeOffers(
     actor: AuthUser,
     qb: SelectQueryBuilder<Offer>,
+    side?: OfferSide,
   ): Promise<void> {
     if (STAFF.has(actor.role)) return;
+    const buyer = holdsRole(actor, Role.BUYER);
+    const seller = holdsRole(actor, Role.SELLER);
+    if (buyer || seller) {
+      const mine = [
+        ...(buyer && side !== OfferSide.SELLING ? ['o.buyer_id = :me'] : []),
+        ...(seller && side !== OfferSide.BUYING
+          ? ['(l.seller_id = :me AND l.project_id IS NULL)']
+          : []),
+      ];
+      qb.andWhere(mine.length ? `(${mine.join(' OR ')})` : 'FALSE', {
+        me: actor.id,
+      });
+      return;
+    }
     switch (actor.role) {
-      case Role.BUYER:
-        qb.andWhere('o.buyer_id = :me', { me: actor.id });
-        return;
-      case Role.SELLER:
-        qb.andWhere('l.seller_id = :me AND l.project_id IS NULL', {
-          me: actor.id,
-        });
-        return;
       case Role.FARMER:
         qb.andWhere('l.farmer_id = :me', { me: actor.id });
         return;
@@ -1130,7 +1195,10 @@ export class TradeService {
   }
 
   /** One query each for projects, details and names, whatever the page size. */
-  private async listingDtos(rows: Listing[]): Promise<ListingDto[]> {
+  private async listingDtos(
+    actor: AuthUser,
+    rows: Listing[],
+  ): Promise<ListingDto[]> {
     if (rows.length === 0) return [];
     const projectIds = [
       ...new Set(rows.flatMap((l) => (l.projectId ? [l.projectId] : []))),
@@ -1147,14 +1215,25 @@ export class TradeService {
     ]);
     const byId = new Map(projects.map((p) => [p.id, p]));
     const detailsOf = new Map(details.map((d) => [d.id, d]));
-    const sellers = await this.sellerRefs(rows);
+    const [sellers, officerOf] = await Promise.all([
+      this.sellerRefs(actor, rows),
+      this.farmersOfficer(actor, rows),
+    ]);
+    // The project names its farmer: only WeGro's side and that farmer see it.
+    const seesProject = (l: Listing): boolean =>
+      STAFF.has(actor.role) ||
+      l.farmerId === actor.id ||
+      (!!l.farmerId && officerOf.has(l.farmerId));
     return rows.map((l) => {
       const p = l.projectId ? byId.get(l.projectId) : undefined;
       const d = l.detailsId ? detailsOf.get(l.detailsId) : undefined;
       const district = p?.districtCode ?? d?.districtCode ?? '';
       return {
         id: l.id,
-        project: l.projectId ? { id: l.projectId, name: p?.title ?? '' } : null,
+        project:
+          l.projectId && seesProject(l)
+            ? { id: l.projectId, name: p?.title ?? '' }
+            : null,
         district: {
           code: district,
           name: isDistrictCode(district)
@@ -1186,23 +1265,52 @@ export class TradeService {
     });
   }
 
-  /** Who sells each listing: WeGro, the farmer, or the external seller (names in one query). */
+  /** The farmers among these listings who are this field officer's own. */
+  private async farmersOfficer(
+    actor: AuthUser,
+    rows: Pick<Listing, 'farmerId' | 'sellerId'>[],
+  ): Promise<Set<string>> {
+    if (actor.role !== Role.FIELD_OFFICER) return new Set();
+    const ids = [
+      ...new Set(
+        rows.flatMap((l) => [l.farmerId, l.sellerId]).filter((id) => !!id),
+      ),
+    ] as string[];
+    const mine = await this.users.find({
+      where: { id: In(ids), fieldOfficerId: actor.id },
+      select: { id: true },
+    });
+    return new Set(mine.map((u) => u.id));
+  }
+
+  /**
+   * Who sells each listing: WeGro, the farmer, or the external seller (names
+   * in one query). Only WeGro's staff, the seller and a farmer's own officer
+   * learn who it is; to anyone else the seller has no id or name at all, so
+   * buyers cannot go around the platform to reach them.
+   */
   private async sellerRefs(
-    rows: Pick<Listing, 'projectId' | 'sellerIsWegro' | 'sellerId'>[],
+    actor: AuthUser,
+    rows: Pick<
+      Listing,
+      'projectId' | 'sellerIsWegro' | 'sellerId' | 'farmerId'
+    >[],
   ): Promise<
     (l: Pick<Listing, 'projectId' | 'sellerIsWegro' | 'sellerId'>) => SellerDto
   > {
+    const own = await this.farmersOfficer(actor, rows);
+    const knows = (id: string | null): id is string =>
+      !!id && (STAFF.has(actor.role) || id === actor.id || own.has(id));
     const names = await this.views.names(
-      rows.flatMap((l) => (l.sellerId ? [l.sellerId] : [])),
+      rows.flatMap((l) => (knows(l.sellerId) ? [l.sellerId] : [])),
     );
-    return (l) =>
-      l.sellerIsWegro
-        ? { kind: 'wegro', id: null, name: 'WeGro' }
-        : {
-            kind: l.projectId ? 'farmer' : 'seller',
-            id: l.sellerId,
-            name: names.get(l.sellerId!) ?? '',
-          };
+    return (l) => {
+      if (l.sellerIsWegro) return { kind: 'wegro', id: null, name: 'WeGro' };
+      const kind = l.projectId ? 'farmer' : 'seller';
+      return knows(l.sellerId)
+        ? { kind, id: l.sellerId, name: names.get(l.sellerId) ?? '' }
+        : { kind, id: null, name: null };
+    };
   }
 
   /** One query each for listings, deliveries and names, whatever the page size. */
@@ -1218,23 +1326,32 @@ export class TradeService {
           projectId: true,
           sellerIsWegro: true,
           sellerId: true,
+          farmerId: true,
         },
       }),
       this.deliveries.findBy({ offerId: In(ids) }),
       this.clock.now(),
     ]);
     const listingOf = new Map(listings.map((l) => [l.id, l]));
+    // Those who may know the buyer: never the seller's side of the sale. Each
+    // deal on its own, for someone who is the buyer on one and the seller on another.
+    const seesBuyer = (o: Offer): boolean =>
+      SEES_BUYERS.has(actor.role) || o.buyerId === actor.id;
     const [names, sellerOf] = await Promise.all([
-      this.views.names(rows.map((o) => o.buyerId)),
-      this.sellerRefs(listings),
+      this.views.names(rows.filter(seesBuyer).map((o) => o.buyerId)),
+      this.sellerRefs(actor, listings),
     ]);
     const bySide = new Map(
       deliveries.map((d) => [`${d.offerId}:${d.side}`, d]),
     );
     const seesPayments = SEES_PAYMENTS.has(actor.role);
     // What was sent is between the buyer and those who check payments.
-    const seesMoney = seesPayments || actor.role === Role.BUYER;
-    const money = seesMoney ? await this.payments(ids) : new Map();
+    const seesMoney = (o: Offer): boolean =>
+      seesPayments || o.buyerId === actor.id;
+    const moneyIds = rows.filter(seesMoney).map((o) => o.id);
+    const money = moneyIds.length
+      ? await this.payments(moneyIds)
+      : new Map<number, typeof NONE>();
     const view = (o: Offer, side: DeliverySide): DeliveryViewDto | null => {
       const d = bySide.get(`${o.id}:${side}`);
       return d
@@ -1261,7 +1378,9 @@ export class TradeService {
         id: o.id,
         listingId: o.listingId,
         produce: this.produceRef(listing?.produceCode ?? ''),
-        buyer: { id: o.buyerId, name: names.get(o.buyerId) ?? '' },
+        buyer: seesBuyer(o)
+          ? { id: o.buyerId, name: names.get(o.buyerId) ?? '' }
+          : { id: null, name: null },
         quantity: o.quantity,
         unitPrice: poishaToTaka(o.unitPrice),
         amount: poishaToTaka(o.unitPrice * BigInt(o.quantity)),
@@ -1275,7 +1394,7 @@ export class TradeService {
           o.paymentDueAt <= now,
         onHold,
         pausedRemainingSeconds: o.pausedRemaining,
-        ...(seesMoney && {
+        ...(seesMoney(o) && {
           paid: poishaToTaka(paid),
           underReview: poishaToTaka(underReview),
           remaining:
@@ -1318,6 +1437,17 @@ export class TradeService {
 }
 
 const NONE = { paid: 0n, underReview: 0n };
+
+/** Free text the other side of a sale reads must not say how to reach its writer. */
+function refuseContactDetails(text: string): void {
+  if (hasContactDetails(text)) {
+    throw new UnprocessableEntityException({
+      message:
+        'Remove phone numbers, email addresses and links: WeGro arranges every handover',
+      code: ErrorCode.CONTACT_DETAILS_NOT_ALLOWED,
+    });
+  }
+}
 
 /** What the buyer still has to send; never below nothing. */
 function leftToPay(total: bigint, paid: bigint, underReview: bigint): bigint {

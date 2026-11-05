@@ -54,6 +54,22 @@ export const OFFICE_ROLES: ReadonlySet<Role> = new Set([
 export const actsAs = (actual: Role, role: Role): boolean =>
   actual === role || (actual === Role.SUPER_ADMIN && OFFICE_ROLES.has(role));
 
+/**
+ * Whether someone holds `role`. Most people have the one; someone who signed
+ * up with several of investor, buyer and seller holds each of them, and their
+ * permissions merge.
+ */
+export const holdsRole = (
+  user: { role: Role; extraRoles?: readonly Role[] | null },
+  role: Role,
+): boolean => user.role === role || !!user.extraRoles?.includes(role);
+
+/** Every role someone holds, the main one first. */
+export const allRoles = (user: {
+  role: Role;
+  extraRoles?: readonly Role[] | null;
+}): Role[] => [user.role, ...(user.extraRoles ?? [])];
+
 /** On-chain role id: keccak256 of the Solidity constant's name, as in Roles.sol. */
 export const CHAIN_ROLE: Readonly<Record<ParticipantRole, string>> = {
   [Role.INVESTOR]: id('INVESTOR_ROLE'),

@@ -453,6 +453,7 @@ export const en = {
       DEALS_PENDING:
         '{{unpaidDeals, number}} approved deals are still waiting for payment.',
       EXCEEDS_AVAILABLE: 'Only {{available, number}} available.',
+      OWN_LISTING: 'This is your own listing.',
       OFFER_NOT_FOUND: 'This offer could not be found.',
       OFFER_DECIDE_NOT_ALLOWED:
         'Offers are decided by WeGro’s admins, or by the seller on their own listing.',
@@ -463,6 +464,8 @@ export const en = {
       OFFER_WRONG_STATUS: 'This offer is {{status, word}}.',
       PAYMENT_OVERDUE: 'The payment deadline for this deal has passed.',
       DEAL_CONFIRMING: 'This deal is already being confirmed.',
+      CONTACT_DETAILS_NOT_ALLOWED:
+        'Remove phone numbers, email addresses and links: WeGro arranges every handover.',
       DEAL_PROOFS_TO_REVIEW:
         'This deal has payment proofs: review them instead.',
       DEAL_PROOF_ALREADY_REFUNDED: 'This payment is already refunded.',
@@ -764,6 +767,9 @@ export const en = {
       withdrawn: { title: 'Offer #{{offerId}} was withdrawn by the buyer' },
     },
     deal: {
+      'arrange-handover': {
+        title: 'Deal #{{offerId}} is paid: arrange the handover',
+      },
       'awaiting-payment': {
         title: 'Deal #{{offerId}}: confirm the buyer’s payment when it arrives',
       },
@@ -1060,12 +1066,14 @@ export const en = {
   signUp: {
     title: 'Create Your Account',
     step: 'Step {{n, number}} of {{of, number}}',
-    roleTitle: 'Account Type',
+    roleTitle: 'Account Type (Choose One or More)',
     roleHint: {
       investor: 'Put money into farm projects and follow how they grow.',
       buyer: 'Buy produce on the WeGro marketplace.',
       seller: 'Sell your produce to buyers on the WeGro marketplace.',
     },
+    severalRoles:
+      'Choose as many as you like: one account does everything each of them allows.',
     otherRoles:
       'Farmers are registered by their field officer, and businesses (suppliers, banks, insurers, warehouses) by WeGro.',
     phoneNeeded:
@@ -2453,6 +2461,13 @@ export const en = {
     },
     sourceLabel: 'Source',
     searchListings: 'Produce, project or seller name, mobile or NID',
+    searchByProduce: 'Produce',
+    searchOwnDeals: 'Offer number or produce',
+    hiddenSeller: 'Verified Seller',
+    hiddenBuyer: 'Verified Buyer',
+    noContactHint: 'Do not add phone numbers, email addresses or links.',
+    handoverText:
+      'WeGro arranges the handover; buyers and sellers stay unknown to each other. Confirm what changed hands.',
     noListings: 'No listings here yet.',
     noListingMatch: 'No listings match.',
     noApprovals: 'No listings are waiting for approval.',
@@ -3356,6 +3371,7 @@ export const en = {
     event: {
       ParticipantRegistered: 'Registered',
       ParticipantSelfRegistered: 'Signed Up Themselves',
+      ParticipantExtraRole: 'Chose a Further Role',
       ParticipantStatusChanged: 'Status Changed',
       ParticipantDetailsUpdated: 'Details Updated',
       FieldOfficerAssigned: 'Field Officer Assigned',
@@ -3622,13 +3638,15 @@ export const en = {
     queue: {
       participants: { pending: 'Registrations Awaiting Verification' },
       'bank-accounts': { pending: 'Bank Details Awaiting Verification' },
-      reservations: { pending: 'Bookings Awaiting Payment Confirmation' },
+      'payment-proofs': { pending: 'Investor Payment Proofs to Review' },
+      reservations: { pending: 'Bookings Awaiting Payment' },
       vouchers: {
         proposed: 'Vouchers Awaiting Approval',
         inactive: 'Vouchers Past Their Inactivity Limit',
       },
       'voucher-sales': { pending: 'Input Sales Awaiting the Field Officer' },
       offers: { pending: 'Offers Awaiting Approval' },
+      'deal-proofs': { pending: 'Buyer Payment Proofs to Review' },
       deals: { 'awaiting-payment': 'Deals Awaiting the Buyer’s Payment' },
       deliveries: { discrepancy: 'Deliveries That Do Not Match' },
       handovers: { pending: 'Buy-Back Handovers Awaiting an Admin' },
@@ -3657,6 +3675,8 @@ export const en = {
       registration: 'Registration as {{role}}',
       bankNew: 'New bank details',
       bankChange: 'Changed bank details',
+      paymentProof: 'Booking #{{id}}: {{amount}} sent',
+      dealProof: 'Deal #{{id}}: {{amount}} sent',
       reservation_one: 'Booking #{{id}}: {{n}} unit',
       reservation_other: 'Booking #{{id}}: {{n}} units',
       voucherProposed: 'Voucher for {{quantity}} {{input}}, worth {{value}}',
@@ -3693,8 +3713,8 @@ export const en = {
     reserved_other: '{{n}} held by bookings',
     daysOpen_one: 'open {{n}} day',
     daysOpen_other: 'open {{n}} days',
-    pendingPayments_one: '{{n}} Payment to Confirm',
-    pendingPayments_other: '{{n}} Payments to Confirm',
+    pendingPayments_one: '{{n}} Booking Awaiting Payment',
+    pendingPayments_other: '{{n}} Bookings Awaiting Payment',
     activeTitle: 'Active Projects',
     activeText_one: '{{n}} project in the field, longest running first.',
     activeText_other: '{{n}} projects in the field, longest running first.',

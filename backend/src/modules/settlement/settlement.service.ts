@@ -42,7 +42,7 @@ import { Project } from '../projects/entities/project.entity';
 import { STAGE_BY_CHAIN, ProjectStage } from '../projects/project.enums';
 import { ProjectViews } from '../projects/project-views';
 import { User } from '../users/entities/user.entity';
-import { Role } from '../users/roles';
+import { holdsRole, Role } from '../users/roles';
 import type {
   AddCostDto,
   CostDto,
@@ -889,7 +889,7 @@ export class SettlementService {
           (await this.users.exists({
             where: { id: project.farmerId, fieldOfficerId: actor.id },
           }))) ||
-        (actor.role === Role.INVESTOR &&
+        (holdsRole(actor, Role.INVESTOR) &&
           (await this.holds(actor.id, projectId))));
     if (!allowed)
       throw new NotFoundException({

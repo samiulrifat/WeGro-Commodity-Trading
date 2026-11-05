@@ -51,6 +51,18 @@ contract AccessRegistryTest is Test {
         _staff(FARHANA, ACCOUNTS, farhana);
     }
 
+    function _one(bytes32 role) internal pure returns (bytes32[] memory roles) {
+        roles = new bytes32[](1);
+        roles[0] = role;
+    }
+
+    function _three(bytes32 a, bytes32 b, bytes32 c) internal pure returns (bytes32[] memory roles) {
+        roles = new bytes32[](3);
+        roles[0] = a;
+        roles[1] = b;
+        roles[2] = c;
+    }
+
     function _staff(bytes32 id, bytes32 role, address account) internal {
         vm.startPrank(superAdmin);
         registry.registerParticipant(id, role, account, keccak256(abi.encode(id)));
@@ -239,7 +251,7 @@ contract AccessRegistryTest is Test {
             id, AccessRegistry.Status.Pending, AccessRegistry.Status.Verified, superAdmin
         );
         vm.prank(superAdmin);
-        registry.selfRegisterParticipant(id, investor, salma, keccak256("salma"));
+        registry.selfRegisterParticipant(id, _one(investor), salma, keccak256("salma"));
 
         assertTrue(registry.isVerifiedAs(id, investor));
         assertTrue(registry.hasRole(investor, salma));
@@ -247,7 +259,7 @@ contract AccessRegistryTest is Test {
 
         bytes32 buyer = registry.BUYER_ROLE();
         vm.prank(superAdmin);
-        registry.selfRegisterParticipant(keccak256("BUY-SELF"), buyer, makeAddr("karim"), keccak256("karim"));
+        registry.selfRegisterParticipant(keccak256("BUY-SELF"), _one(buyer), makeAddr("karim"), keccak256("karim"));
         assertTrue(registry.isVerifiedAs(keccak256("BUY-SELF"), buyer));
     }
 
@@ -258,7 +270,7 @@ contract AccessRegistryTest is Test {
         vm.expectEmit(address(registry));
         emit AccessRegistry.ParticipantSelfRegistered(id);
         vm.prank(superAdmin);
-        registry.selfRegisterParticipant(id, seller, karim, keccak256("karim"));
+        registry.selfRegisterParticipant(id, _one(seller), karim, keccak256("karim"));
         assertTrue(registry.isVerifiedAs(id, seller));
         assertTrue(registry.isPlatformRole(seller));
         assertFalse(registry.isStaffRole(seller));
@@ -269,25 +281,136 @@ contract AccessRegistryTest is Test {
         // Only investors, buyers and sellers.
         vm.startPrank(superAdmin);
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotSelfRegistrable.selector, FARMER));
-        registry.selfRegisterParticipant(RAHIM, FARMER, rahim, RAHIM_DETAILS);
+        registry.selfRegisterParticipant(RAHIM, _one(FARMER), rahim, RAHIM_DETAILS);
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotSelfRegistrable.selector, ADMIN));
-        registry.selfRegisterParticipant(RAHIM, ADMIN, rahim, RAHIM_DETAILS);
+        registry.selfRegisterParticipant(RAHIM, _one(ADMIN), rahim, RAHIM_DETAILS);
         vm.stopPrank();
 
         // Only the platform's key.
         vm.prank(tania);
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotAuthorized.selector, tania));
-        registry.selfRegisterParticipant(keccak256("INV-1"), investor, stranger, keccak256("x"));
+        registry.selfRegisterParticipant(keccak256("INV-1"), _one(investor), stranger, keccak256("x"));
 
         // The same guards as any registration.
         vm.startPrank(superAdmin);
         vm.expectRevert(AccessRegistry.ZeroValue.selector);
-        registry.selfRegisterParticipant(keccak256("INV-1"), investor, stranger, bytes32(0));
+        registry.selfRegisterParticipant(keccak256("INV-1"), _one(investor), stranger, bytes32(0));
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.AccountAlreadyUsed.selector, tania));
-        registry.selfRegisterParticipant(keccak256("INV-1"), investor, tania, keccak256("x"));
+        registry.selfRegisterParticipant(keccak256("INV-1"), _one(investor), tania, keccak256("x"));
         vm.expectRevert(abi.encodeWithSelector(AccessRegistry.ParticipantAlreadyRegistered.selector, TANIA));
-        registry.selfRegisterParticipant(TANIA, investor, stranger, keccak256("x"));
+        registry.selfRegisterParticipant(TANIA, _one(investor), stranger, keccak256("x"));
         vm.stopPrank();
+    }
+
+    function test_SigningUpWithSeveralRolesHoldsThemAll() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        bytes32 buyer = registry.BUYER_ROLE();
+        bytes32 seller = registry.SELLER_ROLE();
+        bytes32 id = keccak256("ALL-THREE");
+        address salma = makeAddr("salma");
+
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit AccessRegistry.ParticipantExtraRole(id, buyer);
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit AccessRegistry.ParticipantExtraRole(id, seller);
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(id, _three(investor, buyer, seller), salma, keccak256("salma"));
+
+        // The first is their role; all three work, on their one key.
+        assertEq(registry.getParticipant(id).role, investor);
+        assertEq(registry.extraRolesOf(id).length, 2);
+        assertEq(registry.extraRolesOf(id)[0], buyer);
+        assertEq(registry.extraRolesOf(id)[1], seller);
+        assertEq(registry.participantOf(salma), id);
+        for (uint256 i = 0; i < 3; ++i) {
+            bytes32 role = [investor, buyer, seller][i];
+            assertTrue(registry.hasRole(role, salma));
+            assertTrue(registry.isVerifiedAs(id, role));
+        }
+        // Nothing they did not choose.
+        assertFalse(registry.hasRole(FARMER, salma));
+        assertFalse(registry.isVerifiedAs(id, FARMER));
+    }
+
+    function test_OneRoleHasNoExtras() public {
+        bytes32 buyer = registry.BUYER_ROLE();
+        bytes32 id = keccak256("JUST-A-BUYER");
+        address karim = makeAddr("karim");
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(id, _one(buyer), karim, keccak256("karim"));
+        assertEq(registry.extraRolesOf(id).length, 0);
+        assertFalse(registry.hasRole(registry.SELLER_ROLE(), karim));
+        assertFalse(registry.isVerifiedAs(id, registry.SELLER_ROLE()));
+    }
+
+    function test_SigningUpRefusesABadListOfRoles() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        bytes32 buyer = registry.BUYER_ROLE();
+        vm.startPrank(superAdmin);
+        vm.expectRevert(AccessRegistry.NoRoles.selector);
+        registry.selfRegisterParticipant(RAHIM, new bytes32[](0), rahim, RAHIM_DETAILS);
+        // The same role twice, next to each other or not.
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.DuplicateRole.selector, buyer));
+        registry.selfRegisterParticipant(RAHIM, _three(buyer, buyer, investor), rahim, RAHIM_DETAILS);
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.DuplicateRole.selector, investor));
+        registry.selfRegisterParticipant(RAHIM, _three(investor, buyer, investor), rahim, RAHIM_DETAILS);
+        // A role nobody may choose, even after allowed ones.
+        vm.expectRevert(abi.encodeWithSelector(AccessRegistry.NotSelfRegistrable.selector, ADMIN));
+        registry.selfRegisterParticipant(RAHIM, _three(investor, buyer, ADMIN), rahim, RAHIM_DETAILS);
+        vm.stopPrank();
+        assertEq(_status(RAHIM), uint8(AccessRegistry.Status.None));
+    }
+
+    function test_RevokingAndRestoringCoversEveryRole() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        bytes32 buyer = registry.BUYER_ROLE();
+        bytes32 seller = registry.SELLER_ROLE();
+        bytes32 id = keccak256("ALL-THREE");
+        address salma = makeAddr("salma");
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(id, _three(investor, buyer, seller), salma, keccak256("salma"));
+
+        vm.prank(tania);
+        registry.rejectParticipant(id);
+        assertFalse(registry.hasRole(investor, salma));
+        assertFalse(registry.hasRole(buyer, salma));
+        assertFalse(registry.hasRole(seller, salma));
+        assertFalse(registry.isVerifiedAs(id, seller));
+
+        vm.prank(tania);
+        registry.verifyParticipant(id);
+        assertTrue(registry.hasRole(investor, salma));
+        assertTrue(registry.hasRole(buyer, salma));
+        assertTrue(registry.hasRole(seller, salma));
+        assertTrue(registry.isVerifiedAs(id, seller));
+    }
+
+    function test_ANewKeyTakesEveryRole() public {
+        bytes32 investor = registry.INVESTOR_ROLE();
+        bytes32 buyer = registry.BUYER_ROLE();
+        bytes32 seller = registry.SELLER_ROLE();
+        bytes32 id = keccak256("ALL-THREE");
+        address salma = makeAddr("salma");
+        address fresh = makeAddr("fresh");
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(id, _three(investor, buyer, seller), salma, keccak256("salma"));
+
+        vm.prank(tania);
+        registry.changeAccount(id, fresh);
+        for (uint256 i = 0; i < 3; ++i) {
+            bytes32 role = [investor, buyer, seller][i];
+            assertFalse(registry.hasRole(role, salma));
+            assertTrue(registry.hasRole(role, fresh));
+        }
+
+        // Revoked, a key change must not bring any of them back.
+        address another = makeAddr("another");
+        vm.startPrank(tania);
+        registry.rejectParticipant(id);
+        registry.changeAccount(id, another);
+        vm.stopPrank();
+        assertFalse(registry.hasRole(seller, another));
+        assertFalse(registry.hasRole(buyer, another));
     }
 
     function test_OnlySuperAdminRegistersStaff() public {

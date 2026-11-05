@@ -137,14 +137,19 @@ function Header({ receipt: r }: { receipt: ReceiptDetailDto }) {
       </div>
       <p className="text-white/85">
         <span className="font-semibold text-white">{r.owner.name}</span>
-        {' · '}
-        <Link
-          to="/projects/$projectId"
-          params={{ projectId: r.project.id }}
-          className="font-semibold text-white hover:underline"
-        >
-          {r.project.name}
-        </Link>
+        {/* A buyer is not told which project the goods came from. */}
+        {r.project.id && (
+          <>
+            {' · '}
+            <Link
+              to="/projects/$projectId"
+              params={{ projectId: r.project.id }}
+              className="font-semibold text-white hover:underline"
+            >
+              {r.project.name}
+            </Link>
+          </>
+        )}
       </p>
       {expiringSoon(r) && (
         <p className="w-fit rounded-lg bg-warning px-3 py-1.5 text-sm font-semibold text-white">

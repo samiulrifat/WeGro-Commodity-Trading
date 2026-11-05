@@ -16,7 +16,7 @@ import { toPoisha } from '@/features/projects/project-math';
 import { useFormat } from '@/i18n/use-format';
 import { useSecondsUntil } from '@/lib/use-seconds-until';
 import { useAppSelector } from '@/store/hooks';
-import { produceName } from './market-utils';
+import { buysThis, produceName } from './market-utils';
 
 /** The buyer's time to pay, stopped while a proof is reviewed. */
 export function DealClock({ offer: o }: { offer: OfferDto }) {
@@ -59,7 +59,8 @@ export function DealClock({ offer: o }: { offer: OfferDto }) {
 export function DealPayment({ offer: o }: { offer: OfferDto }) {
   const { t } = useTranslation();
   const fmt = useFormat();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
+  const buying = buysThis(o, user);
   const sees = o.paid != null && o.underReview != null;
   const proofs = useDealProofsForOfferQuery({ id: o.id }, { skip: !sees });
   if (!sees || o.buyerPays == null) return null;
@@ -96,7 +97,7 @@ export function DealPayment({ offer: o }: { offer: OfferDto }) {
               tone={left > 0n ? 'text-danger' : undefined}
             />
           </dl>
-          {role === 'buyer' && o.status === 'approved' && left > 0n && (
+          {buying && o.status === 'approved' && left > 0n && (
             <p className="flex items-start gap-2 rounded-lg bg-danger-soft p-3 text-sm text-danger-on-soft">
               <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
               {t('market.stillToPay', { amount: fmt.taka(o.remaining!) })}
@@ -104,7 +105,7 @@ export function DealPayment({ offer: o }: { offer: OfferDto }) {
           )}
         </CardContent>
       </Card>
-      {role === 'buyer' ? (
+      {buying ? (
         <Proofs loading={proofs.isLoading} proofs={rows} />
       ) : (
         rows.length > 0 && (

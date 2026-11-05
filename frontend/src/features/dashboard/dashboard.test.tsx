@@ -164,7 +164,7 @@ describe('dashboard', () => {
       await screen.findByText('Nothing is waiting. Every queue is clear.'),
     ).toBeTruthy();
     expect(screen.getByText('Wheat in Bogura #2')).toBeTruthy();
-    expect(screen.getByText('1 Payment to Confirm')).toBeTruthy();
+    expect(screen.getByText('1 Booking Awaiting Payment')).toBeTruthy();
     expect(screen.getByText('In the Field').previousSibling?.textContent).toBe(
       '4',
     );

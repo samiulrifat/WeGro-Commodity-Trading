@@ -6,7 +6,12 @@ import { ROLES } from './decorators';
 import { RolesGuard } from './guards';
 
 /** A request by someone of `role` to an endpoint for `allowed`. */
-function check(role: Role, allowed: Role[], method = 'POST'): boolean {
+function check(
+  role: Role,
+  allowed: Role[],
+  method = 'POST',
+  extraRoles?: Role[],
+): boolean {
   const reflector = {
     getAllAndOverride: (key: string) => (key === ROLES ? allowed : undefined),
   } as unknown as Reflector;
@@ -19,6 +24,7 @@ function check(role: Role, allowed: Role[], method = 'POST'): boolean {
         user: {
           id: 'u1',
           role,
+          extraRoles,
           status: ParticipantStatus.VERIFIED,
           chainState: ChainState.CONFIRMED,
           keyIndex: 1,
@@ -29,6 +35,25 @@ function check(role: Role, allowed: Role[], method = 'POST'): boolean {
   } as unknown as ExecutionContext;
   return new RolesGuard(reflector).canActivate(context);
 }
+
+describe('RolesGuard and someone with several roles', () => {
+  it('lets them do what any role they hold may', () => {
+    const both = [Role.SELLER];
+    expect(check(Role.BUYER, [Role.BUYER], 'POST', both)).toBe(true);
+    expect(check(Role.BUYER, [Role.SELLER], 'POST', both)).toBe(true);
+  });
+
+  it('refuses what none of their roles may', () => {
+    expect(() =>
+      check(Role.BUYER, [Role.INVESTOR], 'POST', [Role.SELLER]),
+    ).toThrow(ForbiddenException);
+    // The further role of a person who has none grants nothing either.
+    expect(() => check(Role.BUYER, [Role.SELLER], 'POST', [])).toThrow(
+      ForbiddenException,
+    );
+    expect(() => check(Role.BUYER, [Role.SELLER])).toThrow(ForbiddenException);
+  });
+});
 
 describe('RolesGuard and the super admin', () => {
   it('lets the super admin do what any office role may, wherever it is listed', () => {

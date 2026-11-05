@@ -58,6 +58,13 @@ import { ProjectsService } from './projects.service';
 import { ReservationsService } from './reservations.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
+/**
+ * Everyone but the marketplace's outside parties: a project names its
+ * farmer and place, which would let a buyer or seller go around the platform.
+ */
+const PROJECT_READERS = Object.values(Role).filter(
+  (r) => r !== Role.BUYER && r !== Role.SELLER,
+);
 const reservationId = new ParseIntPipe({
   errorHttpStatusCode: HttpStatus.NOT_FOUND,
 });
@@ -87,6 +94,7 @@ export class ProjectsController {
 
   @Get()
   @ApiPaged()
+  @Roles(...PROJECT_READERS)
   @ApiOkResponse({ type: [ProjectDto] })
   list(
     @CurrentUser() actor: AuthUser,
@@ -96,6 +104,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @Roles(...PROJECT_READERS)
   @ApiOkResponse({ type: ProjectDto })
   findOne(
     @CurrentUser() actor: AuthUser,
@@ -220,6 +229,7 @@ export class ProjectsController {
   }
 
   @Get(':id/cover')
+  @Roles(...PROJECT_READERS)
   @ApiProduces('image/jpeg', 'image/png', 'image/webp')
   @ApiOkResponse({ description: 'The cover photo' })
   cover(
@@ -251,6 +261,7 @@ export class ProjectsController {
   }
 
   @Get(':id/timeline')
+  @Roles(...PROJECT_READERS)
   @ApiOkResponse({ type: [TimelineEntryDto] })
   timeline(
     @CurrentUser() actor: AuthUser,

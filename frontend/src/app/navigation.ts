@@ -21,6 +21,7 @@ import {
   Wallet,
   Warehouse,
 } from 'lucide-react';
+import type { TFunction } from 'i18next';
 import type { SessionUserDto } from '@/api/generated/auth';
 import type { SessionState } from '@/store/session-slice';
 
@@ -51,6 +52,28 @@ const OFFICE_ROLES: ReadonlySet<Role> = new Set<Role>([
  */
 export const actsAs = (role: Role, as: Role): boolean =>
   role === as || (role === 'super_admin' && OFFICE_ROLES.has(as));
+
+/** Someone's roles: most have one; those signing up may choose several. */
+interface WithRoles {
+  role: Role;
+  extraRoles?: readonly Role[];
+}
+
+/** Whether someone holds `role`, among all they chose. */
+export const holdsRole = (user: WithRoles, role: Role): boolean =>
+  user.role === role || !!user.extraRoles?.includes(role);
+
+/** Every role someone holds, the main one first. */
+export const allRoles = (user: WithRoles): readonly Role[] => [
+  user.role,
+  ...(user.extraRoles ?? []),
+];
+
+/** Their roles in words, as shown beside their name. */
+export const roleNames = (user: WithRoles, t: TFunction): string =>
+  allRoles(user)
+    .map((r) => t(`roles.${r}`))
+    .join(', ');
 
 /** Each area of the app: where it lives and its icon. */
 export const AREAS = {
@@ -474,8 +497,45 @@ const PENDING: readonly NavItem[] = [item('status', 'status')];
 
 type User = NonNullable<SessionState['user']>;
 
+/** Whose menu comes first for someone with several: sellers land on their listings. */
+const MERGE_ORDER: readonly Role[] = ['investor', 'seller', 'buyer'];
+const merged = new Map<string, readonly NavItem[]>();
+
+/**
+ * The menus of several roles as one: each section once, with all the pages
+ * any of the roles has, and the catalog last, as in every menu.
+ */
+function mergedNav(roles: readonly Role[]): readonly NavItem[] {
+  const ordered = MERGE_ORDER.filter((r) => roles.includes(r));
+  const key = ordered.join();
+  const known = merged.get(key);
+  if (known) return known;
+  const sections = new Map<Area, NavItem>();
+  for (const entry of ordered.flatMap((r) => NAV[r])) {
+    const seen = sections.get(entry.area);
+    const pages = [...(seen?.pages ?? []), ...(entry.pages ?? [])];
+    const unique = [...new Map(pages.map((p) => [p.to, p])).values()];
+    sections.set(
+      entry.area,
+      item(
+        entry.area,
+        seen?.label ?? entry.label,
+        unique.length ? unique : undefined,
+      ),
+    );
+  }
+  const all = [...sections.values()];
+  const nav = [
+    ...all.filter((n) => n.area !== 'catalog'),
+    ...all.filter((n) => n.area === 'catalog'),
+  ];
+  merged.set(key, nav);
+  return nav;
+}
+
 export function navFor(user: User): readonly NavItem[] {
-  return user.status === 'verified' ? NAV[user.role] : PENDING;
+  if (user.status !== 'verified') return PENDING;
+  return user.extraRoles?.length ? mergedNav(allRoles(user)) : NAV[user.role];
 }
 
 /** Where someone lands after signing in: their first section's first page. */

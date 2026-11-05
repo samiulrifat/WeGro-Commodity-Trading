@@ -28,7 +28,9 @@ export function ReceiptPrint({
       : r.produce.name;
   const rows: [string, ReactNode][] = [
     [t('warehouse.owner'), r.owner.name],
-    [t('warehouse.project'), r.project.name],
+    ...(r.project.name
+      ? [[t('warehouse.project'), r.project.name] as [string, ReactNode]]
+      : []),
     [t('warehouse.produce'), produce],
     [
       t('warehouse.held'),

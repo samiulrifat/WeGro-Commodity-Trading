@@ -100,6 +100,8 @@ export enum NotificationKind {
   /** To the farmer and their officer: the buyer's payment is confirmed. */
   DEAL_BUYER_PAID = 'deal.buyer-paid',
   DEAL_DELIVER = 'deal.deliver',
+  /** To admins: a paid deal with no warehouse between the two sides. */
+  DEAL_ARRANGE_HANDOVER = 'deal.arrange-handover',
   DEAL_DELIVERED = 'deal.delivered',
   /** To admins: a side confirmed a quantity other than the deal's. */
   DELIVERY_MISMATCH = 'delivery.mismatch',

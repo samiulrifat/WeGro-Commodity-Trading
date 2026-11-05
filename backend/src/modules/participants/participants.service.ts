@@ -44,6 +44,7 @@ import {
 } from '../users/personal-details.codec';
 import {
   actsAs,
+  allRoles,
   CHAIN_ROLE,
   isStaffRole,
   ParticipantStatus,
@@ -193,7 +194,7 @@ export class ParticipantsService {
     await this.submitRegistration(
       actor,
       id,
-      dto.role,
+      [dto.role as ParticipantRole],
       account,
       detailsHash,
       true,
@@ -233,9 +234,10 @@ export class ParticipantsService {
   }
 
   /**
-   * An investor or buyer signing up: the ID check, the code sent to their
-   * number, then registered and verified on the ledger at once by the
-   * platform's key. Returns them, to be signed in.
+   * Someone signing up as one or more of investor, buyer and seller: the ID
+   * check, the code sent to their number, then registered and verified on the
+   * ledger at once by the platform's key, holding every role chosen. Returns
+   * them, to be signed in.
    */
   async signUp(dto: SignUpDto): Promise<User> {
     const report = runIdCheck(dto);
@@ -257,7 +259,10 @@ export class ParticipantsService {
     if (nidTaken) throw duplicate('uq_personal_details_nid_index');
 
     const id = randomUUID();
-    const detailsHash = this.codec.fingerprint(id, dto.role, d);
+    // Always in the same order, whichever way round they were ticked.
+    const roles = SELF_REGISTRABLE_ROLES.filter((r) => dto.roles.includes(r));
+    const [role, ...extraRoles] = roles;
+    const detailsHash = this.codec.fingerprint(id, role, d);
     const passwordHash = await this.hasher.hash(dto.password);
     let account = '';
     let refusal: UnprocessableEntityException | null;
@@ -275,7 +280,8 @@ export class ParticipantsService {
         account = this.keys.addressOf(keyIndex);
         await m.insert(User, {
           id,
-          role: dto.role,
+          role,
+          extraRoles,
           status: ParticipantStatus.PENDING,
           chainState: ChainState.SUBMITTED,
           phoneIndex,
@@ -308,7 +314,7 @@ export class ParticipantsService {
     await this.submitRegistration(
       'self',
       id,
-      dto.role,
+      roles,
       account,
       detailsHash,
       true,
@@ -375,7 +381,7 @@ export class ParticipantsService {
   private async submitRegistration(
     by: AuthUser | 'self',
     id: string,
-    role: ParticipantRole,
+    roles: readonly ParticipantRole[],
     account: string,
     detailsHash: string,
     removeOnRejection: boolean,
@@ -391,7 +397,7 @@ export class ParticipantsService {
               (c) =>
                 c.selfRegisterParticipant.populateTransaction(
                   uuidToBytes32(id),
-                  CHAIN_ROLE[role],
+                  roles.map((r) => CHAIN_ROLE[r]),
                   account,
                   detailsHash,
                 ),
@@ -399,7 +405,7 @@ export class ParticipantsService {
           : await this.tx.send(by.keyIndex, 'AccessRegistry', (c) =>
               c.registerParticipant.populateTransaction(
                 uuidToBytes32(id),
-                CHAIN_ROLE[role],
+                CHAIN_ROLE[roles[0]],
                 account,
                 detailsHash,
               ),
@@ -547,7 +553,7 @@ export class ParticipantsService {
   async openWork(actor: AuthUser, id: string): Promise<OpenWorkDto> {
     const { user } = await this.loadParticipant(id);
     assertCanManage(actor, user.role);
-    const items = await openWorkOf(this.dataSource.manager, id, user.role);
+    const items = await openWorkOf(this.dataSource.manager, id, allRoles(user));
     return {
       items,
       farmersToMove:
@@ -810,7 +816,7 @@ export class ParticipantsService {
       return this.submitRegistration(
         by,
         user.id,
-        user.role as ParticipantRole,
+        allRoles(user) as ParticipantRole[],
         user.account,
         details.detailsHash,
         false,
@@ -818,6 +824,7 @@ export class ParticipantsService {
     }
     if (
       ledger.role !== user.role ||
+      !sameRoles(ledger.extraRoles, user.extraRoles) ||
       ledger.detailsHash !== details.detailsHash
     ) {
       throw new ConflictException({
@@ -857,7 +864,10 @@ export class ParticipantsService {
         me: actor.id,
       });
     }
-    if (query.role) qb.andWhere('u.role = :role', { role: query.role });
+    if (query.role)
+      qb.andWhere('(u.role = :role OR :role = ANY(u.extra_roles))', {
+        role: query.role,
+      });
     if (query.manageable) {
       // As the ledger has it: the super admin manages everyone, admins all
       // but staff, and nobody else anyone.
@@ -982,6 +992,7 @@ export class ParticipantsService {
     return {
       id: user.id,
       role: user.role,
+      extraRoles: user.extraRoles ?? [],
       status: user.status,
       chainState: user.chainState,
       fullName,
@@ -1015,16 +1026,25 @@ export class ParticipantsService {
   }
 
   private async readLedger(id: string): Promise<LedgerParticipantDto> {
-    const p = await this.contracts
-      .get('AccessRegistry')
-      .getParticipant(uuidToBytes32(id));
+    const registry = this.contracts.get('AccessRegistry');
+    const code = uuidToBytes32(id);
+    const p = await registry.getParticipant(code);
     const status = STATUS_BY_CHAIN[Number(p.status)];
     if (!status) {
-      return { status: 'none', role: null, account: null, detailsHash: null };
+      return {
+        status: 'none',
+        role: null,
+        extraRoles: [],
+        account: null,
+        detailsHash: null,
+      };
     }
+    const extra = await registry.extraRolesOf(code);
     return {
       status,
       role: ROLE_BY_CHAIN_ID.get(p.role) ?? null,
+      // A role this code does not know stays visible, so a comparison fails.
+      extraRoles: extra.map((r) => ROLE_BY_CHAIN_ID.get(r) ?? (r as Role)),
       account: getAddress(p.account),
       detailsHash: p.detailsHash === ZERO_BYTES32 ? null : p.detailsHash,
     };
@@ -1050,7 +1070,11 @@ export class ParticipantsService {
       mismatches.push('notOnLedger');
     } else {
       if (ledger.detailsHash !== computedHash) mismatches.push('ledgerHash');
-      if (ledger.role !== user.role) mismatches.push('role');
+      if (
+        ledger.role !== user.role ||
+        !sameRoles(ledger.extraRoles, user.extraRoles)
+      )
+        mismatches.push('role');
       if (ledger.status !== user.status) mismatches.push('status');
       if (ledger.account !== user.account) mismatches.push('account');
     }
@@ -1103,6 +1127,12 @@ export function assertCanManage(actor: AuthUser, role: Role): void {
       code: ErrorCode.PARTICIPANTS_MANAGED_BY_ADMINS,
     });
   }
+}
+
+/** The same further roles, whatever the order. */
+function sameRoles(a: readonly Role[], b: readonly Role[] | null): boolean {
+  const theirs = b ?? [];
+  return a.length === theirs.length && a.every((r) => theirs.includes(r));
 }
 
 /** Signed up themselves: the only non-staff without a registrar. */

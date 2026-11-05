@@ -6,7 +6,8 @@ import {Roles} from "./Roles.sol";
 
 /// @title AccessRegistry
 /// @notice Roles and identities for every contract. Each person (participant) has
-/// a stable code number, one role, their own key, and a hash of their details;
+/// a stable code number, a role (those signing up themselves may hold several of
+/// investor, buyer and seller), their own key, and a hash of their details;
 /// personal data stays off-chain.
 /// Roles are granted only by verifying a participant and revoked by rejecting
 /// them. Staff roles are managed only by the super admin.
@@ -44,6 +45,9 @@ contract AccessRegistry is AccessControl {
 
     mapping(bytes32 participantId => Participant) private _participants;
 
+    /// @dev Roles beyond `Participant.role`, for someone who signed up with several.
+    mapping(bytes32 participantId => bytes32[]) private _extraRoles;
+
     /// @notice Participant id for a current key, or zero.
     mapping(address account => bytes32 participantId) public participantOf;
 
@@ -67,8 +71,10 @@ contract AccessRegistry is AccessControl {
         bytes32 detailsHash,
         address registeredBy
     );
-    /// @notice They signed up themselves (investors and buyers).
+    /// @notice They signed up themselves (investors, buyers and sellers).
     event ParticipantSelfRegistered(bytes32 indexed participantId);
+    /// @notice A role beyond the one in ParticipantRegistered, chosen at sign-up.
+    event ParticipantExtraRole(bytes32 indexed participantId, bytes32 indexed role);
     event ParticipantStatusChanged(
         bytes32 indexed participantId,
         Status previousStatus,
@@ -101,6 +107,8 @@ contract AccessRegistry is AccessControl {
     error NotAFarmer(bytes32 participantId);
     error NotAFieldOfficer(bytes32 participantId);
     error NotSelfRegistrable(bytes32 role);
+    error NoRoles();
+    error DuplicateRole(bytes32 role);
     error OfficerHasFarmers(bytes32 officerId, uint256 count);
     error FarmerNotWithOfficer(bytes32 farmerId, bytes32 officerId);
     error SameFieldOfficer(bytes32 officerId);
@@ -178,17 +186,31 @@ contract AccessRegistry is AccessControl {
         }
     }
 
-    /// @notice An investor, buyer or seller who registered themselves (their number
-    /// confirmed by the platform): registered and verified at once, signed by
-    /// the platform's key. Marked by ParticipantSelfRegistered.
-    function selfRegisterParticipant(bytes32 participantId, bytes32 role, address account, bytes32 detailsHash)
+    /// @notice Someone who registered themselves as one or more of investor, buyer
+    /// and seller (their number confirmed by the platform): registered and
+    /// verified at once, signed by the platform's key, holding every role
+    /// chosen. The first is their `Participant.role`. Marked by ParticipantSelfRegistered.
+    function selfRegisterParticipant(bytes32 participantId, bytes32[] calldata roles, address account, bytes32 detailsHash)
         external
     {
         _requireSuperAdmin();
-        if (role != INVESTOR_ROLE && role != BUYER_ROLE && role != SELLER_ROLE) revert NotSelfRegistrable(role);
-        Participant storage p = _register(participantId, role, account, detailsHash);
+        uint256 n = roles.length;
+        if (n == 0) revert NoRoles();
+        for (uint256 i = 0; i < n; ++i) {
+            bytes32 role = roles[i];
+            if (role != INVESTOR_ROLE && role != BUYER_ROLE && role != SELLER_ROLE) revert NotSelfRegistrable(role);
+            for (uint256 j = 0; j < i; ++j) {
+                if (roles[j] == role) revert DuplicateRole(role);
+            }
+        }
+        Participant storage p = _register(participantId, roles[0], account, detailsHash);
         _setStatus(participantId, p, Status.Verified);
-        _grantRole(role, account);
+        _grantRole(roles[0], account);
+        for (uint256 i = 1; i < n; ++i) {
+            _extraRoles[participantId].push(roles[i]);
+            _grantRole(roles[i], account);
+            emit ParticipantExtraRole(participantId, roles[i]);
+        }
         emit ParticipantSelfRegistered(participantId);
     }
 
@@ -219,14 +241,14 @@ contract AccessRegistry is AccessControl {
         }
     }
 
-    /// @notice Verify (or re-verify) and grant the role to their key.
+    /// @notice Verify (or re-verify) and grant their roles to their key.
     function verifyParticipant(bytes32 participantId) external {
         Participant storage p = _managed(participantId);
         _setStatus(participantId, p, Status.Verified);
-        _grantRole(p.role, p.account);
+        _grantAll(participantId, p, p.account);
     }
 
-    /// @notice Reject (or withdraw verification) and revoke the role. A field
+    /// @notice Reject (or withdraw verification) and revoke their roles. A field
     /// officer who still looks after farmers is refused: move them first.
     function rejectParticipant(bytes32 participantId) external {
         Participant storage p = _managed(participantId);
@@ -235,7 +257,7 @@ contract AccessRegistry is AccessControl {
             if (count > 0) revert OfficerHasFarmers(participantId, count);
         }
         _setStatus(participantId, p, Status.Rejected);
-        _revokeRole(p.role, p.account);
+        _revokeAll(participantId, p, p.account);
     }
 
     /// @notice Replace the details hash after a correction. Status is unchanged.
@@ -248,15 +270,15 @@ contract AccessRegistry is AccessControl {
         emit ParticipantDetailsUpdated(participantId, previous, newHash, msg.sender);
     }
 
-    /// @notice Replace a lost or leaked key; the role moves and the old key is retired.
+    /// @notice Replace a lost or leaked key; their roles move and the old key is retired.
     function changeAccount(bytes32 participantId, address newAccount) external {
         Participant storage p = _managed(participantId);
         _claimAccount(newAccount);
 
         address previous = p.account;
         if (p.status == Status.Verified) {
-            _revokeRole(p.role, previous);
-            _grantRole(p.role, newAccount);
+            _revokeAll(participantId, p, previous);
+            _grantAll(participantId, p, newAccount);
         }
         delete participantOf[previous];
         participantOf[newAccount] = participantId;
@@ -274,10 +296,21 @@ contract AccessRegistry is AccessControl {
         return _participants[participantId].status == Status.Verified;
     }
 
-    /// @notice True if verified and registered under `role`.
+    /// @notice Roles beyond `Participant.role`; empty for most people.
+    function extraRolesOf(bytes32 participantId) external view returns (bytes32[] memory) {
+        return _extraRoles[participantId];
+    }
+
+    /// @notice True if verified and holding `role`.
     function isVerifiedAs(bytes32 participantId, bytes32 role) external view returns (bool) {
         Participant storage p = _participants[participantId];
-        return p.status == Status.Verified && p.role == role;
+        if (p.status != Status.Verified) return false;
+        if (p.role == role) return true;
+        bytes32[] storage extra = _extraRoles[participantId];
+        for (uint256 i = 0; i < extra.length; ++i) {
+            if (extra[i] == role) return true;
+        }
+        return false;
     }
 
     // --- Internals ---
@@ -302,6 +335,22 @@ contract AccessRegistry is AccessControl {
         participantOf[account] = participantId;
 
         emit ParticipantRegistered(participantId, role, account, detailsHash, msg.sender);
+    }
+
+    function _grantAll(bytes32 participantId, Participant storage p, address account) private {
+        _grantRole(p.role, account);
+        bytes32[] storage extra = _extraRoles[participantId];
+        for (uint256 i = 0; i < extra.length; ++i) {
+            _grantRole(extra[i], account);
+        }
+    }
+
+    function _revokeAll(bytes32 participantId, Participant storage p, address account) private {
+        _revokeRole(p.role, account);
+        bytes32[] storage extra = _extraRoles[participantId];
+        for (uint256 i = 0; i < extra.length; ++i) {
+            _revokeRole(extra[i], account);
+        }
     }
 
     /// @dev Loads a participant; caller must be super admin (staff) or admin (others).

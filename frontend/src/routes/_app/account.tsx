@@ -8,7 +8,7 @@ import {
   PasswordCard,
   SignOutEverywhereCard,
 } from '@/features/account/security';
-import { isStaff } from '@/app/navigation';
+import { holdsRole, isStaff } from '@/app/navigation';
 import { LanguageSwitch } from '@/components/language-switch';
 import { PageHeader } from '@/components/page-header';
 import {
@@ -27,8 +27,11 @@ export const Route = createFileRoute('/_app/account')({
 
 function AccountPage() {
   const { t } = useTranslation();
-  const role = useAppSelector((s) => s.session.user?.role);
-  const payee = role === 'farmer' || role === 'investor' || role === 'seller';
+  const user = useAppSelector((s) => s.session.user);
+  const role = user?.role;
+  const payee =
+    !!user &&
+    (['farmer', 'investor', 'seller'] as const).some((r) => holdsRole(user, r));
   return (
     <div className="grid gap-6">
       <PageHeader title={t('account.title')} />

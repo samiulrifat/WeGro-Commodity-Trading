@@ -40,7 +40,7 @@ import { PaymentMethod, ProofStatus } from '../projects/payment-proof.enums';
 import { ProjectViews } from '../projects/project-views';
 import { ProofFiles } from '../projects/proof-files';
 import { PersonSearch } from '../users/person-search';
-import { Role } from '../users/roles';
+import { holdsRole, Role } from '../users/roles';
 import type { DealProofDto } from './dto/deal-proof.dto';
 import { DealProof } from './entities/deal-proof.entity';
 import { DealProofFile } from './entities/deal-proof-file.entity';
@@ -567,14 +567,14 @@ export class DealProofsService {
     if (
       !row ||
       row.status === null ||
-      (actor.role === Role.BUYER && row.buyerId !== actor.id)
+      (holdsRole(actor, Role.BUYER) && row.buyerId !== actor.id)
     ) {
       throw new NotFoundException({
         message: 'Offer not found',
         code: ErrorCode.OFFER_NOT_FOUND,
       });
     }
-    if (actor.role !== Role.BUYER && !SEES_PAYMENTS.has(actor.role)) {
+    if (!holdsRole(actor, Role.BUYER) && !SEES_PAYMENTS.has(actor.role)) {
       throw new ForbiddenException({
         message: 'Not allowed',
         code: ErrorCode.FORBIDDEN,

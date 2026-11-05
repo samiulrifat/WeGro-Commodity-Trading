@@ -689,6 +689,17 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         params: { offerId: String(e.args.offerId) },
         subject,
       });
+      // With no warehouse between them the two sides never meet on their own:
+      // WeGro arranges the handover, as neither may learn who the other is.
+      if (!o.receipt_id) {
+        await x.send(await x.role([Role.ADMIN]), {
+          category: ACTION,
+          kind: NotificationKind.DEAL_ARRANGE_HANDOVER,
+          title: `Deal #${String(e.args.offerId)} is paid: arrange the handover`,
+          params: { offerId: String(e.args.offerId) },
+          subject,
+        });
+      }
       // The farmer's side hears of the payment, unless already asked to deliver.
       if (o.project_id !== null) {
         await x.send(
@@ -1122,16 +1133,18 @@ async function listingOpened(
     produce_code: string;
     available: string;
     asking_unit_price: string;
+    seller_id: string | null;
   }>(
-    'SELECT status, produce_code, available, asking_unit_price FROM listings WHERE id = $1',
+    'SELECT status, produce_code, available, asking_unit_price, seller_id FROM listings WHERE id = $1',
     [Number(id)],
   );
   if (l?.status !== 'open') return;
   const buyers = await x.many<{ buyer_id: string }>(
     `SELECT DISTINCT buyer_id FROM buyer_requests
       WHERE status = 'open' AND produce_code = $1 AND quantity <= $2
-        AND posted_at <= $3 AND valid_until > $3`,
-    [l.produce_code, l.available, e.blockTime],
+        AND posted_at <= $3 AND valid_until > $3
+        AND buyer_id IS DISTINCT FROM $4`,
+    [l.produce_code, l.available, e.blockTime, l.seller_id],
   );
   if (buyers.length === 0) return;
   const produce = await x.named('produce_types', l.produce_code);

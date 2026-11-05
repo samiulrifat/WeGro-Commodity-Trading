@@ -138,6 +138,7 @@ export type NotificationKind =
   | 'deal-proof.refunded'
   | 'deal.buyer-paid'
   | 'deal.deliver'
+  | 'deal.arrange-handover'
   | 'deal.delivered'
   | 'delivery.mismatch'
   | 'request.posted'

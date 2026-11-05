@@ -201,6 +201,7 @@ contract TradeLedger is AccessGuarded {
     error DealOnHold(uint256 offerId);
     error DealNotOnHold(uint256 offerId);
     error NotAuthorized(address account);
+    error OwnListing(uint256 listingId);
     error NotExternal(uint256 listingId);
     error NotPendingListing(uint256 listingId);
     error BadFeeSlabs();
@@ -377,6 +378,8 @@ contract TradeLedger is AccessGuarded {
         if (quantity > l.available) revert ExceedsAvailable(quantity, l.available);
 
         bytes32 buyerId = _callerId();
+        // Someone who both buys and sells cannot deal with themselves.
+        if (l.seller == buyerId) revert OwnListing(listingId);
         offerId = nextOfferId++;
         _offers[offerId] = Offer({
             listingId: listingId,

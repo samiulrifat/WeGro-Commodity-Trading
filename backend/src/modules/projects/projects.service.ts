@@ -36,7 +36,7 @@ import {
 } from '../catalog/catalog.enums';
 import { CatalogService } from '../catalog/catalog.service';
 import { ChainState, User } from '../users/entities/user.entity';
-import { ParticipantStatus, Role } from '../users/roles';
+import { holdsRole, ParticipantStatus, Role } from '../users/roles';
 import type {
   CreateProjectDto,
   ListProjectsQueryDto,
@@ -262,7 +262,7 @@ export class ProjectsService {
     if (q.farmerId && PROJECT_STAFF.has(actor.role)) {
       qb.andWhere('p.farmer_id = :fid', { fid: q.farmerId });
     }
-    if (q.favourites && actor.role === Role.INVESTOR) {
+    if (q.favourites && holdsRole(actor, Role.INVESTOR)) {
       qb.andWhere(
         'p.id IN (SELECT f.project_id FROM project_favourites f WHERE f.investor_id = :me)',
         { me: actor.id },
@@ -590,4 +590,4 @@ function publishedConflict() {
 
 /** Investors see which projects they saved. */
 const viewerOf = (actor: AuthUser) =>
-  actor.role === Role.INVESTOR ? actor.id : undefined;
+  holdsRole(actor, Role.INVESTOR) ? actor.id : undefined;

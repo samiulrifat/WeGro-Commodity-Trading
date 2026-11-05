@@ -23,7 +23,7 @@ import {
 import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { User } from '../users/entities/user.entity';
 import { PersonalDetailsCodec } from '../users/personal-details.codec';
-import { CHAIN_ROLE } from '../users/roles';
+import { CHAIN_ROLE, type ParticipantRole } from '../users/roles';
 import {
   assertConfirmed,
   mapUniqueViolation,
@@ -51,6 +51,7 @@ const person = {
 function world() {
   const users: User[] = [];
   const details: PersonalDetails[] = [];
+  const extraOnLedger = new Map<string, string[]>();
   const ledger = new Map<
     string,
     { status: number; role: string; account: string; detailsHash: string }
@@ -123,6 +124,16 @@ function world() {
       const [, role, account, detailsHash] = call.args as string[];
       ledger.set(id, { status: 1, role, account, detailsHash });
     }
+    if (call.method === 'selfRegisterParticipant') {
+      const [, roles, account, detailsHash] = call.args as [
+        string,
+        string[],
+        string,
+        string,
+      ];
+      ledger.set(id, { status: 2, role: roles[0], account, detailsHash });
+      extraOnLedger.set(id, roles.slice(1));
+    }
     if (call.method === 'verifyParticipant') ledger.get(id)!.status = 2;
     if (call.method === 'rejectParticipant') ledger.get(id)!.status = 3;
     if (call.method === 'reassignFarmers') {
@@ -155,6 +166,9 @@ function world() {
     get: () => ({
       // Small, so a hand-over takes several batches here.
       MAX_REASSIGN: jest.fn(() => Promise.resolve(2n)),
+      extraRolesOf: jest.fn((id: string) =>
+        Promise.resolve(extraOnLedger.get(id) ?? []),
+      ),
       getParticipant: jest.fn((id: string) =>
         Promise.resolve(
           ledger.get(id) ?? {
@@ -221,11 +235,13 @@ function world() {
     users,
     details,
     ledger,
+    extraOnLedger,
     chain,
     tokens,
     usersRepo,
     sms,
     manager,
+    dataSource,
   };
 }
 
@@ -645,6 +661,103 @@ describe('ParticipantsService', () => {
     expect(res).toMatchObject({ matches: false, mismatches: ['status'] });
   });
 
+  describe('someone holding several roles', () => {
+    const signedUp = async (w: ReturnType<typeof world>) => {
+      const { participant } = await w.service.register(admin, {
+        role: Role.INVESTOR,
+        ...person,
+      } as never);
+      w.users[0].extraRoles = [Role.SELLER, Role.BUYER];
+      w.extraOnLedger.set(uuidToBytes32(participant.id), [
+        CHAIN_ROLE[Role.BUYER],
+        CHAIN_ROLE[Role.SELLER],
+      ]);
+      return participant.id;
+    };
+
+    it('agrees with the ledger whatever the order of the further roles', async () => {
+      const w = world();
+      const id = await signedUp(w);
+      await expect(w.service.integrity(id)).resolves.toMatchObject({
+        matches: true,
+      });
+    });
+
+    it.each([
+      [
+        'a role the database does not have',
+        [Role.BUYER, Role.SELLER, Role.FARMER],
+      ],
+      ['fewer roles than the database', [Role.BUYER]],
+      ['a different role', [Role.BUYER, Role.FARMER]],
+      ['none at all', []],
+    ])('reports a ledger with %s', async (_what, roles) => {
+      const w = world();
+      const id = await signedUp(w);
+      w.extraOnLedger.set(
+        uuidToBytes32(id),
+        roles.map((r) => CHAIN_ROLE[r as ParticipantRole]),
+      );
+      await expect(w.service.integrity(id)).resolves.toMatchObject({
+        matches: false,
+        mismatches: ['role'],
+      });
+      await expect(w.service.syncWithLedger(admin, id)).rejects.toThrow(
+        'The ledger record does not match this person',
+      );
+    });
+
+    it('reports a further role the ledger holds and this code does not know', async () => {
+      const w = world();
+      const id = await signedUp(w);
+      w.extraOnLedger.set(uuidToBytes32(id), [
+        CHAIN_ROLE[Role.BUYER],
+        '0x' + '9'.repeat(64),
+      ]);
+      await expect(w.service.integrity(id)).resolves.toMatchObject({
+        matches: false,
+        mismatches: ['role'],
+      });
+    });
+
+    it('registers every role again when the ledger lost the sign-up', async () => {
+      const w = world();
+      const id = await signedUp(w);
+      w.ledger.clear();
+      w.extraOnLedger.clear();
+      w.users[0].chainState = ChainState.SUBMITTED;
+      w.users[0].registeredById = null;
+      await w.service.retrySignUps(10);
+      expect(w.chain.sent.at(-1)).toMatchObject({
+        method: 'selfRegisterParticipant',
+      });
+      expect(w.chain.sent.at(-1)!.args).toEqual([
+        uuidToBytes32(id),
+        [Role.INVESTOR, Role.SELLER, Role.BUYER].map(
+          (r) => CHAIN_ROLE[r as ParticipantRole],
+        ),
+        expect.any(String),
+        expect.any(String),
+      ]);
+    });
+
+    it('lists open work from every role they hold', async () => {
+      const w = world();
+      const id = await signedUp(w);
+      w.users[0].extraRoles = [Role.BUYER];
+      w.dataSource.manager.query = jest.fn((sql: string) =>
+        Promise.resolve([{ count: sql.includes('FROM offers') ? 2 : 1 }]),
+      ) as never;
+      const work = await w.service.openWork(admin, id);
+      expect(work.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'holdings_running', count: 1 }),
+          expect.objectContaining({ kind: 'offers_open', count: 2 }),
+        ]),
+      );
+    });
+  });
+
   it('stops a second key replacement while one is in progress', async () => {
     const w = world();
     const { participant } = await w.service.register(admin, {
@@ -696,7 +809,7 @@ describe('ParticipantsService', () => {
       );
       await expect(
         w.service.signUp({
-          role: Role.INVESTOR,
+          roles: [Role.INVESTOR],
           ...person,
           password: 'correct horse battery',
           phoneCode: '123456',

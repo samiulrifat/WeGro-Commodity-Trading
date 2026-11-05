@@ -26,6 +26,15 @@ const sentCode = {
 async function upToCreate(email = '', password = 'my-own-password-1') {
   const user = userEvent.setup({ delay: null });
   await user.click(screen.getByRole('button', { name: /Investor/ }));
+  await afterTheRoles(user, email, password);
+}
+
+/** From the first step's Next on, to creating the account. */
+async function afterTheRoles(
+  user: ReturnType<typeof userEvent.setup>,
+  email = '',
+  password = 'my-own-password-1',
+) {
   await user.click(screen.getByRole('button', { name: 'Next' }));
   await user.type(screen.getByLabelText('Mobile Number'), '01712345678');
   await user.click(screen.getByRole('button', { name: 'Send Code' }));
@@ -110,7 +119,7 @@ describe('signing up', () => {
     expect(await screen.findByText('Account Created')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Go to Sign In' })).toBeTruthy();
     expect(sent.at(-1)!.body).toMatchObject({
-      role: 'investor',
+      roles: ['investor'],
       phone: '01712345678',
       phoneCode: '123456',
       district: 'KHULNA',
@@ -158,6 +167,61 @@ describe('signing up, further', () => {
     expect(screen.getByLabelText('SMS Code')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /Back/ }));
     expect(screen.getByRole('button', { name: /Investor/ })).toBeTruthy();
+  });
+
+  it('takes one role or several, and at least one', async () => {
+    await signedOut();
+    const sent = fakeServer(({ method, url }) => {
+      if (url.pathname.endsWith('/sign-up/code')) return sentCode;
+      if (method === 'POST' && url.pathname.endsWith('/sign-up')) {
+        return {
+          status: 201,
+          body: {
+            data: {
+              accessToken: 't',
+              tokenType: 'Bearer',
+              expiresIn: 900,
+              mustChangePassword: false,
+              user: {
+                id: 'u9',
+                role: 'buyer',
+                extraRoles: ['seller'],
+                status: 'verified',
+                language: 'en',
+              },
+            },
+          },
+        };
+      }
+      return undefined;
+    });
+    await renderPage(<SignUpPage />, '/register');
+    const user = userEvent.setup({ delay: null });
+    const card = (name: RegExp) => screen.getByRole('button', { name });
+    const next = () =>
+      screen.getByRole('button', { name: 'Next' }) as HTMLButtonElement;
+
+    // Nothing chosen: cannot go on.
+    expect(next().disabled).toBe(true);
+    await user.click(card(/Buyer/));
+    await user.click(card(/Seller/));
+    await user.click(card(/Investor/));
+    for (const r of [/Buyer/, /Seller/, /Investor/]) {
+      expect(card(r).getAttribute('aria-pressed')).toBe('true');
+    }
+    expect(next().disabled).toBe(false);
+    // Clicking again takes one off; taking all off stops them going on.
+    await user.click(card(/Investor/));
+    expect(card(/Investor/).getAttribute('aria-pressed')).toBe('false');
+    await user.click(card(/Buyer/));
+    await user.click(card(/Seller/));
+    expect(next().disabled).toBe(true);
+    await user.click(card(/Seller/));
+    await user.click(card(/Buyer/));
+    await afterTheRoles(user);
+    await vi.waitFor(() =>
+      expect(sent.at(-1)!.body).toMatchObject({ roles: ['seller', 'buyer'] }),
+    );
   });
 
   it('goes back to the step a refusal is about', async () => {

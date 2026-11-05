@@ -43,6 +43,7 @@ export class SessionResponder {
       user: {
         id: user.id,
         role: user.role,
+        extraRoles: user.extraRoles ?? [],
         status: user.status,
         language: user.language,
       },

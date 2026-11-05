@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
-import { actsAs, Role } from '../users/roles';
+import { actsAs, holdsRole, Role } from '../users/roles';
 import { type AuthUser, canAct } from './auth-user';
 import {
   ALLOW_PENDING_PASSWORD,
@@ -88,7 +88,10 @@ export class RolesGuard {
     const user = context
       .switchToHttp()
       .getRequest<Request & { user?: AuthUser }>().user;
-    if (!user || !roles.some((r) => actsAs(user.role, r))) {
+    if (
+      !user ||
+      !roles.some((r) => actsAs(user.role, r) || holdsRole(user, r))
+    ) {
       throw new ForbiddenException({
         message: 'Your role cannot do this',
         code: ErrorCode.ROLE_NOT_ALLOWED,

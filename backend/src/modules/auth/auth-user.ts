@@ -5,6 +5,8 @@ import { ParticipantStatus, Role } from '../users/roles';
 export interface AuthUser {
   id: string;
   role: Role;
+  /** Further roles, for someone who signed up with several; permissions merge. */
+  extraRoles?: readonly Role[];
   status: ParticipantStatus;
   chainState: ChainState;
   keyIndex: number;

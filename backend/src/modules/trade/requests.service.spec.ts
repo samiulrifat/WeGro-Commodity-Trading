@@ -157,7 +157,7 @@ describe('RequestsService', () => {
       listing(5, 1_000_000n), // far above the buyer's highest price: still shown
       listing(6, 1_000_100n),
     ];
-    const dto = await build({ open }).service.one(7);
+    const dto = await build({ open }).service.one(buyer, 7);
     expect(dto.matchingListings.map((m) => m.id)).toEqual([1, 2, 3, 4, 5]);
     expect(dto.matchingListings[0]).toEqual({
       id: 1,
@@ -173,21 +173,42 @@ describe('RequestsService', () => {
       listing(2, 2100n, { available: 50 }), // exactly what is wanted
       listing(3, 2200n, { available: 49 }),
     ];
-    const dto = await build({ open }).service.one(7);
+    const dto = await build({ open }).service.one(buyer, 7);
     expect(dto.matchingListings.map((m) => m.id)).toEqual([1, 2]);
   });
 
   it("places an outside seller's listing in the seller's own district", async () => {
     const dto = await build({
       open: [listing(9, 2000n, { projectId: null, detailsId: 'd1' })],
-    }).service.one(7);
+    }).service.one(buyer, 7);
     expect(dto.matchingListings).toEqual([
       expect.objectContaining({ id: 9, district: 'Rangpur' }),
     ]);
   });
 
+  describe('who is asking', () => {
+    const asked = (
+      reader: Parameters<ReturnType<typeof build>['service']['one']>[0],
+    ) => build().service.one(reader, 7);
+
+    it('is known to the buyer themselves and the office', async () => {
+      expect((await asked(buyer)).buyer.id).toBe(buyer.id);
+      expect((await asked(actor(Role.OPERATIONS))).buyer.id).toBe(buyer.id);
+    });
+
+    it.each([Role.SELLER, Role.BUYER, Role.FIELD_OFFICER])(
+      'is not known to a %s',
+      async (role) => {
+        expect((await asked(actor(role))).buyer).toEqual({
+          id: null,
+          name: null,
+        });
+      },
+    );
+  });
+
   it('answers 404 for a request that is not there', async () => {
-    await expect(build({ row: null }).service.one(7)).rejects.toThrow(
+    await expect(build({ row: null }).service.one(buyer, 7)).rejects.toThrow(
       NotFoundException,
     );
   });
@@ -196,7 +217,7 @@ describe('RequestsService', () => {
     const dto = await build({
       row: request({ validUntil: new Date(NOW.getTime() - 1000) }),
       open: [listing(1, 1000n)],
-    }).service.one(7);
+    }).service.one(buyer, 7);
     expect(dto).toMatchObject({ status: 'expired', matchingListings: [] });
   });
 

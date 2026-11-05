@@ -244,7 +244,9 @@ export function SellerListingDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <FieldDescription>{t('market.descriptionHint')}</FieldDescription>
+            <FieldDescription>
+              {t('market.descriptionHint')} {t('market.noContactHint')}
+            </FieldDescription>
           </Field>
           <Field data-invalid={show('photos') || undefined}>
             <FieldLabel>{t('market.photos')}</FieldLabel>

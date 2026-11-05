@@ -18,7 +18,7 @@ import { store } from '@/store/store';
 import { fakeServer, type Reply, renderPage, signedInAs } from '@/test/render';
 import { DashboardPage } from './dashboard-page';
 import { useItemText } from './item-text';
-import { itemPath, type QueueKey } from './queues';
+import { itemPath, QUEUE_LIST, type QueueKey } from './queues';
 import { TrendChart } from './trend-chart';
 
 afterEach(() => {
@@ -113,6 +113,12 @@ describe('waiting items in words', () => {
     );
     expect(say('reservations.pending', { id: 4, slots: 2 })).toBe(
       'Booking #4: 2 units',
+    );
+    expect(say('payment-proofs.pending', { id: 4, amount: '5000.00' })).toMatch(
+      /^Booking #4: .*5,000.* sent$/,
+    );
+    expect(say('deal-proofs.pending', { id: 9, amount: '250.50' })).toMatch(
+      /^Deal #9: .*250\.50.* sent$/,
     );
     expect(
       say('vouchers.proposed', {
@@ -235,6 +241,27 @@ describe('where a waiting item opens', () => {
     expect(itemPath('reservations.pending', item({ project }))).toBe(
       '/projects/p1',
     );
+    expect(itemPath('payment-proofs.pending', item({ project }))).toBe(
+      '/projects/payments',
+    );
+    expect(itemPath('deal-proofs.pending', item())).toBe(
+      '/marketplace/payments',
+    );
+    // Each queue opens the list its number counts.
+    expect(QUEUE_LIST['payment-proofs.pending']).toEqual({
+      to: '/projects/payments',
+    });
+    expect(QUEUE_LIST['reservations.pending']).toEqual({
+      to: '/projects/payments',
+      search: { tab: 'bookings' },
+    });
+    expect(QUEUE_LIST['deal-proofs.pending']).toEqual({
+      to: '/marketplace/payments',
+    });
+    expect(QUEUE_LIST['deals.awaiting-payment']).toEqual({
+      to: '/marketplace/payments',
+      search: { tab: 'deals' },
+    });
     expect(itemPath('voucher-sales.pending', item())).toBeNull();
     expect(itemPath('vouchers.inactive', item())).toBe('/vouchers/x1');
     expect(itemPath('deliveries.discrepancy', item())).toBe(

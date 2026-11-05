@@ -271,6 +271,23 @@ export type SessionUserDto = {
     | 'insurer'
     | 'auditor'
     | 'seller';
+  /** Further roles of someone who signed up with several */
+  extraRoles?: (
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor'
+    | 'seller'
+  )[];
   status: 'pending' | 'verified' | 'rejected';
   /** The language the person chose; null until chosen (English) */
   language: Language | null;
@@ -312,6 +329,23 @@ export type MeResponseDto = {
     | 'insurer'
     | 'auditor'
     | 'seller';
+  /** Further roles of someone who signed up with several */
+  extraRoles?: (
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor'
+    | 'seller'
+  )[];
   status: 'pending' | 'verified' | 'rejected';
   fullName: string;
   phone: string;
@@ -475,7 +509,7 @@ export type SignUpDto = {
   address: string;
   /** The language WeGro writes to them in (SMS, the app); English if not given */
   language?: Language;
-  role: 'investor' | 'buyer' | 'seller';
+  roles: ('investor' | 'buyer' | 'seller')[];
   /** The 6 digits from the SMS */
   phoneCode: string;
   password: string;

@@ -147,6 +147,8 @@ export enum ErrorCode {
   COVER_UNCHANGED = 'COVER_UNCHANGED',
   /** damagePercent must be above 0 */
   DAMAGE_NOT_POSITIVE = 'DAMAGE_NOT_POSITIVE',
+  /** Remove phone numbers, email addresses and links: WeGro arranges every handover */
+  CONTACT_DETAILS_NOT_ALLOWED = 'CONTACT_DETAILS_NOT_ALLOWED',
   /** Database unavailable */
   DATABASE_UNAVAILABLE = 'DATABASE_UNAVAILABLE',
   /** {unpaidDeals} approved deal(s) are waiting for payment */
@@ -185,6 +187,7 @@ export enum ErrorCode {
   EVENT_NOT_COVERED = 'EVENT_NOT_COVERED',
   /** Only {available} still available */
   EXCEEDS_AVAILABLE = 'EXCEEDS_AVAILABLE',
+  OWN_LISTING = 'OWN_LISTING',
   /** Only {remaining} taka of the cover remains */
   EXCEEDS_COVERAGE = 'EXCEEDS_COVERAGE',
   /** The voucher is worth more than the funding left for inputs */

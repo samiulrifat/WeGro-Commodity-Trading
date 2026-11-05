@@ -3,9 +3,11 @@ import type { SessionState } from '@/store/session-slice';
 import {
   access,
   actsAs,
+  allRoles,
   AREAS,
   type Area,
   currentPage,
+  holdsRole,
   homeOf,
   landingFor,
   mayOpen,
@@ -276,5 +278,92 @@ describe('which links lead somewhere', () => {
     expect(mayOpen(user('accounts'), '/projects/drafts')).toBe(false);
     expect(mayOpen(user('investor'), '/people')).toBe(false);
     expect(mayOpen(user('investor'), '/nowhere')).toBe(false);
+  });
+});
+
+describe('someone with several roles', () => {
+  const person = (
+    role: 'investor' | 'buyer' | 'seller',
+    extraRoles: Array<'investor' | 'buyer' | 'seller'>,
+    status: 'verified' | 'pending' = 'verified',
+  ) => ({ id: 'me', role, extraRoles, status, language: 'en' as const });
+  const areas = (user: ReturnType<typeof person>) =>
+    navFor(user).map((n) => n.area);
+  const pages = (user: ReturnType<typeof person>, area: string) =>
+    navFor(user)
+      .find((n) => n.area === area)
+      ?.pages?.map((p) => p.to) ?? [];
+  const signedIn = (who: ReturnType<typeof person>) => session({ user: who });
+
+  it('gets all the sections of all their roles, each once, the catalog last', () => {
+    const all = person('investor', ['buyer', 'seller']);
+    expect(areas(all)).toEqual([
+      'projects',
+      'holdings',
+      'statement',
+      'marketplace',
+      'offers',
+      'requests',
+      'warehouse',
+      'catalog',
+    ]);
+    expect(new Set(areas(all)).size).toBe(areas(all).length);
+  });
+
+  it('gets every page of a section they share, each once', () => {
+    const both = person('buyer', ['seller']);
+    expect(pages(both, 'marketplace')).toEqual([
+      '/marketplace/mine',
+      '/marketplace',
+      '/marketplace/deals',
+      '/marketplace/deliveries',
+      '/marketplace/requests',
+      '/marketplace/fees',
+    ]);
+    expect(pages(both, 'catalog')).toEqual(['/catalog/produce']);
+  });
+
+  it('gets the same menu whichever way round they chose', () => {
+    expect(navFor(person('buyer', ['seller']))).toBe(
+      navFor(person('seller', ['buyer'])),
+    );
+  });
+
+  it('lands on a section of theirs', () => {
+    expect(homeOf(person('investor', ['buyer', 'seller']))).toBe('/projects');
+    expect(homeOf(person('buyer', ['seller']))).toBe('/marketplace/mine');
+  });
+
+  it('opens what each role opens, and nothing else', () => {
+    const both = signedIn(person('buyer', ['seller']));
+    expect(access(both, 'offers')).toBe('ok');
+    expect(access(both, 'marketplace', '/marketplace/mine')).toBe('ok');
+    expect(access(both, 'projects')).toBe('no-access');
+    expect(access(both, 'marketplace', '/marketplace/approvals')).toBe(
+      'no-access',
+    );
+    const mixed = signedIn(person('investor', ['buyer']));
+    expect(access(mixed, 'holdings')).toBe('ok');
+    expect(access(mixed, 'offers')).toBe('ok');
+    expect(access(mixed, 'marketplace', '/marketplace/mine')).toBe('no-access');
+    expect(access(mixed, 'people')).toBe('no-access');
+  });
+
+  it('waits like anyone until verified', () => {
+    expect(areas(person('buyer', ['seller'], 'pending'))).toEqual(['status']);
+  });
+
+  it('leaves someone with one role as they were', () => {
+    expect(navFor(person('buyer', []))).toBe(NAV.buyer);
+  });
+
+  it('knows which roles someone holds', () => {
+    const both = person('buyer', ['seller']);
+    expect(holdsRole(both, 'buyer')).toBe(true);
+    expect(holdsRole(both, 'seller')).toBe(true);
+    expect(holdsRole(both, 'investor')).toBe(false);
+    expect(holdsRole({ role: 'buyer' }, 'seller')).toBe(false);
+    expect(allRoles(both)).toEqual(['buyer', 'seller']);
+    expect(allRoles({ role: 'buyer' })).toEqual(['buyer']);
   });
 });

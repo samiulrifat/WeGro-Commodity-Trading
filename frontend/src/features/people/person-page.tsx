@@ -17,7 +17,7 @@ import {
   useLazyParticipantsIntegrityQuery,
   useParticipantsFindOneQuery,
 } from '@/api/generated/participants';
-import type { Role } from '@/app/navigation';
+import { allRoles, roleNames, type Role } from '@/app/navigation';
 import { PageHeader } from '@/components/page-header';
 import { ErrorState, LoadingState } from '@/components/states';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -92,7 +92,7 @@ export function PersonPage({ id }: { id: string }) {
         title={person.fullName}
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
-            {t(`roles.${person.role as Role}`)}
+            {roleNames(person, t)}
             <PersonStatus person={person} />
           </span>
         }
@@ -144,12 +144,13 @@ export function PersonPage({ id }: { id: string }) {
         <IdCheckCard person={person} />
         <RegistrationCard person={person} />
         {viewer !== 'field_officer' && <LedgerCard person={person} />}
-        {PAYEES.has(person.role) && BANK_READERS.has(viewer) && (
-          <PersonBankAccountCard
-            personId={person.id}
-            personName={person.fullName}
-          />
-        )}
+        {allRoles(person).some((r) => PAYEES.has(r)) &&
+          BANK_READERS.has(viewer) && (
+            <PersonBankAccountCard
+              personId={person.id}
+              personName={person.fullName}
+            />
+          )}
       </div>
     </div>
   );

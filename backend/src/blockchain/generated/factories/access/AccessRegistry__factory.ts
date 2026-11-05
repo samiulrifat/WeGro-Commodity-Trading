@@ -55,6 +55,17 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "name": "DuplicateRole",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "farmerId",
         "type": "bytes32"
       },
@@ -65,6 +76,11 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "FarmerNotWithOfficer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NoRoles",
     "type": "error"
   },
   {
@@ -309,6 +325,25 @@ import type { NonPayableOverrides } from "../../common.js"
       }
     ],
     "name": "ParticipantDetailsUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "participantId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ParticipantExtraRole",
     "type": "event"
   },
   {
@@ -721,6 +756,25 @@ import type { NonPayableOverrides } from "../../common.js"
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "participantId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "extraRolesOf",
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "officerId",
         "type": "bytes32"
       }
@@ -1075,9 +1129,9 @@ import type { NonPayableOverrides } from "../../common.js"
         "type": "bytes32"
       },
       {
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
+        "internalType": "bytes32[]",
+        "name": "roles",
+        "type": "bytes32[]"
       },
       {
         "internalType": "address",

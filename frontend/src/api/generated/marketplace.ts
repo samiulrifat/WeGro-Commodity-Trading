@@ -130,6 +130,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
             listingId: queryArg.listingId,
             status: queryArg.status,
+            side: queryArg.side,
             discrepancy: queryArg.discrepancy,
             payoutDue: queryArg.payoutDue,
             q: queryArg.q,
@@ -432,6 +433,8 @@ export type TradeListOffersApiArg = {
     | 'paid'
     | 'delivered'
     | 'seller_paid';
+  /** For someone who both buys and sells: only the deals where they are buying, or selling */
+  side?: OfferSide;
   /** Only deals whose delivery quantities disagree */
   discrepancy?: boolean;
   /** Delivered external sellers’ deals waiting for their payout */
@@ -588,7 +591,7 @@ export type DealProofsFileApiResponse = unknown;
 export type DealProofsFileApiArg = {
   fileId: string;
 };
-export type TradePartyDto = {
+export type ListingProjectDto = {
   id: string;
   name: string;
 };
@@ -606,12 +609,13 @@ export type ProduceRefDto = {
 export type SellerDto = {
   kind: 'wegro' | 'farmer' | 'seller';
   id?: string | null;
-  name: string;
+  /** Null to buyers and others outside the sale, who never learn who it is */
+  name?: string | null;
 };
 export type ListingDto = {
   id: number;
   /** Null for an external seller’s listing */
-  project?: TradePartyDto | null;
+  project?: ListingProjectDto | null;
   district: PlaceDto;
   produce: ProduceRefDto;
   source: 'warehouse' | 'fresh' | 'seller';
@@ -747,6 +751,10 @@ export type ListProduceDto = {
   quantity: number;
   askingUnitPrice: string;
 };
+export type TradePartyDto = {
+  id?: string | null;
+  name?: string | null;
+};
 export type DeliveryViewDto = {
   quantity: number;
   notes?: string | null;
@@ -817,6 +825,7 @@ export type MakeOfferDto = {
   /** Your own price per unit */
   unitPrice: string;
 };
+export type OfferSide = 'buying' | 'selling';
 export type PaymentReferenceDto = {
   paymentReference: string;
 };

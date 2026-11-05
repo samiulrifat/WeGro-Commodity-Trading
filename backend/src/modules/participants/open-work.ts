@@ -100,13 +100,13 @@ export interface OpenWorkItem {
   count: number;
 }
 
-/** What `userId` (of `role`) still has open; only kinds with something in them. */
+/** What `userId` (in each of `roles`) still has open; only kinds with something in them. */
 export async function openWorkOf(
   m: EntityManager,
   userId: string,
-  role: Role,
+  roles: readonly Role[],
 ): Promise<OpenWorkItem[]> {
-  const queries = QUERIES[role] ?? [];
+  const queries = roles.flatMap((role) => QUERIES[role] ?? []);
   const counts = await Promise.all(
     queries.map(async ([kind, sql]) => {
       const rows: Array<{ count: string | number }> = await m.query(sql, [

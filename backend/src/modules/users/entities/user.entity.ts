@@ -39,9 +39,20 @@ export enum ChainState {
 })
 @Index('ix_users_pending', ['createdAt'], { where: `"status" = 'pending'` })
 @Check('ck_users_language', `"language" IN ('en', 'bn')`)
+@Check(
+  'ck_users_extra_roles',
+  `"extra_roles" <@ ARRAY['investor', 'buyer', 'seller']::text[]`,
+)
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 20 })
   role: Role;
+
+  /**
+   * Further roles of someone who signed up with several of investor, buyer
+   * and seller (as on the ledger); their permissions merge with `role`'s.
+   */
+  @Column({ type: 'text', array: true, default: '{}' })
+  extraRoles: Role[];
 
   @Column({ type: 'varchar', length: 10 })
   status: ParticipantStatus;

@@ -16,6 +16,7 @@ import { useAppSelector } from '@/store/hooks';
 import { InstallApp, InstallIcon } from '../pwa/install-app';
 import { store } from '@/store/store';
 import { signOut } from '../session';
+import { roleNames } from '@/app/navigation';
 
 const initials = (name: string) =>
   name
@@ -29,10 +30,10 @@ const initials = (name: string) =>
 export function AccountMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const role = useAppSelector((s) => s.session.user?.role);
+  const user = useAppSelector((s) => s.session.user);
   const { data } = useAuthMeQuery();
   const name = data?.data.fullName;
-  const roleName = role ? t(`roles.${role}`) : '';
+  const roleName = user ? roleNames(user, t) : '';
 
   return (
     <DropdownMenu>

@@ -9,7 +9,7 @@ import {
   type TradeListListingsApiArg,
   useTradeListListingsQuery,
 } from '@/api/generated/marketplace';
-import { actsAs, isStaff } from '@/app/navigation';
+import { actsAs, holdsRole, isStaff } from '@/app/navigation';
 import { PageHeader } from '@/components/page-header';
 import { Pager } from '@/components/pager';
 import { SearchBox } from '@/components/search-box';
@@ -23,6 +23,7 @@ import {
   knownDistrict,
   type MarketSearch,
   produceName,
+  findsSellers,
   sellerName,
 } from './market-utils';
 import { NewListingDialog, SellerListingDialog } from './new-listing-dialog';
@@ -86,7 +87,8 @@ export function ListingsList({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
+  const role = user.role;
   const [adding, setAdding] = useState(false);
   const tabs = mode === 'browse' && isStaff(role) ? STAFF_TABS : TABS[mode];
   const tab = tabs.find((x) => x === search.tab) ?? tabs[0]!;
@@ -107,11 +109,11 @@ export function ListingsList({
       search: { ...search, ...patch, page: undefined },
     });
   const meta = query.data?.meta;
-  const seller = role === 'seller';
+  const seller = holdsRole(user, 'seller');
   const lists = actsAs(role, 'admin') || role === 'field_officer' || seller;
   const intro =
     mode === 'browse'
-      ? t(`market.intro.${introKey(role)}`)
+      ? t(`market.intro.${introKey(user)}`)
       : t(`market.intro.${mode}`);
 
   return (
@@ -155,7 +157,11 @@ export function ListingsList({
         className="lg:max-w-xl"
         value={search.q}
         onSearch={(q) => set({ q })}
-        placeholder={t('market.searchListings')}
+        placeholder={
+          findsSellers(role)
+            ? t('market.searchListings')
+            : t('market.searchByProduce')
+        }
       />
       {query.isLoading && <LoadingState />}
       {query.error && (
@@ -208,16 +214,16 @@ export function ListingsList({
   );
 }
 
-const introKey = (role: string) =>
-  role === 'buyer'
+const introKey = (user: Parameters<typeof holdsRole>[0]) =>
+  holdsRole(user, 'buyer')
     ? 'buyer'
-    : role === 'seller'
+    : holdsRole(user, 'seller')
       ? 'seller'
-      : role === 'farmer'
+      : user.role === 'farmer'
         ? 'farmer'
-        : role === 'field_officer'
+        : user.role === 'field_officer'
           ? 'officer'
-          : role === 'warehouse'
+          : user.role === 'warehouse'
             ? 'operator'
             : 'office';
 
@@ -284,9 +290,7 @@ export function ListingCard({ listing: l }: { listing: ListingDto }) {
           </p>
         </div>
         <p className="truncate text-sm">
-          <span className="font-medium">
-            {sellerName(l, t('market.wegro'))}
-          </span>
+          <span className="font-medium">{sellerName(l, t)}</span>
           <span className="text-muted-foreground">
             {' · '}
             {knownDistrict(l.district.code)

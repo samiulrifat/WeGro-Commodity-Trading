@@ -41,6 +41,8 @@ import { todayBd } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import {
+  buyerName,
+  findsBuyers,
   FRESH,
   type MarketSearch,
   produceName,
@@ -50,6 +52,7 @@ import {
 import { SellerListingDialog } from './new-listing-dialog';
 import { useUnit } from '@/i18n/use-unit';
 import { useDistrictName } from '@/features/insurance/use-names';
+import { holdsRole } from '@/app/navigation';
 
 const PAGE_SIZE = 12;
 const TABS = ['open', 'all'] as const;
@@ -74,7 +77,7 @@ export function RequestsList({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
   const [posting, setPosting] = useState(false);
   const tab = search.tab === 'all' ? 'all' : 'open';
   const page = search.page ?? 1;
@@ -103,7 +106,7 @@ export function RequestsList({
         description={
           mine
             ? t('market.intro.myRequests')
-            : role === 'seller'
+            : holdsRole(user, 'seller')
               ? t('market.intro.sellerRequests')
               : t('market.intro.requests')
         }
@@ -143,7 +146,11 @@ export function RequestsList({
         value={search.q}
         onSearch={(q) => set({ q })}
         placeholder={
-          mine ? t('market.searchMyRequests') : t('market.searchRequests')
+          mine
+            ? t('market.searchMyRequests')
+            : findsBuyers(user.role)
+              ? t('market.searchRequests')
+              : t('market.searchByProduce')
         }
       />
       {query.isLoading && <LoadingState />}
@@ -193,7 +200,7 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
   const user = useAppSelector((s) => s.session.user!);
   const [cancelling, setCancelling] = useState(false);
   const [listing, setListing] = useState(false);
-  const own = user.role === 'buyer' && r.buyer.id === user.id;
+  const own = holdsRole(user, 'buyer') && r.buyer.id === user.id;
   return (
     <article className="grid gap-3 rounded-2xl border bg-card p-4 shadow-xs">
       <div className="grid gap-0.5">
@@ -213,7 +220,7 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
         </p>
       </div>
       <p className="truncate text-sm">
-        <span className="font-medium">{r.buyer.name}</span>
+        <span className="font-medium">{buyerName(r, t)}</span>
         <span className="text-muted-foreground">
           {' · '}
           {t('market.postedOn', { date: fmt.date(r.postedAt) })}
@@ -262,7 +269,7 @@ function RequestCard({ request: r }: { request: BuyerRequestDto }) {
           {t('market.cancelRequest')}
         </Button>
       )}
-      {user.role === 'seller' && r.status === 'open' && (
+      {holdsRole(user, 'seller') && !own && r.status === 'open' && (
         <Button
           variant="outline"
           className="justify-self-start"

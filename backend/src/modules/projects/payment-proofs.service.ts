@@ -32,7 +32,7 @@ import {
   NotificationWriter,
 } from '../notifications/notification-writer';
 import { PersonSearch } from '../users/person-search';
-import { Role } from '../users/roles';
+import { holdsRole, Role } from '../users/roles';
 import type {
   ListProofsQueryDto,
   PaymentProofDto,
@@ -591,7 +591,7 @@ export class PaymentProofsService {
         code: ErrorCode.RESERVATION_NOT_FOUND,
       });
     }
-    if (actor.role === Role.INVESTOR) {
+    if (holdsRole(actor, Role.INVESTOR)) {
       if (row.investorId !== actor.id) {
         throw new NotFoundException({
           message: 'Reservation not found',

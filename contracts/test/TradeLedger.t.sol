@@ -666,6 +666,37 @@ contract TradeLedgerTest is Test {
         assertEq(_offerStatus(o), uint8(TradeLedger.OfferStatus.Pending));
     }
 
+    function test_SomeoneWhoBothBuysAndSellsCannotBuyTheirOwn() public {
+        // Signed up as both, with one key.
+        bytes32 both = keccak256("BOTH-0001");
+        address salma = makeAddr("salma");
+        bytes32[] memory roles = new bytes32[](2);
+        roles[0] = BUYER;
+        roles[1] = registry.SELLER_ROLE();
+        vm.prank(superAdmin);
+        registry.selfRegisterParticipant(both, roles, salma, keccak256("salma"));
+
+        vm.prank(salma);
+        uint256 own = trade.listExternal(POTATO, 500, 25 * TK, keccak256("salma's potatoes"));
+        vm.prank(admin);
+        trade.approveListing(own);
+
+        // Not their own listing...
+        vm.prank(salma);
+        vm.expectRevert(abi.encodeWithSelector(TradeLedger.OwnListing.selector, own));
+        trade.makeOffer(own, 100, 25 * TK);
+
+        // ...but anyone else's, and anyone else may buy theirs.
+        uint256 others = _externalListing();
+        vm.prank(admin);
+        trade.approveListing(others);
+        vm.prank(salma);
+        uint256 offer = trade.makeOffer(others, 100, 25 * TK);
+        assertEq(trade.getOffer(offer).buyerId, both);
+        vm.prank(sabbir);
+        trade.makeOffer(own, 100, 25 * TK);
+    }
+
     function test_OfferCannotExceedAvailable() public {
         uint256 id = _weGroListing();
         vm.prank(sabbir);

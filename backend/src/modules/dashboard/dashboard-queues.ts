@@ -91,8 +91,22 @@ const QUEUES: QueueDef[] = [
               FROM bank_accounts b WHERE b.status = 'pending' ORDER BY b.created_at LIMIT 5`,
   },
   {
+    key: 'payment-proofs.pending',
+    title: 'Investors’ payment proofs to review',
+    actionBy: 'accounts',
+    roles: ACCOUNTS,
+    count: `SELECT COUNT(*) AS n FROM payment_proofs WHERE status = 'pending'`,
+    items: `SELECT f.id::text AS id, 'Proof for booking #' || f.reservation_id AS title, NULL AS detail,
+                   f.investor_id AS person_id, r.project_id, p.title AS project_title, f.created_at AS since,
+                   json_build_object('id', f.reservation_id, 'amount', f.amount::text) AS params
+              FROM payment_proofs f
+              JOIN reservations r ON r.id = f.reservation_id
+              JOIN projects p ON p.id = r.project_id
+             WHERE f.status = 'pending' ORDER BY f.created_at LIMIT 5`,
+  },
+  {
     key: 'reservations.pending',
-    title: 'Bookings awaiting payment confirmation',
+    title: 'Bookings awaiting payment',
     actionBy: 'accounts',
     roles: ACCOUNTS,
     count: `SELECT COUNT(*) AS n FROM reservations WHERE status = 'pending'`,
@@ -170,16 +184,32 @@ const QUEUES: QueueDef[] = [
              WHERE o.status = 'pending' ORDER BY o.made_at LIMIT 5`,
   },
   {
+    key: 'deal-proofs.pending',
+    title: 'Buyers’ payment proofs to review',
+    actionBy: 'accounts',
+    roles: ACCOUNTS,
+    count: `SELECT COUNT(*) AS n FROM deal_proofs WHERE status = 'pending'`,
+    items: `SELECT f.id::text AS id, 'Proof for deal #' || f.offer_id AS title, NULL AS detail,
+                   f.buyer_id AS person_id, l.project_id, p.title AS project_title, f.created_at AS since,
+                   json_build_object('id', f.offer_id, 'amount', f.amount::text) AS params
+              FROM deal_proofs f
+              JOIN offers o ON o.id = f.offer_id
+              JOIN listings l ON l.id = o.listing_id
+              LEFT JOIN projects p ON p.id = l.project_id
+             WHERE f.status = 'pending' ORDER BY f.created_at LIMIT 5`,
+  },
+  {
     key: 'deals.awaiting-payment',
     title: 'Deals awaiting buyer payment confirmation',
     actionBy: 'accounts',
     roles: ACCOUNTS,
     count: `SELECT COUNT(*) AS n FROM offers WHERE status = 'approved'`,
+    // An outside seller's deal has no project, and counts all the same.
     items: `SELECT o.id::text AS id, 'Deal #' || o.id AS title,
                    o.quantity || ' ' || l.produce_code || ', due' AS detail,
                    o.buyer_id AS person_id, l.project_id, p.title AS project_title, o.payment_due_at AS since,
                    json_build_object('id', o.id, 'quantity', o.quantity::text, 'produce', l.produce_code) AS params
-              FROM offers o JOIN listings l ON l.id = o.listing_id JOIN projects p ON p.id = l.project_id
+              FROM offers o JOIN listings l ON l.id = o.listing_id LEFT JOIN projects p ON p.id = l.project_id
              WHERE o.status = 'approved' ORDER BY o.payment_due_at LIMIT 5`,
     urgent: {
       overdue: `SELECT COUNT(*) AS n FROM offers

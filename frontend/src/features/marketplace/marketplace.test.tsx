@@ -142,6 +142,17 @@ const catalog = {
   },
 };
 
+/** As the API sends it: a buyer's or seller's own side of a deal carries their own id. */
+const seenBy = (
+  role: Parameters<typeof signedInAs>[0],
+  o: OfferDto,
+): OfferDto =>
+  role === 'buyer'
+    ? { ...o, buyer: { ...o.buyer, id: 'me' } }
+    : role === 'seller'
+      ? { ...o, seller: { ...o.seller, id: 'me' } as OfferDto['seller'] }
+      : o;
+
 describe('marketplace helpers', () => {
   it('picks the fee slab exactly at its limit and adds money in poisha', () => {
     expect(feeFor('5000.00', SLABS)).toBe('20.00');
@@ -280,7 +291,8 @@ describe('deals', () => {
   it('lets the outside seller decide offers on their own listing, not an admin', async () => {
     await signedInAs('seller');
     const sent = fakeServer(({ method, url }) => {
-      if (url.pathname === '/api/offers/12') return { body: { data: offer() } };
+      if (url.pathname === '/api/offers/12')
+        return { body: { data: seenBy('seller', offer()) } };
       if (method === 'POST' && url.pathname === '/api/offers/12/approve')
         return { body: { data: offer({ status: 'approved' }) } };
       return undefined;
@@ -360,6 +372,7 @@ describe('deals', () => {
         ? {
             body: {
               data: offer({
+                buyer: { id: 'me', name: 'Nadia Foods' },
                 status: 'paid',
                 discrepancy: true,
                 handlerDelivery: {
@@ -517,11 +530,12 @@ describe('deals, further', () => {
   };
   async function deal(
     role: Parameters<typeof signedInAs>[0],
-    o: OfferDto,
+    given: OfferDto,
     write: (path: string) => { status?: number; body: unknown } = () => ({
-      body: { data: o },
+      body: { data: given },
     }),
   ) {
+    const o = seenBy(role, given);
     await signedInAs(role);
     const sent = fakeServer(({ method, url }) => {
       if (method === 'POST' && url.pathname === '/api/photos')
@@ -701,7 +715,7 @@ describe('deals, further', () => {
     fakeServer(({ url }) =>
       url.pathname === '/api/offers/12'
         ? ++calls > 1
-          ? { body: { data: offer() } }
+          ? { body: { data: seenBy('buyer', offer()) } }
           : { status: 500, body: { statusCode: 500, code: 'X', message: 'x' } }
         : undefined,
     );

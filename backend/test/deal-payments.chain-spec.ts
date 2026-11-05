@@ -383,6 +383,56 @@ describe('Paying for deals (node + database)', () => {
     expect(decided.body.code).toBe('PROOF_ALREADY_DECIDED');
   });
 
+  it('show on the dashboard exactly as Accounts’ page lists them', async () => {
+    type Queue = { key: string; count: number; oldest: unknown[] };
+    const queue = async (key: string) =>
+      (
+        (await as(admin).get('/dashboard').expect(200)).body.data
+          .queues as Queue[]
+      ).find((q) => q.key === key)!;
+    const listed = async (path: string) =>
+      (await as(admin).get(path).expect(200)).body.meta.total as number;
+    const agrees = async () => {
+      expect((await queue('deal-proofs.pending')).count).toBe(
+        await listed('/deal-proofs?status=pending'),
+      );
+      expect((await queue('deals.awaiting-payment')).count).toBe(
+        await listed('/offers?status=approved'),
+      );
+    };
+
+    // Approved and nothing sent: waiting for the buyer, nothing to review.
+    const before = (await queue('deal-proofs.pending')).count;
+    const { id, buyerPays } = await approvedDeal(20);
+    expect((await queue('deal-proofs.pending')).count).toBe(before);
+    await agrees();
+
+    // A proof sent: now there is something to review, and it says what.
+    const sent = await sendProof(id, {
+      amount: buyerPays,
+      transferredOn: today(),
+      method: 'cash',
+    }).expect(201);
+    const waiting = await queue('deal-proofs.pending');
+    expect(waiting.count).toBe(before + 1);
+    expect(waiting.oldest).toContainEqual(
+      expect.objectContaining({
+        id: sent.body.data.id,
+        params: { id, amount: buyerPays },
+      }),
+    );
+    await agrees();
+
+    // Turned down: gone from the queue again.
+    await as(accounts)
+      .post(`/deal-proofs/${sent.body.data.id}/reject`, {
+        reason: 'The slip cannot be read',
+      })
+      .expect(200);
+    expect((await queue('deal-proofs.pending')).count).toBe(before);
+    await agrees();
+  });
+
   it('confirm the deal at once when one proof covers it all', async () => {
     const { id, buyerPays } = await approvedDeal(50);
     const sent = await sendProof(id, {

@@ -73,7 +73,7 @@ function database() {
         },
       ]);
     }
-    if (sql.includes('GROUP BY role'))
+    if (sql.includes('GROUP BY r.role'))
       return Promise.resolve([{ role: 'farmer', n: '10' }]);
     if (sql.includes('r.closed_at'))
       return Promise.resolve([{ m: '2026-10', v: '10000000' }]);

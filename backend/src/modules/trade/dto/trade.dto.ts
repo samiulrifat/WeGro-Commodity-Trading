@@ -25,7 +25,7 @@ import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { DISTRICT_CODES } from '../../../common/reference/bd-districts';
 import { CODE_PATTERN } from '../../catalog/catalog.enums';
 import { ProduceRefDto } from '../../projects/dto/project-response.dto';
-import { ListingStatus, OfferStatus } from '../trade.enums';
+import { ListingStatus, OfferSide, OfferStatus } from '../trade.enums';
 
 export { PaymentReferenceDto } from '../../projects/dto/project-request.dto';
 
@@ -234,6 +234,16 @@ export class ListOffersQueryDto extends PaginationQueryDto {
   status?: OfferStatus;
 
   @ApiPropertyOptional({
+    enum: OfferSide,
+    enumName: 'OfferSide',
+    description:
+      'For someone who both buys and sells: only the deals where they are buying, or selling',
+  })
+  @IsOptional()
+  @IsEnum(OfferSide)
+  side?: OfferSide;
+
+  @ApiPropertyOptional({
     description: 'Only deals whose delivery quantities disagree',
   })
   @IsOptional()
@@ -346,12 +356,21 @@ export class ListRequestsQueryDto extends PaginationQueryDto {
 
 // --- Responses ---
 
-class TradePartyDto {
+class ListingProjectDto {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
   name: string;
+}
+
+/** A buyer: null to the other side of a sale, who never learn who it is. */
+class TradePartyDto {
+  @ApiPropertyOptional({ nullable: true, type: String })
+  id: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  name: string | null;
 }
 
 export class SellerDto {
@@ -361,8 +380,13 @@ export class SellerDto {
   @ApiPropertyOptional({ nullable: true, type: String })
   id: string | null;
 
-  @ApiProperty()
-  name: string;
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description:
+      'Null to buyers and others outside the sale, who never learn who it is',
+  })
+  name: string | null;
 }
 
 export class ListingDto {
@@ -370,11 +394,11 @@ export class ListingDto {
   id: number;
 
   @ApiPropertyOptional({
-    type: TradePartyDto,
+    type: ListingProjectDto,
     nullable: true,
     description: 'Null for an external seller’s listing',
   })
-  project: TradePartyDto | null;
+  project: ListingProjectDto | null;
 
   @ApiProperty({ type: PlaceDto })
   district: { code: string; name: string };

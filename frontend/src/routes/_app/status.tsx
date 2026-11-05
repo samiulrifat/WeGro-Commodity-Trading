@@ -3,6 +3,7 @@ import { Hourglass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/states';
 import { useAppSelector } from '@/store/hooks';
+import { roleNames } from '@/app/navigation';
 
 /** Where someone registered but not yet verified lands. */
 export const Route = createFileRoute('/_app/status')({
@@ -12,7 +13,7 @@ export const Route = createFileRoute('/_app/status')({
 
 function StatusPage() {
   const { t } = useTranslation();
-  const role = useAppSelector((s) => s.session.user?.role);
+  const user = useAppSelector((s) => s.session.user);
   return (
     <EmptyState
       icon={Hourglass}
@@ -20,9 +21,9 @@ function StatusPage() {
       description={
         <>
           {t('statusPage.pendingHint')}
-          {role && (
+          {user && (
             <span className="mt-2 block">
-              {t('statusPage.role')}: <strong>{t(`roles.${role}`)}</strong>
+              {t('statusPage.role')}: <strong>{roleNames(user, t)}</strong>
             </span>
           )}
         </>

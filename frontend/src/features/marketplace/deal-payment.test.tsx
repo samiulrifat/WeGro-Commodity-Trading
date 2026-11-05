@@ -96,13 +96,22 @@ const proof = (over: Partial<DealProofDto> = {}): DealProofDto => ({
   ...over,
 });
 
+/** As the API sends it: a buyer's or seller's own side of a deal carries their own id. */
+const seenBy = (role: Role, o: OfferDto): OfferDto =>
+  role === 'buyer'
+    ? { ...o, buyer: { ...o.buyer, id: 'me' } }
+    : role === 'seller'
+      ? { ...o, seller: { ...o.seller, id: 'me' } as OfferDto['seller'] }
+      : o;
+
 /** The deal page, with WeGro's account and the bank list behind it. */
 async function dealPage(
   role: Role,
-  o: OfferDto,
+  given: OfferDto,
   proofs: DealProofDto[] = [],
   write: (s: Sent) => Reply = () => ({ status: 201, body: { data: {} } }),
 ) {
+  const o = seenBy(role, given);
   await signedInAs(role);
   const sent = fakeServer((s) => {
     const { method, url } = s;

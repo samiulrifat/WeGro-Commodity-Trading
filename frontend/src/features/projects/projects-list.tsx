@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { ProjectCard } from './project-card';
 import { type ProjectsSearch, STAGES, type Tab } from './projects-search';
 import { canRunProjects } from './permissions';
+import { holdsRole } from '@/app/navigation';
 
 const PAGE_SIZE = 12;
 const ANY = '';
@@ -54,7 +55,8 @@ export function ProjectsList({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
+  const role = user.role;
   const staff = STAFF.has(role);
   const page = search.page ?? 1;
   const arg: ProjectsListApiArg = {
@@ -85,10 +87,9 @@ export function ProjectsList({
       : staff
         ? t('nav.sub.allProjects')
         : t('projects.browse');
-  const tabs: Tab[] =
-    role === 'investor'
-      ? ['all', 'long_term', 'short_term', 'saved']
-      : ['all', 'long_term', 'short_term'];
+  const tabs: Tab[] = holdsRole(user, 'investor')
+    ? ['all', 'long_term', 'short_term', 'saved']
+    : ['all', 'long_term', 'short_term'];
   const narrowed = Boolean(
     search.q || search.stage || search.produce || search.district,
   );

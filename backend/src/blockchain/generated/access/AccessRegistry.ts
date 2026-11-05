@@ -13,9 +13,9 @@ export declare namespace AccessRegistry {
     }
 
   export interface AccessRegistryInterface extends Interface {
-    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "MAX_REASSIGN" | "OPERATIONS_ROLE" | "SELLER_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "farmerCountOf" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "reassignFarmers" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
+    getFunction(nameOrSignature: "ACCOUNTS_ROLE" | "ADMIN_ROLE" | "AUDITOR_ROLE" | "BANK_ROLE" | "BUYER_ROLE" | "DEFAULT_ADMIN_ROLE" | "FARMER_ROLE" | "FIELD_OFFICER_ROLE" | "INSURER_ROLE" | "INVESTOR_ROLE" | "MAX_REASSIGN" | "OPERATIONS_ROLE" | "SELLER_ROLE" | "SUPPLIER_ROLE" | "WAREHOUSE_ROLE" | "accountUsed" | "assignFieldOfficer" | "changeAccount" | "extraRolesOf" | "farmerCountOf" | "fieldOfficerOf" | "getParticipant" | "getRoleAdmin" | "grantRole" | "hasRole" | "isPlatformRole" | "isStaffRole" | "isVerified" | "isVerifiedAs" | "participantOf" | "reassignFarmers" | "registerParticipant" | "rejectParticipant" | "renounceRole" | "revokeRole" | "selfRegisterParticipant" | "supportsInterface" | "updateDetailsHash" | "verifyParticipant"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantRegistered" | "ParticipantSelfRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "FieldOfficerAssigned" | "ParticipantAccountChanged" | "ParticipantDetailsUpdated" | "ParticipantExtraRole" | "ParticipantRegistered" | "ParticipantSelfRegistered" | "ParticipantStatusChanged" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked"): EventFragment;
 
     encodeFunctionData(functionFragment: 'ACCOUNTS_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ADMIN_ROLE', values?: undefined): string;
@@ -35,6 +35,7 @@ encodeFunctionData(functionFragment: 'WAREHOUSE_ROLE', values?: undefined): stri
 encodeFunctionData(functionFragment: 'accountUsed', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'assignFieldOfficer', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'changeAccount', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'extraRolesOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'farmerCountOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'fieldOfficerOf', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getParticipant', values: [BytesLike]): string;
@@ -51,7 +52,7 @@ encodeFunctionData(functionFragment: 'registerParticipant', values: [BytesLike, 
 encodeFunctionData(functionFragment: 'rejectParticipant', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'renounceRole', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'revokeRole', values: [BytesLike, AddressLike]): string;
-encodeFunctionData(functionFragment: 'selfRegisterParticipant', values: [BytesLike, BytesLike, AddressLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'selfRegisterParticipant', values: [BytesLike, BytesLike[], AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'updateDetailsHash', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'verifyParticipant', values: [BytesLike]): string;
@@ -74,6 +75,7 @@ decodeFunctionResult(functionFragment: 'WAREHOUSE_ROLE', data: BytesLike): Resul
 decodeFunctionResult(functionFragment: 'accountUsed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'assignFieldOfficer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'changeAccount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'extraRolesOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'farmerCountOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'fieldOfficerOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getParticipant', data: BytesLike): Result;
@@ -125,6 +127,18 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
       export type InputTuple = [participantId: BytesLike, previousHash: BytesLike, newHash: BytesLike, updatedBy: AddressLike];
       export type OutputTuple = [participantId: string, previousHash: string, newHash: string, updatedBy: string];
       export interface OutputObject {participantId: string, previousHash: string, newHash: string, updatedBy: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ParticipantExtraRoleEvent {
+      export type InputTuple = [participantId: BytesLike, role: BytesLike];
+      export type OutputTuple = [participantId: string, role: string];
+      export interface OutputObject {participantId: string, role: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -383,6 +397,14 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
     
 
     
+    extraRolesOf: TypedContractMethod<
+      [participantId: BytesLike, ],
+      [string[]],
+      'view'
+    >
+    
+
+    
     farmerCountOf: TypedContractMethod<
       [officerId: BytesLike, ],
       [bigint],
@@ -512,7 +534,7 @@ decodeFunctionResult(functionFragment: 'verifyParticipant', data: BytesLike): Re
 
     
     selfRegisterParticipant: TypedContractMethod<
-      [participantId: BytesLike, role: BytesLike, account: AddressLike, detailsHash: BytesLike, ],
+      [participantId: BytesLike, roles: BytesLike[], account: AddressLike, detailsHash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -635,6 +657,11 @@ getFunction(nameOrSignature: 'changeAccount'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'extraRolesOf'): TypedContractMethod<
+      [participantId: BytesLike, ],
+      [string[]],
+      'view'
+    >;
 getFunction(nameOrSignature: 'farmerCountOf'): TypedContractMethod<
       [officerId: BytesLike, ],
       [bigint],
@@ -716,7 +743,7 @@ getFunction(nameOrSignature: 'revokeRole'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'selfRegisterParticipant'): TypedContractMethod<
-      [participantId: BytesLike, role: BytesLike, account: AddressLike, detailsHash: BytesLike, ],
+      [participantId: BytesLike, roles: BytesLike[], account: AddressLike, detailsHash: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -739,6 +766,7 @@ getFunction(nameOrSignature: 'verifyParticipant'): TypedContractMethod<
     getEvent(key: 'FieldOfficerAssigned'): TypedContractEvent<FieldOfficerAssignedEvent.InputTuple, FieldOfficerAssignedEvent.OutputTuple, FieldOfficerAssignedEvent.OutputObject>;
 getEvent(key: 'ParticipantAccountChanged'): TypedContractEvent<ParticipantAccountChangedEvent.InputTuple, ParticipantAccountChangedEvent.OutputTuple, ParticipantAccountChangedEvent.OutputObject>;
 getEvent(key: 'ParticipantDetailsUpdated'): TypedContractEvent<ParticipantDetailsUpdatedEvent.InputTuple, ParticipantDetailsUpdatedEvent.OutputTuple, ParticipantDetailsUpdatedEvent.OutputObject>;
+getEvent(key: 'ParticipantExtraRole'): TypedContractEvent<ParticipantExtraRoleEvent.InputTuple, ParticipantExtraRoleEvent.OutputTuple, ParticipantExtraRoleEvent.OutputObject>;
 getEvent(key: 'ParticipantRegistered'): TypedContractEvent<ParticipantRegisteredEvent.InputTuple, ParticipantRegisteredEvent.OutputTuple, ParticipantRegisteredEvent.OutputObject>;
 getEvent(key: 'ParticipantSelfRegistered'): TypedContractEvent<ParticipantSelfRegisteredEvent.InputTuple, ParticipantSelfRegisteredEvent.OutputTuple, ParticipantSelfRegisteredEvent.OutputObject>;
 getEvent(key: 'ParticipantStatusChanged'): TypedContractEvent<ParticipantStatusChangedEvent.InputTuple, ParticipantStatusChangedEvent.OutputTuple, ParticipantStatusChangedEvent.OutputObject>;
@@ -758,6 +786,10 @@ getEvent(key: 'RoleRevoked'): TypedContractEvent<RoleRevokedEvent.InputTuple, Ro
 
       'ParticipantDetailsUpdated(bytes32,bytes32,bytes32,address)': TypedContractEvent<ParticipantDetailsUpdatedEvent.InputTuple, ParticipantDetailsUpdatedEvent.OutputTuple, ParticipantDetailsUpdatedEvent.OutputObject>;
       ParticipantDetailsUpdated: TypedContractEvent<ParticipantDetailsUpdatedEvent.InputTuple, ParticipantDetailsUpdatedEvent.OutputTuple, ParticipantDetailsUpdatedEvent.OutputObject>;
+    
+
+      'ParticipantExtraRole(bytes32,bytes32)': TypedContractEvent<ParticipantExtraRoleEvent.InputTuple, ParticipantExtraRoleEvent.OutputTuple, ParticipantExtraRoleEvent.OutputObject>;
+      ParticipantExtraRole: TypedContractEvent<ParticipantExtraRoleEvent.InputTuple, ParticipantExtraRoleEvent.OutputTuple, ParticipantExtraRoleEvent.OutputObject>;
     
 
       'ParticipantRegistered(bytes32,bytes32,address,bytes32,address)': TypedContractEvent<ParticipantRegisteredEvent.InputTuple, ParticipantRegisteredEvent.OutputTuple, ParticipantRegisteredEvent.OutputObject>;

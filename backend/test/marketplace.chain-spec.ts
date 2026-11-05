@@ -479,8 +479,9 @@ describe('Marketplace (node + database)', () => {
     });
 
     it("lets fresh produce be handed over by the farmer's field officer", async () => {
+      // A buyer cannot ask by project: that would name the farmer.
       const listing = (
-        await as(t.buyer)
+        await as(t.admin)
           .get(`/listings?projectId=${tomatoProject}`)
           .expect(200)
       ).body.data[0];
@@ -611,7 +612,7 @@ describe('Marketplace (node + database)', () => {
       ).not.toContain(receiptListing);
     });
 
-    it('is found by produce words or the buyer, and seen by sellers too', async () => {
+    it('is found by produce words by all, by the buyer only in the office, and seen by sellers too', async () => {
       const found = async (token: string, q: string) =>
         (
           await as(token)
@@ -619,9 +620,11 @@ describe('Marketplace (node + database)', () => {
             .expect(200)
         ).body.data.map((r: { id: number }) => r.id);
       expect(await found(t.buyer, 'maize')).toContain(requestId);
-      expect(await found(t.buyer, 'Demo Buyer')).toContain(requestId);
-      expect(await found(t.buyer, 'Second Buyer')).not.toContain(requestId);
+      expect(await found(t.admin, 'Demo Buyer')).toContain(requestId);
+      expect(await found(t.admin, 'Second Buyer')).not.toContain(requestId);
       expect(await found(t.seller, 'maize')).toContain(requestId);
+      // A match would tell a seller who is asking.
+      expect(await found(t.seller, 'Demo Buyer')).toEqual([]);
     });
 
     it('is cancelled only by its own buyer', async () => {
@@ -712,7 +715,7 @@ describe('Marketplace (node + database)', () => {
         .post(`/listings/${sellerListing}/approve`)
         .expect(200);
       expect(live.body.data.status).toBe('open');
-      for (const q of ['Demo Seller', 'potato']) {
+      for (const q of ['potato']) {
         expect(
           ids(
             await as(t.buyer)

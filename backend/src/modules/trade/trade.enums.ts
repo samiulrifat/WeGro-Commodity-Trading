@@ -28,6 +28,12 @@ export enum RequestStatus {
   CANCELLED = 'cancelled',
 }
 
+/** Which part of the deals someone who both buys and sells asks for. */
+export enum OfferSide {
+  BUYING = 'buying',
+  SELLING = 'selling',
+}
+
 export enum DeliverySide {
   BUYER = 'buyer',
   HANDLER = 'handler',

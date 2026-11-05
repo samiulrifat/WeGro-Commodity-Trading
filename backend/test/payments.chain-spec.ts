@@ -455,6 +455,61 @@ describe('Payments (node + database)', () => {
       await as(investor).post(`/reservations/${id}/cancel`).expect(200);
     });
 
+    it('show on the dashboard exactly as Accounts’ page lists them', async () => {
+      type Queue = { key: string; count: number; oldest: unknown[] };
+      const queue = async (key: string) =>
+        (
+          (await as(admin).get('/dashboard').expect(200)).body.data
+            .queues as Queue[]
+        ).find((q) => q.key === key)!;
+      const listed = async (path: string) =>
+        (await as(admin).get(path).expect(200)).body.meta.total as number;
+      const agrees = async () => {
+        expect((await queue('payment-proofs.pending')).count).toBe(
+          await listed('/payment-proofs?status=pending'),
+        );
+        expect((await queue('reservations.pending')).count).toBe(
+          await listed('/reservations?status=pending'),
+        );
+      };
+
+      // Booked and nothing sent: waiting for the investor, nothing to review.
+      const before = (await queue('payment-proofs.pending')).count;
+      const reserved = await as(investor)
+        .post(`/projects/${projectId}/reservations`, { slots: 1 })
+        .expect(201);
+      const id = reserved.body.data.id;
+      expect((await queue('payment-proofs.pending')).count).toBe(before);
+      await agrees();
+
+      // A proof sent: now there is something to review, and it says what.
+      const sent = await sendProof(id, {
+        amount: '20000',
+        transferredOn: today(),
+        method: 'cash',
+      }).expect(201);
+      const waiting = await queue('payment-proofs.pending');
+      expect(waiting.count).toBe(before + 1);
+      expect(waiting.oldest).toContainEqual(
+        expect.objectContaining({
+          id: sent.body.data.id,
+          project: expect.objectContaining({ id: projectId }),
+          params: { id, amount: '20000.00' },
+        }),
+      );
+      await agrees();
+
+      // Turned down: gone from the queue, and the booking still waits for money.
+      await as(accounts)
+        .post(`/payment-proofs/${sent.body.data.id}/reject`, {
+          reason: 'No such deposit on the statement',
+        })
+        .expect(200);
+      expect((await queue('payment-proofs.pending')).count).toBe(before);
+      await agrees();
+      await as(investor).post(`/reservations/${id}/cancel`).expect(200);
+    });
+
     it('refuse what cannot be a payment, and answer 404 for what does not exist', async () => {
       const reserved = await as(investor)
         .post(`/projects/${projectId}/reservations`, { slots: 1 })

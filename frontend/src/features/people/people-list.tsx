@@ -7,7 +7,7 @@ import {
   type ParticipantSummaryDto,
   useParticipantsListQuery,
 } from '@/api/generated/participants';
-import type { Role } from '@/app/navigation';
+import { roleNames } from '@/app/navigation';
 import { PageHeader } from '@/components/page-header';
 import { Pager } from '@/components/pager';
 import { SearchBox } from '@/components/search-box';
@@ -295,7 +295,7 @@ function PeopleTable({ people }: { people: ParticipantSummaryDto[] }) {
                   <PersonCell name={p.fullName} detail={p.phone} />
                 </Link>
               </TableCell>
-              <TableCell>{t(`roles.${p.role as Role}`)}</TableCell>
+              <TableCell>{roleNames(p, t)}</TableCell>
               <TableCell>
                 {p.district ? t(`districts.${p.district as District}`) : '—'}
               </TableCell>
@@ -325,7 +325,7 @@ function PeopleCards({ people }: { people: ParticipantSummaryDto[] }) {
           >
             <PersonCell
               name={p.fullName}
-              detail={`${t(`roles.${p.role as Role}`)} · ${p.phone}`}
+              detail={`${roleNames(p, t)} · ${p.phone}`}
             />
             <PersonStatus person={p} />
           </Link>

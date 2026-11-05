@@ -11,6 +11,7 @@ const TITLES: Readonly<Record<string, string>> = {
   // AccessRegistry
   ParticipantRegistered: 'Participant registered',
   ParticipantSelfRegistered: 'Signed up themselves',
+  ParticipantExtraRole: 'Chose a further role',
   ParticipantStatusChanged: 'Participant status changed',
   ParticipantDetailsUpdated: 'Participant details updated',
   FieldOfficerAssigned: 'Field officer assigned',

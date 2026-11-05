@@ -22,6 +22,7 @@ import { InvestBar, Simulator } from './simulator';
 import { StaffPanel, Timeline } from './staff-panel';
 import { StagePill } from './stage-pill';
 import { HistoryButton } from '@/features/audit/history-button';
+import { holdsRole } from '@/app/navigation';
 
 /**
  * One project, as investors see it in WeGro's app: photo, the estimate and
@@ -30,7 +31,7 @@ import { HistoryButton } from '@/features/audit/history-button';
  */
 export function ProjectPage({ id }: { id: string }) {
   const { t } = useTranslation();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
   const query = useProjectsFindOneQuery({ id });
   const back = (
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -57,7 +58,7 @@ export function ProjectPage({ id }: { id: string }) {
     );
   }
   const p = query.data.data;
-  const investor = role === 'investor';
+  const investor = holdsRole(user, 'investor');
   const open = p.stage === 'open_for_funding';
 
   return (

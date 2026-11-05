@@ -475,6 +475,23 @@ export type ParticipantDetailDto = {
     | 'insurer'
     | 'auditor'
     | 'seller';
+  /** Further roles of someone who signed up with several */
+  extraRoles: (
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor'
+    | 'seller'
+  )[];
   status: 'pending' | 'verified' | 'rejected';
   chainState: 'submitted' | 'confirmed' | 'operator';
   fullName: string;
@@ -623,6 +640,23 @@ export type ParticipantSummaryDto = {
     | 'insurer'
     | 'auditor'
     | 'seller';
+  /** Further roles of someone who signed up with several */
+  extraRoles: (
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor'
+    | 'seller'
+  )[];
   status: 'pending' | 'verified' | 'rejected';
   chainState: 'submitted' | 'confirmed' | 'operator';
   fullName: string;
@@ -717,6 +751,22 @@ export type LedgerParticipantDto = {
         | 'seller'
       )
     | null;
+  extraRoles: (
+    | 'super_admin'
+    | 'investor'
+    | 'farmer'
+    | 'field_officer'
+    | 'admin'
+    | 'accounts'
+    | 'operations'
+    | 'warehouse'
+    | 'bank'
+    | 'supplier'
+    | 'buyer'
+    | 'insurer'
+    | 'auditor'
+    | 'seller'
+  )[];
   account?: string | null;
   detailsHash?: string | null;
 };

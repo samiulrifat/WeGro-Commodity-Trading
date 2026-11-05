@@ -18,7 +18,7 @@ import {
   useTradeWithdrawMutation,
 } from '@/api/generated/marketplace';
 import { FormError } from '@/app/auth/form-error';
-import { actsAs, type Role } from '@/app/navigation';
+import { actsAs, holdsRole, type Role } from '@/app/navigation';
 import { ErrorState, LoadingState } from '@/components/states';
 import { StepIcon } from '@/components/step-icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -58,9 +58,13 @@ import { useAppSelector } from '@/store/hooks';
 import { useDealProofsSubmitMutation } from './api';
 import { DealClock, DealPayment } from './deal-payment';
 import {
+  buyerName,
+  buysThis,
   DEAL_STEPS,
   FRESH,
   produceName,
+  sellerName,
+  sellsThis,
   validQuantity,
   wholeNumber,
 } from './market-utils';
@@ -83,7 +87,6 @@ type Simple = 'withdraw' | 'approve' | 'reject' | 'cancelDeal';
 const HANDLERS: ReadonlySet<Role> = new Set<Role>([
   'warehouse',
   'field_officer',
-  'seller',
 ]);
 
 /**
@@ -93,16 +96,21 @@ const HANDLERS: ReadonlySet<Role> = new Set<Role>([
  */
 export function DealPage({ id }: { id: number }) {
   const { t } = useTranslation();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
   const query = useTradeOfferQuery({ id }, FRESH);
+  // Someone who also sells goes back to whichever side this deal is on.
+  const toOffers =
+    holdsRole(user, 'buyer') &&
+    (!holdsRole(user, 'seller') ||
+      (!!query.data && buysThis(query.data.data, user)));
   const back = (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Link
-        to={role === 'buyer' ? '/offers' : '/marketplace/deals'}
+        to={toOffers ? '/offers' : '/marketplace/deals'}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        {role === 'buyer' ? t('nav.offers') : t('nav.sub.deals')}
+        {toOffers ? t('nav.offers') : t('nav.sub.deals')}
       </Link>
       <HistoryButton type="offer" id={String(id)} />
     </div>
@@ -124,7 +132,7 @@ export function DealPage({ id }: { id: number }) {
     <div className="grid gap-6">
       {back}
       <Header offer={o} />
-      {role === 'buyer' && <DealClock offer={o} />}
+      {buysThis(o, user) && <DealClock offer={o} />}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="grid gap-6">
           <Money offer={o} />
@@ -134,7 +142,7 @@ export function DealPage({ id }: { id: number }) {
         {/* On phones the moves come first, before the details. */}
         <div className="grid gap-6 max-lg:order-first">
           <Moves offer={o} />
-          {canPay(o, role) && <PayTo amount={o.remaining!} />}
+          {canPay(o, user) && <PayTo amount={o.remaining!} />}
           <Progress offer={o} />
         </div>
       </div>
@@ -143,9 +151,9 @@ export function DealPage({ id }: { id: number }) {
 }
 
 /** The buyer has money still to send on a deal whose clock has not run out. */
-function canPay(o: OfferDto, role: Role): boolean {
+function canPay(o: OfferDto, user: Parameters<typeof buysThis>[1]): boolean {
   return (
-    role === 'buyer' &&
+    buysThis(o, user) &&
     o.status === 'approved' &&
     !o.overdue &&
     !!o.remaining &&
@@ -156,7 +164,7 @@ function canPay(o: OfferDto, role: Role): boolean {
 function Header({ offer: o }: { offer: OfferDto }) {
   const { t, i18n } = useTranslation();
   const fmt = useFormat();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
   return (
     <section className="grid gap-4 rounded-2xl bg-ink p-5 text-white sm:p-8">
       <OfferStatus offer={o} />
@@ -181,17 +189,15 @@ function Header({ offer: o }: { offer: OfferDto }) {
       </div>
       <p className="text-white/85">
         {t('market.buyerLabel')}:{' '}
-        <span className="font-semibold text-white">{o.buyer.name}</span>
+        <Party id={o.buyer.id} name={buyerName(o, t)} />
         {' · '}
         {t('market.sellerLabel')}:{' '}
-        <span className="font-semibold text-white">
-          {o.seller.kind === 'wegro' ? t('market.wegro') : o.seller.name}
-        </span>
+        <Party id={o.seller.id} name={sellerName(o, t)} />
       </p>
       {/* The buyer's time to pay has its own banner below. */}
       {o.status === 'approved' &&
         o.paymentDueAt &&
-        (role !== 'buyer' || o.overdue) && (
+        (!buysThis(o, user) || o.overdue) && (
           <p
             className={cn(
               'w-fit rounded-lg px-3 py-1.5 text-sm font-semibold text-white',
@@ -206,6 +212,22 @@ function Header({ offer: o }: { offer: OfferDto }) {
           </p>
         )}
     </section>
+  );
+}
+
+/** A side of the deal; admins arranging the handover open the person's details. */
+function Party({ id, name }: { id?: string | null; name: string }) {
+  const role = useAppSelector((s) => s.session.user!.role);
+  return id && actsAs(role, 'admin') ? (
+    <Link
+      to="/people/$personId"
+      params={{ personId: id }}
+      className="font-semibold text-white hover:underline"
+    >
+      {name}
+    </Link>
+  ) : (
+    <span className="font-semibold text-white">{name}</span>
   );
 }
 
@@ -446,18 +468,22 @@ function DeliverySide({
 /** Each role's moves at this status; the ledger checks them again. */
 function Moves({ offer: o }: { offer: OfferDto }) {
   const { t } = useTranslation();
-  const role = useAppSelector((s) => s.session.user!.role);
+  const user = useAppSelector((s) => s.session.user!);
+  const role = user.role;
+  // Each deal on its own: someone may be buying on one and selling on another.
+  const buying = buysThis(o, user);
+  const selling = sellsThis(o, user);
   const [open, setOpen] = useState<Move | null>(null);
   const [submitProof] = useDealProofsSubmitMutation();
   // Offers on WeGro's listings are WeGro's to decide; an outside seller decides their own.
-  const decider = o.external ? role === 'seller' : actsAs(role, 'admin');
+  const decider = o.external ? selling : actsAs(role, 'admin');
   const moves: Move[] = [];
   if (o.status === 'pending') {
-    if (role === 'buyer') moves.push('withdraw');
+    if (buying) moves.push('withdraw');
     if (decider) moves.push('approve', 'reject');
   }
   if (o.status === 'approved') {
-    if (canPay(o, role)) moves.push('pay');
+    if (canPay(o, user)) moves.push('pay');
     // Paid without a proof in the app; once there are proofs, they decide it.
     const nothingSent =
       toPoisha(o.paid ?? '0') === 0n && toPoisha(o.underReview ?? '0') === 0n;
@@ -467,8 +493,9 @@ function Moves({ offer: o }: { offer: OfferDto }) {
     if (actsAs(role, 'admin')) moves.push('cancelDeal');
   }
   if (o.status === 'paid') {
-    if (role === 'buyer' && !o.buyerDelivery) moves.push('deliver');
-    if (HANDLERS.has(role) && !o.handlerDelivery) moves.push('deliver');
+    if (buying && !o.buyerDelivery) moves.push('deliver');
+    if ((HANDLERS.has(role) || selling) && !o.handlerDelivery)
+      moves.push('deliver');
   }
   if (o.status === 'delivered' && o.external && actsAs(role, 'accounts'))
     moves.push('payout');
@@ -478,9 +505,11 @@ function Moves({ offer: o }: { offer: OfferDto }) {
       <CardHeader>
         <CardTitle className="text-lg">{t('market.manage')}</CardTitle>
         <CardDescription>
-          {role === 'buyer' && o.status === 'approved'
+          {buying && o.status === 'approved'
             ? t('market.payManageText')
-            : t(`market.dealManageText.${o.status as 'pending'}`)}
+            : o.status === 'paid' && (buying || selling)
+              ? t('market.handoverText')
+              : t(`market.dealManageText.${o.status as 'pending'}`)}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
@@ -501,7 +530,7 @@ function Moves({ offer: o }: { offer: OfferDto }) {
       {open === 'deliver' && (
         <DeliveryDialog
           offer={o}
-          side={role === 'buyer' ? 'buyer' : 'handler'}
+          side={buying ? 'buyer' : 'handler'}
           onClose={() => setOpen(null)}
         />
       )}
@@ -571,7 +600,7 @@ function ConfirmDialog({
           </DialogTitle>
           <DialogDescription>
             {t(`market.dealMoveText.${move}`, {
-              buyer: o.buyer.name,
+              buyer: buyerName(o, t),
               quantity: fmt.number(o.quantity),
               unit: o.produce.unit,
               amount: fmt.taka(o.amount),
@@ -650,8 +679,8 @@ function ReferenceDialog({
           <DialogDescription>
             {t(`market.dealMoveText.${move}`, {
               amount: fmt.taka(amount ?? o.amount),
-              buyer: o.buyer.name,
-              seller: o.seller.name,
+              buyer: buyerName(o, t),
+              seller: sellerName(o, t),
             })}
           </DialogDescription>
         </DialogHeader>
@@ -797,6 +826,7 @@ function DeliveryDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+            <FieldDescription>{t('market.noContactHint')}</FieldDescription>
           </Field>
           <div className="grid gap-2">
             {preview && (
