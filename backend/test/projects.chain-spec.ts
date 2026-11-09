@@ -583,6 +583,132 @@ describe('Projects (node + database)', () => {
     });
   });
 
+  describe('run by Operations', () => {
+    let ops: string;
+    beforeAll(async () => {
+      ops = await demoToken(http, Role.OPERATIONS);
+    });
+
+    it('drafts, edits, publishes, activates and marks ready for sale, as an admin does', async () => {
+      const id = (
+        await as(ops)
+          .post(
+            '/projects',
+            draft({ title: 'Garlic by Operations', produceCode: 'GARLIC' }),
+          )
+          .expect(201)
+      ).body.data.id;
+      await as(ops)
+        .patch(`/projects/${id}`, { title: 'Garlic by Operations, edited' })
+        .expect(200);
+      const live = await as(ops).post(`/projects/${id}/publish`).expect(200);
+      expect(live.body.data).toMatchObject({
+        title: 'Garlic by Operations, edited',
+        stage: 'open_for_funding',
+        chainState: 'confirmed',
+      });
+
+      const r = (
+        await as(investor)
+          .post(`/projects/${id}/reservations`, { slots: 10 })
+          .expect(201)
+      ).body.data.id;
+      await as(accounts)
+        .post(`/reservations/${r}/confirm`, {
+          paymentReference: ref('TRX-GARLIC-OPS'),
+        })
+        .expect(200);
+      await as(ops).post(`/projects/${id}/activate`).expect(200);
+      const ready = await as(ops)
+        .post(`/projects/${id}/ready-for-sale`)
+        .expect(200);
+      expect(ready.body.data.stage).toBe('ready_for_sale');
+
+      // On the ledger too, every stage in order.
+      await chain.app.get(EventIndexerService).catchUp();
+      const timeline = await as(admin)
+        .get(`/projects/${id}/timeline`)
+        .expect(200);
+      expect(
+        timeline.body.data
+          .map((e: { kind: string; stage?: string }) => e.stage)
+          .filter(Boolean),
+      ).toEqual([
+        'draft',
+        'open_for_funding',
+        'funded',
+        'active',
+        'ready_for_sale',
+      ]);
+    });
+
+    it('cancels and deletes, as an admin does', async () => {
+      const toCancel = (
+        await as(ops)
+          .post('/projects', draft({ title: 'Called off by Operations' }))
+          .expect(201)
+      ).body.data.id;
+      await as(ops).post(`/projects/${toCancel}/publish`).expect(200);
+      const off = await as(ops)
+        .post(`/projects/${toCancel}/cancel`)
+        .expect(200);
+      expect(off.body.data.stage).toBe('cancelled');
+
+      const toDelete = (
+        await as(ops)
+          .post('/projects', draft({ title: 'Deleted by Operations' }))
+          .expect(201)
+      ).body.data.id;
+      await as(ops).delete(`/projects/${toDelete}`).expect(204);
+      await as(ops).get(`/projects/${toDelete}`).expect(404);
+    });
+
+    it('finds farmers to choose, by name or number, with nothing personal', async () => {
+      const all = await as(ops).get('/projects/farmers?limit=100').expect(200);
+      const demo = (all.body.data as Array<Record<string, unknown>>).find(
+        (f) => f.id === farmerId,
+      );
+      expect(demo).toEqual({
+        id: farmerId,
+        name: expect.stringMatching(/Demo Farmer/) as string,
+        district: expect.any(String) as string,
+      });
+      expect(all.body.meta.total).toBe(all.body.data.length);
+      // Only farmers: nobody of another role.
+      expect(all.body.data.map((f: { id: string }) => f.id)).not.toContain(
+        investorId,
+      );
+
+      const phone = (
+        await as(admin).get(`/participants/${farmerId}`).expect(200)
+      ).body.data.phone as string;
+      for (const q of ['Demo', phone]) {
+        const found = await as(ops)
+          .get(`/projects/farmers?q=${encodeURIComponent(q)}`)
+          .expect(200);
+        expect(found.body.data.map((f: { id: string }) => f.id)).toContain(
+          farmerId,
+        );
+      }
+      const none = await as(ops)
+        .get('/projects/farmers?q=Nobodyhasthisname')
+        .expect(200);
+      expect(none.body.data).toEqual([]);
+
+      // The same list for admins; nobody else gets it.
+      await as(admin).get('/projects/farmers').expect(200);
+      for (const token of [accounts, investor, farmerToken, buyer]) {
+        await as(token).get('/projects/farmers').expect(403);
+      }
+    });
+
+    it('still gives no one else these powers', async () => {
+      for (const token of [accounts, auditor, investor, farmerToken]) {
+        await as(token).post('/projects', draft()).expect(403);
+      }
+    });
+  });
+
   describe('integrity of the read model', () => {
     it('rebuilds identical projects and reservations from the ledger', async () => {
       const snapshot = async () => ({

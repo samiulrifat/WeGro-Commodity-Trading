@@ -25,7 +25,7 @@ import {
   ChoiceField,
   TextField,
 } from '@/features/catalog/entry-form';
-import { OfficerPicker } from '@/features/people/officer-picker';
+import { FarmerSelect } from './farmer-select';
 import { useDistrictOptions } from '@/features/people/use-district-options';
 import { useFormat } from '@/i18n/use-format';
 import { useProjectsSetCoverMutation } from './api';
@@ -348,7 +348,9 @@ function ProjectForm({ project }: { project: ProjectDto | null }) {
               error={show('location')}
             />
             <div className="grid gap-2">
-              <p className="text-sm font-medium">{t('roles.farmer')}</p>
+              <label htmlFor="project-farmer" className="text-sm font-medium">
+                {t('roles.farmer')}
+              </label>
               {draft.farmerId && !pickFarmer ? (
                 <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
                   <span className="font-medium">{draft.farmerName}</span>
@@ -362,13 +364,13 @@ function ProjectForm({ project }: { project: ProjectDto | null }) {
                   </Button>
                 </div>
               ) : (
-                <OfficerPicker
-                  open
-                  personRole="farmer"
-                  placeholder={t('projects.form.findFarmer')}
-                  exclude={[]}
+                <FarmerSelect
+                  id="project-farmer"
                   value={draft.farmerId}
-                  onChange={(farmerId) => set({ farmerId })}
+                  onChange={(f) =>
+                    set({ farmerId: f?.id ?? null, farmerName: f?.name ?? '' })
+                  }
+                  invalid={!!show('farmerId')}
                 />
               )}
               {show('farmerId') && (

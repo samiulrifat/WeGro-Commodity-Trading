@@ -201,6 +201,53 @@ contract ProjectLedgerTest is Test {
         ledger.createProject(keccak256("OTHER"), t);
     }
 
+    function test_OperationsRunsProjectsLikeAnAdmin() public {
+        address ops = makeAddr("operations");
+        vm.startPrank(superAdmin);
+        _person(keccak256("STAFF-OPS"), registry.OPERATIONS_ROLE(), ops);
+        vm.stopPrank();
+
+        // Every stage an admin moves a project through.
+        ProjectLedger.ProjectTerms memory t = _maizeTerms();
+        vm.startPrank(ops);
+        vm.expectEmit(address(ledger));
+        emit ProjectLedger.ProjectStageChanged(PROJECT, ProjectLedger.Stage.None, ProjectLedger.Stage.Draft, ops);
+        ledger.createProject(PROJECT, t);
+        ledger.openForFunding(PROJECT);
+        vm.stopPrank();
+        _confirm(_reserve(NASRIN, 100), "REF-OPS");
+        vm.startPrank(ops);
+        ledger.activate(PROJECT);
+        ledger.markReadyForSale(PROJECT);
+        vm.stopPrank();
+        vm.prank(linked);
+        ledger.markPaidOut(PROJECT);
+        vm.prank(ops);
+        ledger.close(PROJECT);
+        assertEq(uint8(_stage()), uint8(ProjectLedger.Stage.Closed));
+
+        // And calling one off.
+        bytes32 other = keccak256("OTHER");
+        vm.startPrank(ops);
+        ledger.createProject(other, t);
+        ledger.openForFunding(other);
+        ledger.cancelProject(other);
+        vm.stopPrank();
+        assertEq(uint8(ledger.getProject(other).stage), uint8(ProjectLedger.Stage.Cancelled));
+
+        // Not a booking, which stays the admin's or the investor's.
+        bytes32 third = keccak256("THIRD");
+        vm.startPrank(ops);
+        ledger.createProject(third, t);
+        ledger.openForFunding(third);
+        vm.stopPrank();
+        vm.prank(_keyOf(NASRIN));
+        uint256 booking = ledger.reserveSlots(third, 1);
+        vm.prank(ops);
+        vm.expectRevert(abi.encodeWithSelector(ProjectLedger.NotAuthorized.selector, ops));
+        ledger.cancelReservation(booking);
+    }
+
     function test_CreateTwiceReverts() public {
         _create(_maizeTerms());
         ProjectLedger.ProjectTerms memory t = _maizeTerms();

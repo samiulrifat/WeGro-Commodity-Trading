@@ -35,6 +35,22 @@ async function panel(
 }
 
 describe('the staff panel', () => {
+  it.each(['operations', 'admin'] as const)(
+    'lets %s edit, publish and delete a draft',
+    async (role) => {
+      await panel(role, project({ stage: 'draft', chainState: 'local' }));
+      expect(screen.getByRole('link', { name: /Edit Draft/ })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Publish' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Delete Draft' })).toBeTruthy();
+    },
+  );
+
+  it('gives Accounts no project moves', async () => {
+    await panel('accounts', project({ stage: 'draft', chainState: 'local' }));
+    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Edit Draft/ })).toBeNull();
+  });
+
   it('lets an admin edit, publish and delete a draft', async () => {
     const draft = project({ stage: 'draft', chainState: 'local' });
     const { sent, router } = await panel('admin', draft, ({ method }) =>

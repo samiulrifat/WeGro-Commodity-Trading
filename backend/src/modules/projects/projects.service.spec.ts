@@ -126,6 +126,7 @@ describe('ProjectsService', () => {
       { get: () => ({ getProject }) } as never,
       { apply: jest.fn(() => Promise.resolve()) } as never,
       {} as never,
+      {} as never,
     );
     return { service, projects, chain, row: () => row! };
   };

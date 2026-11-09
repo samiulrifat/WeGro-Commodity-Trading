@@ -329,3 +329,15 @@ export class ProjectIntegrityDto {
   @ApiProperty({ type: [String] })
   mismatches: string[];
 }
+
+/** A farmer to choose for a project: no more than who and where. */
+export class FarmerOptionDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ type: String, nullable: true, example: 'BOGURA' })
+  district: string | null;
+}

@@ -104,6 +104,15 @@ describe('the projects list', () => {
     });
   });
 
+  it('lets Operations add projects, as admins do', async () => {
+    await list('operations');
+    expect(
+      (await screen.findByRole('link', { name: /New Project/ })).getAttribute(
+        'href',
+      ),
+    ).toBe('/projects/new');
+  });
+
   it('gives staff every stage, the filters and New Project', async () => {
     const { router } = await list('admin');
     expect(

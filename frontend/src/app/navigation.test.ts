@@ -270,9 +270,10 @@ describe('the super admin', () => {
 
 describe('which links lead somewhere', () => {
   it('opens a section without pages only at its start', () => {
-    // Operations see projects as one list: the admins' Drafts page is not theirs.
-    expect(mayOpen(user('operations'), '/projects')).toBe(true);
-    expect(mayOpen(user('operations'), '/projects/drafts')).toBe(false);
+    // Accounts see projects without Drafts; Operations run them, as admins do.
+    expect(mayOpen(user('accounts'), '/projects')).toBe(true);
+    expect(mayOpen(user('accounts'), '/projects/p1')).toBe(true);
+    expect(mayOpen(user('operations'), '/projects/drafts')).toBe(true);
     expect(mayOpen(user('operations'), '/projects/p1')).toBe(true);
     expect(mayOpen(user('admin'), '/projects/drafts')).toBe(true);
     expect(mayOpen(user('accounts'), '/projects/drafts')).toBe(false);

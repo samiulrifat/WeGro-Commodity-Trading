@@ -275,6 +275,18 @@ export class UpdateProjectDto {
   plannedStartDate?: string | null;
 }
 
+/** Farmers to choose from for a project. */
+export class ListProjectFarmersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    description:
+      'A mobile number, an NID or whole words of the name (every word must be in it)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+}
+
 export class ListProjectsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ProjectStage })
   @IsOptional()

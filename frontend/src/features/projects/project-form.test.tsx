@@ -34,8 +34,8 @@ const catalog: Reply = {
 };
 const farmers: Reply = {
   body: {
-    data: [{ id: 'f2', fullName: 'Karim Mia', district: 'BOGURA' }],
-    meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    data: [{ id: 'f2', name: 'Karim Mia', district: 'BOGURA' }],
+    meta: { total: 1, page: 1, limit: 100, totalPages: 1 },
   },
 };
 
@@ -60,7 +60,7 @@ async function form(
         }
       );
     if (s.url.pathname === '/api/catalog') return catalog;
-    if (s.url.pathname === '/api/participants') return farmers;
+    if (s.url.pathname === '/api/projects/farmers') return farmers;
     if (s.url.pathname === '/api/projects/p1')
       return (
         over.project?.() ?? {
@@ -89,7 +89,10 @@ const pick = async (label: string, option: string) => {
 // Pasted, not typed: each key would re-render this long form, and typed
 // key by key the first test takes over 7 s (more on a busy machine).
 const fill = async (label: string, text: string) => {
-  const box = screen.getByLabelText(label);
+  // The farmer's share, not the farmer dropdown, which is labelled alike.
+  const box = screen
+    .getAllByLabelText(label)
+    .find((el) => el.getAttribute('role') !== 'combobox')!;
   await userEvent.clear(box);
   await userEvent.click(box);
   await userEvent.paste(text);
@@ -122,9 +125,7 @@ describe('the project form', () => {
     await pick('Crop', 'Jute');
     await pick('District', 'Bogura');
     await fill('Upazila and Village', 'Sariakandi');
-    await userEvent.click(
-      await screen.findByRole('button', { name: /Karim Mia/ }),
-    );
+    await pick('Farmer', 'Karim Mia · Bogura');
     await fill('Funding Target', '100000');
     await fill('Unit Price', '20000');
     expect(screen.getByText('5 units')).toBeTruthy();
@@ -212,9 +213,7 @@ describe('the project form', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'Change Farmer' }),
     );
-    await userEvent.click(
-      await screen.findByRole('button', { name: /Karim Mia/ }),
-    );
+    await pick('Farmer', 'Karim Mia · Bogura');
     await fill('Title', 'Maize, second season');
     await userEvent.click(screen.getByRole('button', { name: 'Save Draft' }));
     await waitFor(() =>
@@ -269,9 +268,10 @@ describe('the project form', () => {
     await form();
     await fill('Farmer', '45');
     await fill('WeGro', '15');
-    expect((screen.getByLabelText('Farmer') as HTMLInputElement).value).toBe(
-      '45',
-    );
+    expect(
+      (screen.getByRole('textbox', { name: 'Farmer' }) as HTMLInputElement)
+        .value,
+    ).toBe('45');
     expect((screen.getByLabelText('WeGro') as HTMLInputElement).value).toBe(
       '15',
     );

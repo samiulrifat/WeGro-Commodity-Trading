@@ -1647,6 +1647,12 @@ export const en = {
       location: 'Upazila and Village',
       locationHint: 'Where the field is, such as Shibganj, Mohasthan.',
       findFarmer: 'Name or mobile number of the farmer',
+      chooseFarmer: 'Choose a Farmer',
+      noFarmers: 'No verified farmer matches.',
+      moreFarmers_one:
+        'Showing the first {{n, number}} farmer. Search above to find others.',
+      moreFarmers_other:
+        'Showing the first {{n, number}} farmers. Search above to find others.',
       changeFarmer: 'Change Farmer',
       money: 'Money and Returns',
       priceHint: 'The funding target must be a whole number of units.',

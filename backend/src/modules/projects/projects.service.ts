@@ -39,10 +39,12 @@ import { ChainState, User } from '../users/entities/user.entity';
 import { holdsRole, ParticipantStatus, Role } from '../users/roles';
 import type {
   CreateProjectDto,
+  ListProjectFarmersQueryDto,
   ListProjectsQueryDto,
   UpdateProjectDto,
 } from './dto/project-request.dto';
 import type {
+  FarmerOptionDto,
   ProjectDto,
   ProjectIntegrityDto,
   TimelineEntryDto,
@@ -64,6 +66,8 @@ import {
   totalSlots,
 } from './project-terms';
 import { ProjectViews } from './project-views';
+import { PersonSearch } from '../users/person-search';
+import { PersonalDetails } from '../users/entities/personal-details.entity';
 import { ErrorCode } from '../../common/errors/error-code';
 import { problem } from '../../common/errors/problem';
 
@@ -91,7 +95,51 @@ export class ProjectsService {
     private readonly contracts: ContractsRegistry,
     private readonly receipts: ReceiptApplier,
     private readonly photos: PhotosService,
+    private readonly search: PersonSearch,
   ) {}
+
+  /**
+   * Verified farmers to choose for a project, oldest first, searched by name
+   * words, number or NID: only their id, name and district, so those who run
+   * projects need not see anyone's personal details.
+   */
+  async farmersToChoose(
+    q: ListProjectFarmersQueryDto,
+  ): Promise<Paginated<FarmerOptionDto>> {
+    const qb = this.users
+      .createQueryBuilder('u')
+      .leftJoin(PersonalDetails, 'd', 'd.user_id = u.id')
+      .select(['u.id AS id', 'd.district AS district'])
+      .where('u.role = :role AND u.status = :status', {
+        role: Role.FARMER,
+        status: ParticipantStatus.VERIFIED,
+      })
+      .andWhere('u.chain_state = :confirmed', {
+        confirmed: ChainState.CONFIRMED,
+      });
+    const person = this.search.condition('u.id', q.q, 'Farmer');
+    if (person) qb.andWhere(person.sql, person.params);
+    const [rows, total] = await Promise.all([
+      qb
+        .clone()
+        .orderBy('u.created_at', 'ASC')
+        .addOrderBy('u.id', 'ASC')
+        .offset(q.skip)
+        .limit(q.limit)
+        .getRawMany<{ id: string; district: string | null }>(),
+      qb.getCount(),
+    ]);
+    const names = await this.views.names(rows.map((r) => r.id));
+    return new Paginated(
+      rows.map((r) => ({
+        id: r.id,
+        name: names.get(r.id) ?? '',
+        district: r.district,
+      })),
+      total,
+      q,
+    );
+  }
 
   // --- Drafts ---
 

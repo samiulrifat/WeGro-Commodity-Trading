@@ -180,7 +180,13 @@ contract ProjectLedger is AccessGuarded {
 
     // --- Project setup ---
 
-    function createProject(bytes32 projectId, ProjectTerms calldata terms) external onlyAdmin {
+    /// @dev An admin or Operations; refused as a missing admin role, as before.
+    modifier onlyProjectRunner() {
+        if (!_runsProjects()) revert MissingRole(msg.sender, Roles.ADMIN);
+        _;
+    }
+
+    function createProject(bytes32 projectId, ProjectTerms calldata terms) external onlyProjectRunner {
         if (projectId == bytes32(0) || terms.produceCode == bytes32(0) || terms.termsHash == bytes32(0)) {
             revert ZeroValue();
         }
@@ -208,17 +214,17 @@ contract ProjectLedger is AccessGuarded {
         emit ProjectStageChanged(projectId, Stage.None, Stage.Draft, msg.sender);
     }
 
-    function openForFunding(bytes32 projectId) external onlyAdmin {
+    function openForFunding(bytes32 projectId) external onlyProjectRunner {
         _advance(projectId, Stage.Draft, Stage.OpenForFunding);
     }
 
-    /// @notice Funded -> Active (first voucher approved, or admin).
+    /// @notice Funded -> Active (first voucher approved, or an admin or Operations).
     function activate(bytes32 projectId) external {
         _requireAdminOrLinked();
         _advance(projectId, Stage.Funded, Stage.Active);
     }
 
-    /// @notice Active -> ReadyForSale: the admin decides all produce is sold.
+    /// @notice Active -> ReadyForSale: an admin or Operations decides all produce is sold.
     function markReadyForSale(bytes32 projectId) external {
         _requireAdminOrLinked();
         _advance(projectId, Stage.Active, Stage.ReadyForSale);
@@ -231,12 +237,12 @@ contract ProjectLedger is AccessGuarded {
         _advance(projectId, Stage.ReadyForSale, Stage.PaidOut);
     }
 
-    function close(bytes32 projectId) external onlyAdmin {
+    function close(bytes32 projectId) external onlyProjectRunner {
         _advance(projectId, Stage.PaidOut, Stage.Closed);
     }
 
     /// @notice Cancel before Active. Slot holders are owed refunds, recorded via `recordRefund`.
-    function cancelProject(bytes32 projectId) external onlyAdmin {
+    function cancelProject(bytes32 projectId) external onlyProjectRunner {
         Project storage p = _existing(projectId);
         Stage current = p.stage;
         if (current != Stage.Draft && current != Stage.OpenForFunding && current != Stage.Funded) {
@@ -421,7 +427,12 @@ contract ProjectLedger is AccessGuarded {
     }
 
     function _requireAdminOrLinked() private view {
-        if (!_isAdmin() && !isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
+        if (!_runsProjects() && !isLinkedContract[msg.sender]) revert NotAuthorized(msg.sender);
+    }
+
+    /// @dev Projects are run by admins and by Operations (and the super admin, who holds both).
+    function _runsProjects() private view returns (bool) {
+        return _isAdmin() || _hasRole(Roles.OPERATIONS);
     }
 
     function _useRef(bytes32 paymentRefHash) private {

@@ -389,7 +389,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
   admin: OFFICE,
   operations: [
     item('dashboard', 'dashboard'),
-    item('projects', 'projects'),
+    projects(ALL_PROJECTS, DRAFTS),
     OFFICE_VOUCHERS,
     catalog(...WHOLE_CATALOG),
     marketplace(LISTINGS, DEALS, DELIVERIES, BUYER_REQUESTS, FEES),

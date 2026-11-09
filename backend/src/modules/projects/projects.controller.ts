@@ -38,6 +38,7 @@ import { CurrentUser, Roles } from '../auth/decorators';
 import { Role } from '../users/roles';
 import {
   CreateProjectDto,
+  ListProjectFarmersQueryDto,
   ListProjectsQueryDto,
   ListReservationsQueryDto,
   PaymentReferenceDto,
@@ -46,6 +47,7 @@ import {
   UpdateProjectDto,
 } from './dto/project-request.dto';
 import {
+  FarmerOptionDto,
   HoldingDto,
   InvestmentDto,
   ProjectDto,
@@ -58,6 +60,9 @@ import { ProjectsService } from './projects.service';
 import { ReservationsService } from './reservations.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
+/** Who runs projects: create, edit, publish and move them through their stages. */
+const PROJECT_RUNNERS = [Role.SUPER_ADMIN, Role.ADMIN, Role.OPERATIONS];
+
 /**
  * Everyone but the marketplace's outside parties: a project names its
  * farmer and place, which would let a buyer or seller go around the platform.
@@ -80,7 +85,7 @@ export class ProjectsController {
   ) {}
 
   @Post()
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @ApiCreatedResponse({
     type: ProjectDto,
     description: 'A draft, editable until published',
@@ -103,6 +108,17 @@ export class ProjectsController {
     return this.projects.list(actor, query);
   }
 
+  /** Before `:id`, so the word is not read as a project's id. */
+  @Get('farmers')
+  @ApiPaged()
+  @Roles(...PROJECT_RUNNERS)
+  @ApiOkResponse({ type: [FarmerOptionDto] })
+  farmers(
+    @Query() query: ListProjectFarmersQueryDto,
+  ): Promise<Paginated<FarmerOptionDto>> {
+    return this.projects.farmersToChoose(query);
+  }
+
   @Get(':id')
   @Roles(...PROJECT_READERS)
   @ApiOkResponse({ type: ProjectDto })
@@ -114,7 +130,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @ApiOkResponse({ type: ProjectDto, description: 'Drafts only' })
   update(
     @Param('id', uuid) id: string,
@@ -124,7 +140,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Drafts only' })
   remove(@Param('id', uuid) id: string): Promise<void> {
@@ -132,7 +148,7 @@ export class ProjectsController {
   }
 
   @Post(':id/publish')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -146,7 +162,7 @@ export class ProjectsController {
   }
 
   @Post(':id/activate')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -161,7 +177,7 @@ export class ProjectsController {
   }
 
   @Post(':id/ready-for-sale')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ProjectDto })
   readyForSale(
@@ -172,7 +188,7 @@ export class ProjectsController {
   }
 
   @Post(':id/close')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ProjectDto })
   close(
@@ -183,7 +199,7 @@ export class ProjectsController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: ProjectDto,
@@ -197,7 +213,7 @@ export class ProjectsController {
   }
 
   @Post(':id/cover')
-  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Roles(...PROJECT_RUNNERS)
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('file', {

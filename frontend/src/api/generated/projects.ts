@@ -34,6 +34,20 @@ const injectedRtkApi = api
         }),
         providesTags: ['Projects'],
       }),
+      projectsFarmers: build.query<
+        ProjectsFarmersApiResponse,
+        ProjectsFarmersApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/projects/farmers`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Projects'],
+      }),
       projectsFindOne: build.query<
         ProjectsFindOneApiResponse,
         ProjectsFindOneApiArg
@@ -288,6 +302,16 @@ export type ProjectsListApiArg = {
   q?: string;
   /** Only those you saved (investors) */
   favourites?: boolean;
+};
+export type ProjectsFarmersApiResponse = /** status 200  */ {
+  data: FarmerOptionDto[];
+  meta: PageMetaDto;
+};
+export type ProjectsFarmersApiArg = {
+  page?: number;
+  limit?: number;
+  /** A mobile number, an NID or whole words of the name (every word must be in it) */
+  q?: string;
 };
 export type ProjectsFindOneApiResponse = /** status 200  */ {
   data: ProjectDto;
@@ -618,6 +642,11 @@ export type PageMetaDto = {
   total: number;
   totalPages: number;
 };
+export type FarmerOptionDto = {
+  id: string;
+  name: string;
+  district: string | null;
+};
 export type UpdateProjectDto = {
   title?: string;
   description?: string | null;
@@ -738,6 +767,8 @@ export const {
   useProjectsCreateMutation,
   useProjectsListQuery,
   useLazyProjectsListQuery,
+  useProjectsFarmersQuery,
+  useLazyProjectsFarmersQuery,
   useProjectsFindOneQuery,
   useLazyProjectsFindOneQuery,
   useProjectsUpdateMutation,
