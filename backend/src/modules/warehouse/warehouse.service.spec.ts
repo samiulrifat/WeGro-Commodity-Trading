@@ -390,9 +390,20 @@ describe('WarehouseService', () => {
 
     it('accepts or cancels only a handover that is waiting', async () => {
       await expect(
-        build({ receipt: {} }).service.acceptHandover(admin, RECEIPT),
+        build({ receipt: {} }).service.acceptHandover(admin, RECEIPT, {
+          unitPrice: '28',
+        }),
       ).rejects.toThrow('No handover is waiting on this receipt');
       const waiting = { receipt: { status: ReceiptStatus.PENDING_HANDOVER } };
+      const accepting = build(waiting);
+      await accepting.service.acceptHandover(admin, RECEIPT, {
+        unitPrice: '28.50',
+      });
+      // WeGro's price per unit, in poisha.
+      expect(accepting.chain.sent[0]).toMatchObject({
+        method: 'acceptHandover',
+        args: [RECEIPT, 2850n],
+      });
       await expect(
         build(waiting).service.cancelHandover(officer, RECEIPT),
       ).rejects.toThrow(ForbiddenException);

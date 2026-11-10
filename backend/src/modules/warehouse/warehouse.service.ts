@@ -24,6 +24,7 @@ import type { WarehouseReceipt as ReceiptContract } from '../../blockchain/gener
 import { ReceiptApplier } from '../../blockchain/indexer/receipt-applier';
 import { TransactionService } from '../../blockchain/tx/transaction.service';
 import { fingerprint } from '../../blockchain/utils/fingerprint';
+import { poishaToTaka, takaToPoisha } from '../../blockchain/utils/money';
 import {
   codeToBytes32,
   uuidToBytes32,
@@ -52,6 +53,7 @@ import { ChainState, User } from '../users/entities/user.entity';
 import { PersonSearch } from '../users/person-search';
 import { actsAs, holdsRole, ParticipantStatus, Role } from '../users/roles';
 import type {
+  AcceptBuyBackDto,
   CreateSiteDto,
   IssueReceiptDto,
   ListReceiptsQueryDto,
@@ -527,9 +529,17 @@ export class WarehouseService {
     return this.findOne(actor, id);
   }
 
-  async acceptHandover(actor: AuthUser, id: string): Promise<ReceiptDetailDto> {
+  /** An admin buys the farmer's crop for WeGro at a price per unit. */
+  async acceptHandover(
+    actor: AuthUser,
+    id: string,
+    dto: AcceptBuyBackDto,
+  ): Promise<ReceiptDetailDto> {
     await this.pendingHandover(id);
-    await this.send(actor, (c) => c.acceptHandover.populateTransaction(id));
+    const unitPrice = takaToPoisha(dto.unitPrice);
+    await this.send(actor, (c) =>
+      c.acceptHandover.populateTransaction(id, unitPrice),
+    );
     return this.findOne(actor, id);
   }
 
@@ -952,6 +962,18 @@ export class WarehouseService {
         originalQuantity: r.originalQuantity,
         status: r.status,
         pendingHandover: r.pendingToWegro,
+        // What WeGro paid stays between WeGro and the farmer's side.
+        buyBack:
+          r.buyBackUnitPrice != null &&
+          r.buyBackAmount != null &&
+          !holdsRole(actor, Role.BUYER)
+            ? {
+                unitPrice: poishaToTaka(r.buyBackUnitPrice),
+                quantity: r.buyBackQuantity ?? 0,
+                amount: poishaToTaka(r.buyBackAmount),
+                at: r.boughtBackAt,
+              }
+            : null,
         parentId: r.parentId,
         intake: {
           bagCount: r.bagCount,

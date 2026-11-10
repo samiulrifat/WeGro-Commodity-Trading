@@ -202,11 +202,20 @@ export class TrackRecordBuilder {
                 GROUP BY f.project_id`,
               [ids],
             ),
+            // Sold: delivered deals and WeGro's buy-backs. WeGro's later
+            // sale of crop it bought back is its own, not the project's.
             q<{ project_id: string; quantity: string }>(
-              `SELECT l.project_id, SUM(o.quantity)::text AS quantity
-                 FROM offers o JOIN listings l ON l.id = o.listing_id
-                WHERE l.project_id = ANY($1) AND o.status = 'delivered'
-                GROUP BY l.project_id`,
+              `SELECT s.project_id, SUM(s.quantity)::text AS quantity
+                 FROM (SELECT l.project_id, o.quantity
+                         FROM offers o JOIN listings l ON l.id = o.listing_id
+                         LEFT JOIN warehouse_receipts r ON r.id = l.receipt_id
+                        WHERE l.project_id = ANY($1) AND o.status = 'delivered'
+                          AND r.buy_back_unit_price IS NULL
+                       UNION ALL
+                       SELECT r.project_id, r.buy_back_quantity
+                         FROM warehouse_receipts r
+                        WHERE r.project_id = ANY($1) AND r.buy_back_quantity IS NOT NULL) s
+                GROUP BY s.project_id`,
               [ids],
             ),
           ]);

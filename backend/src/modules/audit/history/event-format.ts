@@ -54,6 +54,7 @@ const TITLES: Readonly<Record<string, string>> = {
   HandoverOffered: 'Receipt handover offered',
   HandoverCancelled: 'Receipt handover cancelled',
   ReceiptTransferred: 'Receipt transferred',
+  BoughtBack: 'Crop bought back by WeGro',
   ExpiryExtended: 'Storage term extended after re-check',
   ReceiptListed: 'Receipt listing changed',
   ReceiptSplit: 'Receipt split for a buyer',

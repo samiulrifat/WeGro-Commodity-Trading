@@ -143,7 +143,12 @@ const summary = (
 ): SettlementSummaryDto => ({
   project: { id: PROJECT, name: 'Maize in Bogura' },
   stage: 'active',
-  income: { total: '600000.00', sales: '600000.00', insurance: '0.00' },
+  income: {
+    total: '600000.00',
+    sales: '600000.00',
+    buyBack: '0.00',
+    insurance: '0.00',
+  },
   costs: { total: '200000.00', inputs: '150000.00', other: '50000.00' },
   net: '400000.00',
   distributedProfit: '0.00',

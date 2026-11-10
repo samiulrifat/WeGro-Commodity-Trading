@@ -428,17 +428,56 @@ describe('Warehouse (node + database)', () => {
       await as(t.field_officer)
         .post(`/warehouse-receipts/${receiptA}/handover`)
         .expect(200);
-      const accepted = await as(t.admin)
+      // WeGro pays a price per unit: none, or nothing, is no buy-back.
+      await as(t.admin)
         .post(`/warehouse-receipts/${receiptA}/handover/accept`)
+        .expect(400);
+      await as(t.admin)
+        .post(`/warehouse-receipts/${receiptA}/handover/accept`, {
+          unitPrice: '0',
+        })
+        .expect(400);
+      const accepted = await as(t.admin)
+        .post(`/warehouse-receipts/${receiptA}/handover/accept`, {
+          unitPrice: '28',
+        })
         .expect(200);
       expect(accepted.body.data).toMatchObject({
         status: 'issued',
         pendingHandover: false,
         owner: { kind: 'wegro', id: null, name: 'WeGro' },
+        buyBack: { unitPrice: '28.00', quantity: 5000, amount: '140000.00' },
       });
       await as(t.admin)
-        .post(`/warehouse-receipts/${receiptA}/handover/accept`)
+        .post(`/warehouse-receipts/${receiptA}/handover/accept`, {
+          unitPrice: '28',
+        })
         .expect(409);
+
+      // The project's sale income at once, on the ledger and in settlement;
+      // the crop is no longer the project's stored crop.
+      const receipts = chain.app.get(ContractsRegistry).get('WarehouseReceipt');
+      const key = uuidToBytes32(projectId);
+      expect(await receipts.buyBackIncome(key)).toBe(14_000_000n);
+      expect(await receipts.isBoughtBack(receiptA)).toBe(true);
+      const summary = (
+        await as(t.accounts)
+          .get(`/settlement/projects/${projectId}`)
+          .expect(200)
+      ).body.data;
+      expect(summary.income).toMatchObject({
+        buyBack: '140000.00',
+        total: '140000.00',
+      });
+      const [notice] = (await db.query(
+        `SELECT params FROM notifications WHERE user_id = $1 AND kind = 'handover.accepted'`,
+        [user.farmer.id],
+      )) as Array<{ params: Record<string, string> }>;
+      expect(notice.params).toEqual({
+        quantity: '5000',
+        unitPrice: '28.00',
+        amount: '140000.00',
+      });
     });
 
     it('mirrors a sale: the buyer gets a split-off receipt and the rest stays listed', async () => {
@@ -549,6 +588,20 @@ describe('Warehouse (node + database)', () => {
       // The indexer then meets the older listing event: it must not undo the sale.
       await chain.app.get(EventIndexerService).catchUp();
       expect(await parent()).toMatchObject({ status: 'sold_out', quantity: 0 });
+
+      // WeGro sold crop it bought back: its deals are not the project's, so
+      // they hold up no payout and add nothing to the project's income.
+      const trade = chain.app.get(ContractsRegistry).get('TradeLedger');
+      expect(await trade.openTrades(uuidToBytes32(projectId))).toBe(0n);
+      const summary = (
+        await as(t.accounts)
+          .get(`/settlement/projects/${projectId}`)
+          .expect(200)
+      ).body.data;
+      expect(summary.income).toMatchObject({
+        sales: '0.00',
+        buyBack: '140000.00',
+      });
     });
 
     it('refuses a handover once the receipt has expired by the chain clock', async () => {

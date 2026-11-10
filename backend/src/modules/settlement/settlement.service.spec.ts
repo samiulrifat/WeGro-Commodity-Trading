@@ -47,6 +47,7 @@ interface Ledger {
   createdAt: number;
   interval: number;
   sales: bigint;
+  buyBack: bigint;
   insurance: bigint;
   inputs: bigint;
   other: bigint;
@@ -96,6 +97,7 @@ describe('SettlementService', () => {
       createdAt: NOW_S - 4 * MONTH_SECONDS,
       interval: 3,
       sales: 10_000_000n,
+      buyBack: 0n,
       insurance: 0n,
       inputs: 2_000_000n,
       other: 1_000_000n,
@@ -143,6 +145,7 @@ describe('SettlementService', () => {
           },
           WarehouseReceipt: {
             openReceipts: () => Promise.resolve(l.openReceipts),
+            buyBackIncome: () => Promise.resolve(l.buyBack),
           },
           SettlementLedger: {
             otherCosts: () => Promise.resolve(l.other),
@@ -638,6 +641,19 @@ describe('SettlementService', () => {
         final: { allowed: false, reason: 'ROUND_WRONG_STAGE' },
       });
       expect(s.staged.preview?.payees).toBeGreaterThan(0);
+    });
+
+    it('counts WeGro’s buy-backs as income beside the sales', async () => {
+      const s = await build({
+        ledger: { buyBack: 4_000_000n, insurance: 1_000_000n },
+      }).service.summary(accounts, PROJECT);
+      expect(s.income).toEqual({
+        sales: '100000.00',
+        buyBack: '40000.00',
+        insurance: '10000.00',
+        total: '150000.00',
+      });
+      expect(s.net).toBe('120000.00');
     });
 
     it('shows a loss as a negative net', async () => {

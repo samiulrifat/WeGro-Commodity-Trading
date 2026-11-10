@@ -159,6 +159,9 @@ function Figures({ summary: s }: { summary: SettlementSummaryDto }) {
       <CardContent>
         <dl className="divide-y">
           <Row label={t('payouts.sales')}>{fmt.taka(s.income.sales)}</Row>
+          {s.income.buyBack !== '0.00' && (
+            <Row label={t('payouts.buyBack')}>{fmt.taka(s.income.buyBack)}</Row>
+          )}
           <Row label={t('payouts.insurance')}>
             {fmt.taka(s.income.insurance)}
           </Row>

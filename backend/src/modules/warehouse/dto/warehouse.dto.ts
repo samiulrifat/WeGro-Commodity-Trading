@@ -10,6 +10,7 @@ import {
   IsString,
   IsUUID,
   Max,
+  Matches,
   MaxLength,
   Min,
   MinLength,
@@ -192,6 +193,18 @@ export class RecheckDto extends IntakeFieldsDto {
   newExpiresOn: string;
 }
 
+export class AcceptBuyBackDto {
+  @ApiProperty({
+    example: '28.00',
+    description:
+      'Taka per unit WeGro pays; quantity x price is the project’s sale income',
+  })
+  @Matches(/^(0|[1-9]\d{0,13})(\.\d{1,2})?$/, {
+    message: '$property must be taka as a string, e.g. "28.00"',
+  })
+  unitPrice: string;
+}
+
 export class ListReceiptsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
@@ -322,6 +335,23 @@ export class RecheckViewDto {
   status: 'submitted' | 'recorded';
 }
 
+export class BuyBackDto {
+  @ApiProperty({ example: '28.00', description: 'Taka per unit' })
+  unitPrice: string;
+
+  @ApiProperty({ example: 5000, description: 'Units WeGro bought' })
+  quantity: number;
+
+  @ApiProperty({
+    example: '140000.00',
+    description: 'Taka, counted as sale income',
+  })
+  amount: string;
+
+  @ApiPropertyOptional({ nullable: true, type: Date })
+  at: Date | null;
+}
+
 export class ReceiptDto {
   @ApiProperty({
     example: '0x…',
@@ -352,6 +382,14 @@ export class ReceiptDto {
 
   @ApiProperty({ description: 'A buy-back to WeGro is waiting for an admin' })
   pendingHandover: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: () => BuyBackDto,
+    description:
+      'What WeGro paid, if it bought the crop back. Never shown to buyers',
+  })
+  buyBack: BuyBackDto | null;
 
   @ApiPropertyOptional({
     nullable: true,

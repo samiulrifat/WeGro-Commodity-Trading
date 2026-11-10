@@ -153,6 +153,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/warehouse-receipts/${queryArg.id}/handover/accept`,
           method: 'POST',
+          body: queryArg.acceptBuyBackDto,
         }),
         invalidatesTags: ['Warehouse'],
       }),
@@ -276,11 +277,13 @@ export type WarehouseOfferHandoverApiResponse =
 export type WarehouseOfferHandoverApiArg = {
   id: string;
 };
-export type WarehouseAcceptHandoverApiResponse = /** status 200  */ {
-  data: ReceiptDetailDto;
-};
+export type WarehouseAcceptHandoverApiResponse =
+  /** status 200 WeGro buys the crop at a price per unit: quantity x price is the project’s sale income at once */ {
+    data: ReceiptDetailDto;
+  };
 export type WarehouseAcceptHandoverApiArg = {
   id: string;
+  acceptBuyBackDto: AcceptBuyBackDto;
 };
 export type WarehouseCancelHandoverApiResponse = /** status 200  */ {
   data: ReceiptDetailDto;
@@ -403,6 +406,15 @@ export type ProduceRefDto = {
   unit: string;
   unitBn: string;
 };
+export type BuyBackDto = {
+  /** Taka per unit */
+  unitPrice: string;
+  /** Units WeGro bought */
+  quantity: number;
+  /** Taka, counted as sale income */
+  amount: string;
+  at?: string | null;
+};
 export type IntakeDto = {
   bagCount?: number | null;
   moisturePercent?: string | null;
@@ -439,6 +451,8 @@ export type ReceiptDetailDto = {
     | 'sold_out';
   /** A buy-back to WeGro is waiting for an admin */
   pendingHandover: boolean;
+  /** What WeGro paid, if it bought the crop back. Never shown to buyers */
+  buyBack?: BuyBackDto | null;
   /** Split off from this receipt by a sale */
   parentId?: string | null;
   intake: IntakeDto;
@@ -487,6 +501,8 @@ export type ReceiptDto = {
     | 'sold_out';
   /** A buy-back to WeGro is waiting for an admin */
   pendingHandover: boolean;
+  /** What WeGro paid, if it bought the crop back. Never shown to buyers */
+  buyBack?: BuyBackDto | null;
   /** Split off from this receipt by a sale */
   parentId?: string | null;
   intake: IntakeDto;
@@ -515,6 +531,10 @@ export type RecheckDto = {
   checkedOn: string;
   /** New last valid day; must be later than now */
   newExpiresOn: string;
+};
+export type AcceptBuyBackDto = {
+  /** Taka per unit WeGro pays; quantity x price is the project’s sale income */
+  unitPrice: string;
 };
 export const {
   useWarehouseCreateSiteMutation,

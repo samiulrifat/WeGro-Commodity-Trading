@@ -320,6 +320,8 @@ export type IncomeDto = {
   total: string;
   /** Delivered sales */
   sales: string;
+  /** WeGro’s buy-backs of the stored crop */
+  buyBack: string;
   /** Approved insurance claims */
   insurance: string;
 };

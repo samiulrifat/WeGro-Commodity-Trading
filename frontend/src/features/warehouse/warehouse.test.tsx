@@ -247,24 +247,57 @@ describe('receipt page', () => {
     });
     await renderPage(<ReceiptPage id={ID} />, `/warehouse/receipts/${ID}`);
     expect(
-      await screen.findByRole('button', { name: 'Decline Handover' }),
+      await screen.findByRole('button', { name: 'Decline Buy-Back' }),
     ).toBeTruthy();
     await userEvent.click(
-      screen.getByRole('button', { name: 'Accept Handover' }),
+      screen.getByRole('button', { name: 'Accept Buy-Back' }),
     );
-    await userEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
-        name: 'Accept Handover',
-      }),
+    const dialog = within(screen.getByRole('dialog'));
+    const accept = dialog.getByRole('button', { name: 'Accept Buy-Back' });
+    // WeGro buys at a price: none, or zero, is not sent.
+    await userEvent.click(accept);
+    expect(
+      await dialog.findByText('Enter a price above zero, e.g. 28.50.'),
+    ).toBeTruthy();
+    await userEvent.type(dialog.getByLabelText(/Price per/), '0');
+    await userEvent.click(accept);
+    const accepted = () =>
+      admin.filter(
+        (s) =>
+          s.url.pathname === `/api/warehouse-receipts/${ID}/handover/accept`,
+      );
+    expect(accepted()).toHaveLength(0);
+    await userEvent.clear(dialog.getByLabelText(/Price per/));
+    await userEvent.type(dialog.getByLabelText(/Price per/), '28.50');
+    // What WeGro pays in all, as the project's sale income.
+    expect(dialog.getByText(/WeGro pays .*57,000/)).toBeTruthy();
+    await userEvent.click(accept);
+    await waitFor(() => expect(accepted()).toHaveLength(1));
+    expect(accepted()[0]?.body).toEqual({ unitPrice: '28.50' });
+  });
+
+  it('shows what WeGro paid for crop it bought back', async () => {
+    await signedInAs('farmer');
+    fakeServer(({ url }) =>
+      url.pathname === `/api/warehouse-receipts/${ID}`
+        ? {
+            body: {
+              data: receipt({
+                owner: { kind: 'wegro', id: null, name: 'WeGro' },
+                buyBack: {
+                  unitPrice: '28.50',
+                  quantity: 2000,
+                  amount: '57000.00',
+                  at: '2026-11-10T06:00:00.000Z',
+                },
+              }),
+            },
+          }
+        : undefined,
     );
-    await waitFor(() =>
-      expect(
-        admin.some(
-          (s) =>
-            s.url.pathname === `/api/warehouse-receipts/${ID}/handover/accept`,
-        ),
-      ).toBe(true),
-    );
+    await renderPage(<ReceiptPage id={ID} />, `/warehouse/receipts/${ID}`);
+    expect(await screen.findByText('Bought Back by WeGro')).toBeTruthy();
+    expect(screen.getByText(/2,000 .* at .*28\.50: .*57,000/)).toBeTruthy();
   });
 
   it('prints an A4 receipt with its number and QR', async () => {

@@ -48,7 +48,12 @@ const summary = (
 ): SettlementSummaryDto => ({
   project: { id: PROJECT, name: 'Maize in Bogura' },
   stage: 'ready_for_sale',
-  income: { total: '600000.00', sales: '600000.00', insurance: '0.00' },
+  income: {
+    total: '600000.00',
+    sales: '600000.00',
+    buyBack: '0.00',
+    insurance: '0.00',
+  },
   costs: { total: '200000.00', inputs: '150000.00', other: '50000.00' },
   net: '400000.00',
   distributedProfit: '0.00',
@@ -328,6 +333,49 @@ describe('project settlement', () => {
         final: true,
       }),
     );
+  });
+
+  it('shows WeGro’s buy-back beside the sales, only when there is one', async () => {
+    await signedInAs('accounts');
+    fakeServer(({ url }) => {
+      if (url.pathname === `/api/settlement/projects/${PROJECT}`)
+        return {
+          body: {
+            data: summary({
+              income: {
+                total: '740000.00',
+                sales: '600000.00',
+                buyBack: '140000.00',
+                insurance: '0.00',
+              },
+            }),
+          },
+        };
+      if (url.pathname === `/api/settlement/projects/${PROJECT}/costs`)
+        return { body: { data: [] } };
+      return undefined;
+    });
+    await renderPage(
+      <ProjectSettlementPage projectId={PROJECT} />,
+      `/payouts/projects/${PROJECT}`,
+    );
+    const row = (await screen.findByText('WeGro Buy-Back')).closest('div')!;
+    expect(within(row).getByText(/1,40,000|140,000/)).toBeTruthy();
+    cleanup();
+
+    fakeServer(({ url }) => {
+      if (url.pathname === `/api/settlement/projects/${PROJECT}`)
+        return { body: { data: summary() } };
+      if (url.pathname === `/api/settlement/projects/${PROJECT}/costs`)
+        return { body: { data: [] } };
+      return undefined;
+    });
+    await renderPage(
+      <ProjectSettlementPage projectId={PROJECT} />,
+      `/payouts/projects/${PROJECT}`,
+    );
+    expect(await screen.findByText('Capital Returned')).toBeTruthy();
+    expect(screen.queryByText('WeGro Buy-Back')).toBeNull();
   });
 
   it('says what the final round waits for', async () => {

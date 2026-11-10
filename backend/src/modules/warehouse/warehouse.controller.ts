@@ -30,6 +30,7 @@ import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser, Public, Roles } from '../auth/decorators';
 import { Role } from '../users/roles';
 import {
+  AcceptBuyBackDto,
   CreateSiteDto,
   IssueReceiptDto,
   ListReceiptsQueryDto,
@@ -259,12 +260,17 @@ export class WarehouseController {
   @Post('warehouse-receipts/:id/handover/accept')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @ApiOkResponse({ type: ReceiptDetailDto })
+  @ApiOkResponse({
+    type: ReceiptDetailDto,
+    description:
+      'WeGro buys the crop at a price per unit: quantity x price is the project’s sale income at once',
+  })
   acceptHandover(
     @CurrentUser() actor: AuthUser,
     @Param('id', receiptId) id: string,
+    @Body() dto: AcceptBuyBackDto,
   ): Promise<ReceiptDetailDto> {
-    return this.warehouse.acceptHandover(actor, id);
+    return this.warehouse.acceptHandover(actor, id, dto);
   }
 
   @Post('warehouse-receipts/:id/handover/cancel')

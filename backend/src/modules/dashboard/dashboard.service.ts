@@ -307,7 +307,10 @@ export class DashboardService {
              (SELECT COALESCE(SUM(r.slots * p.slot_price), 0) FROM reservations r
                 JOIN projects p ON p.id = r.project_id WHERE r.status = 'confirmed')::text AS funding,
              (SELECT COALESCE(SUM(amount), 0) FROM refunds WHERE confirmed)::text AS refunded,
-             (SELECT COALESCE(SUM(unit_price * quantity), 0) FROM offers WHERE status = 'delivered')::text AS sales,
+             ((SELECT COALESCE(SUM(o.unit_price * o.quantity), 0) FROM offers o
+                 JOIN listings l ON l.id = o.listing_id LEFT JOIN warehouse_receipts r ON r.id = l.receipt_id
+                WHERE o.status = 'delivered' AND r.buy_back_unit_price IS NULL)
+              + (SELECT COALESCE(SUM(buy_back_amount), 0) FROM warehouse_receipts))::text AS sales,
              (SELECT COALESCE(SUM(approved_amount), 0) FROM insurance_claims WHERE status = 'paid')::text AS insurance,
              (SELECT COALESCE(SUM(amount), 0) FROM voucher_sales WHERE status = 'confirmed')::text AS inputs,
              (SELECT COALESCE(SUM(amount), 0) FROM payout_lines WHERE paid_at IS NOT NULL)::text AS payouts`,
@@ -324,8 +327,16 @@ export class DashboardService {
             WHERE r.status = 'confirmed' AND r.closed_at >= $1 AND r.closed_at < $2 GROUP BY 1`,
         ),
         series(
-          `SELECT ${month('delivered_at')} AS m, SUM(unit_price * quantity)::text AS v FROM offers
-            WHERE status = 'delivered' AND delivered_at >= $1 AND delivered_at < $2 GROUP BY 1`,
+          // Sales: delivered deals (not WeGro's resale of bought-back crop) and buy-backs.
+          `SELECT m, SUM(v)::text AS v FROM (
+             SELECT ${month('o.delivered_at')} AS m, o.unit_price * o.quantity AS v
+               FROM offers o JOIN listings l ON l.id = o.listing_id
+               LEFT JOIN warehouse_receipts r ON r.id = l.receipt_id
+              WHERE o.status = 'delivered' AND r.buy_back_unit_price IS NULL
+                AND o.delivered_at >= $1 AND o.delivered_at < $2
+             UNION ALL
+             SELECT ${month('bought_back_at')}, buy_back_amount FROM warehouse_receipts
+              WHERE bought_back_at >= $1 AND bought_back_at < $2) s GROUP BY 1`,
         ),
         series(
           `SELECT ${month('paid_at')} AS m, SUM(amount)::text AS v FROM payout_lines

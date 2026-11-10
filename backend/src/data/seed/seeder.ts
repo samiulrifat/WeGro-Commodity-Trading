@@ -175,9 +175,11 @@ export class Seeder {
       case 'buy-back': {
         const receipt = await this.receipt(data, project, 2000);
         await this.get(WarehouseService).offerHandover(officer, receipt);
+        // WeGro buys the potatoes at Tk 24/kg: the project's sale income.
         await this.get(WarehouseService).acceptHandover(
           await this.admin(data),
           receipt,
+          { unitPrice: '24' },
         );
         return;
       }

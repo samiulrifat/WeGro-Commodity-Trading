@@ -9,8 +9,10 @@ import {ProjectLedger} from "../projects/ProjectLedger.sol";
 /// @title WarehouseReceipt
 /// @notice One-of-a-kind receipts for stored crops and spices. A warehouse site
 /// issues a receipt to the project's farmer. Ownership moves only by the buy-back
-/// handover to WeGro (farmer's officer offers, admin accepts) or through a sale in
-/// TradeLedger (a linked contract). A paid sale splits off a child receipt for the
+/// handover to WeGro (farmer's officer offers, admin accepts at a unit price) or
+/// through a sale in TradeLedger (a linked contract). A buy-back is WeGro buying the
+/// crop: quantity x price is the project's sale income at once, and the receipt is no
+/// longer the project's stored crop (WeGro's later sale of it is WeGro's own). A paid sale splits off a child receipt for the
 /// sold quantity, owned by the buyer; the listed receipt shrinks, and is SoldOut at 0.
 /// Only an operator of the issuing site can extend a receipt or collect an unsold
 /// one; a sold receipt is collected through TradeLedger's delivery. Collected is final.
@@ -55,8 +57,13 @@ contract WarehouseReceipt is AccessGuarded {
     mapping(bytes32 operatorId => bytes32 siteId) public siteOf;
     mapping(bytes32 receiptId => Receipt) private _receipts;
     mapping(bytes32 receiptId => uint256) public splitCount;
-    /// @notice Issued receipts per project not yet sold out or collected: crop still stored.
+    /// @notice Issued receipts per project not yet sold out, collected or bought back:
+    /// the project's crop still stored.
     mapping(bytes32 projectId => uint256) public openReceipts;
+    /// @notice Unit price (poisha) WeGro paid for a bought-back receipt; 0 = not bought back.
+    mapping(bytes32 receiptId => uint256) public buyBackPrice;
+    /// @notice Sum of buy-back amounts per project, for settlement.
+    mapping(bytes32 projectId => uint256) public buyBackIncome;
 
     event SiteRegistered(bytes32 indexed siteId, bytes32 detailsHash);
     event SiteUpdated(bytes32 indexed siteId, bytes32 detailsHash);
@@ -77,6 +84,9 @@ contract WarehouseReceipt is AccessGuarded {
     event HandoverOffered(bytes32 indexed receiptId, bytes32 indexed from, bytes32 indexed to, address offeredBy);
     event HandoverCancelled(bytes32 indexed receiptId, address indexed cancelledBy);
     event ReceiptTransferred(bytes32 indexed receiptId, bytes32 indexed from, bytes32 indexed to, address by);
+    event BoughtBack(
+        bytes32 indexed receiptId, bytes32 indexed projectId, uint256 quantity, uint256 unitPrice, uint256 amount
+    );
     event ExpiryExtended(bytes32 indexed receiptId, uint64 newExpiresAt, bytes32 recheckHash, bytes32 extendedBy);
     event ReceiptListed(bytes32 indexed receiptId, bool listed);
     event ReceiptSplit(bytes32 indexed parentId, bytes32 indexed childId, bytes32 indexed buyerId, uint256 quantity);
@@ -214,15 +224,23 @@ contract WarehouseReceipt is AccessGuarded {
         emit HandoverOffered(receiptId, r.owner, to, msg.sender);
     }
 
-    /// @notice An admin accepts the buy-back for WeGro.
-    function acceptHandover(bytes32 receiptId) external {
+    /// @notice An admin accepts the buy-back for WeGro at `unitPrice` (poisha per
+    /// unit): quantity x price is added to the project's buy-back income, and the
+    /// receipt leaves the project's stored crop.
+    function acceptHandover(bytes32 receiptId, uint256 unitPrice) external {
+        if (unitPrice == 0) revert ZeroValue();
         Receipt storage r = _existing(receiptId);
         if (r.status != Status.PendingHandover) revert WrongStatus(receiptId, r.status);
         if (block.timestamp >= r.expiresAt) revert ReceiptExpired(receiptId);
         if (!_hasRole(Roles.ADMIN)) revert NotAuthorized(msg.sender);
 
+        uint256 amount = r.quantity * unitPrice;
+        buyBackPrice[receiptId] = unitPrice;
+        buyBackIncome[r.projectId] += amount;
+        openReceipts[r.projectId]--;
         _transfer(receiptId, r, r.pendingTo);
         r.status = Status.Issued;
+        emit BoughtBack(receiptId, r.projectId, r.quantity, unitPrice, amount);
     }
 
     /// @notice Withdraw (farmer's officer) or decline (admin) a pending buy-back.
@@ -273,7 +291,7 @@ contract WarehouseReceipt is AccessGuarded {
         parent.quantity -= quantity;
         if (parent.quantity == 0) {
             parent.status = Status.SoldOut;
-            openReceipts[parent.projectId]--;
+            if (buyBackPrice[receiptId] == 0) openReceipts[parent.projectId]--;
         }
 
         emit ReceiptSplit(receiptId, childId, buyerId, quantity);
@@ -288,7 +306,7 @@ contract WarehouseReceipt is AccessGuarded {
         bytes32 operatorId = _siteOperator(r.siteId);
         if (r.status != Status.Issued) revert WrongStatus(receiptId, r.status);
         r.status = Status.Collected;
-        openReceipts[r.projectId]--;
+        if (buyBackPrice[receiptId] == 0) openReceipts[r.projectId]--;
         emit ReceiptCollected(receiptId, operatorId);
     }
 
@@ -310,6 +328,11 @@ contract WarehouseReceipt is AccessGuarded {
 
     function ownerOf(bytes32 receiptId) external view returns (bytes32) {
         return _receipts[receiptId].owner;
+    }
+
+    /// @notice WeGro bought it back: its crop is no longer the project's.
+    function isBoughtBack(bytes32 receiptId) public view returns (bool) {
+        return buyBackPrice[receiptId] != 0;
     }
 
     // --- Internals ---

@@ -188,7 +188,10 @@ export class TradeService {
         code: ErrorCode.RECEIPT_EXPIRED,
       });
     }
-    await this.requireActive(receipt.projectId);
+    // Crop WeGro bought back is its own: it sells whatever the project's stage.
+    if (receipt.buyBackUnitPrice == null) {
+      await this.requireActive(receipt.projectId);
+    }
     const result = await this.send(actor, (c) =>
       c.listReceipt.populateTransaction(
         receiptId,

@@ -769,7 +769,10 @@ export const en = {
     handover: {
       offered: { title: 'Buy-back offered: accept or decline the receipt' },
       cancelled: { title: 'Buy-back offer withdrawn or declined' },
-      accepted: { title: 'WeGro accepted the buy-back' },
+      accepted: {
+        title: 'WeGro accepted the buy-back',
+        body: '{{quantity, number}} at {{unitPrice, taka}} each: {{amount, taka}} of sale income for the project',
+      },
     },
     offer: {
       made: {
@@ -2288,6 +2291,13 @@ export const en = {
     original: 'Quantity at Intake',
     issuedAt: 'Issued on Ledger',
     collectedAt: 'Collected',
+    boughtBack: 'Bought Back by WeGro',
+    boughtBackAt: '{{quantity}} {{unit}} at {{price}}: {{amount}}',
+    buyBackPrice: 'Price per {{unit}}',
+    buyBackHint: 'What WeGro pays per unit, in taka.',
+    buyBackTotal:
+      'WeGro pays {{amount}} for {{quantity}} {{unit}}: the project’s sale income.',
+    buyBackPriceRequired: 'Enter a price above zero, e.g. 28.50.',
     splitFrom: 'Split From',
     splitTo: 'Split To Buyers',
     rechecks: 'Quality Re-Checks',
@@ -2313,8 +2323,8 @@ export const en = {
       collect: 'Mark Collected',
       offer: 'Offer to WeGro',
       withdraw: 'Withdraw Offer',
-      accept: 'Accept Handover',
-      decline: 'Decline Handover',
+      accept: 'Accept Buy-Back',
+      decline: 'Decline Buy-Back',
     },
     moveTitle: {
       collect: 'Mark {{number}} Collected?',
@@ -2330,14 +2340,15 @@ export const en = {
         'The buy-back: {{owner}}’s {{quantity}} {{unit}} goes to WeGro once an admin accepts.',
       withdraw: 'The receipt stays with {{owner}}.',
       accept:
-        'WeGro becomes the owner of the {{quantity}} {{unit}} at {{site}}.',
+        'WeGro buys {{owner}}’s {{quantity}} {{unit}} at {{site}}. Quantity × price is added to the project’s sale income at once.',
       decline: 'The receipt stays with {{owner}}.',
     },
     moved: {
       collect: 'Marked collected.',
       offer: 'Offered to WeGro.',
       withdraw: 'Offer withdrawn.',
-      accept: 'Handover accepted. WeGro now owns the receipt.',
+      accept:
+        'Bought back. WeGro owns the receipt; {{amount}} is the project’s sale income.',
       decline: 'Handover declined.',
     },
     qrTitle: 'Receipt QR',
@@ -3131,6 +3142,7 @@ export const en = {
     soFarText:
       'From the ledger: income and costs to date, and the profit already paid out.',
     sales: 'Sales',
+    buyBack: 'WeGro Buy-Back',
     insurance: 'Insurance Paid',
     income: 'Income',
     inputs: 'Inputs (Vouchers)',

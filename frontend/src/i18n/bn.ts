@@ -795,7 +795,10 @@ export const bn: Translation = {
       cancelled: {
         title: 'ফেরত কেনার প্রস্তাব প্রত্যাহার বা প্রত্যাখ্যান করা হয়েছে',
       },
-      accepted: { title: 'WeGro ফেরত কেনা গ্রহণ করেছে' },
+      accepted: {
+        title: 'WeGro ফেরত কেনা গ্রহণ করেছে',
+        body: 'প্রতিটি {{unitPrice, taka}} দরে {{quantity, number}}: প্রকল্পের বিক্রির আয় {{amount, taka}}',
+      },
     },
     offer: {
       withdrawn: { title: 'ক্রেতা প্রস্তাব #{{offerId}} প্রত্যাহার করেছেন' },
@@ -2283,6 +2286,13 @@ export const bn: Translation = {
     original: 'গ্রহণের সময় পরিমাণ',
     issuedAt: 'লেজারে দেওয়া',
     collectedAt: 'নেওয়া হয়েছে',
+    boughtBack: 'WeGro ফেরত কিনেছে',
+    boughtBackAt: '{{price}} দরে {{quantity}} {{unit}}: {{amount}}',
+    buyBackPrice: 'প্রতি {{unit}} দাম',
+    buyBackHint: 'প্রতি একক WeGro যা দেবে, টাকায়।',
+    buyBackTotal:
+      '{{quantity}} {{unit}}-এর জন্য WeGro দেবে {{amount}}: প্রকল্পের বিক্রির আয়।',
+    buyBackPriceRequired: 'শূন্যের বেশি দাম লিখুন, যেমন ২৮.৫০।',
     splitFrom: 'যে রসিদ থেকে ভাগ',
     splitTo: 'ক্রেতাদের ভাগ',
     rechecks: 'মান পুনঃযাচাই',
@@ -2308,8 +2318,8 @@ export const bn: Translation = {
       collect: 'নেওয়া হয়েছে চিহ্নিত করুন',
       offer: 'WeGro-কে প্রস্তাব',
       withdraw: 'প্রস্তাব প্রত্যাহার',
-      accept: 'হস্তান্তর গ্রহণ',
-      decline: 'হস্তান্তর প্রত্যাখ্যান',
+      accept: 'ফেরত কেনা গ্রহণ',
+      decline: 'ফেরত কেনা প্রত্যাখ্যান',
     },
     moveTitle: {
       collect: '{{number}} নেওয়া হয়েছে চিহ্নিত করবেন?',
@@ -2324,14 +2334,16 @@ export const bn: Translation = {
       offer:
         'বাই-ব্যাক: অ্যাডমিন গ্রহণ করলে {{owner}}-এর {{quantity}} {{unit}} WeGro-র হবে।',
       withdraw: 'রসিদটি {{owner}}-এর কাছেই থাকবে।',
-      accept: '{{site}}-এর {{quantity}} {{unit}} এর মালিক WeGro হবে।',
+      accept:
+        'WeGro {{site}}-এ রাখা {{owner}}-এর {{quantity}} {{unit}} কিনবে। পরিমাণ × দাম সঙ্গে সঙ্গে প্রকল্পের বিক্রির আয়ে যোগ হবে।',
       decline: 'রসিদটি {{owner}}-এর কাছেই থাকবে।',
     },
     moved: {
       collect: 'নেওয়া হয়েছে চিহ্নিত।',
       offer: 'WeGro-কে প্রস্তাব করা হয়েছে।',
       withdraw: 'প্রস্তাব প্রত্যাহার করা হয়েছে।',
-      accept: 'হস্তান্তর গৃহীত। রসিদের মালিক এখন WeGro।',
+      accept:
+        'ফেরত কেনা হয়েছে। রসিদের মালিক এখন WeGro; {{amount}} প্রকল্পের বিক্রির আয়।',
       decline: 'হস্তান্তর প্রত্যাখ্যাত।',
     },
     qrTitle: 'রসিদের QR',
@@ -3123,6 +3135,7 @@ export const bn: Translation = {
     soFarText:
       'লেজার থেকে: আজ পর্যন্ত আয় ও খরচ, এবং ইতিমধ্যে পরিশোধিত মুনাফা।',
     sales: 'বিক্রি',
+    buyBack: 'WeGro-র ফেরত কেনা',
     insurance: 'পরিশোধিত বীমা',
     income: 'আয়',
     inputs: 'উপকরণ (ভাউচার)',

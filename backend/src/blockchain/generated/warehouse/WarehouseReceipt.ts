@@ -13,17 +13,20 @@ export declare namespace WarehouseReceipt {
     }
 
   export interface WarehouseReceiptInterface extends Interface {
-    getFunction(nameOrSignature: "WEGRO" | "acceptHandover" | "assignOperator" | "cancelHandover" | "collectSold" | "extendExpiry" | "getReceipt" | "isLinkedContract" | "isOwnerSide" | "issueReceipt" | "markCollected" | "offerHandover" | "openReceipts" | "ownerOf" | "projectLedger" | "registerSite" | "registry" | "sellPart" | "setLinkedContract" | "setListed" | "setSiteClosed" | "siteClosed" | "siteDetails" | "siteOf" | "splitCount" | "updateSite"): FunctionFragment;
+    getFunction(nameOrSignature: "WEGRO" | "acceptHandover" | "assignOperator" | "buyBackIncome" | "buyBackPrice" | "cancelHandover" | "collectSold" | "extendExpiry" | "getReceipt" | "isBoughtBack" | "isLinkedContract" | "isOwnerSide" | "issueReceipt" | "markCollected" | "offerHandover" | "openReceipts" | "ownerOf" | "projectLedger" | "registerSite" | "registry" | "sellPart" | "setLinkedContract" | "setListed" | "setSiteClosed" | "siteClosed" | "siteDetails" | "siteOf" | "splitCount" | "updateSite"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "ExpiryExtended" | "HandoverCancelled" | "HandoverOffered" | "LinkedContractSet" | "OperatorAssigned" | "ReceiptCollected" | "ReceiptIssued" | "ReceiptListed" | "ReceiptSplit" | "ReceiptTransferred" | "SiteClosedSet" | "SiteRegistered" | "SiteUpdated"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "BoughtBack" | "ExpiryExtended" | "HandoverCancelled" | "HandoverOffered" | "LinkedContractSet" | "OperatorAssigned" | "ReceiptCollected" | "ReceiptIssued" | "ReceiptListed" | "ReceiptSplit" | "ReceiptTransferred" | "SiteClosedSet" | "SiteRegistered" | "SiteUpdated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'WEGRO', values?: undefined): string;
-encodeFunctionData(functionFragment: 'acceptHandover', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'acceptHandover', values: [BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'assignOperator', values: [BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'buyBackIncome', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'buyBackPrice', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'cancelHandover', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'collectSold', values: [BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'extendExpiry', values: [BytesLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'getReceipt', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'isBoughtBack', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'isLinkedContract', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isOwnerSide', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'issueReceipt', values: [BytesLike, BytesLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
@@ -47,10 +50,13 @@ encodeFunctionData(functionFragment: 'updateSite', values: [BytesLike, BytesLike
     decodeFunctionResult(functionFragment: 'WEGRO', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'acceptHandover', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'assignOperator', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'buyBackIncome', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'buyBackPrice', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelHandover', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'collectSold', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'extendExpiry', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getReceipt', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isBoughtBack', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isLinkedContract', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isOwnerSide', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueReceipt', data: BytesLike): Result;
@@ -73,6 +79,18 @@ decodeFunctionResult(functionFragment: 'updateSite', data: BytesLike): Result;
   }
 
   
+    export namespace BoughtBackEvent {
+      export type InputTuple = [receiptId: BytesLike, projectId: BytesLike, quantity: BigNumberish, unitPrice: BigNumberish, amount: BigNumberish];
+      export type OutputTuple = [receiptId: string, projectId: string, quantity: bigint, unitPrice: bigint, amount: bigint];
+      export interface OutputObject {receiptId: string, projectId: string, quantity: bigint, unitPrice: bigint, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ExpiryExtendedEvent {
       export type InputTuple = [receiptId: BytesLike, newExpiresAt: BigNumberish, recheckHash: BytesLike, extendedBy: BytesLike];
       export type OutputTuple = [receiptId: string, newExpiresAt: bigint, recheckHash: string, extendedBy: string];
@@ -272,7 +290,7 @@ decodeFunctionResult(functionFragment: 'updateSite', data: BytesLike): Result;
 
     
     acceptHandover: TypedContractMethod<
-      [receiptId: BytesLike, ],
+      [receiptId: BytesLike, unitPrice: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -283,6 +301,22 @@ decodeFunctionResult(functionFragment: 'updateSite', data: BytesLike): Result;
       [operatorId: BytesLike, siteId: BytesLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    buyBackIncome: TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    buyBackPrice: TypedContractMethod<
+      [receiptId: BytesLike, ],
+      [bigint],
+      'view'
     >
     
 
@@ -314,6 +348,14 @@ decodeFunctionResult(functionFragment: 'updateSite', data: BytesLike): Result;
     getReceipt: TypedContractMethod<
       [receiptId: BytesLike, ],
       [WarehouseReceipt.ReceiptStructOutput],
+      'view'
+    >
+    
+
+    
+    isBoughtBack: TypedContractMethod<
+      [receiptId: BytesLike, ],
+      [boolean],
       'view'
     >
     
@@ -479,7 +521,7 @@ decodeFunctionResult(functionFragment: 'updateSite', data: BytesLike): Result;
       'view'
     >;
 getFunction(nameOrSignature: 'acceptHandover'): TypedContractMethod<
-      [receiptId: BytesLike, ],
+      [receiptId: BytesLike, unitPrice: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -487,6 +529,16 @@ getFunction(nameOrSignature: 'assignOperator'): TypedContractMethod<
       [operatorId: BytesLike, siteId: BytesLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'buyBackIncome'): TypedContractMethod<
+      [projectId: BytesLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'buyBackPrice'): TypedContractMethod<
+      [receiptId: BytesLike, ],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'cancelHandover'): TypedContractMethod<
       [receiptId: BytesLike, ],
@@ -506,6 +558,11 @@ getFunction(nameOrSignature: 'extendExpiry'): TypedContractMethod<
 getFunction(nameOrSignature: 'getReceipt'): TypedContractMethod<
       [receiptId: BytesLike, ],
       [WarehouseReceipt.ReceiptStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'isBoughtBack'): TypedContractMethod<
+      [receiptId: BytesLike, ],
+      [boolean],
       'view'
     >;
 getFunction(nameOrSignature: 'isLinkedContract'): TypedContractMethod<
@@ -604,7 +661,8 @@ getFunction(nameOrSignature: 'updateSite'): TypedContractMethod<
       'nonpayable'
     >;
 
-    getEvent(key: 'ExpiryExtended'): TypedContractEvent<ExpiryExtendedEvent.InputTuple, ExpiryExtendedEvent.OutputTuple, ExpiryExtendedEvent.OutputObject>;
+    getEvent(key: 'BoughtBack'): TypedContractEvent<BoughtBackEvent.InputTuple, BoughtBackEvent.OutputTuple, BoughtBackEvent.OutputObject>;
+getEvent(key: 'ExpiryExtended'): TypedContractEvent<ExpiryExtendedEvent.InputTuple, ExpiryExtendedEvent.OutputTuple, ExpiryExtendedEvent.OutputObject>;
 getEvent(key: 'HandoverCancelled'): TypedContractEvent<HandoverCancelledEvent.InputTuple, HandoverCancelledEvent.OutputTuple, HandoverCancelledEvent.OutputObject>;
 getEvent(key: 'HandoverOffered'): TypedContractEvent<HandoverOfferedEvent.InputTuple, HandoverOfferedEvent.OutputTuple, HandoverOfferedEvent.OutputObject>;
 getEvent(key: 'LinkedContractSet'): TypedContractEvent<LinkedContractSetEvent.InputTuple, LinkedContractSetEvent.OutputTuple, LinkedContractSetEvent.OutputObject>;
@@ -620,6 +678,10 @@ getEvent(key: 'SiteUpdated'): TypedContractEvent<SiteUpdatedEvent.InputTuple, Si
 
     filters: {
       
+      'BoughtBack(bytes32,bytes32,uint256,uint256,uint256)': TypedContractEvent<BoughtBackEvent.InputTuple, BoughtBackEvent.OutputTuple, BoughtBackEvent.OutputObject>;
+      BoughtBack: TypedContractEvent<BoughtBackEvent.InputTuple, BoughtBackEvent.OutputTuple, BoughtBackEvent.OutputObject>;
+    
+
       'ExpiryExtended(bytes32,uint64,bytes32,bytes32)': TypedContractEvent<ExpiryExtendedEvent.InputTuple, ExpiryExtendedEvent.OutputTuple, ExpiryExtendedEvent.OutputObject>;
       ExpiryExtended: TypedContractEvent<ExpiryExtendedEvent.InputTuple, ExpiryExtendedEvent.OutputTuple, ExpiryExtendedEvent.OutputObject>;
     

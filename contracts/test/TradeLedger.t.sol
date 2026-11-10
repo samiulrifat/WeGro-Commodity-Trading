@@ -131,12 +131,18 @@ contract TradeLedgerTest is Test {
         ledger.activate(id);
     }
 
-    /// WeGro buys R1 back and lists all 5,000 kg at Tk 30/kg.
+    /// Rahim's field officer lists all 5,000 kg of R1 at Tk 30/kg.
+    function _farmerListing() internal returns (uint256) {
+        vm.prank(imran);
+        return trade.listReceipt(R1, ASK);
+    }
+
+    /// WeGro buys R1 back at Tk 28/kg and lists all 5,000 kg at Tk 30/kg.
     function _weGroListing() internal returns (uint256) {
         vm.prank(imran);
         receipts.offerHandover(R1, WEGRO);
         vm.prank(admin);
-        receipts.acceptHandover(R1);
+        receipts.acceptHandover(R1, 28 * TK);
         vm.prank(admin);
         return trade.listReceipt(R1, ASK);
     }
@@ -234,7 +240,9 @@ contract TradeLedgerTest is Test {
         _pay(o);
         assertEq(trade.feesEarned(), 250 * TK);
         _deliver(o, habib, sabbir, 1_000);
-        assertEq(trade.saleIncome(MAIZE), 30_000 * TK); // the fee never touches project income
+        // Bought back: the project was paid Tk 28/kg on the buy-back; WeGro's sale is its own.
+        assertEq(trade.saleIncome(MAIZE), 0);
+        assertEq(receipts.buyBackIncome(MAIZE), 5_000 * 28 * TK);
 
         vm.prank(accounts);
         vm.expectRevert(abi.encodeWithSelector(TradeLedger.NotExternal.selector, id));
@@ -595,9 +603,9 @@ contract TradeLedgerTest is Test {
     // --- Stage 6, with two partial buyers -----------------------------------------------------
 
     function test_TwoBuyersSplitAListing() public {
-        uint256 id = _weGroListing();
+        uint256 id = _farmerListing();
         TradeLedger.Listing memory l = trade.getListing(id);
-        assertEq(l.seller, WEGRO);
+        assertEq(l.seller, RAHIM);
         assertEq(l.quantity, 5_000);
         assertEq(l.available, 5_000);
 
@@ -819,6 +827,39 @@ contract TradeLedgerTest is Test {
         trade.listReceipt(R1, ASK);
     }
 
+    function test_WeGroSellsBoughtBackCropAtAnyStage() public {
+        vm.prank(imran);
+        receipts.offerHandover(R1, WEGRO);
+        vm.prank(admin);
+        receipts.acceptHandover(R1, 28 * TK);
+        vm.prank(admin);
+        ledger.markReadyForSale(MAIZE);
+
+        vm.prank(admin); // WeGro's own crop now, whatever the project's stage
+        uint256 id = trade.listReceipt(R1, ASK);
+        assertEq(trade.openTrades(MAIZE), 0); // not the project's trade
+        uint256 o = _offer(sabbir, id, 5_000, ASK);
+        _approve(o);
+        assertEq(trade.openTrades(MAIZE), 0);
+        _pay(o);
+        _deliver(o, habib, sabbir, 5_000);
+        assertEq(trade.saleIncome(MAIZE), 0); // the project had its Tk 28/kg on the buy-back
+        assertEq(receipts.buyBackIncome(MAIZE), 140_000 * TK);
+        assertEq(receipts.openReceipts(MAIZE), 0);
+    }
+
+    function test_CancelledBoughtBackListingLeavesProjectCountsAlone() public {
+        uint256 id = _weGroListing();
+        uint256 o = _offer(sabbir, id, 1_000, ASK);
+        _approve(o);
+        vm.prank(admin);
+        trade.cancelDeal(o);
+        vm.prank(admin);
+        trade.cancelListing(id);
+        assertEq(trade.openTrades(MAIZE), 0);
+        assertEq(uint8(receipts.getReceipt(R1).status), uint8(WarehouseReceipt.Status.Issued));
+    }
+
     // --- cancelling ------------------------------------------------------------------------
 
     function test_CancelListingReturnsRemainder() public {
@@ -906,7 +947,7 @@ contract TradeLedgerTest is Test {
     }
 
     function test_OpenTradesCountListingsAndUndeliveredDeals() public {
-        uint256 id = _weGroListing();
+        uint256 id = _farmerListing();
         assertEq(trade.openTrades(MAIZE), 1); // the listing
 
         uint256 a = _offer(sabbir, id, 2_000, ASK);
@@ -1055,7 +1096,7 @@ contract TradeLedgerTest is Test {
     }
 
     function test_EachSideConfirmsOnceAndDifferencesAreKept() public {
-        uint256 id = _weGroListing();
+        uint256 id = _farmerListing();
         uint256 o = _offer(sabbir, id, 2_000, ASK);
         _approve(o);
         _pay(o);

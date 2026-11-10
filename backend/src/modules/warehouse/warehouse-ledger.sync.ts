@@ -18,6 +18,7 @@ const EVENTS = [
   'HandoverOffered',
   'HandoverCancelled',
   'ReceiptTransferred',
+  'BoughtBack',
   'ExpiryExtended',
   'ReceiptListed',
   'ReceiptSplit',
@@ -46,6 +47,7 @@ export class WarehouseLedgerSync implements OnModuleInit {
         `UPDATE "warehouse_receipts"
             SET "status" = 'submitted', "quantity" = "original_quantity", "pending_to_wegro" = false,
                 "handover_offered_at" = NULL,
+                "buy_back_unit_price" = NULL, "buy_back_quantity" = NULL, "buy_back_amount" = NULL, "bought_back_at" = NULL,
                 "collected_at" = NULL, "chain_event_block" = -1, "chain_event_log" = -1`,
       );
       await m
@@ -168,6 +170,15 @@ export class WarehouseLedgerSync implements OnModuleInit {
           }),
         });
       }
+
+      case 'BoughtBack':
+        // WeGro's price for the crop: the project's sale income from now on.
+        return this.patch(m, event, {
+          buyBackUnitPrice: BigInt(String(a.unitPrice)),
+          buyBackQuantity: Number(a.quantity),
+          buyBackAmount: BigInt(String(a.amount)),
+          boughtBackAt: when,
+        });
 
       case 'ExpiryExtended':
         await m.update(

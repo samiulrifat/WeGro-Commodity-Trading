@@ -427,11 +427,11 @@ describe('a receipt, further', () => {
     cleanup();
     view = await at('admin', pending);
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Decline Handover' }),
+      await screen.findByRole('button', { name: 'Decline Buy-Back' }),
     );
     await userEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', {
-        name: 'Decline Handover',
+        name: 'Decline Buy-Back',
       }),
     );
     await waitFor(() =>

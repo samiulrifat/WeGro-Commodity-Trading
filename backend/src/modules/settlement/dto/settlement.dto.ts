@@ -316,6 +316,9 @@ export class IncomeDto extends AmountBreakdownDto {
   @ApiProperty({ description: 'Delivered sales' })
   sales: string;
 
+  @ApiProperty({ description: 'WeGro’s buy-backs of the stored crop' })
+  buyBack: string;
+
   @ApiProperty({ description: 'Approved insurance claims' })
   insurance: string;
 }

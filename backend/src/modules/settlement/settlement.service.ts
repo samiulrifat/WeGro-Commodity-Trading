@@ -106,6 +106,8 @@ interface LedgerState {
   createdAt: number;
   payoutIntervalMonths: number;
   sales: bigint;
+  /** WeGro's buy-backs of the farmer's stored crop. */
+  buyBack: bigint;
   insurance: bigint;
   inputs: bigint;
   other: bigint;
@@ -388,7 +390,7 @@ export class SettlementService {
         order: { id: 'ASC' },
       }),
     ]);
-    const income = state.sales + state.insurance;
+    const income = state.sales + state.buyBack + state.insurance;
     const costs = state.inputs + state.other;
     const preview = (isFinal: boolean): PreviewDto => {
       const { figures, lines } = splitRound(
@@ -418,6 +420,7 @@ export class SettlementService {
       stage: state.stage,
       income: {
         sales: poishaToTaka(state.sales),
+        buyBack: poishaToTaka(state.buyBack),
         insurance: poishaToTaka(state.insurance),
         total: poishaToTaka(income),
       },
@@ -978,6 +981,7 @@ export class SettlementService {
     const [
       project,
       sales,
+      buyBack,
       insurance,
       inputs,
       other,
@@ -994,6 +998,7 @@ export class SettlementService {
     ] = await Promise.all([
       c.get('ProjectLedger').getProject(key),
       c.get('TradeLedger').saleIncome(key),
+      c.get('WarehouseReceipt').buyBackIncome(key),
       // Claims count once the insurer has paid them.
       c.get('InsuranceRegistry').paidTotal(key),
       c.get('VoucherRegistry').spentValue(key),
@@ -1021,6 +1026,7 @@ export class SettlementService {
       createdAt: Number(project.createdAt),
       payoutIntervalMonths: Number(project.terms.payoutIntervalMonths),
       sales,
+      buyBack,
       insurance,
       inputs,
       other,
@@ -1057,7 +1063,7 @@ export class SettlementService {
     const nextAt = new Date(next * 1000);
     // The next block is at least a second later than the latest one.
     if (s.now + 1 < next) return no(ErrorCode.TOO_EARLY, nextAt);
-    const income = s.sales + s.insurance;
+    const income = s.sales + s.buyBack + s.insurance;
     if (income <= s.inputs + s.other + s.distributed)
       return no(ErrorCode.NOTHING_TO_DISTRIBUTE, nextAt);
     return {

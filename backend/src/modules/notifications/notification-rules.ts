@@ -5,7 +5,6 @@ import type { ChainEvent } from '../../blockchain/indexer/chain-event.entity';
 import { EventHandlerRegistry } from '../../blockchain/indexer/event-handler.registry';
 import { bytes32ToCode, bytes32ToUuid } from '../../blockchain/utils/ids';
 import { poishaToTaka } from '../../blockchain/utils/money';
-import { WEGRO_OWNER } from '../warehouse/warehouse.enums';
 import { ROLE_BY_CHAIN_ID, Role, STAFF_ROLES } from '../users/roles';
 import { type Note, NotificationWriter } from './notification-writer';
 import { NotificationCategory, NotificationKind } from './notification.enums';
@@ -523,15 +522,22 @@ export const RULES: Partial<Record<ContractName, Record<string, Rule>>> = {
         subject: { type: 'site', id: site },
       });
     },
-    ReceiptTransferred: async (e, _m, x) => {
-      // Only the buy-back: a buyer's part is covered by the deal's notices.
-      if (e.args.to !== WEGRO_OWNER) return;
-      const farmer = uuid(e.args.from);
-      await x.send([farmer, await x.officerOf(farmer)], {
+    BoughtBack: async (e, _m, x) => {
+      // A buyer's part is covered by the deal's notices; this is WeGro's price.
+      const p = await x.one<{ farmer_id: string }>(
+        'SELECT farmer_id FROM projects WHERE id = $1',
+        [uuid(e.args.projectId)],
+      );
+      await x.send([p?.farmer_id, await x.officerOf(p?.farmer_id)], {
         category: OUTCOME,
         kind: NotificationKind.HANDOVER_ACCEPTED,
-        params: {},
         title: 'WeGro accepted the buy-back',
+        body: `${String(e.args.quantity)} units at ${taka(e.args.unitPrice)} taka each: ${taka(e.args.amount)} taka of sale income for the project`,
+        params: {
+          quantity: String(e.args.quantity),
+          unitPrice: taka(e.args.unitPrice),
+          amount: taka(e.args.amount),
+        },
         subject: { type: 'receipt', id: String(e.args.receiptId) },
       });
     },

@@ -18,7 +18,8 @@ import {WarehouseReceipt} from "../warehouse/WarehouseReceipt.sol";
 /// (`pauseDeal`, `resumeDeal`). Per deal, Accounts confirms the buyer paid before the
 /// deadline or on hold (hash only; a receipt splits off to the buyer),
 /// then the buyer and the handler (issuing warehouse site, or the farmer's field
-/// officer) each confirm delivery. Delivered deals add to the project's sale income.
+/// officer) each confirm delivery. Delivered deals add to the project's sale income,
+/// except sales of a receipt WeGro bought back (the project was paid on the buy-back).
 /// A listing whose whole quantity is paid for closes as SoldOut. The final payout waits
 /// until a project has no open listing and no undelivered deal. Amounts are in poisha.
 ///
@@ -258,12 +259,16 @@ contract TradeLedger is AccessGuarded {
     }
 
     /// @notice List a warehouse receipt. Caller must act for its owner: an admin
-    /// for WeGro, the farmer's field officer for a farmer. Locks the receipt.
+    /// for WeGro, the farmer's field officer for a farmer. Locks the receipt. A
+    /// farmer's receipt sells while its project is Active; one WeGro bought back is
+    /// WeGro's own and sells at any stage.
     function listReceipt(bytes32 receiptId, uint256 askingUnitPrice) external returns (uint256 listingId) {
         if (askingUnitPrice == 0) revert ZeroValue();
         WarehouseReceipt.Receipt memory r = receipts.getReceipt(receiptId);
         if (!receipts.isOwnerSide(r.owner, msg.sender)) revert NotAuthorized(msg.sender);
-        ProjectLedger.Project memory p = _activeProject(r.projectId);
+        ProjectLedger.Project memory p = receipts.isBoughtBack(receiptId)
+            ? projectLedger.getProject(r.projectId)
+            : _activeProject(r.projectId);
 
         receipts.setListed(receiptId, true); // must be Issued and not expired
         listingId = _createListing(
@@ -360,7 +365,7 @@ contract TradeLedger is AccessGuarded {
         if (l.unpaidDeals != 0) revert DealsPending(listingId, l.unpaidDeals);
 
         l.status = ListingStatus.Cancelled;
-        _untrack(l.projectId);
+        _untrack(l);
         if (l.receiptId != bytes32(0)) receipts.setListed(l.receiptId, false);
         emit ListingCancelled(listingId, l.available, msg.sender);
     }
@@ -424,7 +429,7 @@ contract TradeLedger is AccessGuarded {
 
         l.available -= o.quantity;
         l.unpaidDeals++;
-        _track(l.projectId);
+        _track(l);
         uint256 fee = feeFor(o.quantity * o.unitPrice);
         o.buyerFee = fee;
         o.sellerFee = _isExternal(l) ? fee : 0;
@@ -499,7 +504,7 @@ contract TradeLedger is AccessGuarded {
 
         if (l.available == 0 && l.unpaidDeals == 0) {
             l.status = ListingStatus.SoldOut;
-            _untrack(l.projectId);
+            _untrack(l);
             emit ListingSoldOut(o.listingId);
         }
     }
@@ -532,8 +537,8 @@ contract TradeLedger is AccessGuarded {
         if (d.buyerQuantity != 0 && d.handlerQuantity != 0) {
             o.status = OfferStatus.Delivered;
             uint256 amount = o.quantity * o.unitPrice;
-            if (!_isExternal(l)) saleIncome[l.projectId] += amount;
-            _untrack(l.projectId);
+            if (_projectOf(l) != bytes32(0)) saleIncome[l.projectId] += amount;
+            _untrack(l);
             if (o.receiptPartId != bytes32(0)) receipts.collectSold(o.receiptPartId, d.handlerId);
             emit DealDelivered(offerId, l.projectId, amount);
         }
@@ -636,7 +641,7 @@ contract TradeLedger is AccessGuarded {
             createdAt: uint64(block.timestamp),
             detailsHash: detailsHash
         });
-        _track(projectId);
+        _track(_listings[listingId]);
         emit ListingCreated(listingId, projectId, receiptId, seller, produceCode, quantity, askingUnitPrice, msg.sender);
     }
 
@@ -645,17 +650,28 @@ contract TradeLedger is AccessGuarded {
         Listing storage l = _listings[o.listingId];
         l.available += o.quantity;
         l.unpaidDeals--;
-        _untrack(l.projectId);
+        _untrack(l);
         o.status = status;
     }
 
-    /// @dev Open trades count per project, for settlement; external listings have none.
-    function _track(bytes32 projectId) private {
+    /// @dev Open trades count per project, for settlement; external listings and
+    /// bought-back receipts have none.
+    function _track(Listing storage l) private {
+        bytes32 projectId = _projectOf(l);
         if (projectId != bytes32(0)) openTrades[projectId]++;
     }
 
-    function _untrack(bytes32 projectId) private {
+    function _untrack(Listing storage l) private {
+        bytes32 projectId = _projectOf(l);
         if (projectId != bytes32(0)) openTrades[projectId]--;
+    }
+
+    /// @dev The project a listing sells for, or 0: an external seller's, or a receipt
+    /// WeGro bought back (the project was paid on the buy-back).
+    function _projectOf(Listing storage l) private view returns (bytes32) {
+        if (_isExternal(l)) return bytes32(0);
+        if (l.receiptId != bytes32(0) && receipts.isBoughtBack(l.receiptId)) return bytes32(0);
+        return l.projectId;
     }
 
     function _setFeeSlabs(uint256[] memory caps, uint256[] memory fees) private {

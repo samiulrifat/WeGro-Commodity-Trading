@@ -46,6 +46,7 @@ import { useFormat } from '@/i18n/use-format';
 import { todayBd } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { actsAs } from '@/app/navigation';
+import { toPoisha, toTaka, typedTaka } from '@/features/projects/project-math';
 import { ReceiptPrint } from './receipt-print';
 import {
   dayAfter,
@@ -213,6 +214,21 @@ function Details({ receipt: r }: { receipt: ReceiptDetailDto }) {
           {r.collectedAt && (
             <Row label={t('warehouse.collectedAt')}>
               {fmt.dateTime(r.collectedAt)}
+            </Row>
+          )}
+          {r.buyBack && (
+            <Row label={t('warehouse.boughtBack')}>
+              {t('warehouse.boughtBackAt', {
+                quantity: fmt.number(r.buyBack.quantity),
+                unit: r.produce.unit,
+                price: fmt.taka(r.buyBack.unitPrice),
+                amount: fmt.taka(r.buyBack.amount),
+              })}
+              {r.buyBack.at && (
+                <span className="block text-sm font-normal text-muted-foreground">
+                  {fmt.dateTime(r.buyBack.at)}
+                </span>
+              )}
             </Row>
           )}
           {r.parentId && (
@@ -384,17 +400,35 @@ function MoveDialog({
   const [cancel] = useWarehouseCancelHandoverMutation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  // Accepting is WeGro buying the crop: at a price per unit.
+  const [price, setPrice] = useState('');
+  const [tried, setTried] = useState(false);
+  const unitPrice = typedTaka(price);
+  const priceOk = !!unitPrice && toPoisha(unitPrice) > 0n;
+  const total = priceOk
+    ? toTaka(toPoisha(unitPrice) * BigInt(r.quantity))
+    : null;
 
   async function go() {
     setError(null);
+    if (move === 'accept' && !priceOk) {
+      setTried(true);
+      return;
+    }
     setBusy(true);
     const arg = { id: r.id };
     try {
       if (move === 'collect') await collect(arg).unwrap();
       if (move === 'offer') await offer(arg).unwrap();
-      if (move === 'accept') await accept(arg).unwrap();
+      if (move === 'accept')
+        await accept({
+          ...arg,
+          acceptBuyBackDto: { unitPrice: unitPrice! },
+        }).unwrap();
       if (move === 'withdraw' || move === 'decline') await cancel(arg).unwrap();
-      toast.success(t(`warehouse.moved.${move}`));
+      toast.success(
+        t(`warehouse.moved.${move}`, { amount: total && fmt.taka(total) }),
+      );
       onClose();
     } catch (e) {
       setError(toApiError(e as never));
@@ -419,6 +453,33 @@ function MoveDialog({
             })}
           </DialogDescription>
         </DialogHeader>
+        {move === 'accept' && (
+          <Field data-invalid={(tried && !priceOk) || undefined}>
+            <FieldLabel htmlFor="buy-back-price">
+              {t('warehouse.buyBackPrice', { unit: r.produce.unit })}
+            </FieldLabel>
+            <Input
+              id="buy-back-price"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              aria-invalid={(tried && !priceOk) || undefined}
+            />
+            {tried && !priceOk ? (
+              <FieldError>{t('warehouse.buyBackPriceRequired')}</FieldError>
+            ) : (
+              <FieldDescription>
+                {total
+                  ? t('warehouse.buyBackTotal', {
+                      quantity: fmt.number(r.quantity),
+                      unit: r.produce.unit,
+                      amount: fmt.taka(total),
+                    })
+                  : t('warehouse.buyBackHint')}
+              </FieldDescription>
+            )}
+          </Field>
+        )}
         <FormError error={error} />
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>

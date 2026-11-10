@@ -139,7 +139,7 @@ contract WarehouseReceiptTest is Test {
         vm.prank(imran);
         receipts.offerHandover(id, WEGRO);
         vm.prank(admin);
-        receipts.acceptHandover(id);
+        receipts.acceptHandover(id, 28 * TK);
     }
 
     function _status(bytes32 id) internal view returns (uint8) {
@@ -333,14 +333,57 @@ contract WarehouseReceiptTest is Test {
         assertEq(receipts.ownerOf(R1), RAHIM);
         assertEq(_status(R1), uint8(WarehouseReceipt.Status.PendingHandover));
 
+        assertEq(receipts.openReceipts(MAIZE), 1);
         vm.expectEmit(address(receipts));
         emit WarehouseReceipt.ReceiptTransferred(R1, RAHIM, WEGRO, admin);
+        vm.expectEmit(address(receipts));
+        emit WarehouseReceipt.BoughtBack(R1, MAIZE, 5_000, 28 * TK, 140_000 * TK);
         vm.prank(admin);
-        receipts.acceptHandover(R1);
+        receipts.acceptHandover(R1, 28 * TK);
 
         assertEq(receipts.ownerOf(R1), WEGRO);
         assertEq(_status(R1), uint8(WarehouseReceipt.Status.Issued));
         assertEq(receipts.getReceipt(R1).pendingTo, bytes32(0));
+        // WeGro paid Tk 28/kg: the project's income, and no longer its stored crop.
+        assertTrue(receipts.isBoughtBack(R1));
+        assertEq(receipts.buyBackPrice(R1), 28 * TK);
+        assertEq(receipts.buyBackIncome(MAIZE), 140_000 * TK);
+        assertEq(receipts.openReceipts(MAIZE), 0);
+    }
+
+    function test_BuyBackNeedsAPrice() public {
+        _issue(R1);
+        vm.prank(imran);
+        receipts.offerHandover(R1, WEGRO);
+        vm.prank(admin);
+        vm.expectRevert(WarehouseReceipt.ZeroValue.selector);
+        receipts.acceptHandover(R1, 0);
+        assertFalse(receipts.isBoughtBack(R1));
+        assertEq(receipts.buyBackIncome(MAIZE), 0);
+    }
+
+    function test_BuyBacksAddUpPerProject() public {
+        bytes32 r2 = "RCPT-0002";
+        _issue(R1);
+        _issue(r2);
+        _buyBack(R1);
+        vm.prank(imran);
+        receipts.offerHandover(r2, WEGRO);
+        vm.prank(admin);
+        receipts.acceptHandover(r2, 31 * TK);
+        assertEq(receipts.buyBackIncome(MAIZE), (140_000 + 155_000) * TK);
+        assertEq(receipts.openReceipts(MAIZE), 0);
+    }
+
+    function test_DeclinedBuyBackIsNotIncome() public {
+        _issue(R1);
+        vm.prank(imran);
+        receipts.offerHandover(R1, WEGRO);
+        vm.prank(admin);
+        receipts.cancelHandover(R1);
+        assertFalse(receipts.isBoughtBack(R1));
+        assertEq(receipts.buyBackIncome(MAIZE), 0);
+        assertEq(receipts.openReceipts(MAIZE), 1);
     }
 
     function test_FarmerCannotResellAfterBuyBack() public {
@@ -370,7 +413,7 @@ contract WarehouseReceiptTest is Test {
         for (uint256 i = 0; i < others.length; i++) {
             vm.prank(others[i]);
             vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.NotAuthorized.selector, others[i]));
-            receipts.acceptHandover(R1);
+            receipts.acceptHandover(R1, 28 * TK);
         }
     }
 
@@ -448,12 +491,12 @@ contract WarehouseReceiptTest is Test {
     function test_AcceptGuards() public {
         vm.prank(admin);
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.ReceiptNotFound.selector, R1));
-        receipts.acceptHandover(R1);
+        receipts.acceptHandover(R1, 28 * TK);
 
         _issue(R1);
         vm.prank(admin);
         vm.expectRevert(_err(R1, WarehouseReceipt.Status.Issued));
-        receipts.acceptHandover(R1);
+        receipts.acceptHandover(R1, 28 * TK);
     }
 
     // --- expiry -----------------------------------------------------------------------------
@@ -466,7 +509,7 @@ contract WarehouseReceiptTest is Test {
 
         vm.prank(admin);
         vm.expectRevert(abi.encodeWithSelector(WarehouseReceipt.ReceiptExpired.selector, R1));
-        receipts.acceptHandover(R1);
+        receipts.acceptHandover(R1, 28 * TK);
 
         vm.prank(imran);
         receipts.cancelHandover(R1);
@@ -611,6 +654,29 @@ contract WarehouseReceiptTest is Test {
         receipts.sellPart(r2, 3_000, MITU);
         vm.stopPrank();
         assertEq(receipts.openReceipts(MAIZE), 0); // split-off buyer receipts don't count
+    }
+
+    function test_BoughtBackCropLeavesTheCountOnce() public {
+        bytes32 r2 = "RCPT-0002";
+        bytes32 r3 = "RCPT-0003";
+        _issue(R1);
+        _issue(r2);
+        _issue(r3);
+        _buyBack(R1);
+        _buyBack(r2);
+        assertEq(receipts.openReceipts(MAIZE), 1); // only R3 is still the project's
+
+        vm.prank(habib); // WeGro takes R1 out unsold
+        receipts.markCollected(R1);
+        vm.startPrank(trade); // and sells all of R2
+        receipts.setListed(r2, true);
+        receipts.sellPart(r2, 5_000, SABBIR);
+        vm.stopPrank();
+        assertEq(receipts.openReceipts(MAIZE), 1);
+
+        vm.prank(habib);
+        receipts.markCollected(r3);
+        assertEq(receipts.openReceipts(MAIZE), 0);
     }
 
     function test_SoldPartIsCollectedThroughTrade() public {

@@ -147,17 +147,12 @@ contract SettlementLedgerTest is Test {
         vouchers.confirmSale(sale);
     }
 
-    /// One full sale through the marketplace: receipt, buy-back, listing, deal, payment, delivery.
+    /// One full sale through the marketplace: receipt, the farmer's listing, deal, payment, delivery.
     function _sell(uint256 kg, uint256 unitPrice) internal {
         bytes32 id = bytes32(++receiptCount);
         vm.prank(habib);
         receipts.issueReceipt(id, MAIZE, "MAIZE", kg, uint64(block.timestamp + 365 days), keccak256("i"));
-        bytes32 wegro = receipts.WEGRO();
         vm.prank(imran);
-        receipts.offerHandover(id, wegro);
-        vm.prank(admin);
-        receipts.acceptHandover(id);
-        vm.prank(admin);
         uint256 listing = trade.listReceipt(id, unitPrice);
         vm.prank(sabbir);
         uint256 offer = trade.makeOffer(listing, kg, unitPrice);
@@ -329,17 +324,50 @@ contract SettlementLedgerTest is Test {
         _prepare(true);
     }
 
+    function test_BuyBackCountsAsIncome() public {
+        _inputs();
+        _sell(2_000, 30 * TK); // Tk 60,000 sold to a buyer
+        vm.prank(habib);
+        receipts.issueReceipt("BB", MAIZE, "MAIZE", 5_000, uint64(block.timestamp + 365 days), keccak256("i"));
+        bytes32 wegro = receipts.WEGRO();
+        vm.prank(imran);
+        receipts.offerHandover("BB", wegro);
+        _readyForSale();
+        vm.prank(farhana); // the offer is still the project's stored crop
+        vm.expectRevert(_outstanding("STORED_CROP"));
+        settlement.prepareRound(MAIZE, true);
+
+        vm.prank(admin); // WeGro buys 5,000 kg at Tk 28: Tk 140,000
+        receipts.acceptHandover("BB", 28 * TK);
+        assertEq(_income(), 200_000 * TK);
+        // WeGro still holds the crop, but the final payout no longer waits for it.
+        uint256 id = _prepare(true);
+        SettlementLedger.Round memory r = settlement.getRound(id);
+        assertEq(r.income, 200_000 * TK);
+        assertEq(r.profit, 50_000 * TK); // minus 150,000 inputs
+
+        // WeGro's later sale of its own crop leaves the project's figures alone.
+        vm.prank(admin);
+        uint256 listing = trade.listReceipt("BB", 33 * TK);
+        vm.prank(sabbir);
+        uint256 offer = trade.makeOffer(listing, 5_000, 33 * TK);
+        vm.prank(admin);
+        trade.approveOffer(offer);
+        vm.prank(farhana);
+        trade.confirmBuyerPayment(offer, "WEGRO-SALE");
+        vm.prank(habib);
+        trade.confirmDelivery(offer, 5_000, keccak256("q"));
+        vm.prank(sabbir);
+        trade.confirmDelivery(offer, 5_000, keccak256("q"));
+        assertEq(_income(), 200_000 * TK);
+    }
+
     function test_FinalWaitsForDelivery() public {
         _inputs();
         vm.prank(habib);
         receipts.issueReceipt("R", MAIZE, "MAIZE", 1_000, uint64(block.timestamp + 365 days), keccak256("i"));
-        bytes32 wegro = receipts.WEGRO();
         vm.prank(imran);
-        receipts.offerHandover("R", wegro);
-        vm.startPrank(admin);
-        receipts.acceptHandover("R");
         uint256 listing = trade.listReceipt("R", 30 * TK);
-        vm.stopPrank();
         vm.prank(sabbir);
         uint256 offer = trade.makeOffer(listing, 1_000, 30 * TK);
         vm.prank(admin);

@@ -6,7 +6,10 @@ import {
   Index,
   PrimaryColumn,
 } from 'typeorm';
-import { numericBigintTransformer } from '../../../database/transformers';
+import {
+  bigintTransformer,
+  numericBigintTransformer,
+} from '../../../database/transformers';
 import { ReceiptStatus } from '../warehouse.enums';
 
 /**
@@ -25,6 +28,10 @@ import { ReceiptStatus } from '../warehouse.enums';
   `"status" IN ('submitted', 'issued', 'pending_handover', 'listed', 'sold', 'collected', 'sold_out')`,
 )
 @Check('ck_warehouse_receipts_owner', `("owner_id" IS NULL) = "owner_is_wegro"`)
+@Check(
+  'ck_warehouse_receipts_buy_back',
+  `("buy_back_unit_price" IS NULL) = ("buy_back_amount" IS NULL) AND ("buy_back_unit_price" IS NULL) = ("buy_back_quantity" IS NULL) AND ("buy_back_unit_price" IS NULL OR ("buy_back_unit_price" > 0 AND "buy_back_quantity" > 0 AND "buy_back_amount" = "buy_back_unit_price" * "buy_back_quantity"))`,
+)
 @Check(
   'ck_warehouse_receipts_quantity',
   `"quantity" >= 0 AND "quantity" <= "original_quantity" AND ("quantity" > 0 OR "status" = 'sold_out')`,
@@ -108,6 +115,27 @@ export class WarehouseReceipt {
 
   @Column({ type: 'timestamptz', nullable: true })
   collectedAt: Date | null;
+
+  // --- Buy-back: WeGro bought the farmer's crop (the project's sale income) ---
+
+  /** Poisha per unit WeGro paid; null unless bought back. */
+  @Column({ type: 'bigint', nullable: true, transformer: bigintTransformer })
+  buyBackUnitPrice: bigint | null;
+
+  /** Units held under the receipt when WeGro bought it. */
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    transformer: numericBigintTransformer,
+  })
+  buyBackQuantity: number | null;
+
+  /** Poisha: buyBackQuantity x the unit price. */
+  @Column({ type: 'bigint', nullable: true, transformer: bigintTransformer })
+  buyBackAmount: bigint | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  boughtBackAt: Date | null;
 
   @Column({
     type: 'bigint',
