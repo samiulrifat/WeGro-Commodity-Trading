@@ -154,6 +154,9 @@ export type NotificationKind =
   | 'claim.rejected'
   | 'claim.payment-due'
   | 'claim.paid'
+  | 'claim-proof.submitted'
+  | 'claim-proof.accepted'
+  | 'claim-proof.rejected'
   | 'insurer.assigned'
   | 'weather.recorded'
   | 'round.prepared'
@@ -182,7 +185,8 @@ export type NotificationKind =
   | 'system.indexer-failing'
   | 'system.resolved'
   | 'system.proof-file-altered'
-  | 'system.deal-proof-file-altered';
+  | 'system.deal-proof-file-altered'
+  | 'system.claim-proof-file-altered';
 export type RecordLinkDto = {
   type: string;
   id: string;

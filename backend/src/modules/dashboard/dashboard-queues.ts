@@ -307,6 +307,20 @@ const QUEUES: QueueDef[] = [
              WHERE c.status IN ('triggered', 'under_review') ORDER BY c.opened_at LIMIT 5`,
   },
   {
+    key: 'claim-proofs.pending',
+    title: 'Insurers’ payment proofs to review',
+    actionBy: 'accounts',
+    roles: ACCOUNTS,
+    count: `SELECT COUNT(*) AS n FROM claim_proofs WHERE status = 'pending'`,
+    items: `SELECT f.id::text AS id, 'Proof for a claim' AS title, NULL AS detail,
+                   f.insurer_id AS person_id, c.project_id, p.title AS project_title, f.created_at AS since,
+                   json_build_object('amount', f.amount::text) AS params
+              FROM claim_proofs f
+              JOIN insurance_claims c ON c.id = f.claim_id
+              JOIN projects p ON p.id = c.project_id
+             WHERE f.status = 'pending' ORDER BY f.created_at LIMIT 5`,
+  },
+  {
     key: 'claims.payment-due',
     title: "Approved insurance claims waiting for the insurer's payment",
     actionBy: 'Accounts',

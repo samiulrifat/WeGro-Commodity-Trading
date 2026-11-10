@@ -488,6 +488,8 @@ export const en = {
       NOT_AN_INSURER: 'Only a verified insurer can be assigned.',
       CLAIM_PAYMENT_RECORDING:
         'This claim’s payment is already being recorded.',
+      CLAIM_PROOFS_TO_REVIEW:
+        'This claim has payment proofs: review them instead.',
       NOT_INSURED: 'This project is not insured.',
       OTHER_INSURER: 'This project is assigned to another insurer.',
       INSURANCE_PROJECT_STAGE:
@@ -619,6 +621,21 @@ export const en = {
       },
       refunded: {
         title: '{{amount, taka}} sent for deal #{{offerId}} was refunded',
+      },
+    },
+    'claim-proof': {
+      submitted: {
+        title:
+          'Insurer’s payment proof of {{amount, taka}} for a claim on {{project}} awaiting review',
+      },
+      accepted: {
+        title:
+          'Your payment of {{amount, taka}} for the claim on {{project}} is accepted',
+      },
+      rejected: {
+        title:
+          'Your payment proof for the claim on {{project}} was not accepted',
+        body: '{{reason}}',
       },
     },
     'payment-proof': {
@@ -925,6 +942,11 @@ export const en = {
           'A payment proof file for deal #{{offerId}} no longer matches the one sent',
         body: 'It is not shown to anyone. Check the stored files for tampering or damage.',
       },
+      'claim-proof-file-altered': {
+        title:
+          'A payment proof file for a claim on {{project}} no longer matches the one sent',
+        body: 'It is not shown to anyone. Check the stored files for tampering or damage.',
+      },
       'proof-file-altered': {
         title:
           'A payment proof file for booking #{{reservationId}} no longer matches the one sent',
@@ -996,6 +1018,7 @@ export const en = {
       platformFees: 'Platform Fees',
       insuredProjects: 'Insured Projects',
       claims: 'Claims',
+      insurerPayments: 'Insurer Payments',
       recordedEvents: 'Weather Events',
       payoutRounds: 'Payout Rounds',
       settleProjects: 'Project Settlement',
@@ -2973,7 +2996,7 @@ export const en = {
     decidedAt: 'Decided On',
     paidAt: 'Insurer Paid',
     paymentDueText:
-      'Approved. It counts for the farmer and investors once Accounts records the insurer’s payment.',
+      'Approved. The insurer pays WeGro and sends proof; it counts for the farmer and investors once Accounts accepts the payment.',
     remainingHint: 'Cover remaining: {{remaining}}.',
     rejectedText: 'The insurer rejected this claim.',
     step: {
@@ -2988,26 +3011,57 @@ export const en = {
         'Start the review, or reject the claim if there is clearly no loss.',
       under_review:
         'Approve an amount within the cover remaining, or reject it.',
-      approved: 'Record the insurer’s payment when it reaches WeGro’s account.',
+      approved:
+        'If the insurer paid without sending proof, record the payment once it reaches WeGro’s account.',
     },
+    payManageText:
+      'Send the remaining amount to WeGro’s account, then upload the proof. Accounts checks it against the bank statement.',
+    stillToPay: 'You still need to pay {{amount}} for this claim.',
+    uploadText:
+      'Send what the bank gave you. Accounts checks it against the statement; the claim is paid once accepted payments cover the approved amount.',
     claimMove: {
       review: 'Start Review',
       approve: 'Approve Claim',
       reject: 'Reject Claim',
+      pay: 'Upload Payment Proof',
       payment: 'Record Insurer’s Payment',
     },
     claimMoved: {
       review: 'Review started.',
-      approve: 'Claim approved. Accounts records the payment when it arrives.',
+      approve:
+        'Claim approved. Pay WeGro the amount and upload the proof here.',
       reject: 'Claim rejected.',
       payment: 'Payment recorded. It now counts for the project.',
     },
     reviewText: 'The officer and the farmer see that you are reviewing it.',
     decideText: {
       approve:
-        'Your assessment and the amount are fingerprinted on the ledger. WeGro collects the money from you.',
+        'Your assessment and the amount are fingerprinted on the ledger. You then pay WeGro and upload the proof.',
       reject:
         'Your assessment is fingerprinted on the ledger; the officer and farmer see it.',
+    },
+    payments: {
+      intro:
+        'Payment proofs insurers sent for approved claims, oldest first. Check each against the bank statement; accepting it records the statement reference.',
+      tab: {
+        pending: 'Waiting',
+        accepted: 'Accepted',
+        rejected: 'Rejected',
+        claims: 'Claims Awaiting Payment',
+      },
+      search: 'Name, mobile number or NID of the insurer',
+      none: {
+        pending: 'No proofs are waiting.',
+        accepted: 'No accepted proofs yet.',
+        rejected: 'No rejected proofs.',
+        claims: 'No claims are awaiting payment.',
+      },
+      proofs: 'Payments Sent',
+      claimOn: 'Claim on {{project}}',
+      acceptText:
+        'Only when this money is on the bank statement. When accepted payments cover the approved amount, the claim is paid on the ledger and counts for the project.',
+      rejectText: 'The insurer is told why and can send another.',
+      rejected: 'Rejected: the insurer is told why.',
     },
     paymentText:
       'Confirm that {{insurer}}’s {{amount}} reached WeGro’s account. The reference is kept encrypted; the ledger keeps only its fingerprint.',
@@ -3653,6 +3707,7 @@ export const en = {
       'voucher-sales': { pending: 'Input Sales Awaiting the Field Officer' },
       offers: { pending: 'Offers Awaiting Approval' },
       'deal-proofs': { pending: 'Buyer Payment Proofs to Review' },
+      'claim-proofs': { pending: 'Insurer Payment Proofs to Review' },
       deals: { 'awaiting-payment': 'Deals Awaiting the Buyer’s Payment' },
       deliveries: { discrepancy: 'Deliveries That Do Not Match' },
       handovers: { pending: 'Buy-Back Handovers Awaiting an Admin' },
@@ -3705,6 +3760,7 @@ export const en = {
       finalDue: 'Final payout due ({{produce}})',
       claimOpen: 'Claim, {{status}}: {{damage}}% damage',
       claimPaymentDue: 'Approved claim of {{amount}}',
+      claimProof: '{{amount}} sent for a claim',
     },
     fundingTitle: 'Funding Progress',
     fundingText_one:

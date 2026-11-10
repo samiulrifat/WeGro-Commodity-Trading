@@ -169,6 +169,7 @@ export type SubLabel =
   | 'platformFees'
   | 'insuredProjects'
   | 'claims'
+  | 'insurerPayments'
   | 'recordedEvents'
   | 'payoutRounds'
   | 'settleProjects'
@@ -221,6 +222,7 @@ export type SubPath =
   | '/marketplace/fees'
   | '/insurance'
   | '/insurance/claims'
+  | '/insurance/payments'
   | '/insurance/weather-events'
   | '/payouts'
   | '/payouts/projects'
@@ -319,9 +321,17 @@ const WHOLE_MARKETPLACE = [
 const INSURED_PROJECTS = sub('/insurance', 'insuredProjects');
 const CLAIMS = sub('/insurance/claims', 'claims');
 const RECORDED_EVENTS = sub('/insurance/weather-events', 'recordedEvents');
+/** Insurers' payment proofs for approved claims: for those who check payments. */
+const INSURER_PAYMENTS = sub('/insurance/payments', 'insurerPayments');
 const insurance = (...pages: SubPage[]) =>
   item('insurance', 'insurance', pages);
 const WHOLE_INSURANCE = insurance(INSURED_PROJECTS, CLAIMS, RECORDED_EVENTS);
+const OFFICE_INSURANCE = insurance(
+  INSURED_PROJECTS,
+  CLAIMS,
+  INSURER_PAYMENTS,
+  RECORDED_EVENTS,
+);
 /** Payouts: rounds to approve and pay, each project's settlement, costs and reports. */
 const PAYOUTS = item('payouts', 'payouts', [
   sub('/payouts', 'payoutRounds'),
@@ -364,7 +374,7 @@ const OFFICE: NavItem[] = [
   OFFICE_VOUCHERS,
   WAREHOUSE,
   marketplace(...WHOLE_MARKETPLACE),
-  WHOLE_INSURANCE,
+  OFFICE_INSURANCE,
   PAYOUTS,
   OFFICE_TRACK_RECORDS,
   catalog(...WHOLE_CATALOG),
@@ -411,7 +421,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
       FEES,
     ),
     WAREHOUSE,
-    insurance(CLAIMS, INSURED_PROJECTS, RECORDED_EVENTS),
+    insurance(CLAIMS, INSURER_PAYMENTS, INSURED_PROJECTS, RECORDED_EVENTS),
     catalog(PRODUCE, INPUTS),
     item('audit', 'audit', [LEDGER_ACTIVITY]),
   ],
@@ -423,7 +433,7 @@ export const NAV: Record<Role, readonly NavItem[]> = {
     OFFICE_VOUCHERS,
     WAREHOUSE,
     marketplace(...WHOLE_MARKETPLACE),
-    WHOLE_INSURANCE,
+    OFFICE_INSURANCE,
     PAYOUTS,
     OFFICE_TRACK_RECORDS,
     catalog(...WHOLE_CATALOG),

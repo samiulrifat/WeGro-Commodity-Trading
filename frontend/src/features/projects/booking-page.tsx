@@ -406,7 +406,8 @@ export function Proofs({
   proofs,
 }: {
   loading: boolean;
-  proofs: Pick<
+  /** A claim's proofs have no refund: it cannot end unpaid. */
+  proofs: (Pick<
     PaymentProofDto,
     | 'id'
     | 'amount'
@@ -417,9 +418,9 @@ export function Proofs({
     | 'transferredOn'
     | 'reference'
     | 'rejectionReason'
-    | 'refund'
     | 'files'
-  >[];
+  > &
+    Partial<Pick<PaymentProofDto, 'refund'>>)[];
 }) {
   const { t } = useTranslation();
   const fmt = useFormat();
@@ -452,7 +453,7 @@ export function Proofs({
                   {t('bank.reason', { reason: p.rejectionReason })}
                 </p>
               )}
-              {p.refund !== 'none' && (
+              {p.refund && p.refund !== 'none' && (
                 <p className="text-sm">{t(`booking.refund.${p.refund}`)}</p>
               )}
               <div className="flex flex-wrap gap-2">

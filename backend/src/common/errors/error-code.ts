@@ -111,6 +111,8 @@ export enum ErrorCode {
   CLAIM_NOT_FOUND = 'CLAIM_NOT_FOUND',
   /** This claim's payment is already being recorded */
   CLAIM_PAYMENT_RECORDING = 'CLAIM_PAYMENT_RECORDING',
+  /** This claim has payment proofs: review them instead */
+  CLAIM_PROOFS_TO_REVIEW = 'CLAIM_PROOFS_TO_REVIEW',
   /** No such photo on this claim */
   CLAIM_PHOTO_NOT_FOUND = 'CLAIM_PHOTO_NOT_FOUND',
   /** This claim is {status} */

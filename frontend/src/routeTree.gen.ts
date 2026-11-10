@@ -30,6 +30,7 @@ import { Route as AppFarmUpdatesDraftsRouteImport } from './routes/_app/farm-upd
 import { Route as AppFarmUpdatesSentRouteImport } from './routes/_app/farm-updates/sent'
 import { Route as AppHoldingsIndexRouteImport } from './routes/_app/holdings/index'
 import { Route as AppInsuranceIndexRouteImport } from './routes/_app/insurance/index'
+import { Route as AppInsurancePaymentsRouteImport } from './routes/_app/insurance/payments'
 import { Route as AppInsuranceWeatherEventsRouteImport } from './routes/_app/insurance/weather-events'
 import { Route as AppMarketplaceIndexRouteImport } from './routes/_app/marketplace/index'
 import { Route as AppMarketplaceApprovalsRouteImport } from './routes/_app/marketplace/approvals'
@@ -207,6 +208,11 @@ const AppHoldingsIndexRoute = AppHoldingsIndexRouteImport.update({
 const AppInsuranceIndexRoute = AppInsuranceIndexRouteImport.update({
   id: '/insurance/',
   path: '/insurance/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInsurancePaymentsRoute = AppInsurancePaymentsRouteImport.update({
+  id: '/insurance/payments',
+  path: '/insurance/payments',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInsuranceWeatherEventsRoute =
@@ -615,6 +621,7 @@ export interface FileRoutesByFullPath {
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
+  '/insurance/payments': typeof AppInsurancePaymentsRoute
   '/insurance/weather-events': typeof AppInsuranceWeatherEventsRoute
   '/marketplace/approvals': typeof AppMarketplaceApprovalsRoute
   '/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
@@ -711,6 +718,7 @@ export interface FileRoutesByTo {
   '/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/farm-updates/sent': typeof AppFarmUpdatesSentRoute
+  '/insurance/payments': typeof AppInsurancePaymentsRoute
   '/insurance/weather-events': typeof AppInsuranceWeatherEventsRoute
   '/marketplace/approvals': typeof AppMarketplaceApprovalsRoute
   '/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
@@ -809,6 +817,7 @@ export interface FileRoutesById {
   '/_app/batches/$batchId': typeof AppBatchesBatchIdRoute
   '/_app/farm-updates/drafts': typeof AppFarmUpdatesDraftsRoute
   '/_app/farm-updates/sent': typeof AppFarmUpdatesSentRoute
+  '/_app/insurance/payments': typeof AppInsurancePaymentsRoute
   '/_app/insurance/weather-events': typeof AppInsuranceWeatherEventsRoute
   '/_app/marketplace/approvals': typeof AppMarketplaceApprovalsRoute
   '/_app/marketplace/deliveries': typeof AppMarketplaceDeliveriesRoute
@@ -907,6 +916,7 @@ export interface FileRouteTypes {
     | '/batches/$batchId'
     | '/farm-updates/drafts'
     | '/farm-updates/sent'
+    | '/insurance/payments'
     | '/insurance/weather-events'
     | '/marketplace/approvals'
     | '/marketplace/deliveries'
@@ -1003,6 +1013,7 @@ export interface FileRouteTypes {
     | '/batches/$batchId'
     | '/farm-updates/drafts'
     | '/farm-updates/sent'
+    | '/insurance/payments'
     | '/insurance/weather-events'
     | '/marketplace/approvals'
     | '/marketplace/deliveries'
@@ -1100,6 +1111,7 @@ export interface FileRouteTypes {
     | '/_app/batches/$batchId'
     | '/_app/farm-updates/drafts'
     | '/_app/farm-updates/sent'
+    | '/_app/insurance/payments'
     | '/_app/insurance/weather-events'
     | '/_app/marketplace/approvals'
     | '/_app/marketplace/deliveries'
@@ -1341,6 +1353,13 @@ declare module '@tanstack/react-router' {
       path: '/insurance'
       fullPath: '/insurance/'
       preLoaderRoute: typeof AppInsuranceIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/insurance/payments': {
+      id: '/_app/insurance/payments'
+      path: '/insurance/payments'
+      fullPath: '/insurance/payments'
+      preLoaderRoute: typeof AppInsurancePaymentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/insurance/weather-events': {
@@ -1873,6 +1892,7 @@ interface AppRouteChildren {
   AppBatchesBatchIdRoute: typeof AppBatchesBatchIdRoute
   AppFarmUpdatesDraftsRoute: typeof AppFarmUpdatesDraftsRoute
   AppFarmUpdatesSentRoute: typeof AppFarmUpdatesSentRoute
+  AppInsurancePaymentsRoute: typeof AppInsurancePaymentsRoute
   AppInsuranceWeatherEventsRoute: typeof AppInsuranceWeatherEventsRoute
   AppMarketplaceApprovalsRoute: typeof AppMarketplaceApprovalsRoute
   AppMarketplaceDeliveriesRoute: typeof AppMarketplaceDeliveriesRoute
@@ -1963,6 +1983,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBatchesBatchIdRoute: AppBatchesBatchIdRoute,
   AppFarmUpdatesDraftsRoute: AppFarmUpdatesDraftsRoute,
   AppFarmUpdatesSentRoute: AppFarmUpdatesSentRoute,
+  AppInsurancePaymentsRoute: AppInsurancePaymentsRoute,
   AppInsuranceWeatherEventsRoute: AppInsuranceWeatherEventsRoute,
   AppMarketplaceApprovalsRoute: AppMarketplaceApprovalsRoute,
   AppMarketplaceDeliveriesRoute: AppMarketplaceDeliveriesRoute,

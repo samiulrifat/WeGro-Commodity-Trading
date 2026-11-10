@@ -264,7 +264,7 @@ export class InsuredProjectsQueryDto extends PaginationQueryDto {
 
 // --- Responses ---
 
-class PartyDto {
+export class PartyDto {
   @ApiProperty()
   id: string;
 
@@ -508,6 +508,27 @@ export class ClaimDto {
     description: 'Accounts, admins and auditors',
   })
   paymentReference: string | null;
+
+  @ApiPropertyOptional({
+    example: '50000.00',
+    description:
+      "Accepted so far from the insurer's proofs (the project's insurer and payment staff)",
+  })
+  paid?: string;
+
+  @ApiPropertyOptional({
+    example: '0.00',
+    description:
+      "Sent and waiting for Accounts (the project's insurer and payment staff)",
+  })
+  underReview?: string;
+
+  @ApiPropertyOptional({
+    example: '70000.00',
+    description:
+      "Still to send: the approved amount less accepted and waiting proofs (the project's insurer and payment staff)",
+  })
+  remaining?: string;
 
   @ApiProperty()
   claimHash: string;

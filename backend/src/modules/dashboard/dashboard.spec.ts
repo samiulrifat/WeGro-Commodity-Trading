@@ -35,7 +35,7 @@ describe('queues by role', () => {
 
   it('gives the super admin and the auditor every queue', () => {
     const all = keys(Role.SUPER_ADMIN);
-    expect(all).toHaveLength(17);
+    expect(all).toHaveLength(18);
     expect(keys(Role.AUDITOR)).toEqual(all);
   });
 
@@ -49,6 +49,7 @@ describe('queues by role', () => {
       'rounds.awaiting-approval',
       'rounds.unpaid',
       'projects.ready-for-settlement',
+      'claim-proofs.pending',
       'claims.payment-due',
     ]);
   });
@@ -66,6 +67,6 @@ describe('queues by role', () => {
     expect(participants.key).toBe('participants.pending');
     expect(participants.count).toContain('NOT IN');
     expect(queuesFor(Role.SUPER_ADMIN)[0].count).not.toContain('NOT IN');
-    expect(keys(Role.ADMIN)).toHaveLength(17);
+    expect(keys(Role.ADMIN)).toHaveLength(18);
   });
 });

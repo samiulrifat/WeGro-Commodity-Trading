@@ -44,17 +44,26 @@ import {
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { PayTo } from '@/features/projects/booking-page';
+import { ProofDialog } from '@/features/projects/proof-dialog';
 import { toPoisha, typedTaka } from '@/features/projects/project-math';
 import { useFormat } from '@/i18n/use-format';
 import { usePhotoPicks } from '@/lib/use-photo-picks';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
-import { FRESH, type Severity, typedPercent } from './insurance-utils';
+import { useClaimProofsSubmitMutation } from './api';
+import { ClaimPayment } from './claim-payment';
+import {
+  FRESH,
+  paysThis,
+  type Severity,
+  typedPercent,
+} from './insurance-utils';
 import { ClaimStatusPill, SeverityPill } from './status';
 import { useDistrictName, useEventTypeName } from './use-names';
 import { HistoryButton } from '@/features/audit/history-button';
 
-type Move = 'review' | 'approve' | 'reject' | 'payment';
+type Move = 'review' | 'approve' | 'reject' | 'pay' | 'payment';
 const STEPS = ['opened', 'under_review', 'approved', 'paid'] as const;
 const REACHED: Record<ClaimDto['status'], number> = {
   submitted: -1,
@@ -71,6 +80,7 @@ const REACHED: Record<ClaimDto['status'], number> = {
  */
 export function ClaimPage({ id }: { id: string }) {
   const { t } = useTranslation();
+  const user = useAppSelector((s) => s.session.user!);
   const query = useInsuranceClaimQuery({ id }, FRESH);
   const back = (
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -105,10 +115,12 @@ export function ClaimPage({ id }: { id: string }) {
         <div className="grid gap-6">
           <Reported claim={c} />
           <Assessment claim={c} />
+          <ClaimPayment claim={c} />
         </div>
         {/* On phones the moves come first, before the details. */}
         <div className="grid gap-6 max-lg:order-first">
           <Moves claim={c} />
+          {canPay(c, user.id) && <PayTo amount={c.remaining!} />}
           <Money claim={c} />
           <Progress claim={c} />
         </div>
@@ -368,16 +380,31 @@ function Progress({ claim: c }: { claim: ClaimDto }) {
   );
 }
 
+/** The insurer has money still to send on an approved claim. */
+function canPay(c: ClaimDto, userId: string): boolean {
+  return (
+    paysThis(c, userId) &&
+    c.status === 'approved' &&
+    !!c.remaining &&
+    toPoisha(c.remaining) > 0n
+  );
+}
+
 /** Each role's moves at this status; the ledger checks them again. */
 function Moves({ claim: c }: { claim: ClaimDto }) {
   const { t } = useTranslation();
   const user = useAppSelector((s) => s.session.user!);
   const [open, setOpen] = useState<Move | null>(null);
+  const [submitProof] = useClaimProofsSubmitMutation();
   const insurer = user.role === 'insurer' && c.insurer?.id === user.id;
   const moves: Move[] = [];
   if (insurer && c.status === 'triggered') moves.push('review', 'reject');
   if (insurer && c.status === 'under_review') moves.push('approve', 'reject');
-  if (actsAs(user.role, 'accounts') && c.status === 'approved')
+  if (insurer && canPay(c, user.id)) moves.push('pay');
+  // Paid without a proof in the app; once there are proofs, they decide it.
+  const nothingSent =
+    toPoisha(c.paid ?? '0') === 0n && toPoisha(c.underReview ?? '0') === 0n;
+  if (actsAs(user.role, 'accounts') && c.status === 'approved' && nothingSent)
     moves.push('payment');
   if (moves.length === 0) return null;
   return (
@@ -385,7 +412,9 @@ function Moves({ claim: c }: { claim: ClaimDto }) {
       <CardHeader>
         <CardTitle className="text-lg">{t('insurance.manage')}</CardTitle>
         <CardDescription>
-          {t(`insurance.claimManageText.${c.status as 'triggered'}`)}
+          {insurer && c.status === 'approved'
+            ? t('insurance.payManageText')
+            : t(`insurance.claimManageText.${c.status as 'triggered'}`)}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
@@ -404,6 +433,14 @@ function Moves({ claim: c }: { claim: ClaimDto }) {
       )}
       {(open === 'approve' || open === 'reject') && (
         <DecideDialog claim={c} move={open} onClose={() => setOpen(null)} />
+      )}
+      {open === 'pay' && (
+        <ProofDialog
+          remaining={c.remaining!}
+          text={t('insurance.uploadText')}
+          onSubmit={(body) => submitProof({ id: c.id, body }).unwrap()}
+          onClose={() => setOpen(null)}
+        />
       )}
       {open === 'payment' && (
         <PaymentDialog claim={c} onClose={() => setOpen(null)} />

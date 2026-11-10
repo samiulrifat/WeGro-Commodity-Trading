@@ -167,6 +167,10 @@ export function useItemText() {
           damage: fmt.number(str(p, 'damage')),
         });
       }
+      case 'claim-proofs.pending':
+        return t('dashboard.item.claimProof', {
+          amount: fmt.taka(str(p, 'amount')),
+        });
       case 'claims.payment-due':
         return t('dashboard.item.claimPaymentDue', {
           amount: fmt.taka(str(p, 'amount')),

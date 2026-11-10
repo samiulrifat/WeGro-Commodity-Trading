@@ -32,7 +32,7 @@ import { photoHash, PhotosService } from '../field-records/photos.service';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectViews } from '../projects/project-views';
 import { PersonSearch } from '../users/person-search';
-import { actsAs, Role } from '../users/roles';
+import { actsAs, holdsRole, Role } from '../users/roles';
 import type {
   ApproveClaimDto,
   AssessmentDto,
@@ -265,9 +265,9 @@ export class ClaimsService {
   }
 
   /**
-   * Accounts records that the insurer paid an approved claim to WeGro. The
-   * reference is kept encrypted, and the ledger keeps its keyed hash. Each
-   * reference is used once.
+   * Accounts records a claim paid without proofs in the app (the insurer's
+   * proofs are accepted one by one instead, which record the payment when
+   * they add up).
    */
   async recordPayment(
     actor: AuthUser,
@@ -283,6 +283,23 @@ export class ClaimsService {
         code: ErrorCode.PAYMENT_REF_INVALID,
       });
     }
+    const { paid, underReview } = (await this.payments([id])).get(id) ?? NONE;
+    if (paid > 0n || underReview > 0n) {
+      throw new ConflictException({
+        message: 'This claim has payment proofs: review them instead',
+        code: ErrorCode.CLAIM_PROOFS_TO_REVIEW,
+      });
+    }
+    return this.payWith(actor, id, ref);
+  }
+
+  /**
+   * The insurer paid an approved claim to WeGro. The reference (already
+   * normalised; several proofs' are combined by the caller) is kept
+   * encrypted, and the ledger keeps its keyed hash. Each reference is used
+   * once.
+   */
+  async payWith(actor: AuthUser, id: string, ref: string): Promise<ClaimDto> {
     const hash = hashPaymentRef(ref, this.paymentRefSecret);
     const claim = await this.claims.findOneBy({ id });
     if (!claim || claim.status === ClaimStatus.SUBMITTED) {
@@ -343,6 +360,29 @@ export class ClaimsService {
       throw error;
     }
     return this.findOne(actor, id);
+  }
+
+  /** Per claim: the insurer's proofs accepted so far, and those waiting for Accounts (poisha). */
+  async payments(
+    ids: string[],
+  ): Promise<Map<string, { paid: bigint; underReview: bigint }>> {
+    if (ids.length === 0) return new Map();
+    const rows: Array<{ claim_id: string; paid: string; review: string }> =
+      await this.claims.query(
+        `SELECT claim_id,
+                COALESCE(SUM(amount) FILTER (WHERE status = 'accepted'), 0) AS paid,
+                COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0) AS review
+           FROM claim_proofs
+          WHERE claim_id = ANY($1::uuid[])
+          GROUP BY claim_id`,
+        [ids],
+      );
+    return new Map(
+      rows.map((r) => [
+        r.claim_id,
+        { paid: BigInt(r.paid), underReview: BigInt(r.review) },
+      ]),
+    );
   }
 
   async list(
@@ -623,6 +663,18 @@ export class ClaimsService {
       ...[...insurers.values()].map((a) => a.insurerId),
     ]);
     const seesPayments = SEES_PAYMENTS.has(actor.role);
+    // The money sent so far: for payment staff, and the insurer of each claim.
+    const money = await this.payments(
+      rows
+        .filter(
+          (c) =>
+            c.approvedAmount !== null &&
+            (seesPayments ||
+              (holdsRole(actor, Role.INSURER) &&
+                insurers.get(c.projectId)?.insurerId === actor.id)),
+        )
+        .map((c) => c.id),
+    );
     return rows.map((c) => {
       const decided =
         c.status === ClaimStatus.APPROVED ||
@@ -665,7 +717,29 @@ export class ClaimsService {
             : null,
         claimHash: c.claimHash,
         assessmentHash: decided ? c.assessmentHash : null,
+        ...(c.approvedAmount !== null &&
+          (seesPayments ||
+            (holdsRole(actor, Role.INSURER) &&
+              insurer?.insurerId === actor.id)) &&
+          moneyOf(c.approvedAmount, money.get(c.id) ?? NONE, c.status)),
       };
     });
   }
+}
+
+const NONE = { paid: 0n, underReview: 0n };
+
+/** Where an approved claim's money stands; a claim paid outright counts as paid in full. */
+function moneyOf(
+  approved: bigint,
+  m: { paid: bigint; underReview: bigint },
+  status: ClaimStatus,
+): { paid: string; underReview: string; remaining: string } {
+  const paid = status === ClaimStatus.PAID && m.paid === 0n ? approved : m.paid;
+  const left = approved - paid - m.underReview;
+  return {
+    paid: poishaToTaka(paid),
+    underReview: poishaToTaka(m.underReview),
+    remaining: poishaToTaka(left > 0n ? left : 0n),
+  };
 }

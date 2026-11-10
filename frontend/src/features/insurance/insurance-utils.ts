@@ -34,3 +34,7 @@ export const coverState = (
 /** The same for a project's full insurance view. */
 export const coverStateOf = (c: Pick<CoverageDto, 'insurer' | 'current'>) =>
   coverState({ insurer: c.insurer, maxAmount: c.current?.maxAmount });
+
+/** The project's insurer, who pays WeGro for an approved claim. */
+export const paysThis = (c: Pick<ClaimDto, 'insurer'>, userId: string) =>
+  c.insurer?.id === userId;

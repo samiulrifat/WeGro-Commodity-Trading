@@ -167,6 +167,72 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ['Insurance'],
       }),
+      claimProofsSubmit: build.mutation<
+        ClaimProofsSubmitApiResponse,
+        ClaimProofsSubmitApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/insurance/claims/${queryArg.id}/proofs`,
+          method: 'POST',
+          body: queryArg.body,
+        }),
+        invalidatesTags: ['Insurance'],
+      }),
+      claimProofsForClaim: build.query<
+        ClaimProofsForClaimApiResponse,
+        ClaimProofsForClaimApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/insurance/claims/${queryArg.id}/proofs`,
+        }),
+        providesTags: ['Insurance'],
+      }),
+      claimProofsList: build.query<
+        ClaimProofsListApiResponse,
+        ClaimProofsListApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/claim-proofs`,
+          params: {
+            page: queryArg.page,
+            limit: queryArg.limit,
+            status: queryArg.status,
+            q: queryArg.q,
+          },
+        }),
+        providesTags: ['Insurance'],
+      }),
+      claimProofsAccept: build.mutation<
+        ClaimProofsAcceptApiResponse,
+        ClaimProofsAcceptApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/claim-proofs/${queryArg.id}/accept`,
+          method: 'POST',
+          body: queryArg.acceptProofDto,
+        }),
+        invalidatesTags: ['Insurance'],
+      }),
+      claimProofsReject: build.mutation<
+        ClaimProofsRejectApiResponse,
+        ClaimProofsRejectApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/claim-proofs/${queryArg.id}/reject`,
+          method: 'POST',
+          body: queryArg.rejectProofDto,
+        }),
+        invalidatesTags: ['Insurance'],
+      }),
+      claimProofsFile: build.query<
+        ClaimProofsFileApiResponse,
+        ClaimProofsFileApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/claim-proofs/files/${queryArg.fileId}`,
+        }),
+        providesTags: ['Insurance'],
+      }),
     }),
     overrideExisting: false,
   });
@@ -295,6 +361,61 @@ export type InsuranceRecordPaymentApiResponse =
 export type InsuranceRecordPaymentApiArg = {
   id: string;
   paymentReferenceDto: PaymentReferenceDto;
+};
+export type ClaimProofsSubmitApiResponse =
+  /** status 201 Under review until Accounts decides */ {
+    data: ClaimProofDto;
+  };
+export type ClaimProofsSubmitApiArg = {
+  id: string;
+  body: {
+    /** 1 to 3 photos or PDFs, up to 10 MB each */
+    files: Blob[];
+    amount: string;
+    transferredOn: string;
+    method: 'bank_deposit' | 'cash' | 'cheque';
+    /** The branch paid from (deposit or cheque) */
+    routingNumber?: string;
+    reference?: string;
+    note?: string;
+  };
+};
+export type ClaimProofsForClaimApiResponse = /** status 200 Newest first */ {
+  data: ClaimProofDto[];
+};
+export type ClaimProofsForClaimApiArg = {
+  id: string;
+};
+export type ClaimProofsListApiResponse =
+  /** status 200 Waiting ones oldest first */ {
+    data: ClaimProofDto[];
+    meta: PageMetaDto;
+  };
+export type ClaimProofsListApiArg = {
+  page?: number;
+  limit?: number;
+  status?: ProofStatus;
+  /** Whose: the insurer’s mobile number, NID, or whole words of their name */
+  q?: string;
+};
+export type ClaimProofsAcceptApiResponse =
+  /** status 200 When accepted proofs cover the approved amount, the claim's payment is recorded on the ledger */ {
+    data: ClaimProofDto;
+  };
+export type ClaimProofsAcceptApiArg = {
+  id: string;
+  acceptProofDto: AcceptProofDto;
+};
+export type ClaimProofsRejectApiResponse = /** status 200  */ {
+  data: ClaimProofDto;
+};
+export type ClaimProofsRejectApiArg = {
+  id: string;
+  rejectProofDto: RejectProofDto;
+};
+export type ClaimProofsFileApiResponse = unknown;
+export type ClaimProofsFileApiArg = {
+  fileId: string;
 };
 export type PartyDto = {
   id: string;
@@ -490,6 +611,12 @@ export type ClaimDto = {
   paidAt?: string | null;
   /** Accounts, admins and auditors */
   paymentReference?: string | null;
+  /** Accepted so far from the insurer's proofs (the project's insurer and payment staff) */
+  paid?: string;
+  /** Sent and waiting for Accounts (the project's insurer and payment staff) */
+  underReview?: string;
+  /** Still to send: the approved amount less accepted and waiting proofs (the project's insurer and payment staff) */
+  remaining?: string;
   claimHash: string;
   assessmentHash?: string | null;
 };
@@ -524,6 +651,62 @@ export type AssessmentDto = {
 export type PaymentReferenceDto = {
   paymentReference: string;
 };
+export type PersonRefDto = {
+  id: string;
+  fullName: string;
+};
+export type PaymentMethod = 'bank_deposit' | 'cash' | 'cheque';
+export type ProofFileDto = {
+  id: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+};
+export type ProofStatus = 'pending' | 'accepted' | 'rejected';
+export type ProofDecisionDto = {
+  by?: PersonRefDto | null;
+  at?: string | null;
+};
+export type ClaimProofDto = {
+  id: string;
+  claimId: string;
+  project: PartyDto;
+  insurer: PersonRefDto;
+  amount: string;
+  /** What the insurer pays in all: the approved amount */
+  claimTotal: string;
+  claimStatus:
+    | 'submitted'
+    | 'triggered'
+    | 'under_review'
+    | 'approved'
+    | 'rejected'
+    | 'paid';
+  transferredOn: string;
+  method: PaymentMethod;
+  bankName?: string | null;
+  branchName?: string | null;
+  districtName?: string | null;
+  routingNumber?: string | null;
+  /** As the insurer typed it */
+  reference?: string | null;
+  note?: string | null;
+  files: ProofFileDto[];
+  status: ProofStatus;
+  submittedAt: string;
+  decided: ProofDecisionDto;
+  rejectionReason?: string | null;
+  /** The statement reference Accounts verified (Accounts, admin and auditor only) */
+  verifiedReference?: string | null;
+};
+export type AcceptProofDto = {
+  /** The reference on the bank statement; used once */
+  paymentReference: string;
+};
+export type RejectProofDto = {
+  /** The investor reads this */
+  reason: string;
+};
 export const {
   useInsuranceInsuredProjectsQuery,
   useLazyInsuranceInsuredProjectsQuery,
@@ -545,4 +728,13 @@ export const {
   useInsuranceApproveMutation,
   useInsuranceRejectMutation,
   useInsuranceRecordPaymentMutation,
+  useClaimProofsSubmitMutation,
+  useClaimProofsForClaimQuery,
+  useLazyClaimProofsForClaimQuery,
+  useClaimProofsListQuery,
+  useLazyClaimProofsListQuery,
+  useClaimProofsAcceptMutation,
+  useClaimProofsRejectMutation,
+  useClaimProofsFileQuery,
+  useLazyClaimProofsFileQuery,
 } = injectedRtkApi;

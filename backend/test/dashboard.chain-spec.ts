@@ -250,7 +250,7 @@ describe('Dashboard (node + database)', () => {
 
   it('lists every queue the admin acts on, oldest first, with names', async () => {
     const d = await dashboard(t.admin);
-    expect(d.queues).toHaveLength(17);
+    expect(d.queues).toHaveLength(18);
     const people = queue(d, 'participants.pending');
     expect(people.count).toBe(1);
     expect(people.oldest[0]).toMatchObject({
@@ -312,6 +312,7 @@ describe('Dashboard (node + database)', () => {
       'rounds.unpaid',
       'projects.ready-for-settlement',
       'claims.open',
+      'claim-proofs.pending',
       'claims.payment-due',
     ]) {
       expect(queue(d, key)).toMatchObject({ count: 0, oldest: [] });
@@ -330,6 +331,7 @@ describe('Dashboard (node + database)', () => {
       'rounds.awaiting-approval',
       'rounds.unpaid',
       'projects.ready-for-settlement',
+      'claim-proofs.pending',
       'claims.payment-due',
     ]);
     expect(await keys(t.operations)).toEqual([
@@ -337,8 +339,8 @@ describe('Dashboard (node + database)', () => {
       'voucher-sales.pending',
       'vouchers.inactive',
     ]);
-    expect(await keys(t.auditor)).toHaveLength(17);
-    expect(await keys(t.super_admin)).toHaveLength(17);
+    expect(await keys(t.auditor)).toHaveLength(18);
+    expect(await keys(t.super_admin)).toHaveLength(18);
     for (const token of [t.farmer, t.investor, t.field_officer, t.buyer]) {
       await as(token).get('/dashboard').expect(403);
     }

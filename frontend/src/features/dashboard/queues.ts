@@ -18,6 +18,7 @@ export const QUEUE_KEYS = [
   'rounds.unpaid',
   'projects.ready-for-settlement',
   'claims.open',
+  'claim-proofs.pending',
   'claims.payment-due',
 ] as const;
 
@@ -65,6 +66,7 @@ export const QUEUE_LIST: Record<QueueKey, Target> = {
     search: { tab: 'ready_for_sale' },
   },
   'claims.open': { to: '/insurance/claims' },
+  'claim-proofs.pending': { to: '/insurance/payments' },
   'claims.payment-due': {
     to: '/insurance/claims',
     search: { tab: 'payment_due' },
@@ -82,6 +84,8 @@ export function itemPath(key: QueueKey, item: QueueItemDto): string | null {
       return '/projects/payments';
     case 'deal-proofs.pending':
       return '/marketplace/payments';
+    case 'claim-proofs.pending':
+      return '/insurance/payments';
     case 'reservations.pending':
     case 'voucher-sales.pending':
       return project;

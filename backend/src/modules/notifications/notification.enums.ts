@@ -121,6 +121,10 @@ export enum NotificationKind {
   CLAIM_REJECTED = 'claim.rejected',
   CLAIM_PAYMENT_DUE = 'claim.payment-due',
   CLAIM_PAID = 'claim.paid',
+  /** An insurer sent a payment proof for a claim: Accounts to review. */
+  CLAIM_PROOF_SUBMITTED = 'claim-proof.submitted',
+  CLAIM_PROOF_ACCEPTED = 'claim-proof.accepted',
+  CLAIM_PROOF_REJECTED = 'claim-proof.rejected',
   INSURER_ASSIGNED = 'insurer.assigned',
   /** To field officers whose farmers' insured crops in the district cover it. */
   WEATHER_RECORDED = 'weather.recorded',
@@ -157,4 +161,6 @@ export enum NotificationKind {
   SYSTEM_PROOF_FILE_ALTERED = 'system.proof-file-altered',
   /** The same, for a deal's payment proof. */
   SYSTEM_DEAL_PROOF_FILE_ALTERED = 'system.deal-proof-file-altered',
+  /** The same, for a claim's payment proof. */
+  SYSTEM_CLAIM_PROOF_FILE_ALTERED = 'system.claim-proof-file-altered',
 }

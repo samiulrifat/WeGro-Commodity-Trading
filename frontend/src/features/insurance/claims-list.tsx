@@ -174,7 +174,7 @@ const introKey = (role: string) =>
           : 'office';
 
 /** One claim: the event, the project, the damage, where it stands, the money. */
-function ClaimCard({ claim: c }: { claim: ClaimDto }) {
+export function ClaimCard({ claim: c }: { claim: ClaimDto }) {
   const { t } = useTranslation();
   const fmt = useFormat();
   const eventName = useEventTypeName();

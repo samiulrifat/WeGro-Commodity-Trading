@@ -49,11 +49,14 @@ const TYPES = new Set([
  */
 export function ProofDialog({
   remaining,
+  text,
   onSubmit,
   onClose,
 }: {
   /** What is left to pay. */
   remaining: string;
+  /** What happens once it is sent, when not a clock stopping. */
+  text?: string;
   onSubmit: (body: PaymentProofsSubmitApiArg['body']) => Promise<unknown>;
   onClose: () => void;
 }) {
@@ -130,7 +133,9 @@ export function ProofDialog({
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('booking.upload')}</DialogTitle>
-          <DialogDescription>{t('booking.uploadText')}</DialogDescription>
+          <DialogDescription>
+            {text ?? t('booking.uploadText')}
+          </DialogDescription>
         </DialogHeader>
         <form noValidate onSubmit={(e) => void send(e)} className="grid gap-5">
           <Field data-invalid={show('amount') || undefined}>
